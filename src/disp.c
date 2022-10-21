@@ -46,11 +46,11 @@ static void disp_expr(kl_expr *e, int indent)
     make_indent(indent);
     switch (e->nodetype) {
     case TK_VSINT:
-        printf("(int64):%lld", e->val.i64);
+        printf("(int64):%" PRId64, e->val.i64);
         if (indent > 0) printf("\n");
         break;
     case TK_VUINT:
-        printf("(uint64):%llu", e->val.u64);
+        printf("(uint64):%" PRIu64, e->val.u64);
         if (indent > 0) printf("\n");
         break;
     case TK_VDBL:
