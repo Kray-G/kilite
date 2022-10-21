@@ -16,7 +16,7 @@ if ((ctx->options & PARSER_OPT_PHASE) == PARSER_OPT_PHASE) printf("[parser] %s\n
 
 static int parse_error(kl_context *ctx, int sline, const char *phase, kl_lexer *l, const char *fmt, ...)
 {
-    printf("%d: ", sline);
+    fprintf(stderr, "%d: ", sline);
     int line = l->tokline;
     int pos = l->tokpos;
     int len = l->toklen;
