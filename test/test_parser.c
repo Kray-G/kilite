@@ -5,7 +5,7 @@
 #include <limits.h>
 
 // cl test_parser.c ..\src\lexer.c ..\src\parser.c ..\src\error.c ..\src\disp.c
-// gcc test_parser.c ../src/lexer.c ../src/parser.c ../src\error.c ../src\disp.c
+// gcc test_parser.c ../src/lexer.c ../src/parser.c ../src/error.c ../src/disp.c
 
 const char *teststr =
 "func fib(n: int64, { a, b:x }, [y,z,,last]) : ()=>int64 {\n"
