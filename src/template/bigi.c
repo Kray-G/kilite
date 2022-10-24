@@ -1,7 +1,7 @@
 #include "header.h"
 
-static BigZ i64maxp1 = BZNULL;
-static BigZ i64minm1 = BZNULL;
+BigZ i64maxp1 = BZNULL;
+BigZ i64minm1 = BZNULL;
 
 void bi_initialize(void)
 {
