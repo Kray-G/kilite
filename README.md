@@ -45,7 +45,8 @@ I will note the followings as I don't forget it.
 * [ ] Support almost all basic functionalities first.
   * [ ] Main structures of source code.
   * [ ] Class, module, function, inheritance, mix-in mechanism.
-  * [ ] Statements and Expressions.
+  * [ ] Statement and Expression.
+  * [ ] Exception.
 * [ ] Notes for a special specifications of the language.
   * [ ] The last argument of function call could be outside arguments list if it's a block.
   * [ ] Object element's direct assignment.
