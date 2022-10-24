@@ -1,8 +1,8 @@
 #include "header.h"
 
-// c2m -c alloc.c gc.c init.c main.c util.c bigi.c lib\bign.c lib\bigz.c
-// timecmd c2m alloc.bmir gc.bmir init.bmir main.bmir util.bmir bigi.bmir bign.bmir bigz.bmir sample.c -eg
-// cl -O2 -Fesample.exe alloc.c gc.c init.c main.c util.c bigi.c lib\bign.c lib\bigz.c sample.c
+// c2m -c alloc.c gc.c init.c main.c util.c bigi.c str.c hash.c lib\bign.c lib\bigz.c
+// timecmd c2m alloc.bmir gc.bmir init.bmir main.bmir util.bmir bigi.bmir hash.bmir str.bmir bign.bmir bigz.bmir sample.c -eg
+// cl -O2 -Fesample.exe alloc.c gc.c init.c main.c util.c bigi.c str.c hash.c lib\bign.c lib\bigz.c sample.c
 
 int func_fib(vmctx *ctx, vmfrm *lex, vmvar **r, int ac)
 {
@@ -90,9 +90,10 @@ void run_global(vmctx *ctx)
         global->v[1] = alcvar_int64(ctx, c, 0);
 
         vmvar *r = alcvar(ctx, VAR_INT64, 1);
+        int p = vstackp(ctx);
         push_var(ctx, global->v[1]);
         (f1->f)(ctx, f1->lex, &r, 1);
-        reduce_vstackp(ctx, 1);
+        restore_vstackp(ctx, p);
 
         if (r->t == VAR_INT64) {
             printf("fib(%d) = %lld\n", c, r->i);

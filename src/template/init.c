@@ -37,10 +37,11 @@ void finalize(vmctx *ctx)
     }\
     /**/
     FREELIST(var, {});
-    FREELIST(str, {});
-    FREELIST(bgi, {});
+    FREELIST(str, { if (v->s) free(v->s); });
+    FREELIST(bgi, { if (v->b) BzFree(v->b); });
     FREELIST(fnc, {});
     FREELIST(frm, { free(v->v); });
+    FREELIST(hsh, {});
     #undef FREELIST
 
     free(ctx->fstk);

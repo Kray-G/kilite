@@ -12,6 +12,7 @@
 #define INLINE
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #else
 #define INLINE inline
 int printf(const char *, ...);
@@ -26,7 +27,8 @@ void *malloc(size_t);
 void *calloc(size_t, size_t);
 void *memset(void *, int, size_t);
 void free(void *);
-
+char *strcpy(char *s1, const char *s2);
+int strcmp(const char *s1, const char *s2);
 #define NULL ((void*)0)
 #endif
 
@@ -35,6 +37,14 @@ void free(void *);
 #define ALC_UNIT (1024)
 #define ALC_UNIT_FRM (1024)
 #define TICK_UNIT (1024*64)
+#define STR_UNIT (32)
+#define HASH_SIZE (23)
+#define HASHITEM_EMPTY(h) ((h)->hasht = 0x00)
+#define HASHITEM_EXIST(h) ((h)->hasht = 0x01)
+#define HASHITEM_REMVD(h) ((h)->hasht = 0x02)
+#define IS_HASHITEM_EMPTY(h) ((h)->hasht == 0x00)
+#define IS_HASHITEM_EXIST(h) ((h)->hasht == 0x01)
+#define IS_HASHITEM_REMVD(h) ((h)->hasht == 0x02)
 #define VARS_MIN_IN_FRAME (32)
 #define GC_CHECK(ctx) do { if (--((ctx)->tick) == 0) mark_and_sweep(ctx); } while(0)
 
@@ -95,9 +105,22 @@ typedef struct vmstr {
     struct vmstr *chn;  /* The link in allocated object list */
 
     int32_t flags;
+    int cap;
     int len;
     char *s;
+    char *hd;
 } vmstr;
+
+typedef struct vmhsh {
+    struct vmhsh *prv;  /* The link to the previous item in alive list. */
+    struct vmhsh *liv;  /* The link to the next item in alive list. */
+    struct vmhsh *nxt;  /* The link to the next item in free list. */
+    struct vmhsh *chn;  /* The link in allocated object list */
+
+    int32_t flags;
+    int32_t sz;
+    struct vmvar *map;
+} vmhsh;
 
 typedef struct vmvar {
     struct vmvar *prv;  /* The link to the previous item in alive list. */
@@ -106,11 +129,13 @@ typedef struct vmvar {
     struct vmvar *chn;  /* The link in allocated object list */
 
     int32_t flags;
+    int32_t hasht;
     vartype t;
     int64_t i;
     double d;
     vmbgi *bi;
     vmstr *s;
+    vmhsh *h;           /* The hashmap from string to object */
     struct vmfnc *f;
     struct vmvar *a;    /* an object */
 } vmvar;
@@ -145,8 +170,6 @@ typedef struct vmfrm {
  * VM Context
 */
 typedef struct vmctx {
-    int exception;  /* Current exception that was thrown. */
-
     int tick;
     int sweep;
     int gccnt;
@@ -159,6 +182,7 @@ typedef struct vmctx {
     int fstkp;
     vmfrm **fstk;
 
+    vmvar *except;  /* Current exception that was thrown. */
 
     struct {
         vmvar var;
@@ -166,6 +190,7 @@ typedef struct vmctx {
         vmfrm frm;
         vmstr str;
         vmbgi bgi;
+        vmhsh hsh;
     } alc;
     struct {
         int var;
@@ -173,6 +198,7 @@ typedef struct vmctx {
         int frm;
         int str;
         int bgi;
+        int hsh;
     } cnt;
     struct {
         int var;
@@ -180,6 +206,7 @@ typedef struct vmctx {
         int frm;
         int str;
         int bgi;
+        int hsh;
     } fre;
 } vmctx;
 
@@ -190,13 +217,16 @@ INLINE vmfnc *alcfnc(vmctx *ctx, void *f, vmfrm *lex, int args);
 INLINE void pbakfnc(vmctx *ctx, vmfnc *p);
 INLINE vmfrm *alcfrm(vmctx *ctx, int args);
 INLINE void pbakfrm(vmctx *ctx, vmfrm *p);
-INLINE vmstr *alcstr(vmctx *ctx);
+INLINE vmstr *alcstr_str(vmctx *ctx, const char *s);
 INLINE void pbakstr(vmctx *ctx, vmstr *p);
 INLINE vmbgi *alcbgi_bigz(vmctx *ctx, BigZ bz);
 INLINE void pbakbgi(vmctx *ctx, vmbgi *p);
+INLINE vmhsh *alchsh(vmctx *ctx);
+INLINE void pbakhsh(vmctx *ctx, vmhsh *p);
 INLINE vmvar *alcvar(vmctx *ctx, vartype t, int hold);
 INLINE vmvar *alcvar_fnc(vmctx *ctx, vmfnc *f);
 INLINE vmvar *alcvar_int64(vmctx *ctx, int64_t i, int hold);
+INLINE vmvar *alcvar_str(vmctx *ctx, const char *s);
 INLINE vmvar *alcvar_bgistr(vmctx *ctx, const char *s, int radix);
 INLINE void pbakvar(vmctx *ctx, vmvar *p);
 INLINE vmvar *copy_var(vmctx *ctx, vmvar *src, int hold);
@@ -211,6 +241,19 @@ INLINE void bi_finalize(void);
 INLINE vmbgi *bi_copy(vmctx *ctx, vmbgi *src);
 INLINE void bi_print(vmbgi *b);
 INLINE void bi_str(char *buf, int max, vmbgi *b);
+
+INLINE vmstr *str_dup(vmctx *ctx, vmstr *vs);
+INLINE vmstr *str_append(vmctx *ctx, vmstr *vs, const char *s, int len);
+INLINE vmstr *str_append_cp(vmctx *ctx, vmstr *vs, const char *s);
+INLINE vmstr *str_append_str(vmctx *ctx, vmstr *vs, vmstr *s2);
+INLINE vmstr *str_ltrim(vmctx *ctx, vmstr *vs, const char *ch);
+INLINE vmstr *str_rtrim(vmctx *ctx, vmstr *vs, const char *ch);
+
+INLINE void hashmap_print(vmhsh *hsh);
+INLINE vmhsh *hashmap_create(vmhsh *h, int sz);
+INLINE vmhsh *hashmap_set(vmctx *ctx, vmhsh *hsh, const char *s, vmvar *v);
+INLINE vmhsh *hashmap_remove(vmctx *ctx, vmhsh *hsh, const char *s);
+INLINE vmvar *hashmap_search(vmhsh *hsh, const char *s);
 
 INLINE void run_global(vmctx *ctx);
 

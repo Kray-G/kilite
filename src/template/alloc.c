@@ -4,7 +4,7 @@
  * Allocators
 */
 
-void setfrmvars(vmfrm *m, int vars)
+static void setfrmvars(vmfrm *m, int vars)
 {
     if (vars < VARS_MIN_IN_FRAME) vars = VARS_MIN_IN_FRAME;
     if (!m->v) {
@@ -22,7 +22,7 @@ void setfrmvars(vmfrm *m, int vars)
 }
 
 // funcs
-void alloc_fncs(vmctx *ctx, int n)
+static void alloc_fncs(vmctx *ctx, int n)
 {
     while (n--) {
         vmfnc *v = (vmfnc *)calloc(1, sizeof(vmfnc));
@@ -75,7 +75,7 @@ void pbakfnc(vmctx *ctx, vmfnc *p)
 }
 
 // frames
-void alloc_frms(vmctx *ctx, int n)
+static void alloc_frms(vmctx *ctx, int n)
 {
     while (n--) {
         vmfrm *v = (vmfrm *)calloc(1, sizeof(vmfrm));
@@ -128,7 +128,7 @@ void pbakfrm(vmctx *ctx, vmfrm *p)
 }
 
 // string
-void alloc_strs(vmctx *ctx, int n)
+static void alloc_strs(vmctx *ctx, int n)
 {
     while (n--) {
         vmstr *s = (vmstr *)calloc(1, sizeof(vmstr));
@@ -138,7 +138,7 @@ void alloc_strs(vmctx *ctx, int n)
     }
 }
 
-vmstr *alcstr(vmctx *ctx)
+static vmstr *alcstr_pure(vmctx *ctx)
 {
     if (ctx->alc.str.nxt == &(ctx->alc.str)) {
         alloc_strs(ctx, ALC_UNIT);
@@ -156,6 +156,33 @@ vmstr *alcstr(vmctx *ctx)
     }
 
     ctx->fre.str--;
+    return v;
+}
+
+vmstr *alcstr_str(vmctx *ctx, const char *s)
+{
+    vmstr *v = alcstr_pure(ctx);
+    int len = s ? strlen(s) : 0;
+    if (v->cap > 0) {
+        if (len < v->cap) {
+            strcpy(v->s, s);
+            v->len = len;
+            v->hd = v->s;
+            return v;
+        }
+        free(v->s);
+    }
+
+    if (len == 0) {
+        v->s = v->hd = (char *)calloc(STR_UNIT, sizeof(char));
+        v->cap = STR_UNIT;
+        v->len = 0;
+        return v;
+    }
+    v->cap = (len < STR_UNIT) ? STR_UNIT : ((len / STR_UNIT) * (STR_UNIT << 1)); 
+    v->s = v->hd = (char *)calloc(v->cap, sizeof(char));
+    strcpy(v->s, s);
+    v->len = len;
     return v;
 }
 
@@ -178,7 +205,7 @@ void pbakstr(vmctx *ctx, vmstr *p)
 }
 
 // bgint
-void alloc_bgis(vmctx *ctx, int n)
+static void alloc_bgis(vmctx *ctx, int n)
 {
     while (n--) {
         vmbgi *bi = (vmbgi *)calloc(1, sizeof(vmbgi));
@@ -188,7 +215,7 @@ void alloc_bgis(vmctx *ctx, int n)
     }
 }
 
-vmbgi *alcbgi_pure(vmctx *ctx)
+static vmbgi *alcbgi_pure(vmctx *ctx)
 {
     if (ctx->alc.bgi.nxt == &(ctx->alc.bgi)) {
         alloc_bgis(ctx, ALC_UNIT);
@@ -234,8 +261,58 @@ void pbakbgi(vmctx *ctx, vmbgi *p)
     }
 }
 
+// hashmap
+static void alloc_hshs(vmctx *ctx, int n)
+{
+    while (n--) {
+        vmhsh *h = (vmhsh *)calloc(1, sizeof(vmhsh));
+        h->nxt = ctx->alc.hsh.nxt;
+        h->chn = ctx->alc.hsh.chn;
+        ctx->alc.hsh.nxt = ctx->alc.hsh.chn = h;
+    }
+}
+
+vmhsh *alchsh(vmctx *ctx)
+{
+    if (ctx->alc.hsh.nxt == &(ctx->alc.hsh)) {
+        alloc_hshs(ctx, ALC_UNIT);
+        ctx->cnt.hsh += ALC_UNIT;
+        ctx->fre.hsh += ALC_UNIT;
+    }
+    vmhsh *v = ctx->alc.hsh.nxt;
+    ctx->alc.hsh.nxt = v->nxt;
+    v->nxt = NULL;
+    v->prv = NULL;
+    v->liv = ctx->alc.hsh.liv;
+    ctx->alc.hsh.liv = v;
+    if (v->liv) {
+        v->liv->prv = v;
+    }
+
+    ctx->fre.hsh--;
+    return v;
+}
+
+void pbakhsh(vmctx *ctx, vmhsh *p)
+{
+    if (p && !p->nxt) {
+        p->nxt = ctx->alc.hsh.nxt;
+        ctx->alc.hsh.nxt = p;
+        ctx->fre.hsh++;
+
+        if (p->prv) {
+            p->prv->liv = p->liv;
+        } else {
+            ctx->alc.hsh.liv = p->liv;
+        }
+        if (p->liv) {
+            p->liv->prv = p->prv;
+        }
+    }
+}
+
 // vars
-void alloc_vars(vmctx *ctx, int n)
+static void alloc_vars(vmctx *ctx, int n)
 {
     while (n--) {
         vmvar *v = (vmvar *)calloc(1, sizeof(vmvar));
@@ -245,7 +322,7 @@ void alloc_vars(vmctx *ctx, int n)
     }
 }
 
-vmvar *alcvar_pure(vmctx *ctx, vartype t)
+static vmvar *alcvar_pure(vmctx *ctx, vartype t)
 {
     if (ctx->alc.var.nxt == &(ctx->alc.var)) {
         alloc_vars(ctx, ALC_UNIT);
@@ -293,6 +370,13 @@ vmvar *alcvar_int64(vmctx *ctx, int64_t i, int hold)
     if (hold) {
         HOLD(v);
     }
+    return v;
+}
+
+vmvar *alcvar_str(vmctx *ctx, const char *s)
+{
+    vmvar *v = alcvar_pure(ctx, VAR_BIG);
+    vmstr *r = v->s = alcstr_str(ctx, s);
     return v;
 }
 
@@ -351,7 +435,7 @@ vmvar *copy_var(vmctx *ctx, vmvar *src, int hold)
     case VAR_STR:
         v = alcvar_pure(ctx, VAR_STR);
         if (hold) HOLD(v);
-        // TODO:
+        v->s = alcstr_str(ctx, src->s->s);
         break;
     case VAR_FNC:
         v = alcvar_pure(ctx, VAR_FNC);
@@ -379,4 +463,6 @@ void initialize_allocators(vmctx *ctx)
     HOLD(ctx->alc.str.nxt);
     ctx->alc.bgi.nxt = &(ctx->alc.bgi);
     HOLD(ctx->alc.bgi.nxt);
+    ctx->alc.hsh.nxt = &(ctx->alc.hsh);
+    HOLD(ctx->alc.hsh.nxt);
 }

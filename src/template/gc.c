@@ -17,6 +17,11 @@ void unmark_all(vmctx *ctx)
         UNMARK(bi);
         bi = bi->liv;
     }
+    vmhsh *h = ctx->alc.hsh.liv;
+    while (h) {
+        UNMARK(h);
+        h = h->liv;
+    }
     vmvar *v = ctx->alc.var.liv;
     while (v) {
         UNMARK(v);
@@ -52,6 +57,26 @@ void mark_fnc(vmfnc *f)
     }
 }
 
+void mark_hsh(vmhsh *h)
+{
+    if (!h) {
+        return;
+    }
+    MARK(h);
+
+    vmvar *v = h->map;
+    if (v) {
+        for (int i = 0; i < h->sz; ++i) {
+            if (v[i].s) {
+                MARK(v[i].s);
+            }
+            if (v[i].a) {
+                mark_var(v[i].a);
+            }
+        }
+    }
+}
+
 void mark_var(vmvar *v)
 {
     if (!v) {
@@ -64,6 +89,9 @@ void mark_var(vmvar *v)
     MARK(v);
     if (v->f) {
         mark_fnc(v->f);
+    }
+    if (v->h) {
+        mark_hsh(v->h);
     }
     if (v->s) {
         MARK(v->s);
@@ -111,6 +139,14 @@ void premark_all(vmctx *ctx)
             MARK(bi);
         }
         bi = n;
+    }
+    vmhsh *h = ctx->alc.hsh.liv;
+    while (h) {
+        vmhsh *n = h->liv;
+        if (IS_HELD(h)) {
+            mark_hsh(h);
+        }
+        h = n;
     }
     vmvar *v = ctx->alc.var.liv;
     while (v) {
@@ -166,6 +202,11 @@ void sweep(vmctx *ctx)
         vmstr *n = s->liv;
         if (!IS_MARKED(s)) {
             ++sc;
+            if (STR_UNIT < s->cap) {
+                free(s->s);
+                s->s = s->hd = NULL;
+                s->len = s->cap = 0;
+            }
             pbakstr(ctx, s);
         }
         s = n;
@@ -184,6 +225,21 @@ void sweep(vmctx *ctx)
         }
         bi = n;
     }
+    int hliv = 0;
+    int hc = 0;
+    vmhsh *h = ctx->alc.hsh.liv;
+    while (h) {
+        ++hliv;
+        vmhsh *n = h->liv;
+        if (!IS_MARKED(h)) {
+            ++hc;
+            free(h->map);
+            h->map = NULL;
+            h->sz = 0;
+            pbakhsh(ctx, h);
+        }
+        h = n;
+    }
     int vliv = 0;
     int vc = 0;
     vmvar *v = ctx->alc.var.liv;
@@ -192,6 +248,9 @@ void sweep(vmctx *ctx)
         vmvar *n = v->liv;
         if (!IS_MARKED(v)) {
             ++vc;
+            if (v->h) {
+                v->h = NULL;
+            }
             pbakvar(ctx, v);
         }
         v = n;
@@ -220,15 +279,18 @@ void sweep(vmctx *ctx)
         }
         m = n;
     }
-    ctx->sweep = sc + bic + vc + fc + mc;
+    ctx->sweep = sc + bic + hc + vc + fc + mc;
     ++(ctx->gccnt);
-    if (0 && ctx->sweep > 0) {
+    if (ctx->sweep > 0) {
         printf("GC %d done, vstk(%d), ", ctx->gccnt, ctx->vstkp);
         if (sc > 0) {
             printf("(str:%d,scan:%d)", sc, sliv);
         }
         if (bic > 0) {
             printf("(bgi:%d,scan:%d)", bic, biliv);
+        }
+        if (hc > 0) {
+            printf("(hsh:%d,scan:%d)", hc, hliv);
         }
         if (vc > 0) {
             printf("(var:%d,scan:%d)", vc, vliv);

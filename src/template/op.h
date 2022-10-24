@@ -223,7 +223,7 @@ extern BigZ i64minm1;
 /* LT */
 
 #define OP_LT_I_I(ri, i0, i1) { \
-    ri = ((v0)->i < (v1)->i); \
+    (ri) = (i0) < (i1); \
 } \
 /**/
 
@@ -231,7 +231,7 @@ extern BigZ i64minm1;
     BigZ b1 = BzFromInteger(i1); \
     BzCmp r = BzCompare((v0)->bi->b, b1); \
     BzFree(b1); \
-    ri = (r == BZ_LT); \
+    (ri) = (r == BZ_LT); \
 } \
 /**/
 
@@ -239,13 +239,13 @@ extern BigZ i64minm1;
     BigZ b0 = BzFromInteger(i0); \
     BzCmp r = BzCompare(b0, (v1)->bi->b); \
     BzFree(b0); \
-    ri = (r == BZ_LT); \
+    (ri) = (r == BZ_LT); \
 } \
 /**/
 
 #define OP_LT_V_I(ri, v0, i1) { \
     if ((v0)->t == VAR_INT64) { \
-        ri = ((v0)->i < i1); \
+        (ri) = ((v0)->i < i1); \
     } else if ((v0)->t == VAR_BIG) { \
         OP_LT_B_I(ri, v0, i1) \
     } else { \
@@ -270,7 +270,7 @@ extern BigZ i64minm1;
             OP_LT_B_I(ri, v0, i1) \
         } else if ((v1)->t = VAR_BIG) { \
             BzCmp r = BzCompare((v0)->bi->b, (v1)->bi->b); \
-            ri = (r == BZ_LT); \
+            (ri) = (r == BZ_LT); \
         } else { \
             /* TODO */ \
         } \
