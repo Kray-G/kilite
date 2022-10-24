@@ -8,9 +8,9 @@
 // gcc test_parser.c ../src/lexer.c ../src/parser.c ../src\error.c ../src\disp.c
 
 const char *teststr =
-"func fib(n: int64) : ()=>int64 {\n"
+"func fib(n: int64, { a, b:x }, [y,z,,last]) : ()=>int64 {\n"
 "    if (n < 2) {\n"
-"        return n ? [,,1,,2,n,,3,,,] : {x: 1, a: {x: 1, n, a: 2}, n};"
+"        return n ? [,,a,,2,n,,3,,,] : { x, a: {x: 1, n, a: 2}, last, z, n};"
 "    }\n"
 "    return fib(n-1) + fib(n-2);\n"
 "}\n"

@@ -153,6 +153,7 @@ static inline kl_symbol *make_symbol(kl_context *ctx, tk_token tk)
     ctx->symchn = sym;
     sym->symtype = tk;
     sym->index = ctx->scope ? ctx->scope->idxmax++ : 0;
+    sym->ref = NULL;
     add_sym2nsstack(ctx->ns, sym);
     return sym;
 }
@@ -314,12 +315,27 @@ static kl_stmt *panic_mode_stmt(kl_stmt *s, int ch, kl_context *ctx, kl_lexer *l
     return s;
 }
 
+static void check_symbol(kl_context *ctx, kl_lexer *l, const char *name)
+{
+    kl_symbol *chk = search_symbol_in_scope(ctx, l, ctx->ns, name);
+    if (chk) {
+        parse_error(ctx, __LINE__, "Compile", l, "The symbol(%s) was already declared in this scope.", chk->name);
+    }
+}
+
 static kl_expr *parse_expr_varname(kl_context *ctx, kl_lexer *l, const char *name)
 {
     kl_expr *e = make_expr(ctx, TK_VAR);
-    kl_symbol *sym = make_ref_symbol(ctx, l, TK_VAR, name);
+    kl_symbol *sym;
+    if (ctx->in_lvalue) {
+        check_symbol(ctx, l, name);
+        sym = make_symbol(ctx, TK_VAR);
+    } else {
+        sym = make_ref_symbol(ctx, l, TK_VAR, name);
+    }
     sym->name = const_str(ctx, l, name);
     e->sym = sym;
+
     if (e->sym->ref) {
         e->typeid = e->sym->ref->type;
         kl_symbol *ref = e->sym->ref;
@@ -724,9 +740,7 @@ static kl_expr *parse_expr_ternary(kl_context *ctx, kl_lexer *l)
 static kl_expr *parse_expr_assignment(kl_context *ctx, kl_lexer *l)
 {
     DEBUG_PARSER_PHASE();
-    ctx->in_lvalue = 1;
     kl_expr *lhs = parse_expr_ternary(ctx, l);
-    ctx->in_lvalue = 0;
     tk_token tok = l->tok;
     if (TK_EQ <= tok && tok <= TK_LOREQ) {
         lexer_fetch(l);
@@ -824,26 +838,50 @@ static kl_expr *parse_def_arglist(kl_context *ctx, kl_lexer *l)
             // No more arguments.
             break;
         }
-        if (l->tok != TK_NAME) {
-            parse_error(ctx, __LINE__, "Compile", l, "No variable name in argument.");
-            break;
-        }
-        kl_expr *e1 = make_expr(ctx, TK_VAR);
-        kl_symbol *sym = make_symbol(ctx, TK_VAR);
-        sym->name = const_str(ctx, l, l->str);
-        e1->sym = sym;
-
-        lexer_fetch(l);
-        if (l->tok == TK_COLON) {
+        if (l->tok == TK_NAME) {
+            check_symbol(ctx, l, l->str);
+            kl_expr *e1 = make_expr(ctx, TK_VAR);
+            kl_symbol *sym = make_symbol(ctx, TK_VAR);
+            sym->name = const_str(ctx, l, l->str);
+            e1->sym = sym;
             lexer_fetch(l);
-            if (l->tok == TK_TYPEID) {
-                e1->typeid = sym->type = l->type;
+            if (l->tok == TK_COLON) {
                 lexer_fetch(l);
+                if (l->tok == TK_TYPEID) {
+                    e1->typeid = sym->type = l->type;
+                    lexer_fetch(l);
+                } else {
+                    sym->typ = parse_type(ctx, l);
+                }
+            }
+            e = make_bin_expr(ctx, TK_COMMA, e, e1);
+        } else {
+            if (l->tok == TK_LXBR) {
+                lexer_fetch(l);
+                kl_expr *e1 = make_expr(ctx, TK_VOBJ);
+                if (l->tok != TK_RXBR) {
+                    e1->lhs = parse_expr_keyvalue(ctx, l);
+                    if (l->tok != TK_RXBR) {
+                        parse_error(ctx, __LINE__, "Compile", l, "The '}' is missing.");
+                    }
+                    lexer_fetch(l);
+                }
+                e = make_bin_expr(ctx, TK_COMMA, e, e1);
+            } else if (l->tok == TK_LLBR) {
+                lexer_fetch(l);
+                kl_expr *e1 = make_expr(ctx, TK_VARY);
+                if (l->tok != TK_RLBR) {
+                    e1->lhs = parse_expr_arrayitem(ctx, l);
+                    if (l->tok != TK_RLBR) {
+                        parse_error(ctx, __LINE__, "Compile", l, "The ']' is missing.");
+                    }
+                    lexer_fetch(l);
+                }
+                e = make_bin_expr(ctx, TK_COMMA, e, e1);
             } else {
-                sym->typ = parse_type(ctx, l);
+                parse_error(ctx, __LINE__, "Compile", l, "Invalid argument.");
             }
         }
-        e = make_bin_expr(ctx, TK_COMMA, e, e1);
     } while (l->tok == TK_COMMA);
     return e;
 }
@@ -944,10 +982,7 @@ static kl_stmt *parse_declaration(kl_context *ctx, kl_lexer *l, int decltype)
     }
 
     while (l->tok == TK_NAME) {
-        kl_symbol *chk = search_symbol_in_scope(ctx, l, ctx->ns, l->str);
-        if (chk) {
-            parse_error(ctx, __LINE__, "Compile", l, "The symbol(%s) was already declared in this scope.", chk->name);
-        }
+        check_symbol(ctx, l, l->str);
         kl_expr *lhs = make_expr(ctx, TK_VAR);
         kl_symbol *sym = make_symbol(ctx, TK_VAR);
         sym->name = const_str(ctx, l, l->str);
@@ -1025,7 +1060,9 @@ static kl_stmt *parse_class(kl_context *ctx, kl_lexer *l)
     /* Constructor arguments if exists */
     if (l->tok == TK_LSBR) {
         lexer_fetch(l);
+        ctx->in_lvalue = 1;
         s->e1 = sym->args = parse_def_arglist(ctx, l);
+        ctx->in_lvalue = 0;
         if (l->tok != TK_RSBR) {
             parse_error(ctx, __LINE__, "Compile", l, "The ')' is missing.");
             return s;
@@ -1091,7 +1128,9 @@ static kl_stmt *parse_function(kl_context *ctx, kl_lexer *l, int funcscope)
         return panic_mode_stmt(s, '{', ctx, l);
     }
     lexer_fetch(l);
+    ctx->in_lvalue = 1;
     s->e1 = sym->args = parse_def_arglist(ctx, l);
+    ctx->in_lvalue = 0;
     if (l->tok != TK_RSBR) {
         parse_error(ctx, __LINE__, "Compile", l, "The ')' is missing.");
         return s;
