@@ -45,6 +45,9 @@ typedef enum tk_token {
     TK_VDBL,                //  * Double precision value
     TK_VSTR,                //  * String literal
     TK_VBIN,                //  * Binary literal
+    TK_VARY,                //  * Array literal.
+    TK_VOBJ,                //  * Object literal.
+    TK_VKV,                 //  * Key value literal.
 
     // Keywords
     TK_CONST,               //  * const

@@ -6,6 +6,7 @@
 #include <stdlib.h>
 
 static kl_expr *parse_expr_list(kl_context *ctx, kl_lexer *l, int endch);
+static kl_expr *parse_expr_assignment(kl_context *ctx, kl_lexer *l);
 static kl_expr *parse_expression(kl_context *ctx, kl_lexer *l);
 static kl_stmt *parse_statement(kl_context *ctx, kl_lexer *l);
 static kl_stmt *parse_statement_list(kl_context *ctx, kl_lexer *l);
@@ -174,19 +175,8 @@ static inline kl_expr *make_bin_expr(kl_context *ctx, tk_token tk, kl_expr *lhs,
     return e;
 }
 
-static inline kl_expr *make_arrow_expr(kl_context *ctx, tk_token tk, kl_expr *lhs, kl_expr *rhs)
-{
-    kl_expr *e = make_expr(ctx, tk);
-    e->lhs = lhs;
-    e->rhs = rhs;
-    return e;
-}
-
 static inline kl_expr *make_conn_expr(kl_context *ctx, tk_token tk, kl_expr *lhs, kl_expr *rhs)
 {
-    if (lhs == NULL) {
-        return rhs;
-    }
     kl_expr *e = make_expr(ctx, tk);
     e->lhs = lhs;
     e->rhs = rhs;
@@ -324,6 +314,81 @@ static kl_stmt *panic_mode_stmt(kl_stmt *s, int ch, kl_context *ctx, kl_lexer *l
     return s;
 }
 
+static kl_expr *parse_expr_varname(kl_context *ctx, kl_lexer *l, const char *name)
+{
+    kl_expr *e = make_expr(ctx, TK_VAR);
+    kl_symbol *sym = make_ref_symbol(ctx, l, TK_VAR, name);
+    sym->name = const_str(ctx, l, name);
+    e->sym = sym;
+    if (e->sym->ref) {
+        e->typeid = e->sym->ref->type;
+        kl_symbol *ref = e->sym->ref;
+        if (ref->is_callable && sym->level == 1 && strcmp(ctx->scope->name, ref->name) == 0) {
+            sym->is_recursive = 1;
+        }
+    }
+    return e;
+}
+
+static kl_expr *parse_expr_keyvalue(kl_context *ctx, kl_lexer *l)
+{
+    kl_expr *e = NULL;
+    while (l->tok == TK_NAME || l->tok == TK_VSTR) {
+        tk_token tok = l->tok;
+        const char *name = const_str(ctx, l, l->str);
+        kl_expr *e2 = make_expr(ctx, TK_VSTR);
+        e2->val.str = name;
+        lexer_fetch(l);
+        if (l->tok == TK_COLON) {
+            lexer_fetch(l);
+            kl_expr *e3 = parse_expr_assignment(ctx, l);
+            e2 = make_bin_expr(ctx, TK_VKV, e2, e3);
+            e = make_bin_expr(ctx, TK_COMMA, e, e2);
+        } else {
+            if (tok != TK_NAME) {
+                parse_error(ctx, __LINE__, "Compile", l, "The ':' is missing in key value.");
+                return panic_mode_expr(e, ';', ctx, l);
+            }
+            kl_expr *e3 = parse_expr_varname(ctx, l, name);
+            e2 = make_bin_expr(ctx, TK_VKV, e2, e3);
+            e = make_bin_expr(ctx, TK_COMMA, e, e2);
+        }
+        if (l->tok == TK_COMMA) {
+            lexer_fetch(l);
+        }
+    }
+    return e;
+}
+
+static kl_expr *parse_expr_arrayitem(kl_context *ctx, kl_lexer *l)
+{
+    kl_expr *e = NULL;
+    if (l->tok == TK_COMMA) {
+        lexer_fetch(l);
+    } else {
+        e = parse_expr_assignment(ctx, l);
+        if (l->tok == TK_COMMA) {
+            lexer_fetch(l);
+        }
+    }
+    while (l->tok != TK_RLBR && l->tok != TK_EOF) {
+        while (l->tok == TK_COMMA) {
+            e = make_conn_expr(ctx, TK_COMMA, e, NULL);
+            lexer_fetch(l);
+        }
+        if (l->tok == TK_RLBR || l->tok == TK_EOF) {
+            e = make_conn_expr(ctx, TK_COMMA, e, NULL);
+            break;
+        }
+        kl_expr *e2 = parse_expr_assignment(ctx, l);
+        e = make_conn_expr(ctx, TK_COMMA, e, e2);
+        if (l->tok == TK_COMMA) {
+            lexer_fetch(l);
+        }
+    }
+    return e;
+}
+
 static kl_expr *parse_expr_factor(kl_context *ctx, kl_lexer *l)
 {
     DEBUG_PARSER_PHASE();
@@ -333,6 +398,28 @@ static kl_expr *parse_expr_factor(kl_context *ctx, kl_lexer *l)
     // variable name
     // int, real, string, array, object, ...
     switch (l->tok) {
+    case TK_LXBR:
+        lexer_fetch(l);
+        e = make_expr(ctx, TK_VOBJ);
+        if (l->tok != TK_RXBR) {
+            e->lhs = parse_expr_keyvalue(ctx, l);
+            if (l->tok != TK_RXBR) {
+                parse_error(ctx, __LINE__, "Compile", l, "The '}' is missing.");
+            }
+            lexer_fetch(l);
+        }
+        break;
+    case TK_LLBR:
+        lexer_fetch(l);
+        e = make_expr(ctx, TK_VARY);
+        if (l->tok != TK_RLBR) {
+            e->lhs = parse_expr_arrayitem(ctx, l);
+            if (l->tok != TK_RLBR) {
+                parse_error(ctx, __LINE__, "Compile", l, "The ']' is missing.");
+            }
+            lexer_fetch(l);
+        }
+        break;
     case TK_LSBR:
         lexer_fetch(l);
         e = parse_expression(ctx, l);
@@ -362,17 +449,7 @@ static kl_expr *parse_expr_factor(kl_context *ctx, kl_lexer *l)
         lexer_fetch(l);
         break;
     case TK_NAME:
-        e = make_expr(ctx, TK_VAR);
-        kl_symbol *sym = make_ref_symbol(ctx, l, TK_VAR, l->str);
-        sym->name = const_str(ctx, l, l->str);
-        e->sym = sym;
-        if (e->sym->ref) {
-            e->typeid = e->sym->ref->type;
-            kl_symbol *ref = e->sym->ref;
-            if (ref->is_callable && sym->level == 1 && strcmp(ctx->scope->name, ref->name) == 0) {
-                sym->is_recursive = 1;
-            }
-        }
+        e = parse_expr_varname(ctx, l, l->str);
         lexer_fetch(l);
         break;
     case TK_VSINT:
@@ -706,11 +783,11 @@ static kl_expr *parse_type(kl_context *ctx, kl_lexer *l)
         if (l->tok == TK_TYPEID) {
             kl_expr *e1 = make_expr(ctx, TK_TYPENODE);
             e1->typeid = l->type;
-            e = make_conn_expr(ctx, TK_COMMA, e, e1);
+            e = make_bin_expr(ctx, TK_COMMA, e, e1);
             lexer_fetch(l);
         } else {
             kl_expr *e1 = parse_type(ctx, l);
-            e = make_conn_expr(ctx, TK_COMMA, e, e1);
+            e = make_bin_expr(ctx, TK_COMMA, e, e1);
         }
     } while (l->tok == TK_COMMA);
 
@@ -722,14 +799,14 @@ static kl_expr *parse_type(kl_context *ctx, kl_lexer *l)
         if (l->tok == TK_TYPEID) {
             kl_expr *e1 = make_expr(ctx, TK_TYPENODE);
             e1->typeid = l->type;
-            e = make_arrow_expr(ctx, TK_DARROW, e, e1);
+            e = make_conn_expr(ctx, TK_DARROW, e, e1);
             lexer_fetch(l);
         } else {
             kl_expr *e1 = parse_type(ctx, l);
-            e = make_arrow_expr(ctx, TK_DARROW, e, e1);
+            e = make_conn_expr(ctx, TK_DARROW, e, e1);
         }
     } else {
-        e = make_arrow_expr(ctx, TK_DARROW, e, NULL);
+        e = make_conn_expr(ctx, TK_DARROW, e, NULL);
     }
 
     return e;
@@ -766,7 +843,7 @@ static kl_expr *parse_def_arglist(kl_context *ctx, kl_lexer *l)
                 sym->typ = parse_type(ctx, l);
             }
         }
-        e = make_conn_expr(ctx, TK_COMMA, e, e1);
+        e = make_bin_expr(ctx, TK_COMMA, e, e1);
     } while (l->tok == TK_COMMA);
     return e;
 }

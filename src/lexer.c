@@ -28,6 +28,10 @@ static const char *tkname[] = {
     "TK_VDBL",
     "TK_VSTR",
     "TK_VBIN",
+    "TK_VARY",
+    "TK_VOBJ",
+    "TK_VKV",
+
     "TK_CONST",
     "TK_LET",
     "TK_NEW",

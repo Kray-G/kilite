@@ -1,5 +1,6 @@
 #include "disp.h"
 
+static void disp_expr(kl_expr *e, int indent);
 static void disp_stmt_list(kl_stmt *s, int indent);
 
 static void make_indent(int indent)
@@ -79,6 +80,43 @@ static void print_typenode(kl_expr *e)
     }
 }
 
+static void print_array(kl_expr *e, int indent)
+{
+    if (!e) {
+        make_indent(indent);
+        printf("-\n");
+        return;
+    }
+
+    switch (e->nodetype) {
+    case TK_COMMA:
+        print_array(e->lhs, indent);
+        print_array(e->rhs, indent);
+        break;
+    default:
+        disp_expr(e, indent);
+        break;
+    }
+}
+
+static void print_object(kl_expr *e, int indent)
+{
+    if (!e) return;
+
+    switch (e->nodetype) {
+    case TK_VKV:
+        make_indent(indent);
+        printf("(keyvalue)\n");
+        disp_expr(e->lhs, indent + 1);
+        disp_expr(e->rhs, indent + 1);
+        break;
+    case TK_COMMA:
+        print_object(e->lhs, indent);
+        print_object(e->rhs, indent);
+        break;
+    }
+}
+
 static void disp_expr(kl_expr *e, int indent)
 {
     if (!e) return;
@@ -109,6 +147,18 @@ static void disp_expr(kl_expr *e, int indent)
         printf("(binary)\n");
         disp_expr(e->lhs, indent + 1);
         if (indent > 0) printf("\n");
+        break;
+    case TK_VARY:
+        printf("(array) [\n");
+        if (e->lhs) {
+            print_array(e->lhs, indent + 1);
+        }
+        make_indent(indent);
+        printf("]\n");
+        break;
+    case TK_VOBJ:
+        printf("(object)\n");
+        print_object(e->lhs, indent + 1);
         break;
 
     case TK_VAR:
