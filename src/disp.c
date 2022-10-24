@@ -24,6 +24,7 @@ static int create_proto_string_expr(char *buf, int i, int max, kl_expr *e)
     }
 
     switch (e->nodetype) {
+    case TK_VAR:
     case TK_TYPENODE:
         i = append_str(buf, i, max, typeidname(e->typeid));
         break;
@@ -37,6 +38,12 @@ static int create_proto_string_expr(char *buf, int i, int max, kl_expr *e)
         i = create_proto_string_expr(buf, i, max, e->lhs);
         i = append_str(buf, i, max, ") => ");
         i = create_proto_string_expr(buf, i, max, e->rhs);
+        break;
+    case TK_VARY:
+        i = append_str(buf, i, max, "(array)");
+        break;
+    case TK_VOBJ:
+        i = append_str(buf, i, max, "(object)");
         break;
     }
     return i;
