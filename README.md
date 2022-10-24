@@ -4,7 +4,7 @@ Lightweight Kinx but more flexible, portable, and faster.
 
 ## Motivation
 
-[Kinx](https://github.com/Kray-G/kinx) is very useful for me. It's a really important project for me and I actually love it. However, unfortunately I feel I have done almost all things in the current architecture. And I also feel it's dfficult to upgrade it at least as long as it is. This means I would have to remake the architecture if I wanted to improve it more.
+[Kinx](https://github.com/Kray-G/kinx) is very useful for me. It's a really important project for me and I actually love it. However, unfortunately I feel I have done almost all things in the current architecture. And I also feel it's dfficult to upgrade it at least as long as it is. This means I would have to remake the architecture if I wanted to make it improve more.
 
 That's why I decided to try to making a new design of a programming language that I really wanted with a new architecture, athough I am going to keep using Kinx as well also in future.
 
@@ -24,7 +24,7 @@ Below is the goal we wanted to achive. Some of them has been already done by Kin
 * Faster
   * I don't know how faster it is even if I tried to remake it, but I will challenge it.
 
-## Architecture
+## Solution
 
 To meet the goal, I will try with followings.
 
@@ -37,3 +37,18 @@ To meet the goal, I will try with followings.
   * It is easy to hold the code as a library, like it's .bmir file.
     * Compiling separatedly, you can execute it all together later.
     * You can write the library by C language if you need, and use it as .bmir as it is.
+
+## TODO
+
+I will note the followings as I don't forget it.
+
+* [ ] Support almost all basic functionalities first.
+  * [ ] Main structures of source code.
+  * [ ] Class, module, function, inheritance, mix-in mechanism.
+  * [ ] Statements and Expressions.
+* [ ] Notes for a special specifications of the language.
+  * [ ] The last argument of function call could be outside arguments list if it's a block.
+  * [ ] Object element's direct assignment.
+  * [ ] 'Case-When' expression.
+
+Note that the `native` keyword will be no longer supported because this solution is always using a native-call compilation.
