@@ -336,9 +336,9 @@ static kl_expr *parse_expr_varname(kl_context *ctx, kl_lexer *l, const char *nam
     sym->name = const_str(ctx, l, name);
     e->sym = sym;
 
-    if (e->sym->ref) {
-        e->typeid = e->sym->ref->type;
-        kl_symbol *ref = e->sym->ref;
+    if (sym->ref) {
+        e->typeid = sym->ref->type;
+        kl_symbol *ref = sym->ref;
         if (ref->is_callable && sym->level == 1 && strcmp(ctx->scope->name, ref->name) == 0) {
             sym->is_recursive = 1;
         }
