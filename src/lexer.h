@@ -118,6 +118,7 @@ typedef enum tk_token {
     TK_AND,                 //  * &
     TK_OR,                  //  * |
     TK_XOR,                 //  * ^
+    TK_QES,                 //  * ?
     TK_EXP,                 //  * **
     TK_LSH,                 //  * <<
     TK_RSH,                 //  * >>

@@ -195,6 +195,12 @@ static void disp_expr(kl_expr *e, int indent)
         disp_expr(e->lhs, indent + 1);
         disp_expr(e->rhs, indent + 1);
         break;
+    case TK_QES:
+        printf("op(%s)\n", tokenname(e->nodetype));
+        disp_expr(e->lhs, indent + 1);
+        disp_expr(e->rhs, indent + 1);
+        disp_expr(e->xhs, indent + 1);
+        break;
     default:
         printf("[MISSING]: %s\n", tokenname(e->nodetype));
     }

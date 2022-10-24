@@ -10,7 +10,7 @@
 const char *teststr =
 "func fib(n: int64) : ()=>int64 {\n"
 "    if (n < 2) {\n"
-"        return n;"
+"        return n ? 1+3 : 2;"
 "    }\n"
 "    return fib(n-1) + fib(n-2);\n"
 "}\n"

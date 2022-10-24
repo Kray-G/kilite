@@ -625,11 +625,30 @@ static kl_expr *parse_expr_logical_or(kl_context *ctx, kl_lexer *l)
     return lhs;
 }
 
+static kl_expr *parse_expr_ternary(kl_context *ctx, kl_lexer *l)
+{
+    DEBUG_PARSER_PHASE();
+    kl_expr *lhs = parse_expr_logical_or(ctx, l);
+    tk_token tok = l->tok;
+    if (tok == TK_QES) {
+        lexer_fetch(l);
+        kl_expr *rhs = parse_expr_logical_or(ctx, l);
+        lhs = make_bin_expr(ctx, tok, lhs, rhs);
+        if (l->tok != TK_COLON) {
+            parse_error(ctx, __LINE__, "Compile", l, "The ':' is missing in ternary expression.");
+            return panic_mode_expr(lhs, ';', ctx, l);
+        }
+        lexer_fetch(l);
+        lhs->xhs = parse_expr_logical_or(ctx, l);
+    }
+    return lhs;
+}
+
 static kl_expr *parse_expr_assignment(kl_context *ctx, kl_lexer *l)
 {
     DEBUG_PARSER_PHASE();
     ctx->in_lvalue = 1;
-    kl_expr *lhs = parse_expr_logical_or(ctx, l);
+    kl_expr *lhs = parse_expr_ternary(ctx, l);
     ctx->in_lvalue = 0;
     tk_token tok = l->tok;
     if (TK_EQ <= tok && tok <= TK_LOREQ) {
@@ -648,7 +667,7 @@ static kl_expr *parse_expression(kl_context *ctx, kl_lexer *l)
     tk_token tok = l->tok;
     if (tok == TK_COMMA) {
         lexer_fetch(l);
-        kl_expr *rhs = parse_expr_assignment(ctx, l);   // Right recursion.
+        kl_expr *rhs = parse_expr_assignment(ctx, l);
         lhs = make_bin_expr(ctx, tok, lhs, rhs);
         tok = l->tok;
     }

@@ -4,7 +4,7 @@
 // gcc test_lexer.c ../src/lexer.c ../src\error.c
 
 const char *teststr =
-    "! = + - * / % & | ^ ** << >> && || += -= -> *= /= %= &= |= ^= **= <<= >>= &&= ||= =~ => !~ == != < <= > >= <=> "
+    "! = + - * / % & | ^ ? ** << >> && || += -= -> *= /= %= &= |= ^= **= <<= >>= &&= ||= =~ => !~ == != < <= > >= <=> "
     ", : ; . .. ... ( ) [ ] { } "
     "const var let new import namespace module class private protected public mixin func function if else do while for in return "
         "switch case when break continue default otherwise fallthrough yield try catch finally throw "
@@ -15,7 +15,7 @@ const char *teststr =
     "_throw _this_is_a_long_long_long_long_very_long_name _name_with_9876_number_012345"
 ;
 const tk_token expected[] = {
-    TK_NOT, TK_EQ, TK_ADD, TK_SUB, TK_MUL, TK_DIV, TK_MOD, TK_AND, TK_OR, TK_XOR, TK_EXP, TK_LSH, TK_RSH, TK_LAND, TK_LOR,
+    TK_NOT, TK_EQ, TK_ADD, TK_SUB, TK_MUL, TK_DIV, TK_MOD, TK_AND, TK_OR, TK_XOR, TK_QES, TK_EXP, TK_LSH, TK_RSH, TK_LAND, TK_LOR,
     TK_ADDEQ, TK_SUBEQ, TK_ARROW, TK_MULEQ, TK_DIVEQ, TK_MODEQ, TK_ANDEQ, TK_OREQ, TK_XOREQ, TK_EXPEQ, TK_LSHEQ, TK_RSHEQ, TK_LANDEQ,
     TK_LOREQ, TK_REGEQ, TK_DARROW, TK_REGNE, TK_EQEQ, TK_NEQ, TK_LT, TK_LE, TK_GT, TK_GE, TK_LGE,
     TK_COMMA, TK_COLON, TK_SEMICOLON, TK_DOT, TK_DOT2, TK_DOT3, TK_LSBR, TK_RSBR, TK_LLBR, TK_RLBR, TK_LXBR, TK_RXBR,
