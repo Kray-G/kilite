@@ -115,6 +115,9 @@ static const char *tkname[] = {
     "TK_RLBR",
     "TK_LXBR",
     "TK_RXBR",
+
+    "TK_ARROW",
+    "TK_DARROW",
     "TK_TYPEID",
     "TK_NAME",
 
@@ -163,6 +166,26 @@ static const char *tkname[] = {
         lexer_getch(l);\
         l->toklen = 2;\
         return tok13;\
+    }\
+    l->toklen = 1;\
+    return tok1;\
+    /**/
+#define LEXER_CHECK_12_13_14_TOK(ch2, ch3, ch4, tok1, tok12, tok13, tok14)\
+    lexer_getch(l);\
+    if (l->ch == ch2) {\
+        lexer_getch(l);\
+        l->toklen = 2;\
+        return tok12;\
+    }\
+    if (l->ch == ch3) {\
+        lexer_getch(l);\
+        l->toklen = 2;\
+        return tok13;\
+    }\
+    if (l->ch == ch4) {\
+        lexer_getch(l);\
+        l->toklen = 2;\
+        return tok14;\
     }\
     l->toklen = 1;\
     return tok1;\
@@ -847,13 +870,13 @@ static tk_token lexer_fetch_token(kl_lexer *l)
         lexer_getch(l);
         return TK_LSBR;
     case '=':
-        LEXER_CHECK_12_13_TOK('=', '~', TK_EQ, TK_EQEQ, TK_REGEQ)
+        LEXER_CHECK_12_13_14_TOK('=', '~', '>', TK_EQ, TK_EQEQ, TK_REGEQ, TK_DARROW)
     case '!':
         LEXER_CHECK_12_13_TOK('=', '~', TK_NOT, TK_NEQ, TK_REGNE)
     case '+':
         LEXER_CHECK_12_TOK('=', TK_ADD, TK_ADDEQ)
     case '-':
-        LEXER_CHECK_12_TOK('=', TK_SUB, TK_SUBEQ)
+        LEXER_CHECK_12_13_TOK('=', '>', TK_SUB, TK_SUBEQ, TK_ARROW)
     case '*':
         LEXER_CHECK_12_13_123_TOK('*', '=', TK_MUL, TK_EXP, TK_MULEQ, TK_EXPEQ)
     case '/':

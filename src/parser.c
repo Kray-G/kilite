@@ -107,9 +107,8 @@ static inline void add_sym2method(kl_symbol *scope, kl_symbol *sym)
     }
 }
 
-static inline kl_symbol *search_symbol_in_scope(kl_context *ctx, kl_lexer *l, const char *name)
+static inline kl_symbol *search_symbol_in_scope(kl_context *ctx, kl_lexer *l, kl_nsstack *ns, const char *name)
 {
-    kl_nsstack *ns = ctx->ns;
     kl_symbol *ref = ns->list;
     while (ref && ref->name) {
         if (strcmp(ref->name, name) == 0) {
@@ -129,7 +128,7 @@ static inline kl_symbol *make_ref_symbol(kl_context *ctx, kl_lexer *l, tk_token 
     sym->symtype = tk;
     kl_nsstack *ns = ctx->ns;
     while (ns) {
-        kl_symbol *ref = search_symbol_in_scope(ctx, l, name);
+        kl_symbol *ref = search_symbol_in_scope(ctx, l, ns, name);
         if (ref) {
             sym->ref = ref;
             sym->level = level;
@@ -169,6 +168,14 @@ static inline kl_expr *make_expr(kl_context *ctx, tk_token tk)
 static inline kl_expr *make_bin_expr(kl_context *ctx, tk_token tk, kl_expr *lhs, kl_expr *rhs)
 {
     if (!lhs) return rhs;
+    kl_expr *e = make_expr(ctx, tk);
+    e->lhs = lhs;
+    e->rhs = rhs;
+    return e;
+}
+
+static inline kl_expr *make_arrow_expr(kl_context *ctx, tk_token tk, kl_expr *lhs, kl_expr *rhs)
+{
     kl_expr *e = make_expr(ctx, tk);
     e->lhs = lhs;
     e->rhs = rhs;
@@ -661,6 +668,54 @@ static kl_stmt *parse_expression_stmt(kl_context *ctx, kl_lexer *l)
     return s;
 }
 
+static kl_expr *parse_type(kl_context *ctx, kl_lexer *l)
+{
+    kl_expr *e = NULL;
+    if (l->tok != TK_LSBR) {
+        parse_error(ctx, __LINE__, "Compile", l, "No type name after ':' in argument.");
+        return e;
+    }
+    lexer_fetch(l);
+    do {
+        if (l->tok == TK_COMMA) {
+            lexer_fetch(l);
+        }
+        if (l->tok == TK_RSBR) {
+            // No more types.
+            break;
+        }
+        if (l->tok == TK_TYPEID) {
+            kl_expr *e1 = make_expr(ctx, TK_TYPENODE);
+            e1->typeid = l->type;
+            e = make_conn_expr(ctx, TK_COMMA, e, e1);
+            lexer_fetch(l);
+        } else {
+            kl_expr *e1 = parse_type(ctx, l);
+            e = make_conn_expr(ctx, TK_COMMA, e, e1);
+        }
+    } while (l->tok == TK_COMMA);
+
+    if (l->tok == TK_RSBR) {
+        lexer_fetch(l);
+    }
+    if (l->tok == TK_DARROW) {
+        lexer_fetch(l);
+        if (l->tok == TK_TYPEID) {
+            kl_expr *e1 = make_expr(ctx, TK_TYPENODE);
+            e1->typeid = l->type;
+            e = make_arrow_expr(ctx, TK_DARROW, e, e1);
+            lexer_fetch(l);
+        } else {
+            kl_expr *e1 = parse_type(ctx, l);
+            e = make_arrow_expr(ctx, TK_DARROW, e, e1);
+        }
+    } else {
+        e = make_arrow_expr(ctx, TK_DARROW, e, NULL);
+    }
+
+    return e;
+}
+
 static kl_expr *parse_def_arglist(kl_context *ctx, kl_lexer *l)
 {
     DEBUG_PARSER_PHASE();
@@ -670,7 +725,7 @@ static kl_expr *parse_def_arglist(kl_context *ctx, kl_lexer *l)
             lexer_fetch(l);
         }
         if (l->tok == TK_RSBR) {
-            // No arguments.
+            // No more arguments.
             break;
         }
         if (l->tok != TK_NAME) {
@@ -685,12 +740,12 @@ static kl_expr *parse_def_arglist(kl_context *ctx, kl_lexer *l)
         lexer_fetch(l);
         if (l->tok == TK_COLON) {
             lexer_fetch(l);
-            if (l->tok != TK_TYPEID) {
-                parse_error(ctx, __LINE__, "Compile", l, "No type name after ':' in argument.");
-                break;
+            if (l->tok == TK_TYPEID) {
+                e1->typeid = sym->type = l->type;
+                lexer_fetch(l);
+            } else {
+                sym->typ = parse_type(ctx, l);
             }
-            e1->typeid = sym->type = l->type;
-            lexer_fetch(l);
         }
         e = make_conn_expr(ctx, TK_COMMA, e, e1);
     } while (l->tok == TK_COMMA);
@@ -793,7 +848,7 @@ static kl_stmt *parse_declaration(kl_context *ctx, kl_lexer *l, int decltype)
     }
 
     while (l->tok == TK_NAME) {
-        kl_symbol *chk = search_symbol_in_scope(ctx, l, l->str);
+        kl_symbol *chk = search_symbol_in_scope(ctx, l, ctx->ns, l->str);
         if (chk) {
             parse_error(ctx, __LINE__, "Compile", l, "The symbol(%s) was already declared in this scope.", chk->name);
         }
@@ -950,11 +1005,12 @@ static kl_stmt *parse_function(kl_context *ctx, kl_lexer *l, int funcscope)
     lexer_fetch(l);
     if (l->tok == TK_COLON) {
         lexer_fetch(l);
-        if (l->tok != TK_TYPEID) {
-            parse_error(ctx, __LINE__, "Compile", l, "No type name after ':' in argument.");
+        if (l->tok == TK_TYPEID) {
+            s->typeid = sym->type = l->type;
+            lexer_fetch(l);
+        } else {
+            sym->typ = parse_type(ctx, l);
         }
-        s->typeid = sym->type = l->type;
-        lexer_fetch(l);
     }
 
     /* Function body */
@@ -1127,12 +1183,19 @@ int parse(kl_context *ctx, kl_lexer *l)
 {
     kl_nsstack *n = make_nsstack(ctx, l, "_global", TK_NAMESPACE);
     push_nsstack(ctx, n);
+    kl_stmt *s = make_stmt(ctx, TK_NAMESPACE);
     kl_symbol *sym = make_symbol(ctx, TK_NAMESPACE);
     sym->name = const_str(ctx, l, "_global");
+    s->sym = sym;
+
     ctx->scope = ctx->global = sym;
 
+
     lexer_fetch(l);
-    ctx->head = parse_statement_list(ctx, l);
+    s->s1 = parse_statement_list(ctx, l);
+    ctx->head = s;
+
+    pop_nsstack(ctx);
     ctx->errors += l->errors;
     return ctx->errors > 0;
 }

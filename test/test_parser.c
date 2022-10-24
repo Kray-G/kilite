@@ -8,14 +8,24 @@
 // gcc test_parser.c ../src/lexer.c ../src/parser.c ../src\error.c ../src\disp.c
 
 const char *teststr =
-"func xxx(n: int64) : int64 {\n"
-"    let x;\n"
-"    const a = 1, b = 2;\n"
-"    let y = 11 + a, x = 10;\n"
-"    if (a) {}\n"
-"    else {x = 10;}\n"
-"    do {} while (0);\n"
+"func fib(n: int64) : ()=>int64 {\n"
+"    if (n < 2) {\n"
+"        return n;"
+"    }\n"
+"    return fib(n-1) + fib(n-2);\n"
 "}\n"
+
+// "func xxx(n: int64) : int64 {\n"
+// "    let x;\n"
+// "    const a = 1, b = 2;\n"
+// "    let y = 11 + a, x = 10;\n"
+// "    if (a) {}\n"
+// "    else {x = 10;}\n"
+// "    do {} while (0);\n"
+// "}\n"
+
+// "func yyy(n: ((int64, (int64, int64) => real) => int64, real) => real) : ()=>real {\n"
+// "}\n"
 
 // "func fibxx(n: int64) : int64 {\n"
 // "    if (n < 3) {\n"

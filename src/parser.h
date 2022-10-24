@@ -35,6 +35,7 @@ typedef struct kl_symbol {
     struct kl_symbol *method;       //  Method symbol chain in the current scope when it's TK_NAMESPACE, TK_CLASS, or TK_MODULE.
     struct kl_symbol *next;         //  Symbol chain in the current namespace.
 
+    struct kl_expr *typ;            //  Type expression.
     struct kl_symbol *ref;          //  Reference to the symbol defined earlier.
     struct kl_symbol *chn;          //  For memory allocation control.
 } kl_symbol;

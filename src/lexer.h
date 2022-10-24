@@ -139,6 +139,8 @@ typedef enum tk_token {
     TK_RXBR,                //  }
 
     // Others
+    TK_ARROW,               //  ->
+    TK_DARROW,              //  =>
     TK_TYPEID,              //  Typename in tk_typeid.
     TK_NAME,                //  <name>
 
@@ -149,6 +151,7 @@ typedef enum tk_token {
     TK_EXPR,                //  For expression type.
     TK_CALL,                //  For function call.
     TK_IDX,                 //  For array index reference.
+    TK_TYPENODE,            //  The node will represent the type.
     TK_BINEND,              //  The mark for the end of a binary literal.
 } tk_token;
 

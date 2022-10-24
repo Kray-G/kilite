@@ -16,14 +16,27 @@ static int append_str(char *buf, int i, int max, const char *str)
     return i;
 }
 
-static int create_proto_string_expr(char *buf, int i, int max, kl_expr *args)
+static int create_proto_string_expr(char *buf, int i, int max, kl_expr *e)
 {
-    if (args->nodetype == TK_COMMA) {
-        i = create_proto_string_expr(buf, i, max, args->lhs);
+    if (!e) {
+        return i;
+    }
+
+    switch (e->nodetype) {
+    case TK_TYPENODE:
+        i = append_str(buf, i, max, typeidname(e->typeid));
+        break;
+    case TK_COMMA:
+        i = create_proto_string_expr(buf, i, max, e->lhs);
         i = append_str(buf, i, max, ", ");
-        i = create_proto_string_expr(buf, i, max, args->rhs);
-    } else {
-        i = append_str(buf, i, max, typeidname(args->typeid));
+        i = create_proto_string_expr(buf, i, max, e->rhs);
+        break;
+    case TK_DARROW:
+        i = append_str(buf, i, max, "(");
+        i = create_proto_string_expr(buf, i, max, e->lhs);
+        i = append_str(buf, i, max, ") => ");
+        i = create_proto_string_expr(buf, i, max, e->rhs);
+        break;
     }
     return i;
 }
@@ -34,9 +47,36 @@ static void print_prototype(kl_symbol *sym)
     char buf[256] = {0};
     i = append_str(buf, i, 254, "(");
     i = create_proto_string_expr(buf, i, 254, sym->args);
-    i = append_str(buf, i, 254, ") -> ");
-    append_str(buf, i, 254, typeidname(sym->type));
+    i = append_str(buf, i, 254, ") => ");
+    if (sym->typ) {
+        i = append_str(buf, i, 254, "(");
+        i = create_proto_string_expr(buf, i, 254, sym->typ);
+        i = append_str(buf, i, 254, ")");
+    } else {
+        append_str(buf, i, 254, typeidname(sym->type));
+    }
     printf(", %s", buf);
+}
+
+static void print_typenode(kl_expr *e)
+{
+    if (!e) return;
+    switch (e->nodetype) {
+    case TK_TYPENODE:
+        printf("%s", typeidname(e->typeid));
+        break;
+    case TK_COMMA:
+        print_typenode(e->lhs);
+        printf(", ");
+        print_typenode(e->rhs);
+        break;
+    case TK_DARROW:
+        printf("(");
+        print_typenode(e->lhs);
+        printf(") => ");
+        print_typenode(e->rhs);
+        break;
+    }
 }
 
 static void disp_expr(kl_expr *e, int indent)
@@ -62,7 +102,7 @@ static void disp_expr(kl_expr *e, int indent)
         if (indent > 0) printf("\n");
         break;
     case TK_VSTR:
-        printf("(string):%s", e->val.str);
+        printf("(string):\"%s\"", e->val.str);
         if (indent > 0) printf("\n");
         break;
     case TK_VBIN:
@@ -76,10 +116,20 @@ static void disp_expr(kl_expr *e, int indent)
             if (e->sym->ref) {
                 int index = e->sym->ref->index;
                 int level = e->sym->level;
-                printf("[$%d(%d)] %s:%s", index, level, e->sym->name, typeidname(e->typeid));
+                if (e->sym->typ) {
+                    printf("[$%d(%d)] %s:", index, level, e->sym->name);
+                    print_typenode(e->sym->typ);
+                } else {
+                    printf("[$%d(%d)] %s:%s", index, level, e->sym->name, typeidname(e->typeid));
+                }
             } else {
                 int index = e->sym->index;
-                printf("[$%d] %s:%s", index, e->sym->name, typeidname(e->typeid));
+                if (e->sym->typ) {
+                    printf("[$%d] %s:", index, e->sym->name);
+                    print_typenode(e->sym->typ);
+                } else {
+                    printf("[$%d] %s:%s", index, e->sym->name, typeidname(e->typeid));
+                }
             }
             if (e->sym->ref) {
                 kl_symbol *ref = e->sym->ref;
@@ -183,14 +233,14 @@ static void disp_stmt(kl_stmt *s, int indent)
         } else {
             printf("namespace: (anonymous)");
         }
-        printf(" -> method(%d)\n", method_count(s->sym));
+        printf(", method(%d)\n", method_count(s->sym));
         if (s->s1) {
             disp_stmt_list(s->s1, indent + 1);
         }
         break;
     case TK_FUNC:
         if (s->sym) {
-            printf("def ");
+            printf("def[$%d] ", s->sym->index);
             switch (s->sym->symtype) {
             case TK_PRIVATE: printf("private "); break;
             case TK_PROTECTED: printf("protected "); break;
@@ -201,7 +251,13 @@ static void disp_stmt(kl_stmt *s, int indent)
                 disp_expr(s->e1, indent + 1);
             }
             make_indent(indent);
-            printf(") : %s\n", typeidname(s->typeid));
+            if (s->sym->typ) {
+                printf(") : ");
+                print_typenode(s->sym->typ);
+                printf("\n");
+            } else {
+                printf(") : %s\n", typeidname(s->typeid));
+            }
             if (s->s1) {
                 disp_stmt_list(s->s1, indent + 1);
             }
@@ -213,7 +269,7 @@ static void disp_stmt(kl_stmt *s, int indent)
             if (s->e1) {
                 disp_expr(s->e1, -1);
             }
-            printf(") -> method(%d)\n", method_count(s->sym));
+            printf("), method(%d)\n", method_count(s->sym));
             if (s->s1) {
                 disp_stmt_list(s->s1, indent + 1);
             }
