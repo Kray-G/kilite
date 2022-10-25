@@ -1,4 +1,4 @@
-#include "../src/lexer.h"
+#include "../src/frontend/lexer.h"
 
 // cl test_lexer.c ..\src\lexer.c ..\src\error.c
 // gcc test_lexer.c ../src/lexer.c ../src\error.c
