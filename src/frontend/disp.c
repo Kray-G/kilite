@@ -40,10 +40,10 @@ static int create_proto_string_expr(char *buf, int i, int max, kl_expr *e)
         i = create_proto_string_expr(buf, i, max, e->rhs);
         break;
     case TK_VARY:
-        i = append_str(buf, i, max, "(array)");
+        i = append_str(buf, i, max, "[]");
         break;
     case TK_VOBJ:
-        i = append_str(buf, i, max, "(object)");
+        i = append_str(buf, i, max, "{}");
         break;
     }
     return i;

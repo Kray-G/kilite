@@ -7,7 +7,6 @@
 int func_fib(vmctx *ctx, vmfrm *lex, vmvar **r, int ac)
 {
     GC_CHECK(ctx);
-    vmfnc *f1 = lex->v[0]->f;
 
     // vmfrm *frm = alcfrm(ctx, 1);
     // push_frm(ctx, frm);
@@ -26,9 +25,8 @@ int func_fib(vmctx *ctx, vmfrm *lex, vmvar **r, int ac)
         init_var(n0);
     }
 
-    int cond = 1;
-    OP_LT_V_I(cond, n0, 2);
-    if (!cond) goto COND2;
+    OP_LT_V_I(t1, n0, 2);
+    OP_JMP_IF_FALSE(t1, COND2);
 
 COND1:;
     GC_CHECK(ctx);
@@ -36,6 +34,7 @@ COND1:;
     goto END;
 
 COND2:;
+    vmfnc *f1 = lex->v[0]->f;
     GC_CHECK(ctx);
 
     OP_SUB_V_I(ctx, t1, n0, 2);

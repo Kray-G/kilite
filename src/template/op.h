@@ -220,57 +220,72 @@ extern BigZ i64minm1;
 } \
 /**/
 
-/* LT */
+/* Conditional Jump */
 
-#define OP_LT_I_I(ri, i0, i1) { \
-    (ri) = (i0) < (i1); \
-} \
-/**/
-
-#define OP_LT_B_I(ri, v0, i1) { \
-    BigZ b1 = BzFromInteger(i1); \
-    BzCmp r = BzCompare((v0)->bi->b, b1); \
-    BzFree(b1); \
-    (ri) = (r == BZ_LT); \
-} \
-/**/
-
-#define OP_LT_I_B(ri, i0, v1) { \
-    BigZ b0 = BzFromInteger(i0); \
-    BzCmp r = BzCompare(b0, (v1)->bi->b); \
-    BzFree(b0); \
-    (ri) = (r == BZ_LT); \
-} \
-/**/
-
-#define OP_LT_V_I(ri, v0, i1) { \
-    if ((v0)->t == VAR_INT64) { \
-        (ri) = ((v0)->i < i1); \
-    } else if ((v0)->t == VAR_BIG) { \
-        OP_LT_B_I(ri, v0, i1) \
+#define OP_JMP_IF_FALSE(r, label) { \
+    if ((r)->t == VAR_INT64) { \
+        if ((r)->i == 0) goto label; \
     } else { \
         /* TODO */ \
     } \
 } \
 /**/
 
-#define OP_LT(ri, v0, v1) { \
+/* LT */
+
+#define OP_LT_I_I(r, i0, i1) { \
+    (r)->t = VAR_INT64; \
+    (r)->i = (i0) < (i1); \
+} \
+/**/
+
+#define OP_LT_B_I(r, v0, i1) { \
+    BigZ b1 = BzFromInteger(i1); \
+    BzCmp c = BzCompare((v0)->bi->b, b1); \
+    BzFree(b1); \
+    (r)->t = VAR_INT64; \
+    (r)->i = (c == BZ_LT); \
+} \
+/**/
+
+#define OP_LT_I_B(r, i0, v1) { \
+    BigZ b0 = BzFromInteger(i0); \
+    BzCmp c = BzCompare(b0, (v1)->bi->b); \
+    BzFree(b0); \
+    (r)->t = VAR_INT64; \
+    (r)->i = (c == BZ_LT); \
+} \
+/**/
+
+#define OP_LT_V_I(r, v0, i1) { \
+    if ((v0)->t == VAR_INT64) { \
+        OP_LT_I_I(r, (v0)->i, i1) \
+    } else if ((v0)->t == VAR_BIG) { \
+        OP_LT_B_I(r, v0, i1) \
+    } else { \
+        /* TODO */ \
+    } \
+} \
+/**/
+
+#define OP_LT(r, v0, v1) { \
     if ((v0)->t == VAR_INT64) { \
         if ((v1)->t == VAR_INT64) { \
-            OP_LT_I_I(ri, (v0)->i, (v1)->i); \
+            OP_LT_I_I(r, (v0)->i, (v1)->i); \
         } else if ((v1)->t = VAR_BIG) { \
             int64_t i0 = (v0)->i; \
-            OP_LT_I_B(ri, i0, v1) \
+            OP_LT_I_B(r, i0, v1) \
         } else { \
             /* TODO */ \
         } \
     } else if ((v0)->t == VAR_BIG) { \
         if ((v1)->t = VAR_INT64) { \
             int64_t i1 = (v1)->i; \
-            OP_LT_B_I(ri, v0, i1) \
+            OP_LT_B_I(r, v0, i1) \
         } else if ((v1)->t = VAR_BIG) { \
-            BzCmp r = BzCompare((v0)->bi->b, (v1)->bi->b); \
-            (ri) = (r == BZ_LT); \
+            BzCmp c = BzCompare((v0)->bi->b, (v1)->bi->b); \
+            (r)->t = VAR_INT64; \
+            (r)->i = (c == BZ_LT); \
         } else { \
             /* TODO */ \
         } \

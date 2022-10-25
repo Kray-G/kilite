@@ -1,7 +1,6 @@
 #ifndef KILITE_DISPAST_H
 #define KILITE_DISPAST_H
 
-#include "common.h"
 #include "parser.h"
 void dispast(kl_context *ctx);
 void dispsym(kl_context *ctx);

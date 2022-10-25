@@ -119,7 +119,6 @@ typedef struct {
 #define BZ_DUMMY_SIZE   32
 
 typedef struct {
-        int mark;
         BigZHeader Header;
         /*
          * Digit vector should be the last field to allow allocation

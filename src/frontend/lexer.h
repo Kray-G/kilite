@@ -1,7 +1,7 @@
 #ifndef KILITE_LEXER_H
 #define KILITE_LEXER_H
 
-#include "common.h"
+#include <inttypes.h>
 #include <stdio.h>
 #include <stdint.h>
 #include <string.h>

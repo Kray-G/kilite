@@ -1,7 +1,6 @@
 #ifndef KILITE_PARSER_H
 #define KILITE_PARSER_H
 
-#include "common.h"
 #include "lexer.h"
 
 #define HASHSIZE (23)

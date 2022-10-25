@@ -1,13 +1,38 @@
-#include "../src/parser.h"
-#include "../src/disp.h"
+#include "../src/frontend/parser.h"
+#include "../src/frontend/disp.h"
 #include <stdlib.h>
 #include <errno.h>
 #include <limits.h>
 
-// cl test_parser.c ..\src\lexer.c ..\src\parser.c ..\src\error.c ..\src\disp.c
-// gcc test_parser.c ../src/lexer.c ../src/parser.c ../src/error.c ../src/disp.c
+// cl test_parser.c ..\src\frontend\lexer.c ..\src\frontend\parser.c ..\src\frontend\error.c ..\src\frontend\disp.c
+// gcc test_parser.c ../src/frontend/lexer.c ../src/frontend/parser.c ../src/frontend/error.c ../src/frontend/disp.c
+
+extern const char *teststr;
+
+int main(void)
+{
+    kl_lexer *l = lexer_new_string(teststr);
+    // l->options |= LEXER_OPT_FETCH_NAME;
+    kl_context *ctx = parser_new_context();
+    // ctx->options |= PARSER_OPT_PHASE;
+
+    int r = parse(ctx, l);
+    dispast(ctx);
+
+    free_context(ctx);
+    lexer_free(l);
+
+    return 0;
+}
 
 const char *teststr =
+"func fib(n: int64) : int64 {\n"
+"    if (n < 2) {\n"
+"        return n;"
+"    }\n"
+"    return fib(n-1) + fib(n-2);\n"
+"}\n"
+
 "func fib(n: int64, { a, b:x }, [y,z,,last]) : ()=>int64 {\n"
 "    if (n < 2) {\n"
 "        return n ? [,,a,,2,n,,3,,,] : { x, a: {x: 1, n, a: 2}, last, z, n};"
@@ -70,19 +95,3 @@ const char *teststr =
 // "    1 + 2 + 3;\n"
 // "}\n"
 ;
-
-int main(void)
-{
-    kl_lexer *l = lexer_new_string(teststr);
-    // l->options |= LEXER_OPT_FETCH_NAME;
-    kl_context *ctx = parser_new_context();
-    // ctx->options |= PARSER_OPT_PHASE;
-
-    int r = parse(ctx, l);
-    dispast(ctx);
-
-    free_context(ctx);
-    lexer_free(l);
-
-    return 0;
-}
