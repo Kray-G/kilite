@@ -193,12 +193,12 @@ typedef struct kl_lexer {
 /*
  * Public functions of lexical analyzer.
  */
-const char *tokenname(int tok);
-const char *typeidname(int tid);
-kl_lexer *lexer_new_file(const char *f);
-kl_lexer *lexer_new_string(const char *s);
-void lexer_free(kl_lexer *l);
-tk_token lexer_fetch(kl_lexer *l);
-void lexer_unfetch(kl_lexer *l, tk_token prev);
+extern const char *tokenname(int tok);
+extern const char *typeidname(int tid);
+extern kl_lexer *lexer_new_file(const char *f);
+extern kl_lexer *lexer_new_string(const char *s);
+extern void lexer_free(kl_lexer *l);
+extern tk_token lexer_fetch(kl_lexer *l);
+extern void lexer_unfetch(kl_lexer *l, tk_token prev);
 
 #endif /* KILITE_LEXER_H */

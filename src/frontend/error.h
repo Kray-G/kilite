@@ -3,6 +3,6 @@
 
 #include <stdarg.h>
 
-int error_print(const char *phase, int line, int pos, int len, const char *fmt, va_list ap);
+extern int error_print(const char *phase, int line, int pos, int len, const char *fmt, va_list ap);
 
 #endif /* KILITE_ERROR_H */

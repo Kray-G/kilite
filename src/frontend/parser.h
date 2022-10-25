@@ -92,10 +92,10 @@ typedef struct kl_context {
     kl_nsstack *nsstchn;            //  For memory allocation control.
 } kl_context;
 
-kl_context *parser_new_context(void);
-kl_stmt *copy_tree(kl_context *ctx, kl_stmt *src);
-int parse(kl_context *ctx, kl_lexer *l);
-void free_context(kl_context *ctx);
+extern kl_context *parser_new_context(void);
+extern kl_stmt *copy_tree(kl_context *ctx, kl_stmt *src);
+extern int parse(kl_context *ctx, kl_lexer *l);
+extern void free_context(kl_context *ctx);
 
 #define PARSER_OPT_PHASE (0x01)
 
