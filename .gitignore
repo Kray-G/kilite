@@ -55,8 +55,8 @@ dkms.conf
 
 # Folders
 /.vscode
-/work
 /bin
 
 # Build commands
-!mir.cmd
+!build/*.cmd
+!build/*.sh
