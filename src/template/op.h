@@ -41,6 +41,16 @@ extern BigZ i64minm1;
 } \
 /**/
 
+#define SET_ARGVAR(idx, alc) { \
+    if (ac > idx) { \
+        vmvar *a##idx = arg_var(ctx, alc); \
+        COPY_VAR_TO(ctx, n##idx, a##idx); \
+    } else { \
+        init_var(n##idx); \
+    } \
+} \
+/**/
+
 /* ADD */
 
 #define OP_ADD_I_I(ctx, r, i0, i1) { \
@@ -233,13 +243,13 @@ extern BigZ i64minm1;
 
 /* LT */
 
-#define OP_LT_I_I(r, i0, i1) { \
+#define OP_LT_I_I(ctx, r, i0, i1) { \
     (r)->t = VAR_INT64; \
     (r)->i = (i0) < (i1); \
 } \
 /**/
 
-#define OP_LT_B_I(r, v0, i1) { \
+#define OP_LT_B_I(ctx, r, v0, i1) { \
     BigZ b1 = BzFromInteger(i1); \
     BzCmp c = BzCompare((v0)->bi->b, b1); \
     BzFree(b1); \
@@ -248,7 +258,7 @@ extern BigZ i64minm1;
 } \
 /**/
 
-#define OP_LT_I_B(r, i0, v1) { \
+#define OP_LT_I_B(ctx, r, i0, v1) { \
     BigZ b0 = BzFromInteger(i0); \
     BzCmp c = BzCompare(b0, (v1)->bi->b); \
     BzFree(b0); \
@@ -257,31 +267,31 @@ extern BigZ i64minm1;
 } \
 /**/
 
-#define OP_LT_V_I(r, v0, i1) { \
+#define OP_LT_V_I(ctx, r, v0, i1) { \
     if ((v0)->t == VAR_INT64) { \
-        OP_LT_I_I(r, (v0)->i, i1) \
+        OP_LT_I_I(ctx, r, (v0)->i, i1) \
     } else if ((v0)->t == VAR_BIG) { \
-        OP_LT_B_I(r, v0, i1) \
+        OP_LT_B_I(ctx, r, v0, i1) \
     } else { \
         /* TODO */ \
     } \
 } \
 /**/
 
-#define OP_LT(r, v0, v1) { \
+#define OP_LT(ctx, r, v0, v1) { \
     if ((v0)->t == VAR_INT64) { \
         if ((v1)->t == VAR_INT64) { \
-            OP_LT_I_I(r, (v0)->i, (v1)->i); \
+            OP_LT_I_I(ctx, r, (v0)->i, (v1)->i); \
         } else if ((v1)->t = VAR_BIG) { \
             int64_t i0 = (v0)->i; \
-            OP_LT_I_B(r, i0, v1) \
+            OP_LT_I_B(ctx, r, i0, v1) \
         } else { \
             /* TODO */ \
         } \
     } else if ((v0)->t == VAR_BIG) { \
         if ((v1)->t = VAR_INT64) { \
             int64_t i1 = (v1)->i; \
-            OP_LT_B_I(r, v0, i1) \
+            OP_LT_B_I(ctx, r, v0, i1) \
         } else if ((v1)->t = VAR_BIG) { \
             BzCmp c = BzCompare((v0)->bi->b, (v1)->bi->b); \
             (r)->t = VAR_INT64; \

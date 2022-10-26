@@ -15,18 +15,16 @@ int func_fib(vmctx *ctx, vmfrm *lex, vmvar **r, int ac)
     int p, e = 0;
     alloc_var(ctx, 4);
     vmvar *n0 = local_var(ctx, 0);
-    vmvar *t1 = local_var(ctx, 1);
-    vmvar *t2 = local_var(ctx, 2);
-    vmvar *t3 = local_var(ctx, 3);
-    if (ac > 0) {
-        vmvar *a0 = arg_var(ctx, 4);    // Why it is 4 is because 4 spaces are allocated for local variables.
-        COPY_VAR_TO(ctx, n0, a0);
-    } else {
-        init_var(n0);
-    }
+    vmvar *n1 = local_var(ctx, 1);
+    vmvar *n2 = local_var(ctx, 2);
+    vmvar *n3 = local_var(ctx, 3);
+    SET_ARGVAR(0, 4);   // Why it is 4 is because 4 spaces are allocated for local variables.
+    // SET_ARGVAR(1, 4);
+    // SET_ARGVAR(2, 4);
+    // SET_ARGVAR(3, 4);
 
-    OP_LT_V_I(t1, n0, 2);
-    OP_JMP_IF_FALSE(t1, COND2);
+    OP_LT_V_I(ctx, n1, n0, 2);
+    OP_JMP_IF_FALSE(n1, COND2);
 
 COND1:;
     GC_CHECK(ctx);
@@ -37,23 +35,23 @@ COND2:;
     vmfnc *f1 = lex->v[0]->f;
     GC_CHECK(ctx);
 
-    OP_SUB_V_I(ctx, t1, n0, 2);
+    OP_SUB_V_I(ctx, n1, n0, 2);
 
     p = vstackp(ctx);
-    push_var(ctx, t1);
-    e = (f1->f)(ctx, f1->lex, &t2, 1);
+    push_var(ctx, n1);
+    e = (f1->f)(ctx, f1->lex, &n2, 1);
     restore_vstackp(ctx, p);
     if (e) goto END;
 
-    OP_SUB_V_I(ctx, t1, n0, 1);
+    OP_SUB_V_I(ctx, n1, n0, 1);
 
     p = vstackp(ctx);
-    push_var(ctx, t1);
-    e = (f1->f)(ctx, f1->lex, &t3, 1);
+    push_var(ctx, n1);
+    e = (f1->f)(ctx, f1->lex, &n3, 1);
     restore_vstackp(ctx, p);
     if (e) goto END;
 
-    OP_ADD(ctx, *r, t2, t3);
+    OP_ADD(ctx, *r, n2, n3);
 
     goto END;
 
@@ -62,6 +60,49 @@ END:
     /* This frame can be released because this function is not being a lexical scope. */
     // pop_frm(ctx);
     // pbakfrm(ctx, frm);
+    return e;
+}
+
+/* function:fib */
+int func_fib2(vmctx *ctx, vmfrm *lex, vmvar **r, int ac)
+{
+    GC_CHECK(ctx);
+    int p, e = 0;
+    const int allocated_local = 5;
+    alloc_var(ctx, 5);
+    vmvar *n0 = local_var(ctx, 0);
+    vmvar *n1 = local_var(ctx, 1);
+    vmvar *n2 = local_var(ctx, 2);
+    vmvar *n3 = local_var(ctx, 3);
+    vmvar *n4 = local_var(ctx, 4);
+    SET_ARGVAR(0, 5);
+
+    vmfnc *f1 = (lex->v[0])->f;
+
+    OP_LT_V_I(ctx, n1, n0, 2);
+    OP_JMP_IF_FALSE(n1, L3);
+L2:;
+    GC_CHECK(ctx);
+    COPY_VAR_TO(ctx, (*r), n0);
+    goto L1;
+L3:;
+L4:;
+    GC_CHECK(ctx);
+    p = vstackp(ctx);
+    OP_SUB_V_I(ctx, n2, n0, 2);
+    push_var(ctx, n2);
+    e = (f1->f)(ctx, lex, &(n1), 1);
+    restore_vstackp(ctx, p);
+    if (e) goto L1;
+    p = vstackp(ctx);
+    OP_SUB_V_I(ctx, n4, n0, 1);
+    push_var(ctx, n4);
+    e = (f1->f)(ctx, lex, &(n3), 1);
+    restore_vstackp(ctx, p);
+    if (e) goto L1;
+    OP_ADD(ctx, (*r), n1, n3);
+L1:;
+    reduce_vstackp(ctx, allocated_local);
     return e;
 }
 
@@ -83,7 +124,7 @@ void run_global(vmctx *ctx)
 
     /* Pattern 1 */
     {
-        vmfnc *f1 = alcfnc(ctx, func_fib, global, 1);
+        vmfnc *f1 = alcfnc(ctx, func_fib2, global, 1);
         vmvar *l1 = alcvar_fnc(ctx, f1);
         global->v[0] = l1;
         global->v[1] = alcvar_int64(ctx, c, 0);
