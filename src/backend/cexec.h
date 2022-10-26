@@ -11,8 +11,8 @@ typedef struct kl_opts {
     const char **modules;
 } kl_opts;
 
-typedef int (*main_t)(void);
+typedef int (*main_t)(int ac, char **av, char **ev);
 
-extern int run_code(int *ret, const char *filename, const char *src, kl_opts *opts);
+extern int run_code(int *ret, const char *filename, const char *src, int ac, char **av, char **ev, kl_opts *opts);
 
 #endif /* KILITE_EXEC_H */

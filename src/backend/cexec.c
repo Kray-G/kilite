@@ -56,7 +56,7 @@ static MIR_item_t load_main_modules(MIR_context_t ctx)
     return main_func;
 }
 
-int run_code(int *ret, const char *fname, const char *src, kl_opts *opts)
+int run_code(int *ret, const char *fname, const char *src, int ac, char **av, char **ev, kl_opts *opts)
 {
     open_std_libs();
     int r = 1, lazy = 0;
@@ -96,7 +96,7 @@ int run_code(int *ret, const char *fname, const char *src, kl_opts *opts)
         MIR_gen_init(ctx, 1);
         MIR_link(ctx, lazy ? MIR_set_lazy_gen_interface : MIR_set_gen_interface, import_resolver);
         main_t fun_addr = (main_t)(main_func->addr);
-        int rc = fun_addr();
+        int rc = fun_addr(ac, av, ev);
         MIR_gen_finish(ctx);
         if (ret) *ret = rc;
         r = 0;  /* successful */
