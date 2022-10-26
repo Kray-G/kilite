@@ -13,7 +13,7 @@ static int getc_func(void *data)
     return *d->p++;
 }
 
-static FILE *open_output_file(const char *fname, int ismir)
+static FILE *open_output_file(const char *fname, kl_opts *opts, int ismir)
 {
     char buf[256] = {0};
     char *p = buf;
@@ -22,8 +22,12 @@ static FILE *open_output_file(const char *fname, int ismir)
             *p++ = *fname++;
         }
     }
-    strcpy(p, ismir ? ".mir" : ".bmir");
-    return fopen(p, ismir ? "w" : "wb");
+    const char *ext = ismir ? (opts->ext ? opts->ext : ".mir") : (opts->bext ? opts->bext : ".bmir");
+    if (*ext != '.') {
+        *p++ = '.';
+    }
+    strcpy(p, ext);
+    return fopen(buf, ismir ? "w" : "wb");
 }
 
 static void load_additional_modules(MIR_context_t ctx, const char **modules)
@@ -69,7 +73,7 @@ int run(int *ret, const char *fname, const char *src, int ac, char **av, char **
         if (opts->mir || opts->bmir) {
             options.asm_p = opts->mir;
             options.object_p = opts->bmir;
-            outf = open_output_file(fname, options.asm_p);
+            outf = open_output_file(fname, opts, options.asm_p);
         }
         if (opts->lazy) {
             lazy = opts->lazy;
@@ -110,11 +114,15 @@ END:
     return r;
 }
 
-int output(const char *fname, const char *src, int ismir)
+int output(const char *fname, const char *src, int isbmir, const char *ext)
 {
-    kl_opts opts = {
-        .mir = ismir,
-        .bmir = !ismir,
-    };
+    kl_opts opts = {0};
+    if (isbmir) {
+        opts.bmir = 1;
+        opts.bext = ext;
+    } else {
+        opts.mir = 1;
+        opts.ext = ext;
+    }
     return run(NULL, fname, src, 0, NULL, NULL, &opts);
 }
