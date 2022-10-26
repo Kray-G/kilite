@@ -17,18 +17,19 @@ int main(void)
     };
     int r = 0;
     return run_code(&r, "fib.c",
-        // "int fib(int n)\n"
-        // "{\n"
-        // "    if (n < 2) return n;\n"
-        // "    return fib(n-2) + fib(n-1);\n"
-        // "}\n"
-        "int printf(const char *, ...);\n"
-        "int main(void)\n"
-        "{\n"
-        "   printf(\"okay! fib(38) = %lld\\n\", fib(38));\n"
-        "   return 100;\n"
-        "}\n"
-        "\n",
+            // "int fib(int n)\n"
+            // "{\n"
+            // "    if (n < 2) return n;\n"
+            // "    return fib(n-2) + fib(n-1);\n"
+            // "}\n"
+            "int printf(const char *, ...);\n"
+            "int main(void)\n"
+            "{\n"
+            "   printf(\"okay! fib(38) = %lld\\n\", fib(38));\n"
+            "   return 100;\n"
+            "}\n"
+            "\n",
+        0, NULL, NULL,
         &opts
     );
 }
