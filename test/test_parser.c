@@ -1,11 +1,8 @@
 #include "../src/frontend/parser.h"
-#include "../src/frontend/disp.h"
-#include <stdlib.h>
-#include <errno.h>
-#include <limits.h>
+#include "../src/frontend/dispast.h"
 
-// cl test_parser.c ..\src\frontend\lexer.c ..\src\frontend\parser.c ..\src\frontend\error.c ..\src\frontend\disp.c
-// gcc test_parser.c ../src/frontend/lexer.c ../src/frontend/parser.c ../src/frontend/error.c ../src/frontend/disp.c
+// cl test_parser.c ..\src\frontend\lexer.c ..\src\frontend\parser.c ..\src\frontend\error.c ..\src\frontend\dispast.c
+// gcc test_parser.c ../src/frontend/lexer.c ../src/frontend/parser.c ../src/frontend/error.c ../src/frontend/dispast.c
 
 extern const char *teststr;
 
@@ -17,7 +14,7 @@ int main(void)
     // ctx->options |= PARSER_OPT_PHASE;
 
     int r = parse(ctx, l);
-    dispast(ctx);
+    disp_ast(ctx);
 
     free_context(ctx);
     lexer_free(l);
@@ -37,7 +34,7 @@ const char *teststr =
 "    if (n < 2) {\n"
 "        return n ? [,,a,,2,n,,3,,,] : { x, a: {x: 1, n, a: 2}, last, z, n};"
 "    }\n"
-"    return fib(n-1) + fib(n-2);\n"
+"    return fib(n,1,2,3,4,1) + fib(n-2);\n"
 "}\n"
 
 // "func xxx(n: int64) : int64 {\n"

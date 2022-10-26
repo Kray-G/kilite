@@ -1,6 +1,7 @@
 #ifndef KILITE_PARSER_H
 #define KILITE_PARSER_H
 
+#include "../kir.h"
 #include "lexer.h"
 
 #define HASHSIZE (23)
@@ -86,12 +87,17 @@ typedef struct kl_context {
     kl_symbol *global;              //  The symbol of the global scope.
     kl_conststr *hash[HASHSIZE];    //  Hashtable of constant string.
 
+    int labelid;                    //  Current max value of label index.
+    kl_kir_program *program;        //  KIR output program.
+
     kl_symbol *symchn;              //  For memory allocation control.
     kl_expr *exprchn;               //  For memory allocation control.
     kl_stmt *stmtchn;               //  For memory allocation control.
     kl_nsstack *nsstchn;            //  For memory allocation control.
 } kl_context;
 
+extern unsigned int hash(const char *s);
+extern char *const_str(kl_context *ctx, const char *phase, int line, int pos, int len, const char *str);
 extern kl_context *parser_new_context(void);
 extern kl_stmt *copy_tree(kl_context *ctx, kl_stmt *src);
 extern int parse(kl_context *ctx, kl_lexer *l);

@@ -3,7 +3,6 @@
 
 #include "parser.h"
 
-extern void dispast(kl_context *ctx);
-extern void dispsym(kl_context *ctx);
+extern void disp_ast(kl_context *ctx);
 
 #endif /* KILITE_DISPAST_H */

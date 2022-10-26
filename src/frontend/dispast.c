@@ -1,4 +1,4 @@
-#include "disp.h"
+#include "dispast.h"
 
 static void disp_expr(kl_expr *e, int indent);
 static void disp_stmt_list(kl_stmt *s, int indent);
@@ -400,7 +400,7 @@ static void disp_stmt_list(kl_stmt *s, int indent)
     }
 }
 
-void dispast(kl_context *ctx)
+void disp_ast(kl_context *ctx)
 {
     disp_stmt_list(ctx->head, 0);
     // kl_stmt *copy = copy_tree(ctx, ctx->head);

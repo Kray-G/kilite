@@ -1,37 +1,17 @@
 #ifndef KILITE_LEXER_H
 #define KILITE_LEXER_H
 
+#include "../kir.h"
 #include <inttypes.h>
 #include <stdio.h>
 #include <stdint.h>
 #include <string.h>
+#include <stdlib.h>
 
 /*
  * Defnitions
  */
 #define LEXER_STRBUF_SZ (1024)
-
-/*
- * Available tokens in the Kilite language.
- */
-typedef enum tk_typeid {
-    // Types
-    TK_TANY = 0,            //  <any type>
-    TK_TSINT8,              //  int8
-    TK_TSINT16,             //  int16
-    TK_TSINT32,             //  int32
-    TK_TSINT64,             //  int64
-    TK_TUINT8,              //  uint8
-    TK_TUINT16,             //  uint16
-    TK_TUINT32,             //  uint32
-    TK_TUINT64,             //  uint64
-    TK_TBIGINT,             //  bigint
-    TK_TDBL,                //  real
-    TK_TSTR,                //  string
-    TK_TBIN,                //  binary
-
-    TK_TCLASSBASE,          //  The typename value of class will be started from this value.
-} tk_typeid;
 
 /* '*' means that the implementation of parsing has been done. */
 typedef enum tk_token {

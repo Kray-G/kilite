@@ -3,7 +3,6 @@
  */
 #include "error.h"
 #include "parser.h"
-#include <stdlib.h>
 
 static kl_expr *parse_expr_list(kl_context *ctx, kl_lexer *l, int endch);
 static kl_expr *parse_expr_assignment(kl_context *ctx, kl_lexer *l);
@@ -33,7 +32,7 @@ static int parse_error(kl_context *ctx, int sline, const char *phase, kl_lexer *
  * Node management
  */
 
-static inline unsigned int hash(const char *s)
+unsigned int hash(const char *s)
 {
 	unsigned int h = (int)*s;
 	if (h) for (++s ; *s; ++s) {
@@ -42,7 +41,7 @@ static inline unsigned int hash(const char *s)
     return h % HASHSIZE;
 }
 
-static char *const_str(kl_context *ctx, kl_lexer *l, const char *str)
+char *const_str(kl_context *ctx, const char *phase, int line, int pos, int len, const char *str)
 {
     kl_conststr *p;
 
@@ -55,13 +54,18 @@ static char *const_str(kl_context *ctx, kl_lexer *l, const char *str)
 
     /* Register the new string */
     if ((p = (kl_conststr *)calloc(1, sizeof(kl_conststr))) == NULL) {
-        parse_error(ctx, __LINE__, "Compile", l, "Memory allocation error.");
         return NULL;
     }
+
     (*p).str = strdup(str);
     p->next = ctx->hash[h];
     ctx->hash[h] = p;
     return (*p).str;
+}
+
+static char *parse_const_str(kl_context *ctx, kl_lexer *l, const char *str)
+{
+    return const_str(ctx, "Compile", l->tokline, l->tokpos, l->toklen, str);
 }
 
 kl_context *parser_new_context(void)
@@ -72,7 +76,7 @@ kl_context *parser_new_context(void)
 static inline kl_nsstack *make_nsstack(kl_context *ctx, kl_lexer *l, const char *name, int scope)
 {
     kl_nsstack *n = (kl_nsstack *)calloc(1, sizeof(kl_nsstack));
-    n->name = const_str(ctx, l, name);
+    n->name = parse_const_str(ctx, l, name);
     n->scopetype = scope;
     n->chn = ctx->nsstchn;
     ctx->nsstchn = n;
@@ -333,7 +337,7 @@ static kl_expr *parse_expr_varname(kl_context *ctx, kl_lexer *l, const char *nam
     } else {
         sym = make_ref_symbol(ctx, l, TK_VAR, name);
     }
-    sym->name = const_str(ctx, l, name);
+    sym->name = parse_const_str(ctx, l, name);
     e->sym = sym;
 
     if (sym->ref) {
@@ -351,7 +355,7 @@ static kl_expr *parse_expr_keyvalue(kl_context *ctx, kl_lexer *l)
     kl_expr *e = NULL;
     while (l->tok == TK_NAME || l->tok == TK_VSTR) {
         tk_token tok = l->tok;
-        const char *name = const_str(ctx, l, l->str);
+        const char *name = parse_const_str(ctx, l, l->str);
         kl_expr *e2 = make_expr(ctx, TK_VSTR);
         e2->val.str = name;
         lexer_fetch(l);
@@ -485,12 +489,12 @@ static kl_expr *parse_expr_factor(kl_context *ctx, kl_lexer *l)
         break;
     case TK_VBIGINT:
         e = make_expr(ctx, TK_VBIGINT);
-        e->val.big = const_str(ctx, l, l->str);
+        e->val.big = parse_const_str(ctx, l, l->str);
         lexer_fetch(l);
         break;
     case TK_VSTR:
         e = make_expr(ctx, TK_VSTR);
-        e->val.str = const_str(ctx, l, l->str);
+        e->val.str = parse_const_str(ctx, l, l->str);
         lexer_fetch(l);
         break;
     default:
@@ -842,7 +846,7 @@ static kl_expr *parse_def_arglist(kl_context *ctx, kl_lexer *l)
             check_symbol(ctx, l, l->str);
             kl_expr *e1 = make_expr(ctx, TK_VAR);
             kl_symbol *sym = make_symbol(ctx, TK_VAR);
-            sym->name = const_str(ctx, l, l->str);
+            sym->name = parse_const_str(ctx, l, l->str);
             e1->sym = sym;
             lexer_fetch(l);
             if (l->tok == TK_COLON) {
@@ -985,7 +989,7 @@ static kl_stmt *parse_declaration(kl_context *ctx, kl_lexer *l, int decltype)
         check_symbol(ctx, l, l->str);
         kl_expr *lhs = make_expr(ctx, TK_VAR);
         kl_symbol *sym = make_symbol(ctx, TK_VAR);
-        sym->name = const_str(ctx, l, l->str);
+        sym->name = parse_const_str(ctx, l, l->str);
         lhs->sym = sym;
 
         lexer_fetch(l);
@@ -1054,7 +1058,7 @@ static kl_stmt *parse_class(kl_context *ctx, kl_lexer *l)
     kl_nsstack *n = make_nsstack(ctx, l, l->str, TK_CLASS);
     push_nsstack(ctx, n);
 
-    sym->name = const_str(ctx, l, l->str);
+    sym->name = parse_const_str(ctx, l, l->str);
     lexer_fetch(l);
 
     /* Constructor arguments if exists */
@@ -1110,7 +1114,7 @@ static kl_stmt *parse_function(kl_context *ctx, kl_lexer *l, int funcscope)
 
     /* The name is not needed for function */
     if (l->tok == TK_NAME) {
-        sym->name = const_str(ctx, l, l->str);
+        sym->name = parse_const_str(ctx, l, l->str);
         lexer_fetch(l);
     }
     add_sym2method(ctx->scope, sym);
@@ -1183,7 +1187,7 @@ static kl_stmt *parse_namespace(kl_context *ctx, kl_lexer *l)
 
     /* No name is okay for namespace */
     if (l->tok == TK_NAME) {
-        sym->name = const_str(ctx, l, l->str);
+        sym->name = parse_const_str(ctx, l, l->str);
         lexer_fetch(l);
     }
 
@@ -1320,7 +1324,7 @@ int parse(kl_context *ctx, kl_lexer *l)
     push_nsstack(ctx, n);
     kl_stmt *s = make_stmt(ctx, TK_NAMESPACE);
     kl_symbol *sym = make_symbol(ctx, TK_NAMESPACE);
-    sym->name = const_str(ctx, l, "_global");
+    sym->name = parse_const_str(ctx, l, "_global");
     s->sym = sym;
 
     ctx->scope = ctx->global = sym;
