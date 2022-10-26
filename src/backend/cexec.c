@@ -56,7 +56,7 @@ static MIR_item_t load_main_modules(MIR_context_t ctx)
     return main_func;
 }
 
-int run_code(int *ret, const char *fname, const char *src, int ac, char **av, char **ev, kl_opts *opts)
+int run(int *ret, const char *fname, const char *src, int ac, char **av, char **ev, kl_opts *opts)
 {
     open_std_libs();
     int r = 1, lazy = 0;
@@ -108,4 +108,13 @@ END:
     MIR_finish(ctx);
     close_std_libs();
     return r;
+}
+
+int output(const char *fname, const char *src, int ismir)
+{
+    kl_opts opts = {
+        .mir = ismir,
+        .bmir = !ismir,
+    };
+    return run(NULL, fname, src, 0, NULL, NULL, &opts);
 }

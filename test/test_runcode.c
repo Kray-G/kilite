@@ -6,7 +6,7 @@
 int main(void)
 {
     const char *modules[] = {
-        "fib.bmir",
+        "fib.klc",
         NULL,   /* must be ended by NULL */
     };
     kl_opts opts = {
@@ -16,7 +16,7 @@ int main(void)
         .modules = modules,
     };
     int r = 0;
-    return run_code(&r, "fib.c",
+    return run(&r, "fib.c",
             // "int fib(int n)\n"
             // "{\n"
             // "    if (n < 2) return n;\n"

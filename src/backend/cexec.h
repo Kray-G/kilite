@@ -13,6 +13,7 @@ typedef struct kl_opts {
 
 typedef int (*main_t)(int ac, char **av, char **ev);
 
-extern int run_code(int *ret, const char *filename, const char *src, int ac, char **av, char **ev, kl_opts *opts);
+extern int run(int *ret, const char *filename, const char *src, int ac, char **av, char **ev, kl_opts *opts);
+extern int output(const char *fname, const char *src, int ismir);
 
 #endif /* KILITE_EXEC_H */
