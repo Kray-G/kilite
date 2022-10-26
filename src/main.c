@@ -1,4 +1,6 @@
 #include "frontend/parser.h"
+#include "frontend/mkkir.h"
+#include "frontend/dispast.h"
 #include "backend/cexec.h"
 #include "backend/dispkir.h"
 #include "backend/translate.h"
