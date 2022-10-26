@@ -34,9 +34,9 @@ To meet the goal, I will try with followings.
     * Execution from C source code is also already supported.
   * Various platforms are supported.
     * Not only x86_64, but also PPC64, aarch64, etc.
-  * It is easy to hold the code as a library, like it's .bmir file.
+  * It is easy to hold the code as a library, like it's a .bmir file.
     * Compiling separatedly, you can execute it all together later.
-    * You can write the library by C language if you need, and use it as .bmir as it is.
+    * You can write the library by C language if you need, and use it as a .bmir as it is.
 
 ## TODO
 
@@ -52,4 +52,15 @@ I will note the followings as I don't forget it.
   * [ ] Object and array element's direct assignment.
   * [ ] 'Case-When' expression.
 
+## Others
+
+### About `native`
+
 Note that the `native` keyword will be no longer supported because this solution is always using a native-call compilation.
+
+The original `native` function was super fast, but there are a lot of limitations.
+For example, promoting from integer to big integer does not work, a lot of memory would be used, or some exceptions from `native` to VM couldn't work well.
+But the kilite code will be translated to the native code with all functionalities that the language has.
+This would be nice even if kilite could be slower than `native` before because it could be useful for users.
+Of course, I will try to make it faster like same as `native` in future.
+Stay tuned!
