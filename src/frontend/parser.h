@@ -20,10 +20,11 @@ typedef struct kl_symbol {
     int has_func;                   //  If 1, this symbol's scope has an internal function. If 0, this func doesn't need a frame.
     int is_callable;                //  The callable symbol, which is like TK_FUNC, TK_CLASS, or something.
     int is_recursive;               //  This reference symbol could be recursive call. ref->is_callable should be 1.
-    int count;                      //  Variable counter in this scope.
     int level;                      //  The level of lexical scope, which means a distance from the scope having the 'ref' symbol.
     int index;                      //  The index of this symbol.
+    int count;                      //  Variable counter in this scope.
     int idxmax;                     //  The current index max.
+    int funcid;                     //  The function id to specify the function.
     tk_typeid symtype;              //  TK_VAR, TK_NAMESPACE, TK_CLASS, TK_MODULE, TK_FUNC, TK_PRIVATE, TK_PROTECTED, or TK_PUBLIC.
     tk_typeid type;                 //  Return type if this is a function. The variable type if this is a variable.
 
@@ -87,6 +88,7 @@ typedef struct kl_context {
     kl_symbol *global;              //  The symbol of the global scope.
     kl_conststr *hash[HASHSIZE];    //  Hashtable of constant string.
 
+    int funcid;                     //  Current max value of function index.
     int labelid;                    //  Current max value of label index.
     kl_kir_program *program;        //  KIR output program.
 

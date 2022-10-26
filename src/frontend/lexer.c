@@ -18,6 +18,7 @@ static const char *tpname[] = {
     "real",
     "string",
     "binary",
+    "function",
 };
 static const char *tkname[] = {
     "TK_EOF",

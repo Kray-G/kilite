@@ -21,6 +21,7 @@ typedef enum tk_typeid {
     TK_TDBL,                //  real
     TK_TSTR,                //  string
     TK_TBIN,                //  binary
+    TK_TFUNC,               //  function
 
     TK_TCLASSBASE,          //  The typename value of class will be started from this value.
 } tk_typeid;
@@ -32,7 +33,8 @@ typedef enum kl_kir {
      *  either KIR_MKFRM or KIR_LOCAL could be used, but those are exclusive.
      */
     KIR_FUNC,       //  <name>                  ;   just an entry point of the funtion.   
-    KIR_LOCAL,      //  <n>                     ;   allocate <n> local vars on stack, without creating a frame.
+    KIR_ALOCAL,     //  <n>                     ;   allocate <n> local vars on stack, without creating a frame.
+    KIR_RLOCAL,     //  -                       ;   reduce the stack to make the size back.
     KIR_MKFRM,      //  <n>                     ;   create a frame of this function with <n> local vars, and push it.
     KIR_POPFRM,     //  -                       ;   pop the frame. this is needed only when the frame has been created.
 
@@ -81,10 +83,12 @@ typedef struct kl_kir_opr {
     int t;                      //  The type of this value.
     int index;                  //  The variable index.
     int level;                  //  The lexical frame level.
+    int funcid;                 //  The value of the type.
     int64_t i64;
     int64_t u64;
     tk_typeid typeid;           //  The value of the type.
     const char *typestr;        //  The type name as a string.
+    const char *name;           //  The name if necessary.
 } kl_kir_opr;
 
 typedef struct kl_kir_inst {
@@ -94,6 +98,7 @@ typedef struct kl_kir_inst {
     kl_kir_opr r1, r2, r3;
 
     struct kl_kir_inst *next;
+    struct kl_kir_inst *chn;
 } kl_kir_inst;
 
 typedef struct kl_kir_func {
@@ -103,11 +108,15 @@ typedef struct kl_kir_func {
     kl_kir_inst *last;
 
     struct kl_kir_func *next;
+    struct kl_kir_func *chn;
 } kl_kir_func;
 
 typedef struct kl_kir_program {
     kl_kir_func *head;
     kl_kir_func *last;
+
+    struct kl_kir_inst *ichn;
+    struct kl_kir_func *fchn;
 } kl_kir_program;
 
 #endif /* KILITE_KIR_H */

@@ -19,69 +19,85 @@ static inline int get_next_label(kl_context *ctx)
     return ctx->labelid++;
 }
 
-static kl_kir_inst *new_inst(kl_kir op)
+static kl_kir_inst *new_inst(kl_kir_program *p, kl_kir op)
 {
     kl_kir_inst *inst = (kl_kir_inst *)calloc(1, sizeof(kl_kir_inst));
+    inst->chn = p->ichn;
+    p->ichn = inst;
     inst->opcode = op;
     return inst;
 }
 
-static kl_kir_inst *new_inst_label(int labelid)
+static kl_kir_inst *new_inst_label(kl_kir_program *p, int labelid)
 {
     kl_kir_inst *inst = (kl_kir_inst *)calloc(1, sizeof(kl_kir_inst));
+    inst->chn = p->ichn;
+    p->ichn = inst;
     inst->opcode = KIR_LABEL;
     inst->labelid = labelid;
     return inst;
 }
 
-static kl_kir_inst *new_inst_jumpiff(kl_kir_opr *r1, int labelid)
+static kl_kir_inst *new_inst_jumpiff(kl_kir_program *p, kl_kir_opr *r1, int labelid)
 {
     kl_kir_inst *inst = (kl_kir_inst *)calloc(1, sizeof(kl_kir_inst));
+    inst->chn = p->ichn;
+    p->ichn = inst;
     inst->opcode = KIR_JMPIFF;
     inst->r1 = *r1;
     inst->labelid = labelid;
     return inst;
 }
 
-static kl_kir_inst *new_inst_jump(int labelid, kl_kir_inst *last)
+static kl_kir_inst *new_inst_jump(kl_kir_program *p, int labelid, kl_kir_inst *last)
 {
     if (last->opcode == KIR_RET) {
         return NULL;
     }
     kl_kir_inst *inst = (kl_kir_inst *)calloc(1, sizeof(kl_kir_inst));
+    inst->chn = p->ichn;
+    p->ichn = inst;
     inst->opcode = KIR_JMP;
     inst->labelid = labelid;
     return inst;
 }
 
-static kl_kir_inst *new_inst_ret(kl_kir_opr *r1)
+static kl_kir_inst *new_inst_ret(kl_kir_program *p, kl_kir_opr *r1)
 {
     kl_kir_inst *inst = (kl_kir_inst *)calloc(1, sizeof(kl_kir_inst));
+    inst->chn = p->ichn;
+    p->ichn = inst;
     inst->opcode = KIR_RET;
     inst->r1 = *r1;
     return inst;
 }
 
-static kl_kir_inst *new_inst_op1(kl_kir op, kl_kir_opr *r1)
+static kl_kir_inst *new_inst_op1(kl_kir_program *p, kl_kir op, kl_kir_opr *r1)
 {
     kl_kir_inst *inst = (kl_kir_inst *)calloc(1, sizeof(kl_kir_inst));
+    inst->chn = p->ichn;
+    p->ichn = inst;
     inst->opcode = op;
     inst->r1 = *r1;
     return inst;
 }
 
-static kl_kir_inst *new_inst_op2(kl_kir op, kl_kir_opr *r1, kl_kir_opr *r2)
+static kl_kir_inst *new_inst_op2(kl_kir_program *p, kl_kir op, kl_kir_opr *r1, kl_kir_opr *r2)
 {
     kl_kir_inst *inst = (kl_kir_inst *)calloc(1, sizeof(kl_kir_inst));
+    inst->chn = p->ichn;
+    p->ichn = inst;
     inst->opcode = op;
     inst->r1 = *r1;
     inst->r2 = *r2;
     return inst;
 }
 
-static kl_kir_inst *new_inst_op3(kl_kir op, kl_kir_opr *r1, kl_kir_opr *r2, kl_kir_opr *r3)
+static kl_kir_inst *new_inst_op3(kl_kir_program *p, kl_kir op, kl_kir_opr *r1, kl_kir_opr *r2, kl_kir_opr *r3)
 {
     kl_kir_inst *inst = (kl_kir_inst *)calloc(1, sizeof(kl_kir_inst));
+    inst->chn = p->ichn;
+    p->ichn = inst;
     inst->opcode = op;
     inst->r1 = *r1;
     inst->r2 = *r2;
@@ -92,6 +108,8 @@ static kl_kir_inst *new_inst_op3(kl_kir op, kl_kir_opr *r1, kl_kir_opr *r2, kl_k
 static kl_kir_func *new_func(kl_context *ctx, const char *name)
 {
     kl_kir_func *func = (kl_kir_func *)calloc(1, sizeof(kl_kir_func));
+    func->chn = ctx->program->fchn;
+    ctx->program->fchn = func;
     func->name = mkkir_const_str(ctx, name);
     return func;
 }
@@ -109,23 +127,13 @@ static void add_func(kl_kir_program *prog, kl_kir_func *func)
 #define KL_KIR_CHECK_LITERAL(e, rn, rni) \
     switch ((e)->nodetype) { \
     case TK_VSINT: \
-        (rn).t = TK_VSINT; \
-        (rn).i64 = (e)->val.i64; \
-        (rn).typeid = TK_TSINT64; \
-        (rn).typestr = mkkir_const_str(ctx, typeidname(TK_TSINT64)); \
+        (rn) = make_lit_i64(ctx, (e)->val.i64); \
         break; \
     case TK_VUINT: \
-        (rn).t = TK_VUINT; \
-        (rn).u64 = (e)->val.u64; \
-        (rn).typeid = TK_TUINT64; \
-        (rn).typestr = mkkir_const_str(ctx, typeidname(TK_TUINT64)); \
+        (rn) = make_lit_u64(ctx, (e)->val.u64); \
         break; \
     case TK_VAR: \
-        (rn).t = TK_VAR; \
-        (rn).index = (e)->sym->ref ? (e)->sym->ref->index : (e)->sym->index; \
-        (rn).level = (e)->sym->level; \
-        (rn).typeid = (e)->typeid; \
-        (rn).typestr = mkkir_const_str(ctx, typeidname((e)->typeid)); \
+        (rn) = make_var_index(ctx, (e)->sym->ref ? (e)->sym->ref->index : (e)->sym->index, (e)->sym->level, (e)->typeid); \
         break; \
     default: \
         if ((rn).index == 0) (rn) = make_var(ctx, sym); \
@@ -146,11 +154,54 @@ static kl_kir_inst *get_last(kl_kir_inst *i)
 
 static kl_kir_opr make_var(kl_context *ctx, kl_symbol *sym)
 {
-    kl_kir_opr r1 = {0};
-    r1.t = TK_VAR;
-    r1.index = sym->idxmax++;   /* TODO: index could be reusable */
-    r1.level = 0;
-    r1.typeid = TK_VAR;
+    kl_kir_opr r1 = (kl_kir_opr){
+        .t = TK_VAR,
+        .index = sym->idxmax++,   /* TODO: index could be reusable */
+        .level = 0,
+        .typeid = TK_TANY,
+    };
+    return r1;
+}
+
+static kl_kir_opr make_lit_i64(kl_context *ctx, int64_t i64)
+{
+    kl_kir_opr r1 = (kl_kir_opr){
+        .t = TK_VSINT,
+        .i64 = i64,
+        .typeid = TK_TSINT64,
+    };
+    return r1;
+}
+
+static kl_kir_opr make_lit_u64(kl_context *ctx, uint64_t u64)
+{
+    kl_kir_opr r1 = (kl_kir_opr){
+        .t = TK_VUINT,
+        .u64 = u64,
+        .typeid = TK_TUINT64,
+    };
+    return r1;
+}
+
+static kl_kir_opr make_lit_func(kl_context *ctx, kl_symbol *sym)
+{
+    kl_kir_opr r1 = (kl_kir_opr){
+        .t = TK_FUNC,
+        .funcid = sym->funcid,
+        .typeid = TK_TFUNC,
+        .name = mkkir_const_str(ctx, sym->name),
+    };
+    return r1;
+}
+
+static kl_kir_opr make_var_index(kl_context *ctx, int index, int level, tk_typeid id)
+{
+    kl_kir_opr r1 = (kl_kir_opr){
+        .t = TK_VAR,
+        .index = index,
+        .level = level,
+        .typeid = id,
+    };
     return r1;
 }
 
@@ -168,7 +219,7 @@ static kl_kir_inst *gen_op3_inst(kl_context *ctx, kl_symbol *sym, kl_kir op, kl_
     kl_kir_inst *r2l = get_last(r2i);
     kl_kir_inst *r3l = get_last(r3i);
 
-    kl_kir_inst *inst = new_inst_op3(op, r1, &r2, &r3);
+    kl_kir_inst *inst = new_inst_op3(ctx->program, op, r1, &r2, &r3);
     if (r2i) {
         if (r3i) {
             r2l->next = r3i;
@@ -205,12 +256,20 @@ static kl_kir_inst *gen_callargs(kl_context *ctx, kl_symbol *sym, kl_expr *e)
             }
         }
     } else {
-        kl_kir_opr r = make_var(ctx, sym);
-        head = last = gen_expr(ctx, sym, &r, e);
-        KIR_MOVE_LAST(last);
-        last->next = new_inst_op1(KIR_PUSHARG, &(last->r1));
-        if (last->next) {
-            last = last->next;
+        kl_kir_inst *r2i = NULL;
+        kl_kir_opr r2 = {0};
+        KL_KIR_CHECK_LITERAL(e, r2, r2i);
+        if (r2i) {
+            head = last = r2i;
+        }
+        if (!last) {
+            head = new_inst_op1(ctx->program, KIR_PUSHARG, &r2);
+        } else {
+            KIR_MOVE_LAST(last);
+            last->next = new_inst_op1(ctx->program, KIR_PUSHARG, &r2);
+            if (last->next) {
+                last = last->next;
+            }
         }
     }
     return head;
@@ -230,8 +289,6 @@ static kl_kir_inst *gen_call(kl_context *ctx, kl_symbol *sym, kl_kir_opr *r1, kl
         r2.level = f->sym->level;
         r2.typeid = f->typeid;
         r1->typeid = r2.typeid; // return value's type is same as r2's type.
-        r2.typestr = mkkir_const_str(ctx, typeidname(f->typeid));
-        r1->typestr = r2.typestr;
     } else {
         r2 = make_var(ctx, sym);
         r1i = gen_expr(ctx, sym, &r2, e->lhs);
@@ -239,9 +296,9 @@ static kl_kir_inst *gen_call(kl_context *ctx, kl_symbol *sym, kl_kir_opr *r1, kl
     }
  
     kl_kir_inst *r2i = gen_callargs(ctx, sym, e->rhs);
-    kl_kir_inst *inst = new_inst_op2(KIR_CALL, r1, &r2);
+    kl_kir_inst *inst = new_inst_op2(ctx->program, KIR_CALL, r1, &r2);
     kl_kir_inst *ilst = get_last(inst);
-    ilst->next = new_inst_op1(KIR_RSSTKP, r1);  // temporary holding the ret value.
+    ilst->next = new_inst_op1(ctx->program, KIR_RSSTKP, r1);  // temporary holding the ret value.
 
     if (r2i) {
         kl_kir_inst *r2l = get_last(r2i);
@@ -260,7 +317,7 @@ static kl_kir_inst *gen_call(kl_context *ctx, kl_symbol *sym, kl_kir_opr *r1, kl
         }
     }
 
-    kl_kir_inst *head = new_inst(KIR_SVSTKP);
+    kl_kir_inst *head = new_inst(ctx->program, KIR_SVSTKP);
     head->next = inst;
     return head;
 }
@@ -269,26 +326,28 @@ static kl_kir_inst *gen_ret(kl_context *ctx, kl_symbol *sym, kl_stmt *s)
 {
     kl_kir_inst *r1i = NULL;
     kl_kir_opr r1 = {
+        .t = TK_VAR,
         .index = -1,
         .typeid = sym->type,
-        .typestr = mkkir_const_str(ctx, typeidname(sym->type)),
     };
 
     KL_KIR_CHECK_LITERAL(s->e1, r1, r1i);
     kl_kir_inst *r1l = get_last(r1i);
+    kl_kir_inst *out = NULL;
     if (sym->has_func) {
-        if (r1l) {
-            r1l->next = new_inst(KIR_POPFRM);
-            r1l = r1l->next;
-        } else {
-            r1l = new_inst(KIR_POPFRM);
-        }
+        out = new_inst(ctx->program, KIR_POPFRM);
+    } else {
+        out = new_inst(ctx->program, KIR_RLOCAL);
     }
+    if (r1l) {
+        r1l->next = out;
+    }
+    r1l = out;
 
-    kl_kir_inst *inst = new_inst_ret(&r1);
+    kl_kir_inst *inst = new_inst_ret(ctx->program, &r1);
     if (r1l) {
         r1l->next = inst;
-        inst = r1i;
+        inst = r1i ? r1i : r1l;
     }
 
     return inst;
@@ -305,21 +364,23 @@ static kl_kir_inst *gen_if(kl_context *ctx, kl_symbol *sym, kl_stmt *s)
     KIR_MOVE_LAST(last);
     l1 = get_next_label(ctx);
     l2 = get_next_label(ctx);
-    kl_kir_inst *next = new_inst_jumpiff(&r1, l1);
+    kl_kir_inst *next = new_inst_jumpiff(ctx->program, &r1, l1);
     KIR_ADD(last, next);
     if (s->s1) {
         kl_kir_inst *next = gen_block(ctx, sym, s->s1);
         KIR_ADD(last, next);
-        next = new_inst_jump(l2, last);
+        KIR_MOVE_LAST(last);
+        next = new_inst_jump(ctx->program, l2, last);
         KIR_ADD(last, next);
     }
-    next = new_inst_label(l1);
+    next = new_inst_label(ctx->program, l1);
     KIR_ADD(last, next);
     if (s->s2) {
         kl_kir_inst *next = gen_block(ctx, sym, s->s1);
         KIR_ADD(last, next);
+        KIR_MOVE_LAST(last);
     }
-    next = new_inst_label(l2);
+    next = new_inst_label(ctx->program, l2);
     KIR_ADD(last, next);
 
     return head;
@@ -331,6 +392,10 @@ static kl_kir_inst *gen_expr(kl_context *ctx, kl_symbol *sym, kl_kir_opr *r1, kl
     if (!e) return head;
 
     switch (e->nodetype) {
+    case TK_VSINT:
+        break;
+    case TK_VUINT:
+        break;
     case TK_VAR:
         break;
 
@@ -420,9 +485,9 @@ static kl_kir_func *gen_function(kl_context *ctx, kl_symbol *sym, kl_stmt *s)
     kl_kir_inst *last = NULL;
 
     if (sym->has_func) {
-        func->head = last = new_inst(KIR_MKFRM);
+        func->head = last = new_inst(ctx->program, KIR_MKFRM);
     } else {
-        func->head = last = new_inst(KIR_LOCAL);
+        func->head = last = new_inst(ctx->program, KIR_ALOCAL);
     }
 
     while (s) {
@@ -435,7 +500,7 @@ static kl_kir_func *gen_function(kl_context *ctx, kl_symbol *sym, kl_stmt *s)
         s = s->next;
     }
 
-    func->head->r1 = (kl_kir_opr){ .t = TK_VSINT, .i64 = sym->count };
+    func->head->r1 = (kl_kir_opr){ .t = TK_VSINT, .i64 = sym->count, .typeid = TK_TSINT64 };
     return func;
 }
 
@@ -483,8 +548,13 @@ static kl_kir_inst *gen_stmt(kl_context *ctx, kl_symbol *sym, kl_stmt *s)
 
     case TK_FUNC:
         if (s->s1) {
-            kl_kir_func *func = gen_function(ctx, s->sym, s->s1);
+            kl_symbol *f = s->sym;
+            f->funcid = ctx->funcid++;
+            kl_kir_func *func = gen_function(ctx, f, s->s1);
             add_func(ctx->program, func);
+            kl_kir_opr r1 = make_var_index(ctx, f->ref ? f->ref->index : f->index, f->level, TK_TFUNC);
+            kl_kir_opr r2 = make_lit_func(ctx, s->sym);
+            head = new_inst_op2(ctx->program, KIR_MOV, &r1, &r2);
         }
         break;
 

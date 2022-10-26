@@ -37,6 +37,8 @@ const char *teststr =
 "    if (n < 2) {\n"
 "        return n;"
 "    }\n"
-"    return fib(n-1) + fib(n-2);\n"
+"    return fib2(n-1) + fib2(n-2);\n"
 "}\n"
+
+"fib(38);\n"
 ;

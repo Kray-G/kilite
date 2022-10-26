@@ -5,95 +5,87 @@
 #define IDT "    "
 #define OP "%-10s"
 #define REG "$%d(%d):%s"
-#define R(x) i->r##x.index,i->r##x.level,(i->r##x.typestr ? i->r##x.typestr : "any")
+#define TYPS(x) (i->r##x.typestr ? i->r##x.typestr : typeidname(i->r##x.typeid))
+#define R(x) i->r##x.index,i->r##x.level,TYPS(x)
 
 #define disp_v(i, n) { \
     switch (i->r##n.t) { \
     case TK_VSINT: \
-        printf("%" PRId64, i->r##n.i64, i->r##n.typestr); \
+        printf("%" PRId64 ":%s", i->r##n.i64, TYPS(n)); \
         break; \
     case TK_VUINT: \
-        printf("%" PRIu64, i->r##n.u64, i->r##n.typestr); \
+        printf("%" PRIu64 ":%s", i->r##n.u64, TYPS(n)); \
         break; \
     case TK_VAR: \
-        printf(REG, R(n)); \
+        if (i->r##n.index < 0) { \
+            printf("(*r):%s", TYPS(n)); \
+        } else { \
+            printf(REG, R(n)); \
+        } \
+        break; \
+    case TK_FUNC: \
+        printf("%s:%s", i->r##n.name, TYPS(n)); \
         break; \
     } \
 } \
 /**/
 
-void disp_reg(kl_kir_inst *i, int idx)
+void disp_0op(const char *op)
 {
-    switch (idx) {
-    case 1:
-        if (i->r1.index < 0) {
-            printf("(*r):%s", (i->r1.typestr ? i->r1.typestr : "any"));
-        } else {
-            printf(REG, R(1));
-        }
-        break;
-    case 2:
-        if (i->r2.index < 0) {
-            printf("(*r):%s", (i->r2.typestr ? i->r2.typestr : "any"));
-        } else {
-            printf(REG, R(2));
-        }
-        break;
-    case 3:
-        if (i->r3.index < 0) {
-            printf("(*r):%s", (i->r3.typestr ? i->r3.typestr : "any"));
-        } else {
-            printf(REG, R(3));
-        }
-        break;
-    }
+    printf(IDT OP "\n", op);
+}
+
+void disp_1op(const char *op, kl_kir_inst *i)
+{
+    printf(IDT OP, op);
+    disp_v(i, 1);
+    printf("\n");
+}
+
+void disp_2op(const char *op, kl_kir_inst *i)
+{
+    printf(IDT OP, op);
+    disp_v(i, 1);
+    printf(", ");
+    disp_v(i, 2);
+    printf("\n");
 }
 
 void disp_3op(const char *op, kl_kir_inst *i)
 {
     printf(IDT OP, op);
-
-    disp_reg(i, 1);
+    disp_v(i, 1);
     printf(", ");
-
     disp_v(i, 2);
     printf(", ");
     disp_v(i, 3);
-
     printf("\n");
 }
 
 void disp_inst(kl_context *ctx, kl_kir_inst *i)
 {
     switch (i->opcode) {
-    case KIR_LOCAL:
-        printf(IDT OP, "local");
-        disp_v(i, 1);
-        printf("\n");
+    case KIR_ALOCAL:
+        disp_1op("local", i);
+        break;
+    case KIR_RLOCAL:
+        disp_0op("reduce");
         break;
     case KIR_MKFRM:
-        printf(IDT OP, "mkfrm");
-        disp_v(i, 1);
-        printf("\n");
+        disp_1op("mkfrm", i);
         break;
     case KIR_POPFRM:
-        printf(IDT OP "\n", "popfrm");
+        disp_0op("popfrm");
         break;
 
     case KIR_SVSTKP:
         printf(IDT OP "\n", "savestkp");
         break;
     case KIR_PUSHARG:
-        printf(IDT OP, "pusharg");
-        disp_reg(i, 1);
-        printf("\n");
+        disp_1op("pusharg", i);
         break;
     case KIR_CALL:
-        printf(IDT OP, "call");
-        disp_reg(i, 1);
-        printf(", ");
-        disp_reg(i, 2);
-        printf("\n");
+        disp_2op("call", i);
         break;
     case KIR_RSSTKP:
         printf(IDT OP "\n", "restorestkp");
@@ -102,22 +94,25 @@ void disp_inst(kl_context *ctx, kl_kir_inst *i)
     case KIR_RET:
         printf(IDT OP, "ret");
         if (i->r1.index >= 0) {
-            disp_reg(i, 1);
+            disp_v(i, 1);
         }
         printf("\n");
         break;
 
     case KIR_JMPIFF:
         printf(IDT OP, "jmpiff");
-        disp_reg(i, 1);
+        disp_v(i, 1);
         printf(", L%d\n", i->labelid);
         break;
     case KIR_JMP:
-        printf(IDT OP, "jmp");
-        printf("L%d\n", i->labelid);
+        printf(IDT OP "L%d\n", "jmp", i->labelid);
         break;
     case KIR_LABEL:
         printf("  L%d:\n", i->labelid);
+        break;
+
+    case KIR_MOV:
+        disp_2op("mov", i);
         break;
 
     case KIR_ADD:
