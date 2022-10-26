@@ -1,6 +1,6 @@
 #include "../src/frontend/parser.h"
 #include "../src/frontend/mkkir.h"
-#include "../src/frontend/dispkir.h"
+#include "../src/backend/dispkir.h"
 
 // cl test_kir.c ..\src\frontend\lexer.c ..\src\frontend\parser.c ..\src\frontend\error.c ..\src\frontend\dispkir.c ..\src\frontend\mkkir.c
 // gcc test_kir.c ../src/frontend/lexer.c ../src/frontend/parser.c ../src/frontend/error.c ../src/frontend/dispkir.c ../src/frontend/mkkir.c

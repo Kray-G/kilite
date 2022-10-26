@@ -25,6 +25,7 @@ typedef struct kl_symbol {
     int count;                      //  Variable counter in this scope.
     int idxmax;                     //  The current index max.
     int funcid;                     //  The function id to specify the function.
+    int funcend;                    //  The label to the point where the function ends.
     tk_typeid symtype;              //  TK_VAR, TK_NAMESPACE, TK_CLASS, TK_MODULE, TK_FUNC, TK_PRIVATE, TK_PROTECTED, or TK_PUBLIC.
     tk_typeid type;                 //  Return type if this is a function. The variable type if this is a variable.
 

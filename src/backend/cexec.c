@@ -15,6 +15,9 @@ static int getc_func(void *data)
 
 static FILE *open_output_file(const char *fname, kl_opts *opts, int ismir)
 {
+    if (opts->out_stdout && ismir) {
+        return stdout;
+    }
     char buf[256] = {0};
     char *p = buf;
     for (int i = 0; i < 240; ++i) {
@@ -123,6 +126,9 @@ int output(const char *fname, const char *src, int isbmir, const char *ext)
     } else {
         opts.mir = 1;
         opts.ext = ext;
+        if (!ext) {
+            opts.out_stdout = 1;
+        }
     }
     return run(NULL, fname, src, 0, NULL, NULL, &opts);
 }

@@ -18,7 +18,7 @@ static const char *tpname[] = {
     "real",
     "string",
     "binary",
-    "function",
+    "func",
 };
 static const char *tkname[] = {
     "TK_EOF",
@@ -272,7 +272,7 @@ kl_lexer *lexer_new_file(const char *f)
 {
     kl_lexer *l = (kl_lexer *)calloc(1, sizeof(kl_lexer));
     l->s = l->p = NULL;
-    l->f = (FILE *)fopen(f, "rb");
+    l->f = f ? (FILE *)fopen(f, "rb") : stdin;
     l->ch = ' ';
     l->tok = EOF;
     l->line = 1;

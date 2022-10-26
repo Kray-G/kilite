@@ -277,19 +277,21 @@ void free_context(kl_context *ctx)
         ns = n;
     }
 
-    kl_kir_inst *i = ctx->program->ichn;
-    while (i) {
-        kl_kir_inst *n = i->chn;
-        free(i);
-        i = n;
+    if (ctx->program) {
+        kl_kir_inst *i = ctx->program->ichn;
+        while (i) {
+            kl_kir_inst *n = i->chn;
+            free(i);
+            i = n;
+        }
+        kl_kir_func *f = ctx->program->fchn;
+        while (f) {
+            kl_kir_func *n = f->chn;
+            free(i);
+            f = n;
+        }
+        free(ctx->program);
     }
-    kl_kir_func *f = ctx->program->fchn;
-    while (f) {
-        kl_kir_func *n = f->chn;
-        free(i);
-        f = n;
-    }
-    free(ctx->program);
 
     for (int h = 0; h < HASHSIZE; ++h) {
         for (kl_conststr *p = ctx->hash[h]; p != NULL; ) {

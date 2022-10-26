@@ -28,13 +28,17 @@ static kl_kir_inst *new_inst(kl_kir_program *p, kl_kir op)
     return inst;
 }
 
-static kl_kir_inst *new_inst_label(kl_kir_program *p, int labelid)
+static kl_kir_inst *new_inst_label(kl_kir_program *p, int labelid, kl_kir_inst *last, int gcable)
 {
+    if (last && ((last->opcode == KIR_JMP || last->opcode == KIR_JMPIFF || last->opcode == KIR_CHKEXCEPT) && last->labelid == labelid)) {
+        last->disabled = 1;
+    }
     kl_kir_inst *inst = (kl_kir_inst *)calloc(1, sizeof(kl_kir_inst));
     inst->chn = p->ichn;
     p->ichn = inst;
     inst->opcode = KIR_LABEL;
     inst->labelid = labelid;
+    inst->gcable = gcable;
     return inst;
 }
 
@@ -51,7 +55,7 @@ static kl_kir_inst *new_inst_jumpiff(kl_kir_program *p, kl_kir_opr *r1, int labe
 
 static kl_kir_inst *new_inst_jump(kl_kir_program *p, int labelid, kl_kir_inst *last)
 {
-    if (last->opcode == KIR_RET) {
+    if (last && (last->opcode == KIR_RET || last->opcode == KIR_JMP)) {
         return NULL;
     }
     kl_kir_inst *inst = (kl_kir_inst *)calloc(1, sizeof(kl_kir_inst));
@@ -62,13 +66,22 @@ static kl_kir_inst *new_inst_jump(kl_kir_program *p, int labelid, kl_kir_inst *l
     return inst;
 }
 
-static kl_kir_inst *new_inst_ret(kl_kir_program *p, kl_kir_opr *r1)
+static kl_kir_inst *new_inst_chkexcept(kl_kir_program *p, int labelid)
+{
+    kl_kir_inst *inst = (kl_kir_inst *)calloc(1, sizeof(kl_kir_inst));
+    inst->chn = p->ichn;
+    p->ichn = inst;
+    inst->opcode = KIR_CHKEXCEPT;
+    inst->labelid = labelid;
+    return inst;
+}
+
+static kl_kir_inst *new_inst_ret(kl_kir_program *p)
 {
     kl_kir_inst *inst = (kl_kir_inst *)calloc(1, sizeof(kl_kir_inst));
     inst->chn = p->ichn;
     p->ichn = inst;
     inst->opcode = KIR_RET;
-    inst->r1 = *r1;
     return inst;
 }
 
@@ -159,6 +172,16 @@ static kl_kir_opr make_var(kl_context *ctx, kl_symbol *sym)
         .index = sym->idxmax++,   /* TODO: index could be reusable */
         .level = 0,
         .typeid = TK_TANY,
+    };
+    return r1;
+}
+
+static kl_kir_opr make_ret_var(kl_context *ctx, kl_symbol *sym)
+{
+    kl_kir_opr r1 = (kl_kir_opr){
+        .t = TK_VAR,
+        .index = -1,
+        .typeid = sym->type,
     };
     return r1;
 }
@@ -285,8 +308,10 @@ static kl_kir_inst *gen_call(kl_context *ctx, kl_symbol *sym, kl_kir_opr *r1, kl
     kl_symbol *fsym = f->sym->ref ? f->sym->ref : f->sym;
     if (f->nodetype == TK_VAR) {
         r2.t = TK_VAR;
+        r2.funcid = fsym->funcid;
         r2.index = fsym->index;
-        r2.level = f->sym->level;
+        r2.level = f->sym->level;   // ref doesn't have a level.
+        r2.recursive = f->sym->is_recursive;
         r2.typeid = f->typeid;
         r1->typeid = r2.typeid; // return value's type is same as r2's type.
     } else {
@@ -298,7 +323,9 @@ static kl_kir_inst *gen_call(kl_context *ctx, kl_symbol *sym, kl_kir_opr *r1, kl
     kl_kir_inst *r2i = gen_callargs(ctx, sym, e->rhs);
     kl_kir_inst *inst = new_inst_op2(ctx->program, KIR_CALL, r1, &r2);
     kl_kir_inst *ilst = get_last(inst);
-    ilst->next = new_inst_op1(ctx->program, KIR_RSSTKP, r1);  // temporary holding the ret value.
+    ilst->next = new_inst(ctx->program, KIR_RSSTKP);
+    ilst = ilst->next;
+    ilst->next = new_inst_chkexcept(ctx->program, sym->funcend);
 
     if (r2i) {
         kl_kir_inst *r2l = get_last(r2i);
@@ -324,63 +351,53 @@ static kl_kir_inst *gen_call(kl_context *ctx, kl_symbol *sym, kl_kir_opr *r1, kl
 
 static kl_kir_inst *gen_ret(kl_context *ctx, kl_symbol *sym, kl_stmt *s)
 {
-    kl_kir_inst *r1i = NULL;
-    kl_kir_opr r1 = {
-        .t = TK_VAR,
-        .index = -1,
-        .typeid = sym->type,
-    };
+    kl_kir_inst *head = NULL;
+    kl_kir_opr r1 = make_ret_var(ctx, sym);
 
-    KL_KIR_CHECK_LITERAL(s->e1, r1, r1i);
-    kl_kir_inst *r1l = get_last(r1i);
-    kl_kir_inst *out = NULL;
-    if (sym->has_func) {
-        out = new_inst(ctx->program, KIR_POPFRM);
-    } else {
-        out = new_inst(ctx->program, KIR_RLOCAL);
-    }
-    if (r1l) {
-        r1l->next = out;
-    }
-    r1l = out;
-
-    kl_kir_inst *inst = new_inst_ret(ctx->program, &r1);
-    if (r1l) {
-        r1l->next = inst;
-        inst = r1i ? r1i : r1l;
+    KL_KIR_CHECK_LITERAL(s->e1, r1, head);
+    kl_kir_inst *last = get_last(head);
+    if (!head) {
+        kl_kir_opr r2 = make_ret_var(ctx, sym);
+        head = last = new_inst_op2(ctx->program, KIR_MOV, &r2, &r1);
     }
 
-    return inst;
+    kl_kir_inst *next = new_inst_jump(ctx->program, sym->funcend, last);
+    last->next = next;
+
+    return head;
 }
 
 static kl_kir_inst *gen_if(kl_context *ctx, kl_symbol *sym, kl_stmt *s)
 {
     kl_kir_inst *head = NULL;
     kl_kir_inst *last = NULL;
-    int l1, l2, l3;
+
+    int l1 = get_next_label(ctx);
+    int l2 = get_next_label(ctx);
+    int l3 = get_next_label(ctx);
 
     kl_kir_opr r1 = make_var(ctx, sym);
     head = last = gen_expr(ctx, sym, &r1, s->e1);
     KIR_MOVE_LAST(last);
-    l1 = get_next_label(ctx);
-    l2 = get_next_label(ctx);
-    kl_kir_inst *next = new_inst_jumpiff(ctx->program, &r1, l1);
+    kl_kir_inst *next = new_inst_jumpiff(ctx->program, &r1, l2);
+    KIR_ADD(last, next);
+    next = new_inst_label(ctx->program, l1, last, 1);
     KIR_ADD(last, next);
     if (s->s1) {
-        kl_kir_inst *next = gen_block(ctx, sym, s->s1);
+        next = gen_block(ctx, sym, s->s1);
         KIR_ADD(last, next);
         KIR_MOVE_LAST(last);
-        next = new_inst_jump(ctx->program, l2, last);
+        next = new_inst_jump(ctx->program, l3, last);
         KIR_ADD(last, next);
     }
-    next = new_inst_label(ctx->program, l1);
+    next = new_inst_label(ctx->program, l2, last, s->s2 ? 1 : 0);
     KIR_ADD(last, next);
     if (s->s2) {
-        kl_kir_inst *next = gen_block(ctx, sym, s->s1);
+        next = gen_block(ctx, sym, s->s1);
         KIR_ADD(last, next);
         KIR_MOVE_LAST(last);
     }
-    next = new_inst_label(ctx->program, l2);
+    next = new_inst_label(ctx->program, l3, last, s->s2 ? 0 : 1);
     KIR_ADD(last, next);
 
     return head;
@@ -484,6 +501,8 @@ static kl_kir_func *gen_function(kl_context *ctx, kl_symbol *sym, kl_stmt *s)
     kl_kir_func *func = new_func(ctx, sym->name);
     kl_kir_inst *last = NULL;
 
+    int localvars = sym->idxmax;
+    sym->funcend = get_next_label(ctx);
     if (sym->has_func) {
         func->head = last = new_inst(ctx->program, KIR_MKFRM);
     } else {
@@ -500,7 +519,21 @@ static kl_kir_func *gen_function(kl_context *ctx, kl_symbol *sym, kl_stmt *s)
         s = s->next;
     }
 
-    func->head->r1 = (kl_kir_opr){ .t = TK_VSINT, .i64 = sym->count, .typeid = TK_TSINT64 };
+    func->head->r1 = (kl_kir_opr){ .t = TK_VSINT, .i64 = sym->count, .typeid = TK_TSINT64, .funcid = sym->funcid };
+    func->head->r2 = (kl_kir_opr){ .t = TK_VSINT, .i64 = localvars, .typeid = TK_TSINT64 };
+
+    last->next = new_inst_label(ctx->program, sym->funcend, last, 0);
+    last = last->next;
+
+    kl_kir_inst *out = NULL;
+    if (sym->has_func) {
+        out = new_inst(ctx->program, KIR_POPFRM);
+    } else {
+        out = new_inst(ctx->program, KIR_RLOCAL);
+    }
+    last->next = out;
+    out->next = new_inst_ret(ctx->program);
+
     return func;
 }
 
@@ -508,6 +541,8 @@ static kl_kir_func *gen_namespace(kl_context *ctx, kl_symbol *sym, kl_stmt *s)
 {
     kl_kir_func *func = new_func(ctx, sym->name);
     kl_kir_inst *last = NULL;
+    sym->funcend = get_next_label(ctx);
+    func->head = last = new_inst(ctx->program, KIR_MKFRM);
 
     while (s) {
         kl_kir_inst *next = gen_stmt(ctx, sym, s);
@@ -522,6 +557,11 @@ static kl_kir_func *gen_namespace(kl_context *ctx, kl_symbol *sym, kl_stmt *s)
         }
         s = s->next;
     }
+    last->next = new_inst_label(ctx->program, sym->funcend, last, 0);
+    last = last->next;
+    kl_kir_inst *out = new_inst(ctx->program, KIR_POPFRM);
+    last->next = out;
+    out->next = new_inst_ret(ctx->program);
 
     return func;
 }
@@ -549,7 +589,7 @@ static kl_kir_inst *gen_stmt(kl_context *ctx, kl_symbol *sym, kl_stmt *s)
     case TK_FUNC:
         if (s->s1) {
             kl_symbol *f = s->sym;
-            f->funcid = ctx->funcid++;
+            f->funcid = ++ctx->funcid;
             kl_kir_func *func = gen_function(ctx, f, s->s1);
             add_func(ctx->program, func);
             kl_kir_opr r1 = make_var_index(ctx, f->ref ? f->ref->index : f->index, f->level, TK_TFUNC);

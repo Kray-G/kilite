@@ -1,7 +1,70 @@
 #include "frontend/parser.h"
 #include "backend/cexec.h"
+#include "backend/dispkir.h"
+#include "backend/translate.h"
+
+typedef struct kl_argopts {
+    int out_bmir;
+    int out_mir;
+    int out_ast;
+    int out_stdout;
+    int in_stdin;
+    const char *file;
+} kl_argopts;
+
+void parse_arg_options(int ac, char **av, kl_argopts *opts)
+{
+    for (int i = 1; i < ac; ++i) {
+        if (av[i][0] == '-') {
+            switch (av[i][1]) {
+            case '-':
+                switch (av[i][2]) {
+                case '\0':
+                    opts->in_stdin = 1;
+                    break;
+                default:
+                    if (strcmp(av[i], "--ast")) {
+                        opts->out_ast = 1;
+                    } else if (strcmp(av[i], "--stdout")) {
+                        opts->out_stdout = 1;
+                    }
+                    break;
+                }
+                break;
+            case 'S':
+                opts->out_mir = 1;
+                break;
+            case 'o':
+                opts->out_bmir = 1;
+                break;
+            }
+        } else {
+            opts->file = av[i];
+        }
+    }
+}
 
 int main(int ac, char **av)
 {
-    ;
+    kl_argopts opts = {0};
+    parse_arg_options(ac, av, &opts);
+
+    kl_lexer *l = lexer_new_file(opts.in_stdin ? NULL : opts.file);
+    kl_context *ctx = parser_new_context();
+
+    int r = parse(ctx, l);
+    if (opts.out_ast) {
+        disp_ast(ctx);
+        goto END;
+    }
+    make_kir(ctx);
+    disp_program(ctx->program);
+    char *s = translate(ctx->program);
+    printf("%s\n", s);
+    free(s);
+
+END:
+    free_context(ctx);
+    lexer_free(l);
+    return 0;
 }

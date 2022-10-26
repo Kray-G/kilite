@@ -8,6 +8,7 @@ typedef struct kl_opts {
     int mir;
     int bmir;
     int lazy;
+    int out_stdout;
     const char *ext;
     const char *bext;
     const char **modules;

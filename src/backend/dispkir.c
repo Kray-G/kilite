@@ -1,9 +1,9 @@
 
 #include "../kir.h"
-#include "parser.h"
+#include "dispkir.h"
 
 #define IDT "    "
-#define OP "%-10s"
+#define OP "%-16s"
 #define REG "$%d(%d):%s"
 #define TYPS(x) (i->r##x.typestr ? i->r##x.typestr : typeidname(i->r##x.typeid))
 #define R(x) i->r##x.index,i->r##x.level,TYPS(x)
@@ -11,10 +11,10 @@
 #define disp_v(i, n) { \
     switch (i->r##n.t) { \
     case TK_VSINT: \
-        printf("%" PRId64 ":%s", i->r##n.i64, TYPS(n)); \
+        printf("%" PRId64, i->r##n.i64); \
         break; \
     case TK_VUINT: \
-        printf("%" PRIu64 ":%s", i->r##n.u64, TYPS(n)); \
+        printf("%" PRIu64, i->r##n.u64); \
         break; \
     case TK_VAR: \
         if (i->r##n.index < 0) { \
@@ -62,11 +62,15 @@ void disp_3op(const char *op, kl_kir_inst *i)
     printf("\n");
 }
 
-void disp_inst(kl_context *ctx, kl_kir_inst *i)
+void disp_inst(kl_kir_program *p, kl_kir_inst *i)
 {
+    if (i->disabled) {
+        return;
+    }
+
     switch (i->opcode) {
     case KIR_ALOCAL:
-        disp_1op("local", i);
+        disp_2op("local", i);
         break;
     case KIR_RLOCAL:
         disp_0op("reduce");
@@ -90,13 +94,12 @@ void disp_inst(kl_context *ctx, kl_kir_inst *i)
     case KIR_RSSTKP:
         printf(IDT OP "\n", "restorestkp");
         break;
+    case KIR_CHKEXCEPT:
+        printf(IDT OP "L%d\n", "chkexcept", i->labelid);
+        break;
 
     case KIR_RET:
-        printf(IDT OP, "ret");
-        if (i->r1.index >= 0) {
-            disp_v(i, 1);
-        }
-        printf("\n");
+        printf(IDT OP "\n", "ret");
         break;
 
     case KIR_JMPIFF:
@@ -129,28 +132,28 @@ void disp_inst(kl_context *ctx, kl_kir_inst *i)
     }
 }
 
-void disp_func(kl_context *ctx, kl_kir_func *f)
+void disp_func(kl_kir_program *p, kl_kir_func *f)
 {
     printf("func: %s\n", f->name);
 
     kl_kir_inst *i = f->head;
     while (i) {
-        disp_inst(ctx, i);
+        disp_inst(p, i);
         i = i->next;
     }
 
     printf("\n");
 }
 
-void disp_program(kl_context *ctx)
+void disp_program(kl_kir_program *p)
 {
-    if (!ctx->program) {
+    if (!p) {
         return;
     }
 
-    kl_kir_func *f = ctx->program->head;
+    kl_kir_func *f = p->head;
     while (f) {
-        disp_func(ctx, f);
+        disp_func(p, f);
         f = f->next;
     }
 }
