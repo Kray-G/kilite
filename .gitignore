@@ -60,3 +60,5 @@ dkms.conf
 # Build commands
 !build/*.cmd
 !build/*.sh
+/kilite.exe
+/*.kt
