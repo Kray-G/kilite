@@ -60,5 +60,9 @@ dkms.conf
 # Build commands
 !build/*.cmd
 !build/*.sh
+
+# Special files
+/src/backend/header.c
 /kilite.exe
-/*.kt
+/*.klt
+/*.c
