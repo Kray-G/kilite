@@ -395,6 +395,7 @@ char *translate(kl_kir_program *p, int mode)
 
     if (mode == TRANS_FULL) {
         xstra_set(&str, "void setup_context(vmctx *ctx)\n{\n");
+        xstra_inst(&str, "ctx->print_result = %d;\n", p->print_result);
         xstra_inst(&str, "ctx->verbose = %d;\n", p->verbose);
         xstra_set(&str, "}\n");
     }

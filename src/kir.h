@@ -259,6 +259,7 @@ typedef struct kl_kir_program {
     kl_kir_func *head;
     kl_kir_func *last;
     int verbose;
+    int print_result;
 
     struct kl_kir_inst *ichn;
     struct kl_kir_func *fchn;

@@ -15,10 +15,32 @@ typedef struct kl_argopts {
     int out_stdout;
     int in_stdin;
     int out_src;
+    int print_result;
     int verbose;
     const char *ext;
     const char *file;
 } kl_argopts;
+
+void parse_long_options(int ac, char **av, int i, kl_argopts *opts)
+{
+    if (strcmp(av[i], "--ast") == 0) {
+        opts->out_ast = 1;
+    } else if (strcmp(av[i], "--kir") == 0) {
+        opts->out_kir = 1;
+    } else if (strcmp(av[i], "--csrc") == 0) {
+        opts->out_csrc = 1;
+    } else if (strcmp(av[i], "--cfull") == 0) {
+        opts->out_cfull = 1;
+    } else if (strcmp(av[i], "--stdout") == 0) {
+        opts->out_stdout = 1;
+    } else if (strcmp(av[i], "--verbose") == 0) {
+        opts->verbose = 1;
+    } else if (strcmp(av[i], "--ext") == 0) {
+        if (++i < ac) {
+            opts->ext = av[i];
+        }
+    }
+}
 
 void parse_arg_options(int ac, char **av, kl_argopts *opts)
 {
@@ -31,23 +53,7 @@ void parse_arg_options(int ac, char **av, kl_argopts *opts)
                     opts->in_stdin = 1;
                     break;
                 default:
-                    if (strcmp(av[i], "--ast") == 0) {
-                        opts->out_ast = 1;
-                    } else if (strcmp(av[i], "--kir") == 0) {
-                        opts->out_kir = 1;
-                    } else if (strcmp(av[i], "--csrc") == 0) {
-                        opts->out_csrc = 1;
-                    } else if (strcmp(av[i], "--cfull") == 0) {
-                        opts->out_cfull = 1;
-                    } else if (strcmp(av[i], "--stdout") == 0) {
-                        opts->out_stdout = 1;
-                    } else if (strcmp(av[i], "--verbose") == 0) {
-                        opts->verbose = 1;
-                    } else if (strcmp(av[i], "--ext") == 0) {
-                        if (++i < ac) {
-                            opts->ext = av[i];
-                        }
-                    }
+                    parse_long_options(ac, av, i, opts);
                     break;
                 }
                 break;
@@ -56,6 +62,9 @@ void parse_arg_options(int ac, char **av, kl_argopts *opts)
                 break;
             case 'c':
                 opts->out_bmir = 1;
+                break;
+            case 'x':
+                opts->print_result = 1;
                 break;
             }
         } else {
@@ -88,6 +97,7 @@ int main(int ac, char **av)
     if (opts.out_src && opts.out_kir) {
         disp_program(ctx->program);
     }
+    ctx->program->print_result = opts.print_result;
     ctx->program->verbose = opts.verbose;
     if (opts.out_src && (opts.out_csrc || opts.out_cfull)) {
         s = translate(ctx->program, opts.out_cfull ? TRANS_FULL : TRANS_SRC);

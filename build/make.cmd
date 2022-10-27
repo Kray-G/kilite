@@ -13,7 +13,7 @@ if not exist mir_static.lib goto ERROR
 set TEMPF=h.c
 
 @REM Create a header source code.
-cl -O2 ..\util\makecstr.c
+cl -O2 ..\utils\makecstr.c
 type ..\src\template\lib\bign.h > %TEMPF%
 type ..\src\template\lib\bigz.h >> %TEMPF%
 type ..\src\template\header.h >> %TEMPF%

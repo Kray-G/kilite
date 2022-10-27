@@ -177,6 +177,7 @@ typedef struct vmctx {
     int sweep;
     int gccnt;
     int verbose;
+    int print_result;
 
     int vstksz;
     int vstkp;
