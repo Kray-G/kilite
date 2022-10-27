@@ -19,16 +19,18 @@ static inline int get_next_label(kl_context *ctx)
     return ctx->labelid++;
 }
 
-static kl_kir_inst *new_inst(kl_kir_program *p, kl_kir op)
+static kl_kir_inst *new_inst(kl_kir_program *p, int line, int pos, kl_kir op)
 {
     kl_kir_inst *inst = (kl_kir_inst *)calloc(1, sizeof(kl_kir_inst));
     inst->chn = p->ichn;
     p->ichn = inst;
     inst->opcode = op;
+    inst->line = line;
+    inst->pos = pos;
     return inst;
 }
 
-static kl_kir_inst *new_inst_label(kl_kir_program *p, int labelid, kl_kir_inst *last, int gcable)
+static kl_kir_inst *new_inst_label(kl_kir_program *p, int line, int pos, int labelid, kl_kir_inst *last, int gcable)
 {
     if (last && ((last->opcode == KIR_JMP || last->opcode == KIR_JMPIFF || last->opcode == KIR_CHKEXCEPT) && last->labelid == labelid)) {
         last->disabled = 1;
@@ -39,10 +41,12 @@ static kl_kir_inst *new_inst_label(kl_kir_program *p, int labelid, kl_kir_inst *
     inst->opcode = KIR_LABEL;
     inst->labelid = labelid;
     inst->gcable = gcable;
+    inst->line = line;
+    inst->pos = pos;
     return inst;
 }
 
-static kl_kir_inst *new_inst_jumpiff(kl_kir_program *p, kl_kir_opr *r1, int labelid)
+static kl_kir_inst *new_inst_jumpiff(kl_kir_program *p, int line, int pos, kl_kir_opr *r1, int labelid)
 {
     kl_kir_inst *inst = (kl_kir_inst *)calloc(1, sizeof(kl_kir_inst));
     inst->chn = p->ichn;
@@ -50,10 +54,12 @@ static kl_kir_inst *new_inst_jumpiff(kl_kir_program *p, kl_kir_opr *r1, int labe
     inst->opcode = KIR_JMPIFF;
     inst->r1 = *r1;
     inst->labelid = labelid;
+    inst->line = line;
+    inst->pos = pos;
     return inst;
 }
 
-static kl_kir_inst *new_inst_jump(kl_kir_program *p, int labelid, kl_kir_inst *last)
+static kl_kir_inst *new_inst_jump(kl_kir_program *p, int line, int pos, int labelid, kl_kir_inst *last)
 {
     if (last && (last->opcode == KIR_RET || last->opcode == KIR_JMP)) {
         return NULL;
@@ -63,39 +69,47 @@ static kl_kir_inst *new_inst_jump(kl_kir_program *p, int labelid, kl_kir_inst *l
     p->ichn = inst;
     inst->opcode = KIR_JMP;
     inst->labelid = labelid;
+    inst->line = line;
+    inst->pos = pos;
     return inst;
 }
 
-static kl_kir_inst *new_inst_chkexcept(kl_kir_program *p, int labelid)
+static kl_kir_inst *new_inst_chkexcept(kl_kir_program *p, int line, int pos, int labelid)
 {
     kl_kir_inst *inst = (kl_kir_inst *)calloc(1, sizeof(kl_kir_inst));
     inst->chn = p->ichn;
     p->ichn = inst;
     inst->opcode = KIR_CHKEXCEPT;
     inst->labelid = labelid;
+    inst->line = line;
+    inst->pos = pos;
     return inst;
 }
 
-static kl_kir_inst *new_inst_ret(kl_kir_program *p)
+static kl_kir_inst *new_inst_ret(kl_kir_program *p, int line, int pos)
 {
     kl_kir_inst *inst = (kl_kir_inst *)calloc(1, sizeof(kl_kir_inst));
     inst->chn = p->ichn;
     p->ichn = inst;
     inst->opcode = KIR_RET;
+    inst->line = line;
+    inst->pos = pos;
     return inst;
 }
 
-static kl_kir_inst *new_inst_op1(kl_kir_program *p, kl_kir op, kl_kir_opr *r1)
+static kl_kir_inst *new_inst_op1(kl_kir_program *p, int line, int pos, kl_kir op, kl_kir_opr *r1)
 {
     kl_kir_inst *inst = (kl_kir_inst *)calloc(1, sizeof(kl_kir_inst));
     inst->chn = p->ichn;
     p->ichn = inst;
     inst->opcode = op;
     inst->r1 = *r1;
+    inst->line = line;
+    inst->pos = pos;
     return inst;
 }
 
-static kl_kir_inst *new_inst_op2(kl_kir_program *p, kl_kir op, kl_kir_opr *r1, kl_kir_opr *r2)
+static kl_kir_inst *new_inst_op2(kl_kir_program *p, int line, int pos, kl_kir op, kl_kir_opr *r1, kl_kir_opr *r2)
 {
     kl_kir_inst *inst = (kl_kir_inst *)calloc(1, sizeof(kl_kir_inst));
     inst->chn = p->ichn;
@@ -103,10 +117,12 @@ static kl_kir_inst *new_inst_op2(kl_kir_program *p, kl_kir op, kl_kir_opr *r1, k
     inst->opcode = op;
     inst->r1 = *r1;
     inst->r2 = *r2;
+    inst->line = line;
+    inst->pos = pos;
     return inst;
 }
 
-static kl_kir_inst *new_inst_op3(kl_kir_program *p, kl_kir op, kl_kir_opr *r1, kl_kir_opr *r2, kl_kir_opr *r3)
+static kl_kir_inst *new_inst_op3(kl_kir_program *p, int line, int pos, kl_kir op, kl_kir_opr *r1, kl_kir_opr *r2, kl_kir_opr *r3)
 {
     kl_kir_inst *inst = (kl_kir_inst *)calloc(1, sizeof(kl_kir_inst));
     inst->chn = p->ichn;
@@ -115,15 +131,19 @@ static kl_kir_inst *new_inst_op3(kl_kir_program *p, kl_kir op, kl_kir_opr *r1, k
     inst->r1 = *r1;
     inst->r2 = *r2;
     inst->r3 = *r3;
+    inst->line = line;
+    inst->pos = pos;
     return inst;
 }
 
-static kl_kir_func *new_func(kl_context *ctx, const char *name)
+static kl_kir_func *new_func(kl_context *ctx, int line, int pos, const char *name)
 {
     kl_kir_func *func = (kl_kir_func *)calloc(1, sizeof(kl_kir_func));
     func->chn = ctx->program->fchn;
     ctx->program->fchn = func;
     func->name = mkkir_const_str(ctx, name);
+    func->line = line;
+    func->pos = pos;
     return func;
 }
 
@@ -242,7 +262,7 @@ static kl_kir_inst *gen_op3_inst(kl_context *ctx, kl_symbol *sym, kl_kir op, kl_
     kl_kir_inst *r2l = get_last(r2i);
     kl_kir_inst *r3l = get_last(r3i);
 
-    kl_kir_inst *inst = new_inst_op3(ctx->program, op, r1, &r2, &r3);
+    kl_kir_inst *inst = new_inst_op3(ctx->program, e->line, e->pos, op, r1, &r2, &r3);
     if (r2i) {
         if (r3i) {
             r2l->next = r3i;
@@ -286,10 +306,10 @@ static kl_kir_inst *gen_callargs(kl_context *ctx, kl_symbol *sym, kl_expr *e)
             head = last = r2i;
         }
         if (!last) {
-            head = new_inst_op1(ctx->program, KIR_PUSHARG, &r2);
+            head = new_inst_op1(ctx->program, e->line, e->pos, KIR_PUSHARG, &r2);
         } else {
             KIR_MOVE_LAST(last);
-            last->next = new_inst_op1(ctx->program, KIR_PUSHARG, &r2);
+            last->next = new_inst_op1(ctx->program, e->line, e->pos, KIR_PUSHARG, &r2);
             if (last->next) {
                 last = last->next;
             }
@@ -321,11 +341,11 @@ static kl_kir_inst *gen_call(kl_context *ctx, kl_symbol *sym, kl_kir_opr *r1, kl
     }
  
     kl_kir_inst *r2i = gen_callargs(ctx, sym, e->rhs);
-    kl_kir_inst *inst = new_inst_op2(ctx->program, KIR_CALL, r1, &r2);
+    kl_kir_inst *inst = new_inst_op2(ctx->program, e->line, e->pos, KIR_CALL, r1, &r2);
     kl_kir_inst *ilst = get_last(inst);
-    ilst->next = new_inst(ctx->program, KIR_RSSTKP);
+    ilst->next = new_inst(ctx->program, e->line, e->pos, KIR_RSSTKP);
     ilst = ilst->next;
-    ilst->next = new_inst_chkexcept(ctx->program, sym->funcend);
+    ilst->next = new_inst_chkexcept(ctx->program, e->line, e->pos, sym->funcend);
 
     if (r2i) {
         kl_kir_inst *r2l = get_last(r2i);
@@ -344,7 +364,7 @@ static kl_kir_inst *gen_call(kl_context *ctx, kl_symbol *sym, kl_kir_opr *r1, kl
         }
     }
 
-    kl_kir_inst *head = new_inst(ctx->program, KIR_SVSTKP);
+    kl_kir_inst *head = new_inst(ctx->program, e->line, e->pos, KIR_SVSTKP);
     head->next = inst;
     return head;
 }
@@ -358,10 +378,10 @@ static kl_kir_inst *gen_ret(kl_context *ctx, kl_symbol *sym, kl_stmt *s)
     kl_kir_inst *last = get_last(head);
     if (!head) {
         kl_kir_opr r2 = make_ret_var(ctx, sym);
-        head = last = new_inst_op2(ctx->program, KIR_MOV, &r2, &r1);
+        head = last = new_inst_op2(ctx->program, s->line, s->pos, KIR_MOV, &r2, &r1);
     }
 
-    kl_kir_inst *next = new_inst_jump(ctx->program, sym->funcend, last);
+    kl_kir_inst *next = new_inst_jump(ctx->program, s->line, s->pos, sym->funcend, last);
     last->next = next;
 
     return head;
@@ -379,25 +399,25 @@ static kl_kir_inst *gen_if(kl_context *ctx, kl_symbol *sym, kl_stmt *s)
     kl_kir_opr r1 = make_var(ctx, sym);
     head = last = gen_expr(ctx, sym, &r1, s->e1);
     KIR_MOVE_LAST(last);
-    kl_kir_inst *next = new_inst_jumpiff(ctx->program, &r1, l2);
+    kl_kir_inst *next = new_inst_jumpiff(ctx->program, s->line, s->pos, &r1, l2);
     KIR_ADD(last, next);
-    next = new_inst_label(ctx->program, l1, last, 1);
+    next = new_inst_label(ctx->program, s->line, s->pos, l1, last, 1);
     KIR_ADD(last, next);
     if (s->s1) {
         next = gen_block(ctx, sym, s->s1);
         KIR_ADD(last, next);
         KIR_MOVE_LAST(last);
-        next = new_inst_jump(ctx->program, l3, last);
+        next = new_inst_jump(ctx->program, s->line, s->pos, l3, last);
         KIR_ADD(last, next);
     }
-    next = new_inst_label(ctx->program, l2, last, s->s2 ? 1 : 0);
+    next = new_inst_label(ctx->program, s->line, s->pos, l2, last, s->s2 ? 1 : 0);
     KIR_ADD(last, next);
     if (s->s2) {
         next = gen_block(ctx, sym, s->s1);
         KIR_ADD(last, next);
         KIR_MOVE_LAST(last);
     }
-    next = new_inst_label(ctx->program, l3, last, s->s2 ? 0 : 1);
+    next = new_inst_label(ctx->program, s->line, s->pos, l3, last, s->s2 ? 0 : 1);
     KIR_ADD(last, next);
 
     return head;
@@ -498,15 +518,16 @@ static kl_kir_inst *gen_block(kl_context *ctx, kl_symbol *sym, kl_stmt *s)
 
 static kl_kir_func *gen_function(kl_context *ctx, kl_symbol *sym, kl_stmt *s)
 {
-    kl_kir_func *func = new_func(ctx, sym->name);
+    kl_kir_func *func = new_func(ctx, sym->line, sym->pos, sym->name);
     kl_kir_inst *last = NULL;
 
+    func->has_frame = sym->has_func;
     int localvars = sym->idxmax;
     sym->funcend = get_next_label(ctx);
-    if (sym->has_func) {
-        func->head = last = new_inst(ctx->program, KIR_MKFRM);
+    if (func->has_frame) {
+        func->head = last = new_inst(ctx->program, sym->line, sym->pos, KIR_MKFRM);
     } else {
-        func->head = last = new_inst(ctx->program, KIR_ALOCAL);
+        func->head = last = new_inst(ctx->program, sym->line, sym->pos, KIR_ALOCAL);
     }
 
     while (s) {
@@ -519,30 +540,35 @@ static kl_kir_func *gen_function(kl_context *ctx, kl_symbol *sym, kl_stmt *s)
         s = s->next;
     }
 
-    func->head->r1 = (kl_kir_opr){ .t = TK_VSINT, .i64 = sym->count, .typeid = TK_TSINT64, .funcid = sym->funcid };
+    func->funcid = sym->funcid;
+    func->head->r1 = (kl_kir_opr){ .t = TK_VSINT, .i64 = sym->count, .typeid = TK_TSINT64 };
     func->head->r2 = (kl_kir_opr){ .t = TK_VSINT, .i64 = localvars, .typeid = TK_TSINT64 };
+    func->head->r3 = (kl_kir_opr){ .t = TK_VSINT, .i64 = sym->argcount, .typeid = TK_TSINT64 };
 
-    last->next = new_inst_label(ctx->program, sym->funcend, last, 0);
+    last->next = new_inst_label(ctx->program, sym->line, sym->pos, sym->funcend, last, 0);
     last = last->next;
 
     kl_kir_inst *out = NULL;
-    if (sym->has_func) {
-        out = new_inst(ctx->program, KIR_POPFRM);
+    if (func->has_frame) {
+        out = new_inst(ctx->program, sym->line, sym->pos, KIR_POPFRM);
     } else {
-        out = new_inst(ctx->program, KIR_RLOCAL);
+        out = new_inst(ctx->program, sym->line, sym->pos, KIR_RLOCAL);
     }
     last->next = out;
-    out->next = new_inst_ret(ctx->program);
+    out->next = new_inst_ret(ctx->program, sym->line, sym->pos);
 
     return func;
 }
 
 static kl_kir_func *gen_namespace(kl_context *ctx, kl_symbol *sym, kl_stmt *s)
 {
-    kl_kir_func *func = new_func(ctx, sym->name);
+    if (!s) return NULL;
+    kl_kir_func *func = new_func(ctx, sym->line, sym->pos, sym->name);
     kl_kir_inst *last = NULL;
+
+    int localvars = sym->idxmax;
     sym->funcend = get_next_label(ctx);
-    func->head = last = new_inst(ctx->program, KIR_MKFRM);
+    func->head = last = new_inst(ctx->program, sym->line, sym->pos, KIR_MKFRM);
 
     while (s) {
         kl_kir_inst *next = gen_stmt(ctx, sym, s);
@@ -557,11 +583,16 @@ static kl_kir_func *gen_namespace(kl_context *ctx, kl_symbol *sym, kl_stmt *s)
         }
         s = s->next;
     }
-    last->next = new_inst_label(ctx->program, sym->funcend, last, 0);
+
+    func->funcid = sym->funcid;
+    func->head->r1 = (kl_kir_opr){ .t = TK_VSINT, .i64 = sym->count, .typeid = TK_TSINT64 };
+    func->head->r2 = (kl_kir_opr){ .t = TK_VSINT, .i64 = localvars, .typeid = TK_TSINT64 };
+
+    last->next = new_inst_label(ctx->program, sym->line, sym->pos, sym->funcend, last, 0);
     last = last->next;
-    kl_kir_inst *out = new_inst(ctx->program, KIR_POPFRM);
+    kl_kir_inst *out = new_inst(ctx->program, sym->line, sym->pos, KIR_POPFRM);
     last->next = out;
-    out->next = new_inst_ret(ctx->program);
+    out->next = new_inst_ret(ctx->program, sym->line, sym->pos);
 
     return func;
 }
@@ -594,7 +625,7 @@ static kl_kir_inst *gen_stmt(kl_context *ctx, kl_symbol *sym, kl_stmt *s)
             add_func(ctx->program, func);
             kl_kir_opr r1 = make_var_index(ctx, f->ref ? f->ref->index : f->index, f->level, TK_TFUNC);
             kl_kir_opr r2 = make_lit_func(ctx, s->sym);
-            head = new_inst_op2(ctx->program, KIR_MOV, &r1, &r2);
+            head = new_inst_op2(ctx->program, s->line, s->pos, KIR_MOVFNC, &r1, &r2);
         }
         break;
 

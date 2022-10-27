@@ -195,6 +195,7 @@ typedef enum kl_kir {
      *  <r*> is the value with a type.
      */
     KIR_MOV,        //  <r1>, <r2>              ;   <r1>  <-  <r2>
+    KIR_MOVFNC,     //  <r1>, <r2>:func         ;   <r1>  <-  <r2>:func
     KIR_ADD,        //  <r1>, <r2>, <r3>        ;   <r1>  <-  <r2> + <r3>
     KIR_SUB,        //  <r1>, <r2>, <r3>        ;   <r1>  <-  <r2> - <r3>
     KIR_MUL,        //  <r1>, <r2>, <r3>        ;   <r1>  <-  <r2> * <r3>
@@ -226,6 +227,8 @@ typedef struct kl_kir_inst {
     const char *str;
     int labelid;
     int gcable;
+    int line;
+    int pos;
     kl_kir_opr r1, r2, r3;
 
     struct kl_kir_inst *next;
@@ -234,7 +237,11 @@ typedef struct kl_kir_inst {
 
 typedef struct kl_kir_func {
     const char *name;
+    int has_frame;
+    int funcid;
     int vars;
+    int line;
+    int pos;
     kl_kir_inst *head;
     kl_kir_inst *last;
 

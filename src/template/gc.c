@@ -1,4 +1,4 @@
-#include "header.h"
+#include "common.h"
 
 /***************************************************************************
  * Garbage Collection
@@ -98,6 +98,9 @@ void mark_var(vmvar *v)
     }
     if (v->bi) {
         MARK(v->bi);
+    }
+    if (v->a) {
+        MARK(v->a);
     }
 }
 

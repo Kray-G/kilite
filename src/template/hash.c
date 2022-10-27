@@ -1,4 +1,4 @@
-#include "header.h"
+#include "common.h"
 
 static vmhsh *hashmap_extend(vmctx *ctx, vmhsh *hsh);
 

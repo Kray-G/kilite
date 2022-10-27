@@ -70,13 +70,13 @@ void disp_inst(kl_kir_program *p, kl_kir_inst *i)
 
     switch (i->opcode) {
     case KIR_ALOCAL:
-        disp_2op("local", i);
+        disp_3op("local", i);
         break;
     case KIR_RLOCAL:
         disp_0op("reduce");
         break;
     case KIR_MKFRM:
-        disp_1op("mkfrm", i);
+        disp_3op("mkfrm", i);
         break;
     case KIR_POPFRM:
         disp_0op("popfrm");

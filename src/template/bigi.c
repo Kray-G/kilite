@@ -1,4 +1,4 @@
-#include "header.h"
+#include "common.h"
 
 BigZ i64maxp1 = BZNULL;
 BigZ i64minm1 = BZNULL;

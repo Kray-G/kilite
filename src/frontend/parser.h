@@ -24,8 +24,11 @@ typedef struct kl_symbol {
     int index;                      //  The index of this symbol.
     int count;                      //  Variable counter in this scope.
     int idxmax;                     //  The current index max.
+    int argcount;                   //  The number of arguments.
     int funcid;                     //  The function id to specify the function.
     int funcend;                    //  The label to the point where the function ends.
+    int line;                       //  The line in the source code.
+    int pos;                        //  The pos in the source code.
     tk_typeid symtype;              //  TK_VAR, TK_NAMESPACE, TK_CLASS, TK_MODULE, TK_FUNC, TK_PRIVATE, TK_PROTECTED, or TK_PUBLIC.
     tk_typeid type;                 //  Return type if this is a function. The variable type if this is a variable.
 
@@ -62,6 +65,8 @@ typedef struct kl_expr {
         const char *big;
     } val;
 
+    int line;                       //  The line in the source code.
+    int pos;                        //  The pos in the source code.
     struct kl_expr *lhs;            //  Left hand side.
     struct kl_expr *rhs;            //  Right hand side.
     struct kl_expr *xhs;            //  Additional expr for ternary expression.
@@ -74,6 +79,9 @@ typedef struct kl_stmt {
     kl_symbol *sym;                 //  The symbol of this node.
     struct kl_expr *e1, *e2, *e3;   //  Statement can hold at least 3 expressions for conditions.
     struct kl_stmt *s1, *s2, *s3;   //  Statement can hold at least 3 statements inside.
+
+    int line;                       //  The line in the source code.
+    int pos;                        //  The pos in the source code.
     struct kl_stmt *next;           //  The pointer to next statement.
     struct kl_stmt *chn;            //  For memory allocation control.
 } kl_stmt;
@@ -102,7 +110,7 @@ typedef struct kl_context {
 extern unsigned int hash(const char *s);
 extern char *const_str(kl_context *ctx, const char *phase, int line, int pos, int len, const char *str);
 extern kl_context *parser_new_context(void);
-extern kl_stmt *copy_tree(kl_context *ctx, kl_stmt *src);
+extern kl_stmt *copy_tree(kl_context *ctx, kl_lexer *l, kl_stmt *src);
 extern int parse(kl_context *ctx, kl_lexer *l);
 extern void free_context(kl_context *ctx);
 

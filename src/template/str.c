@@ -1,4 +1,4 @@
-#include "header.h"
+#include "common.h"
 
 vmstr *str_dup(vmctx *ctx, vmstr *vs)
 {

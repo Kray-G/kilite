@@ -1,4 +1,4 @@
-#include "header.h"
+#include "common.h"
 
 #define DEF_COUNT(type, idx)\
     void count_##idx(vmctx *ctx)\

@@ -8,9 +8,12 @@
 typedef struct kl_argopts {
     int out_bmir;
     int out_mir;
+    int out_kir;
+    int out_csrc;
     int out_ast;
     int out_stdout;
     int in_stdin;
+    int out_src;
     const char *file;
 } kl_argopts;
 
@@ -25,18 +28,22 @@ void parse_arg_options(int ac, char **av, kl_argopts *opts)
                     opts->in_stdin = 1;
                     break;
                 default:
-                    if (strcmp(av[i], "--ast")) {
+                    if (strcmp(av[i], "--ast") == 0) {
                         opts->out_ast = 1;
-                    } else if (strcmp(av[i], "--stdout")) {
+                    } else if (strcmp(av[i], "--kir") == 0) {
+                        opts->out_kir = 1;
+                    } else if (strcmp(av[i], "--csrc") == 0) {
+                        opts->out_csrc = 1;
+                    } else if (strcmp(av[i], "--stdout") == 0) {
                         opts->out_stdout = 1;
                     }
                     break;
                 }
                 break;
             case 'S':
-                opts->out_mir = 1;
+                opts->out_src = 1;
                 break;
-            case 'o':
+            case 'c':
                 opts->out_bmir = 1;
                 break;
             }
@@ -44,10 +51,14 @@ void parse_arg_options(int ac, char **av, kl_argopts *opts)
             opts->file = av[i];
         }
     }
+    if (opts->out_src) {
+        opts->out_mir = !(opts->out_ast || opts->out_kir || opts->out_csrc);
+    }
 }
 
 int main(int ac, char **av)
 {
+    char *s = NULL;
     kl_argopts opts = {0};
     parse_arg_options(ac, av, &opts);
 
@@ -55,17 +66,25 @@ int main(int ac, char **av)
     kl_context *ctx = parser_new_context();
 
     int r = parse(ctx, l);
-    if (opts.out_ast) {
+    if (opts.out_src && opts.out_ast) {
         disp_ast(ctx);
-        goto END;
     }
     make_kir(ctx);
-    disp_program(ctx->program);
-    char *s = translate(ctx->program);
-    printf("%s\n", s);
-    free(s);
+    if (opts.out_src && opts.out_kir) {
+        disp_program(ctx->program);
+    }
+    s = translate(ctx->program);
+    if (opts.out_src && opts.out_csrc) {
+        printf("%s\n", s);
+    }
+    if (opts.out_mir || opts.out_bmir) {
+        output(opts.file, s, opts.out_bmir, opts.out_stdout ? NULL : (opts.out_mir ? ".mir" : ".klc"));
+        goto END;
+    }
+    /* run the code */
 
 END:
+    if (s) free(s);
     free_context(ctx);
     lexer_free(l);
     return 0;

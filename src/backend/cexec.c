@@ -71,6 +71,9 @@ int run(int *ret, const char *fname, const char *src, int ac, char **av, char **
     struct c2mir_options options = {0};
     struct data getc_data = { .p = src };
 
+    // options.verbose_p = 1;
+    options.message_file = stderr;
+
     FILE *outf = NULL;
     if (opts) {
         if (opts->mir || opts->bmir) {

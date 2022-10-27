@@ -1,4 +1,4 @@
-#include "header.h"
+#include "common.h"
 
 // c2m -c alloc.c gc.c init.c main.c util.c bigi.c str.c hash.c lib\bign.c lib\bigz.c
 // timecmd c2m alloc.bmir gc.bmir init.bmir main.bmir util.bmir bigi.bmir hash.bmir str.bmir bign.bmir bigz.bmir sample.c -eg
