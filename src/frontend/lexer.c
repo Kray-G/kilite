@@ -24,7 +24,6 @@ static const char *tkname[] = {
     "TK_EOF",
     "TK_UNKNOWN",
     "TK_VSINT",
-    "TK_VUINT",
     "TK_VBIGINT",
     "TK_VDBL",
     "TK_VSTR",
@@ -538,12 +537,6 @@ static inline int generate_int_value(kl_lexer *l, char *buf, int radix)
         l->i64 = i64;
         return TK_VSINT;
     }
-    errno = 0;
-    uint64_t u64 = strtoull(buf, NULL, radix);
-    if (errno != ERANGE && errno != EINVAL) {
-        l->u64 = u64;
-        return TK_VUINT;
-    }
     strcpy(l->str, buf);
     return TK_VBIGINT;
 }
@@ -980,8 +973,6 @@ tk_token lexer_fetch(kl_lexer *l)
             fprintf(stderr, "kl_lexer: fetched(%s) with \"%s\"\n", tkname[l->tok], l->str);
         } else if (l->tok == TK_VSINT) {
             fprintf(stderr, "kl_lexer: fetched(%s) with %" PRId64 "\n", tkname[l->tok], l->i64);
-        } else if (l->tok == TK_VUINT) {
-            fprintf(stderr, "kl_lexer: fetched(%s) with %" PRIu64 "\n", tkname[l->tok], l->u64);
         } else if (l->tok == TK_VDBL) {
             fprintf(stderr, "kl_lexer: fetched(%s) with %f\n", tkname[l->tok], l->dbl);
         } else {

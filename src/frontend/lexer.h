@@ -37,7 +37,6 @@ typedef struct kl_lexer {
     uint32_t options;
 
     int64_t i64;
-    uint64_t u64;
     double dbl;
     char str[LEXER_STRBUF_SZ];
 } kl_lexer;

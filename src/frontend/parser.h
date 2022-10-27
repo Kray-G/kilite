@@ -89,7 +89,6 @@ typedef struct kl_stmt {
 typedef struct kl_context {
     int errors;                     //  Total error count.
     int options;                    //  Options for parser.
-    int in_decl;                    //  Parsing declaration.
     int in_lvalue;                  //  Parsing l-value.
     kl_stmt *head;                  //  The head of object tree.
     kl_nsstack *ns;                 //  Namespace stack.

@@ -10,10 +10,12 @@ typedef struct kl_argopts {
     int out_mir;
     int out_kir;
     int out_csrc;
+    int out_cfull;
     int out_ast;
     int out_stdout;
     int in_stdin;
     int out_src;
+    int verbose;
     const char *ext;
     const char *file;
 } kl_argopts;
@@ -35,8 +37,12 @@ void parse_arg_options(int ac, char **av, kl_argopts *opts)
                         opts->out_kir = 1;
                     } else if (strcmp(av[i], "--csrc") == 0) {
                         opts->out_csrc = 1;
+                    } else if (strcmp(av[i], "--cfull") == 0) {
+                        opts->out_cfull = 1;
                     } else if (strcmp(av[i], "--stdout") == 0) {
                         opts->out_stdout = 1;
+                    } else if (strcmp(av[i], "--verbose") == 0) {
+                        opts->verbose = 1;
                     } else if (strcmp(av[i], "--ext") == 0) {
                         if (++i < ac) {
                             opts->ext = av[i];
@@ -63,6 +69,7 @@ void parse_arg_options(int ac, char **av, kl_argopts *opts)
 
 int main(int ac, char **av)
 {
+    int ri = 1;
     char *s = NULL;
     kl_argopts opts = {0};
     parse_arg_options(ac, av, &opts);
@@ -71,6 +78,9 @@ int main(int ac, char **av)
     kl_context *ctx = parser_new_context();
 
     int r = parse(ctx, l);
+    if (r > 0) {
+        goto END;
+    }
     if (opts.out_src && opts.out_ast) {
         disp_ast(ctx);
     }
@@ -78,23 +88,33 @@ int main(int ac, char **av)
     if (opts.out_src && opts.out_kir) {
         disp_program(ctx->program);
     }
-    s = translate(ctx->program);
-    if (opts.out_src && opts.out_csrc) {
+    ctx->program->verbose = opts.verbose;
+    if (opts.out_src && (opts.out_csrc || opts.out_cfull)) {
+        s = translate(ctx->program, opts.out_cfull ? TRANS_FULL : TRANS_SRC);
         printf("%s\n", s);
+    } else {
+        s = translate(ctx->program, TRANS_FULL);
     }
     if (opts.out_mir || opts.out_bmir) {
-        output(opts.file, s, opts.out_bmir, opts.out_stdout ? NULL : (opts.out_mir ? ".mir" : ".bmir"));
+        ri = output(opts.file, s, opts.out_bmir, opts.out_stdout ? NULL : (opts.out_mir ? ".mir" : ".bmir"));
         goto END;
     }
 
     /* run the code */
     if (!opts.out_src) {
-        ;
+        const char *modules[] = {
+            "kilite.bmir",
+            NULL,   /* must be ended by NULL */
+        };
+        kl_opts runopts = {
+            .modules = modules,
+        };
+        run(&ri, opts.file, s, 0, NULL, NULL, &runopts);
     }
 
 END:
     if (s) free(s);
     free_context(ctx);
     lexer_free(l);
-    return 0;
+    return ri;
 }

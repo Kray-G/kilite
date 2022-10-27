@@ -13,9 +13,6 @@
     case TK_VSINT: \
         printf("%" PRId64, i->r##n.i64); \
         break; \
-    case TK_VUINT: \
-        printf("%" PRIu64, i->r##n.u64); \
-        break; \
     case TK_VAR: \
         if (i->r##n.index < 0) { \
             printf("(*r):%s", TYPS(n)); \
@@ -62,6 +59,18 @@ void disp_3op(const char *op, kl_kir_inst *i)
     printf("\n");
 }
 
+void disp_call(const char *op, kl_kir_inst *i)
+{
+    printf(IDT OP, op);
+    disp_v(i, 1);
+    printf(", ");
+    disp_v(i, 2);
+    if (i->r2.funcid > 0) {
+        printf("(func:%d)", i->r2.funcid);
+    }
+    printf("\n");
+}
+
 void disp_inst(kl_kir_program *p, kl_kir_inst *i)
 {
     if (i->disabled) {
@@ -89,7 +98,7 @@ void disp_inst(kl_kir_program *p, kl_kir_inst *i)
         disp_1op("pusharg", i);
         break;
     case KIR_CALL:
-        disp_2op("call", i);
+        disp_call("call", i);
         break;
     case KIR_RSSTKP:
         printf(IDT OP "\n", "restorestkp");
@@ -124,7 +133,22 @@ void disp_inst(kl_kir_program *p, kl_kir_inst *i)
     case KIR_SUB:
         disp_3op("sub", i);
         break;
+    case KIR_MUL:
+        disp_3op("mul", i);
+        break;
+    case KIR_DIV:
+        disp_3op("div", i);
+        break;
+    case KIR_MOD:
+        disp_3op("mod", i);
+        break;
 
+    case KIR_EQEQ:
+        disp_3op("eqeq", i);
+        break;
+    case KIR_NEQ:
+        disp_3op("neq", i);
+        break;
     case KIR_LT:
         disp_3op("lt", i);
         break;

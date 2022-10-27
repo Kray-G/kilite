@@ -176,6 +176,7 @@ typedef struct vmctx {
     int tick;
     int sweep;
     int gccnt;
+    int verbose;
 
     int vstksz;
     int vstkp;
@@ -215,6 +216,7 @@ typedef struct vmctx {
 
 INLINE vmctx *initialize(void);
 INLINE void finalize(vmctx *ctx);
+INLINE void setup_context(vmctx *ctx);
 
 INLINE vmfnc *alcfnc(vmctx *ctx, void *f, vmfrm *lex, int args);
 INLINE void pbakfnc(vmctx *ctx, vmfnc *p);
@@ -317,6 +319,17 @@ INLINE void run_global(vmctx *ctx);
 } \
 /**/
 
+/* Conditional Jump */
+
+#define OP_JMP_IF_FALSE(r, label) { \
+    if ((r)->t == VAR_INT64) { \
+        if ((r)->i == 0) goto label; \
+    } else { \
+        /* TODO */ \
+    } \
+} \
+/**/
+
 /* ADD */
 
 #define OP_ADD_I_I(ctx, r, i0, i1) { \
@@ -372,6 +385,18 @@ INLINE void run_global(vmctx *ctx);
         OP_ADD_I_I(ctx, r, i0, i1) \
     } else if ((v0)->t == VAR_BIG) { \
         OP_ADD_B_I(ctx, r, v0, i1) \
+    } else { \
+        /* TODO */ \
+    } \
+} \
+/**/
+
+#define OP_ADD_I_V(ctx, r, i0, v1) { \
+    if ((v1)->t == VAR_INT64) { \
+        int64_t i1 = (v1)->i; \
+        OP_ADD_I_I(ctx, r, i0, i1) \
+    } else if ((v1)->t == VAR_BIG) { \
+        OP_ADD_I_B(ctx, r, i0, v1) \
     } else { \
         /* TODO */ \
     } \
@@ -468,6 +493,18 @@ INLINE void run_global(vmctx *ctx);
 } \
 /**/
 
+#define OP_SUB_I_V(ctx, r, vi, v1) { \
+    if ((v1)->t == VAR_INT64) { \
+        int64_t i1 = (v1)->i; \
+        OP_SUB_I_I(ctx, r, i0, i1) \
+    } else if ((v1)->t == VAR_BIG) { \
+        OP_SUB_I_B(ctx, r, i0, v1) \
+    } else { \
+        /* TODO */ \
+    } \
+} \
+/**/
+
 #define OP_SUB(ctx, r, v0, v1) { \
     if ((v0)->t == VAR_INT64) { \
         if ((v1)->t == VAR_INT64) { \
@@ -496,13 +533,252 @@ INLINE void run_global(vmctx *ctx);
 } \
 /**/
 
-/* Conditional Jump */
+/* MUL */
 
-#define OP_JMP_IF_FALSE(r, label) { \
-    if ((r)->t == VAR_INT64) { \
-        if ((r)->i == 0) goto label; \
+#define OP_MUL_I_I(ctx, r, i0, i1) { \
+    if ((i0) == 0 || (i1) == 0) { \
+        (r)->t = VAR_INT64; \
+        (r)->i = 0; \
+    } else if ((i1) == -1) { \
+        if ((i0) == INT64_MIN) { \
+            (r)->t = VAR_BIG; \
+            (r)->bi = alcbgi_bigz(ctx, BzCopy(i64maxp1)); \
+        } else { \
+            (r)->t = VAR_INT64; \
+            (r)->i = -(i0); \
+        } \
+    } else if (((i0) > 0 && (i1) > 0) || ((i0) < 0 && (i1) < 0)) { \
+        if ((i0) > (INT64_MAX)/(i1)) { \
+            BigZ b2 = BzFromInteger(i1); \
+            BigZ bi = BzFromInteger(i0); \
+            (r)->t = VAR_BIG; \
+            (r)->bi = alcbgi_bigz(ctx, BzMultiply(bi, b2)); \
+            BzFree(bi); \
+            BzFree(b2); \
+        } else { \
+            (r)->t = VAR_INT64; \
+            (r)->i = (i0) * (i1); \
+        } \
+    } else if ((i0) < (INT64_MIN)/(i1)) { \
+        BigZ b2 = BzFromInteger(i1); \
+        BigZ bi = BzFromInteger(i0); \
+        (r)->t = VAR_BIG; \
+        (r)->bi = alcbgi_bigz(ctx, BzMultiply(bi, b2)); \
+        BzFree(bi); \
+        BzFree(b2); \
+    } else { \
+        (r)->t = VAR_INT64; \
+        (r)->i = (i0) * (i1); \
+    } \
+} \
+/**/
+
+#define OP_MUL_B_I(ctx, r, v0, i1) { \
+    BigZ bi = BzFromInteger(i1); \
+    (r)->t = VAR_BIG; \
+    (r)->bi = alcbgi_bigz(ctx, BzMultiply((v0)->bi->b, bi)); \
+    BzFree(bi); \
+    bi_normalize(r); \
+} \
+/**/
+
+#define OP_MUL_I_B(ctx, r, i0, v1) { \
+    BigZ bi = BzFromInteger(i0); \
+    (r)->t = VAR_BIG; \
+    (r)->bi = alcbgi_bigz(ctx, BzMultiply(bi, (v1)->bi->b)); \
+    BzFree(bi); \
+    bi_normalize(r); \
+} \
+/**/
+
+#define OP_MUL_V_I(ctx, r, v0, i1) { \
+    if ((v0)->t == VAR_INT64) { \
+        int64_t i0 = (v0)->i; \
+        OP_MUL_I_I(ctx, r, i0, i1) \
+    } else if ((v0)->t == VAR_BIG) { \
+        OP_MUL_B_I(ctx, r, v0, i1) \
     } else { \
         /* TODO */ \
+    } \
+} \
+/**/
+
+#define OP_MUL_I_V(ctx, r, i0, v1) { \
+    if ((v1)->t == VAR_INT64) { \
+        int64_t i1 = (v1)->i; \
+        OP_MUL_I_I(ctx, r, i0, i1) \
+    } else if ((v1)->t == VAR_BIG) { \
+        OP_MUL_I_B(ctx, r, i0, v1) \
+    } else { \
+        /* TODO */ \
+    } \
+} \
+/**/
+
+#define OP_MUL(ctx, r, v0, v1) { \
+    if ((v0)->t == VAR_INT64) { \
+        if ((v1)->t == VAR_INT64) { \
+            int64_t i0 = (v0)->i; \
+            int64_t i1 = (v1)->i; \
+            OP_MUL_I_I(ctx, r, i0, i1) \
+        } else if ((v1)->t == VAR_BIG) { \
+            int64_t i0 = (v0)->i; \
+            OP_MUL_I_B(ctx, r, i0, v1) \
+        } else { \
+            /* TODO */ \
+        } \
+    } else if ((v0)->t == VAR_BIG) { \
+        if ((v1)->t = VAR_INT64) { \
+            int64_t i1 = (v1)->i; \
+            OP_MUL_B_I(ctx, r, v0, i1) \
+        } else if ((v1)->t = VAR_BIG) { \
+            (r)->t = VAR_BIG; \
+            (r)->bi = alcbgi_bigz(ctx, BzMultiply((v0)->bi->b, (v1)->bi->b)); \
+        } else { \
+            /* TODO */ \
+        } \
+    } else { \
+        /* TODO */ \
+    } \
+} \
+/**/
+
+/* EQEQ */
+
+#define OP_EQEQ_I_I(ctx, r, i0, i1) { \
+    (r)->t = VAR_INT64; \
+    (r)->i = (i0) == (i1); \
+} \
+/**/
+
+#define OP_EQEQ_B_I(ctx, r, v0, i1) { \
+    (r)->t = VAR_INT64; \
+    (r)->i = 0; \
+} \
+/**/
+
+#define OP_EQEQ_I_B(ctx, r, i0, v1) { \
+    (r)->t = VAR_INT64; \
+    (r)->i = 0; \
+} \
+/**/
+
+#define OP_EQEQ_V_I(ctx, r, v0, i1) { \
+    if ((v0)->t == VAR_INT64) { \
+        OP_EQEQ_I_I(ctx, r, (v0)->i, i1) \
+    } else if ((v0)->t == VAR_BIG) { \
+        OP_EQEQ_B_I(ctx, r, v0, i1) \
+    } else { \
+        /* TODO */ \
+    } \
+} \
+/**/
+
+#define OP_EQEQ_I_V(ctx, r, i0, v1) { \
+    if ((v1)->t == VAR_INT64) { \
+        OP_EQEQ_I_I(ctx, r, i0, (v1)->i) \
+    } else if ((v0)->t == VAR_BIG) { \
+        OP_EQEQ_I_B(ctx, r, i0, v1) \
+    } else { \
+        /* TODO */ \
+    } \
+} \
+/**/
+
+#define OP_EQEQ(ctx, r, v0, v1) { \
+    if ((v0)->t == VAR_INT64) { \
+        if ((v1)->t == VAR_INT64) { \
+            OP_EQEQ_I_I(ctx, r, (v0)->i, (v1)->i); \
+        } else if ((v1)->t = VAR_BIG) { \
+            int64_t i0 = (v0)->i; \
+            OP_EQEQ_I_B(ctx, r, i0, v1) \
+        } else { \
+            /* TODO */ \
+        } \
+    } else if ((v0)->t == VAR_BIG) { \
+        if ((v1)->t = VAR_INT64) { \
+            int64_t i1 = (v1)->i; \
+            OP_EQEQ_B_I(ctx, r, v0, i1) \
+        } else if ((v1)->t = VAR_BIG) { \
+            BzCmp c = BzCompare((v0)->bi->b, (v1)->bi->b); \
+            (r)->t = VAR_INT64; \
+            (r)->i = (c == BZ_EQ); \
+        } else { \
+            /* TODO */ \
+        } \
+    } else { \
+            /* TODO */ \
+    } \
+} \
+/**/
+
+/* NEQ */
+
+#define OP_NEQ_I_I(ctx, r, i0, i1) { \
+    (r)->t = VAR_INT64; \
+    (r)->i = (i0) != (i1); \
+} \
+/**/
+
+#define OP_NEQ_B_I(ctx, r, v0, i1) { \
+    (r)->t = VAR_INT64; \
+    (r)->i = 1; \
+} \
+/**/
+
+#define OP_NEQ_I_B(ctx, r, i0, v1) { \
+    (r)->t = VAR_INT64; \
+    (r)->i = 1; \
+} \
+/**/
+
+#define OP_NEQ_V_I(ctx, r, v0, i1) { \
+    if ((v0)->t == VAR_INT64) { \
+        OP_NEQ_I_I(ctx, r, (v0)->i, i1) \
+    } else if ((v0)->t == VAR_BIG) { \
+        (r)->t = VAR_INT64; \
+        (r)->i = 1; \
+    } else { \
+        /* TODO */ \
+    } \
+} \
+/**/
+
+#define OP_NEQ_I_V(ctx, r, i0, v1) { \
+    if ((v1)->t == VAR_INT64) { \
+        OP_NEQ_I_I(ctx, r, i0, (v1)->i) \
+    } else if ((v0)->t == VAR_BIG) { \
+        (r)->t = VAR_INT64; \
+        (r)->i = 1; \
+    } else { \
+        /* TODO */ \
+    } \
+} \
+/**/
+
+#define OP_NEQ(ctx, r, v0, v1) { \
+    if ((v0)->t == VAR_INT64) { \
+        if ((v1)->t == VAR_INT64) { \
+            OP_NEQ_I_I(ctx, r, (v0)->i, (v1)->i); \
+        } else if ((v1)->t = VAR_BIG) { \
+            (r)->t = VAR_INT64; \
+            (r)->i = 1; \
+        } else { \
+            /* TODO */ \
+        } \
+    } else if ((v0)->t == VAR_BIG) { \
+        if ((v1)->t = VAR_INT64) { \
+            (r)->t = VAR_INT64; \
+            (r)->i = 1; \
+        } else if ((v1)->t = VAR_BIG) { \
+            BzCmp c = BzCompare((v0)->bi->b, (v1)->bi->b); \
+            (r)->t = VAR_INT64; \
+            (r)->i = (c != BZ_EQ); \
+        } else { \
+            /* TODO */ \
+        } \
+    } else { \
+            /* TODO */ \
     } \
 } \
 /**/

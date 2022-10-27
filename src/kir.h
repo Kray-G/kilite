@@ -34,7 +34,6 @@ typedef enum tk_token {
 
     // Literals
     TK_VSINT,               //  * Integer value as signed 64 bit.
-    TK_VUINT,               //  * Integer value as unsigned 64 bit, only when it's over the range of signed 64 bit.
     TK_VBIGINT,             //  * Big Integer value
     TK_VDBL,                //  * Double precision value
     TK_VSTR,                //  * String literal
@@ -201,8 +200,14 @@ typedef enum kl_kir {
     KIR_MUL,        //  <r1>, <r2>, <r3>        ;   <r1>  <-  <r2> * <r3>
     KIR_DIV,        //  <r1>, <r2>, <r3>        ;   <r1>  <-  <r2> / <r3>
     KIR_MOD,        //  <r1>, <r2>, <r3>        ;   <r1>  <-  <r2> % <r3>
+
+    KIR_EQEQ,       //  <r1>, <r2>, <r3>        ;   <r1>  <-  <r2> == <r3>
+    KIR_NEQ,        //  <r1>, <r2>, <r3>        ;   <r1>  <-  <r2> != <r3>
     KIR_LT,         //  <r1>, <r2>, <r3>        ;   <r1>  <-  <r2> < <r3>
+    KIR_LE,         //  <r1>, <r2>, <r3>        ;   <r1>  <-  <r2> <= <r3>
     KIR_GT,         //  <r1>, <r2>, <r3>        ;   <r1>  <-  <r2> > <r3>
+    KIR_GE,         //  <r1>, <r2>, <r3>        ;   <r1>  <-  <r2> => <r3>
+    KIR_LGE,        //  <r1>, <r2>, <r3>        ;   <r1>  <-  <r2> <=> <r3>
 
     KIR_APLY,       //  <r1>, <r2>, <str>       ;   <r1>  <-  <r2>.<str>
 
@@ -239,6 +244,7 @@ typedef struct kl_kir_func {
     const char *name;
     int has_frame;
     int funcid;
+    int funcend;
     int vars;
     int line;
     int pos;
@@ -252,6 +258,7 @@ typedef struct kl_kir_func {
 typedef struct kl_kir_program {
     kl_kir_func *head;
     kl_kir_func *last;
+    int verbose;
 
     struct kl_kir_inst *ichn;
     struct kl_kir_func *fchn;

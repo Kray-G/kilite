@@ -165,9 +165,6 @@ static void add_func(kl_kir_program *prog, kl_kir_func *func)
     case TK_VSINT: \
         (rn) = make_lit_i64(ctx, (e)->val.i64); \
         break; \
-    case TK_VUINT: \
-        (rn) = make_lit_u64(ctx, (e)->val.u64); \
-        break; \
     case TK_VAR: \
         (rn) = make_var_index(ctx, (e)->sym->ref ? (e)->sym->ref->index : (e)->sym->index, (e)->sym->level, (e)->typeid); \
         break; \
@@ -219,16 +216,6 @@ static kl_kir_opr make_lit_i64(kl_context *ctx, int64_t i64)
     return r1;
 }
 
-static kl_kir_opr make_lit_u64(kl_context *ctx, uint64_t u64)
-{
-    kl_kir_opr r1 = (kl_kir_opr){
-        .t = TK_VUINT,
-        .u64 = u64,
-        .typeid = TK_TUINT64,
-    };
-    return r1;
-}
-
 static kl_kir_opr make_lit_func(kl_context *ctx, kl_symbol *sym)
 {
     kl_kir_opr r1 = (kl_kir_opr){
@@ -253,6 +240,11 @@ static kl_kir_opr make_var_index(kl_context *ctx, int index, int level, tk_typei
 
 static kl_kir_inst *gen_op3_inst(kl_context *ctx, kl_symbol *sym, kl_kir op, kl_kir_opr *r1, kl_expr *e)
 {
+    kl_kir_opr rr = {0};
+    if (!r1) {
+        rr = make_ret_var(ctx, sym);
+        r1 = &rr;
+    }
     kl_kir_inst *r2i = NULL;
     kl_kir_inst *r3i = NULL;
     kl_kir_opr r2 = {0};
@@ -323,13 +315,18 @@ static kl_kir_inst *gen_callargs(kl_context *ctx, kl_symbol *sym, kl_expr *e)
 
 static kl_kir_inst *gen_call(kl_context *ctx, kl_symbol *sym, kl_kir_opr *r1, kl_expr *e)
 {
+    kl_kir_opr rr = {0};
+    if (!r1) {
+        rr = make_ret_var(ctx, sym);
+        r1 = &rr;
+    }
     kl_kir_opr r2 = {0};
     kl_kir_inst *r1i = NULL;
     kl_kir_inst *r1l = NULL;
 
     kl_expr *f = e->lhs;
     kl_symbol *fsym = f->sym->ref ? f->sym->ref : f->sym;
-    if (f->nodetype == TK_VAR) {
+    if (f->nodetype == TK_VAR && fsym->symtype != TK_VAR) {
         r2.t = TK_VAR;
         r2.funcid = fsym->funcid;
         r2.index = fsym->index;
@@ -338,8 +335,7 @@ static kl_kir_inst *gen_call(kl_context *ctx, kl_symbol *sym, kl_kir_opr *r1, kl
         r2.typeid = f->typeid;
         r1->typeid = r2.typeid; // return value's type is same as r2's type.
     } else {
-        r2 = make_var(ctx, sym);
-        r1i = gen_expr(ctx, sym, &r2, e->lhs);
+        KL_KIR_CHECK_LITERAL(e->lhs, r2, r1i);
         r1l = get_last(r1i);
     }
  
@@ -369,6 +365,29 @@ static kl_kir_inst *gen_call(kl_context *ctx, kl_symbol *sym, kl_kir_opr *r1, kl
 
     kl_kir_inst *head = new_inst(ctx->program, e->line, e->pos, KIR_SVSTKP);
     head->next = inst;
+    return head;
+}
+
+static kl_kir_inst *gen_eq(kl_context *ctx, kl_symbol *sym, kl_expr *e)
+{
+    kl_kir_opr r2 = {0};
+    kl_kir_inst *head = NULL;
+    KL_KIR_CHECK_LITERAL(e->rhs, r2, head);
+    kl_kir_inst *last = get_last(head);
+
+    kl_expr *l = e->lhs;
+    if (l->nodetype == TK_VAR) {
+        kl_kir_opr r1 = {0};
+        r1 = make_var_index(ctx, l->sym->index, l->sym->level, l->typeid);
+        if (!head) {
+            head = new_inst_op2(ctx->program, e->line, e->pos, KIR_MOV, &r1, &r2);
+        } else {
+            last->next = new_inst_op2(ctx->program, e->line, e->pos, KIR_MOV, &r1, &r2);
+        }
+    } else {
+        /* TODO: direct assignment for object or array. */
+    }
+
     return head;
 }
 
@@ -431,11 +450,14 @@ static kl_kir_inst *gen_expr(kl_context *ctx, kl_symbol *sym, kl_kir_opr *r1, kl
     kl_kir_inst *head = NULL;
     if (!e) return head;
 
+    kl_kir_opr rr = {0};
+    if (!r1) {
+        rr = make_ret_var(ctx, sym);
+        r1 = &rr;
+    }
+
     switch (e->nodetype) {
     case TK_VSINT:
-        break;
-    case TK_VUINT:
-        break;
     case TK_VAR:
         break;
 
@@ -444,7 +466,11 @@ static kl_kir_inst *gen_expr(kl_context *ctx, kl_symbol *sym, kl_kir_opr *r1, kl
         break;
 
     case TK_NOT:
+        break;
     case TK_EQ:
+        head = gen_eq(ctx, sym, e);
+        break;
+
     case TK_ADDEQ:
     case TK_SUBEQ:
     case TK_MULEQ:
@@ -461,15 +487,25 @@ static kl_kir_inst *gen_expr(kl_context *ctx, kl_symbol *sym, kl_kir_opr *r1, kl
     case TK_REGEQ:
     case TK_REGNE:
     case TK_EQEQ:
+        head = gen_op3_inst(ctx, sym, KIR_EQEQ, r1, e);
+        break;
     case TK_NEQ:
+        head = gen_op3_inst(ctx, sym, KIR_NEQ, r1, e);
         break;
     case TK_LT:
         head = gen_op3_inst(ctx, sym, KIR_LT, r1, e);
         break;
     case TK_LE:
+        head = gen_op3_inst(ctx, sym, KIR_LE, r1, e);
+        break;
     case TK_GT:
+        head = gen_op3_inst(ctx, sym, KIR_GT, r1, e);
+        break;
     case TK_GE:
+        head = gen_op3_inst(ctx, sym, KIR_GE, r1, e);
+        break;
     case TK_LGE:
+        head = gen_op3_inst(ctx, sym, KIR_LGE, r1, e);
         break;
     case TK_ADD:
         head = gen_op3_inst(ctx, sym, KIR_ADD, r1, e);
@@ -478,8 +514,13 @@ static kl_kir_inst *gen_expr(kl_context *ctx, kl_symbol *sym, kl_kir_opr *r1, kl
         head = gen_op3_inst(ctx, sym, KIR_SUB, r1, e);
         break;
     case TK_MUL:
+        head = gen_op3_inst(ctx, sym, KIR_MUL, r1, e);
+        break;
     case TK_DIV:
+        head = gen_op3_inst(ctx, sym, KIR_DIV, r1, e);
+        break;
     case TK_MOD:
+        head = gen_op3_inst(ctx, sym, KIR_MOD, r1, e);
         break;
     case TK_AND:
     case TK_OR:
@@ -526,7 +567,7 @@ static kl_kir_func *gen_function(kl_context *ctx, kl_symbol *sym, kl_stmt *s)
 
     func->has_frame = sym->has_func;
     int localvars = sym->idxmax;
-    sym->funcend = get_next_label(ctx);
+    func->funcend = sym->funcend = get_next_label(ctx);
     if (func->has_frame) {
         func->head = last = new_inst(ctx->program, sym->line, sym->pos, KIR_MKFRM);
     } else {
@@ -570,7 +611,7 @@ static kl_kir_func *gen_namespace(kl_context *ctx, kl_symbol *sym, kl_stmt *s)
     kl_kir_inst *last = NULL;
 
     int localvars = sym->idxmax;
-    sym->funcend = get_next_label(ctx);
+    func->funcend = sym->funcend = get_next_label(ctx);
     func->head = last = new_inst(ctx->program, sym->line, sym->pos, KIR_MKFRM);
 
     while (s) {
@@ -590,6 +631,7 @@ static kl_kir_func *gen_namespace(kl_context *ctx, kl_symbol *sym, kl_stmt *s)
     func->funcid = sym->funcid;
     func->head->r1 = (kl_kir_opr){ .t = TK_VSINT, .i64 = sym->count, .typeid = TK_TSINT64 };
     func->head->r2 = (kl_kir_opr){ .t = TK_VSINT, .i64 = localvars, .typeid = TK_TSINT64 };
+    func->head->r3 = (kl_kir_opr){ .t = TK_VSINT, .i64 = sym->argcount, .typeid = TK_TSINT64 };
 
     last->next = new_inst_label(ctx->program, sym->line, sym->pos, sym->funcend, last, 0);
     last = last->next;
@@ -648,11 +690,13 @@ static kl_kir_inst *gen_stmt(kl_context *ctx, kl_symbol *sym, kl_stmt *s)
         break;
     case TK_CONST:
     case TK_LET:
+        if (s->e1) {
+            head = gen_expr(ctx, sym, NULL, s->e1);
+        }
         break;
     case TK_EXPR:
         if (s->e1) {
-            kl_kir_opr r1 = make_var(ctx, sym);
-            head = gen_expr(ctx, sym, &r1, s->e1);
+            head = gen_expr(ctx, sym, NULL, s->e1);
         }
         break;
     default:

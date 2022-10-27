@@ -3,6 +3,8 @@
 
 #include "../kir.h"
 
-extern char *translate(kl_kir_program *p);
+#define TRANS_SRC (0)
+#define TRANS_FULL (1)
+extern char *translate(kl_kir_program *p, int mode);
 
 #endif /* KILITE_TRANSLATE_H */

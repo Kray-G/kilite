@@ -284,7 +284,7 @@ void sweep(vmctx *ctx)
     }
     ctx->sweep = sc + bic + hc + vc + fc + mc;
     ++(ctx->gccnt);
-    if (ctx->sweep > 0) {
+    if (ctx->verbose && ctx->sweep > 0) {
         printf("GC %d done, vstk(%d), ", ctx->gccnt, ctx->vstkp);
         if (sc > 0) {
             printf("(str:%d,scan:%d)", sc, sliv);
