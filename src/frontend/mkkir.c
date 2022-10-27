@@ -64,6 +64,9 @@ static kl_kir_inst *new_inst_jump(kl_kir_program *p, int line, int pos, int labe
     if (last && (last->opcode == KIR_RET || last->opcode == KIR_JMP)) {
         return NULL;
     }
+    if (last && ((last->opcode == KIR_JMPIFF || last->opcode == KIR_CHKEXCEPT) && last->labelid == labelid)) {
+        last->disabled = 1;
+    }
     kl_kir_inst *inst = (kl_kir_inst *)calloc(1, sizeof(kl_kir_inst));
     inst->chn = p->ichn;
     p->ichn = inst;

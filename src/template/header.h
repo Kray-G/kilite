@@ -71,7 +71,6 @@ int strcmp(const char *s1, const char *s2);
 #define init_var(v) ((v)->t = VAR_INT64, (v)->i = 0)
 #define local_var(ctx, n) (&(((ctx)->vstk)[(ctx)->vstkp - ((n) + 1)]))
 #define local_var_index(n) ((ctx)->vstkp - ((n) + 1))
-#define fram_var(frm, n) (frm->v[n])
 
 /***************************************************************************
  * VM Variable
@@ -144,7 +143,7 @@ typedef struct vmvar {
     struct vmvar *a;    /* an object */
 } vmvar;
 
-typedef int (*vmfunc_t)(struct vmctx *ctx, struct vmfrm *lex, struct vmvar **r, int ac);
+typedef int (*vmfunc_t)(struct vmctx *ctx, struct vmfrm *lex, struct vmvar *r, int ac);
 typedef struct vmfnc {
     struct vmfnc *prv;  /* The link to the previous item in alive list. */
     struct vmfnc *liv;  /* The link to the next item in alive list. */
@@ -228,6 +227,7 @@ INLINE void pbakbgi(vmctx *ctx, vmbgi *p);
 INLINE vmhsh *alchsh(vmctx *ctx);
 INLINE void pbakhsh(vmctx *ctx, vmhsh *p);
 INLINE vmvar *alcvar(vmctx *ctx, vartype t, int hold);
+INLINE vmvar *alcvar_initial(vmctx *ctx);
 INLINE vmvar *alcvar_fnc(vmctx *ctx, vmfnc *f);
 INLINE vmvar *alcvar_int64(vmctx *ctx, int64_t i, int hold);
 INLINE vmvar *alcvar_str(vmctx *ctx, const char *s);
@@ -538,6 +538,17 @@ INLINE void run_global(vmctx *ctx);
         OP_LT_I_I(ctx, r, (v0)->i, i1) \
     } else if ((v0)->t == VAR_BIG) { \
         OP_LT_B_I(ctx, r, v0, i1) \
+    } else { \
+        /* TODO */ \
+    } \
+} \
+/**/
+
+#define OP_LT_I_V(ctx, r, i0, v1) { \
+    if ((v1)->t == VAR_INT64) { \
+        OP_LT_I_I(ctx, r, i0, (v1)->i) \
+    } else if ((v0)->t == VAR_BIG) { \
+        OP_LT_I_B(ctx, r, i0, v1) \
     } else { \
         /* TODO */ \
     } \

@@ -65,7 +65,7 @@ static const char *varname(char *buf, kl_kir_opr *rn)  /* buf should have at lea
         break;
     case TK_VAR:
         if (rn->index < 0) {
-            sprintf(buf, "(*r)");
+            sprintf(buf, "(r)");
         } else {
             switch (rn->level) {
             case 0:
@@ -103,7 +103,7 @@ static void push_var(xstr *code, kl_kir_opr *rn)
     char buf1[256] = {0};
     switch (rn->t) {
     case TK_VSINT:
-        xstra_inst(code, "{ vmvar c = (vmvar){ .t = VAR_INT64, .i = %" PRId64 " }; push_var(ctx, &c); }\n", rn->i64);
+        xstra_inst(code, "{ vmvar c = { .t = VAR_INT64, .i = %" PRId64 " }; push_var(ctx, &c); }\n", rn->i64);
         break;
     case TK_VUINT:
         xstra_inst(code, "{ vmvar *c = alcvar_bgistr(ctx, %" PRIu64 ", 10); push_var(ctx, c); }\n", rn->u64);
@@ -188,9 +188,9 @@ static void translate_inst(xstr *code, kl_kir_func *f, kl_kir_inst *i, func_cont
         xstra(code, "\n", 1);
     }
 
-    if (i->line > 0) {
-        xstra_f(code, "$line %d\n", i->line);
-    }
+    // if (i->line > 0) {
+    //     xstra_f(code, "#line %d\n", i->line);
+    // }
     char buf1[256] = {0};
     char buf2[256] = {0};
     switch (i->opcode) {
@@ -220,7 +220,7 @@ static void translate_inst(xstr *code, kl_kir_func *f, kl_kir_inst *i, func_cont
         xstra_inst(code, "vmfrm *frm = alcfrm(ctx, %" PRId64 ");\n", i->r1.i64);
         xstra_inst(code, "push_frm(ctx, frm);\n");
         for (int idx = 0; idx < fctx->local_vars; ++idx) {
-            xstra_inst(code, "vmvar *n%d = frm->v[%d] = alcvar_int64(ctx, 0, 0);\n", idx, idx);
+            xstra_inst(code, "vmvar *n%d = frm->v[%d] = alcvar_initial(ctx);\n", idx, idx);
         }
         if (fctx->temp_count > 0) {
             xstra_inst(code, "const int allocated_local = %" PRId64 ";\n", fctx->temp_count);
@@ -249,13 +249,13 @@ static void translate_inst(xstr *code, kl_kir_func *f, kl_kir_inst *i, func_cont
         varname(buf1, &(i->r1));
         if (i->r2.level > 0) {
             if (i->r2.recursive) {
-                xstra_inst(code, "e = (f%d->f)(ctx, lex, &(%s), 1);\n", i->r2.funcid, buf1);
+                xstra_inst(code, "e = (f%d->f)(ctx, lex, %s, 1);\n", i->r2.funcid, buf1);
             } else {
-                xstra_inst(code, "e = (f%d->f)(ctx, f%d->lex, &(%s), 1);\n", i->r2.funcid, i->r2.funcid, buf1);
+                xstra_inst(code, "e = (f%d->f)(ctx, f%d->lex, %s, 1);\n", i->r2.funcid, i->r2.funcid, buf1);
             }
         } else {
             varname(buf2, &(i->r2));
-            xstra_inst(code, "e = (((%s)->f)->f)(ctx, ((%s)->f)->lex, &(%s), 1);\n", buf2, buf2, buf1);
+            xstra_inst(code, "e = (((%s)->f)->f)(ctx, ((%s)->f)->lex, %s, 1);\n", buf2, buf2, buf1);
         }
         break;
     case KIR_RSSTKP:
@@ -312,7 +312,7 @@ void translate_func(kl_kir_program *p, xstr *code, kl_kir_func *f)
         .has_frame = f->has_frame,
     };
     xstra_set(code, "/* function:%s */\n", f->name);
-    xstra_set(code, "int %s_%d(vmctx *ctx, vmfrm *lex, vmvar **r, int ac)\n{\n", f->name, f->funcid);
+    xstra_set(code, "int %s_%d(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)\n{\n", f->name, f->funcid);
     xstra_inst(code, "GC_CHECK(ctx);\n");
     xstra_inst(code, "int p, e = 0;\n");
 

@@ -356,6 +356,13 @@ vmvar *alcvar(vmctx *ctx, vartype t, int hold)
     return v;
 }
 
+vmvar *alcvar_initial(vmctx *ctx)
+{
+    vmvar *v = alcvar_pure(ctx, VAR_INT64);
+    v->i = 0;
+    return v;
+}
+
 vmvar *alcvar_fnc(vmctx *ctx, vmfnc *f)
 {
     vmvar *v = alcvar_pure(ctx, VAR_FNC);

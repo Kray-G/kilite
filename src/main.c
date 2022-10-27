@@ -14,6 +14,7 @@ typedef struct kl_argopts {
     int out_stdout;
     int in_stdin;
     int out_src;
+    const char *ext;
     const char *file;
 } kl_argopts;
 
@@ -36,6 +37,10 @@ void parse_arg_options(int ac, char **av, kl_argopts *opts)
                         opts->out_csrc = 1;
                     } else if (strcmp(av[i], "--stdout") == 0) {
                         opts->out_stdout = 1;
+                    } else if (strcmp(av[i], "--ext") == 0) {
+                        if (++i < ac) {
+                            opts->ext = av[i];
+                        }
                     }
                     break;
                 }
@@ -78,10 +83,14 @@ int main(int ac, char **av)
         printf("%s\n", s);
     }
     if (opts.out_mir || opts.out_bmir) {
-        output(opts.file, s, opts.out_bmir, opts.out_stdout ? NULL : (opts.out_mir ? ".mir" : ".klc"));
+        output(opts.file, s, opts.out_bmir, opts.out_stdout ? NULL : (opts.out_mir ? ".mir" : ".bmir"));
         goto END;
     }
+
     /* run the code */
+    if (!opts.out_src) {
+        ;
+    }
 
 END:
     if (s) free(s);

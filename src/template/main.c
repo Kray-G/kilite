@@ -5,8 +5,7 @@ int main(void)
     vmctx *ctx = initialize();
 
     vmvar r;
-    vmvar *ref = &r;
-    run_global_0(ctx, NULL, &ref, 0);
+    run_global_0(ctx, NULL, &r, 0);
     printf("r-> = %lld\n", r.i);
     mark_and_sweep(ctx);
 

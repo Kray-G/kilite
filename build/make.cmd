@@ -10,7 +10,9 @@ cd bin
 if not exist mir_static.lib call ..\build\mir_vs2019.cmd
 if not exist mir_static.lib goto ERROR
 
-set TEMPF=h.txt
+set TEMPF=h.c
+
+@REM Create a header source code.
 cl -O2 ..\util\makecstr.c
 type ..\src\template\lib\bign.h > %TEMPF%
 type ..\src\template\lib\bigz.h >> %TEMPF%
@@ -35,10 +37,41 @@ cl -O2 -I ..\..\mir ^
 
 copy /y kilite.exe ..\kilite.exe
 
+@REM Create a basic library.
+if not exist lib mkdir lib
+copy /y ..\src\template\lib\bign.h .\lib\bign.h
+copy /y ..\src\template\lib\bigz.h .\lib\bigz.h
+copy /y ..\src\template\common.h .\common.h
+copy /y ..\src\template\header.h .\header.h
+type ..\src\template\lib\bign.c > %TEMPF%
+type ..\src\template\lib\bigz.c >> %TEMPF%
+type ..\src\template\alloc.c >> %TEMPF%
+type ..\src\template\gc.c >> %TEMPF%
+type ..\src\template\init.c >> %TEMPF%
+type ..\src\template\main.c >> %TEMPF%
+type ..\src\template\util.c >> %TEMPF%
+type ..\src\template\bigi.c >> %TEMPF%
+type ..\src\template\str.c >> %TEMPF%
+type ..\src\template\hash.c >> %TEMPF%
+c2m -I lib -c %TEMPF%
+del kilite.bmir
+ren %TEMPF:.c=.bmir% kilite.bmir
+copy /y kilite.bmir ..\kilite.bmir
+del %TEMPF%
+
+goto CLEANUP
+
 :ERROR
 popd
 endlocal
 exit /b 0
+
+:CLEANUP
+del *.h *.c *.obj
+del makecstr.exe
+rmdir /s /q lib
+
+
 
 :END
 popd
