@@ -69,7 +69,6 @@ exit /b 0
 
 :CLEANUP
 del *.h *.obj
-del *.c
 del makecstr.exe
 rmdir /s /q lib
 
