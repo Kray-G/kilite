@@ -4,6 +4,9 @@
 #include <stdio.h>
 #include <stdint.h>
 
+#define SHOW_BIGINT(b) do {char *bs = BzToString(b, 10, 0); printf("%s\n", bs); BzFreeString(bs);} while(0)
+// printf("%s:%d -> %s\n", __FILE__, __LINE__, __func__);
+
 /*
  * Available tokens in the Kilite language.
  */
@@ -209,6 +212,7 @@ typedef enum kl_kir {
     KIR_GE,         //  <r1>, <r2>, <r3>        ;   <r1>  <-  <r2> => <r3>
     KIR_LGE,        //  <r1>, <r2>, <r3>        ;   <r1>  <-  <r2> <=> <r3>
 
+    KIR_IDX,        //  <r1>, <r2>, <idx>       ;   <r1>  <-  <r2>[<idx>]
     KIR_APLY,       //  <r1>, <r2>, <str>       ;   <r1>  <-  <r2>.<str>
 
 } kl_kir;
@@ -221,6 +225,7 @@ typedef struct kl_kir_opr {
     int recursive;              //  1 if the recursive call.
     int64_t i64;
     int64_t u64;
+    const char *str;
     tk_typeid typeid;           //  The value of the type.
     const char *typestr;        //  The type name as a string.
     const char *name;           //  The name if necessary.

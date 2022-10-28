@@ -13,6 +13,9 @@
     case TK_VSINT: \
         printf("%" PRId64, i->r##n.i64); \
         break; \
+    case TK_VSTR: \
+        printf("\"%s\"", i->r##n.str); \
+        break; \
     case TK_VAR: \
         if (i->r##n.index < 0) { \
             printf("(*r):%s", TYPS(n)); \

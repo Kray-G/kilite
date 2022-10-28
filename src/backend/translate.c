@@ -16,14 +16,34 @@ typedef struct func_context {
 } func_context;
 
 #define XSTR_UNIT (64)
-#define xstra_set(code, ...) xstra_f(code, __VA_ARGS__)
-#define xstra_inst(code, ...) xstra(code, "    ", 4), xstra_f(code, __VA_ARGS__)
+#define xstra_inst(code, ...) xstra(code, "    ", 4), xstraf(code, __VA_ARGS__)
 
 typedef struct xstr {
     int cap;
     int len;
     char *s;
 } xstr;
+
+static xstr *xstrc(xstr *vs, const char c)
+{
+    int len = vs->len + 1;
+    if (len < vs->cap) {
+        vs->s[vs->len] = c;
+        vs->s[vs->len + 1] = 0;
+        vs->len = len;
+    } else {
+        int cap = (len < XSTR_UNIT) ? XSTR_UNIT : ((len / XSTR_UNIT) * (XSTR_UNIT << 1));
+        char *ns = (char *)calloc(cap, sizeof(char));
+        strcpy(ns, vs->s);
+        ns[vs->len] = c;
+        ns[vs->len + 1] = 0;
+        free(vs->s);
+        vs->s = ns;
+        vs->len = len;
+        vs->cap = cap;
+    }
+    return vs;
+}
 
 static xstr *xstra(xstr *vs, const char *s, int l)
 {
@@ -44,7 +64,12 @@ static xstr *xstra(xstr *vs, const char *s, int l)
     return vs;
 }
 
-static xstr *xstra_f(xstr *vs, const char *fmt, ...)
+static inline xstr *xstrs(xstr *vs, const char *s)
+{
+    return xstra(vs, s, strlen(s));
+}
+
+static xstr *xstraf(xstr *vs, const char *fmt, ...)
 {
     char buf[1024] = {0};
     va_list ap;
@@ -169,16 +194,31 @@ static void translate_call(xstr *code, kl_kir_inst *i)
     }
 }
 
+static void escape_str(xstr *code, const char *s)
+{
+    while (*s) {
+        if (*s == '"' || *s == '\\') {
+            xstrc(code, '\\');
+        }
+        xstrc(code, *s);
+        s++;
+    }
+}
+
 static void translate_mov(xstr *code, kl_kir_inst *i)
 {
     char buf1[256] = {0};
-    char buf2[256] = {0};
     var_or_int(buf1, &(i->r1));
-    var_or_int(buf2, &(i->r2));
     if (i->r2.t == TK_VAR) {
+        char buf2[256] = {0};
+        var_or_int(buf2, &(i->r2));
         xstra_inst(code, "COPY_VAR_TO(ctx, %s, %s);\n", buf1, buf2);
     } else if (i->r2.t == TK_VSINT) {
-        xstra_inst(code, "SET_I64(%s, %s);\n", buf1, buf2);
+        xstra_inst(code, "SET_I64(%s, %" PRId64 ");\n", buf1, i->r2.i64);
+    } else if (i->r2.t == TK_VSTR) {
+        xstra_inst(code, "SET_STR(%s, \"", buf1);
+        escape_str(code, i->r2.str);
+        xstrs(code, "\");\n");
     }
 }
 
@@ -219,7 +259,7 @@ static void translate_inst(xstr *code, kl_kir_func *f, kl_kir_inst *i, func_cont
     }
 
     // if (i->line > 0) {
-    //     xstra_f(code, "#line %d\n", i->line);
+    //     xstraf(code, "#line %d\n", i->line);
     // }
     char buf1[256] = {0};
     char buf2[256] = {0};
@@ -252,7 +292,7 @@ static void translate_inst(xstr *code, kl_kir_func *f, kl_kir_inst *i, func_cont
         fctx->local_vars = i->r2.i64;   // including arguments.
         fctx->arg_count = i->r3.i64;
         fctx->temp_count = fctx->total_vars - fctx->local_vars;
-        xstra_inst(code, "vmfrm *frm = alcfrm(ctx, %" PRId64 ");\n", i->r1.i64);
+        xstra_inst(code, "vmfrm *frm = alcfrm(ctx, %" PRId64 ");\n", fctx->local_vars);
         xstra_inst(code, "push_frm(ctx, frm);\n");
         for (int idx = 0; idx < fctx->local_vars; ++idx) {
             xstra_inst(code, "vmvar *n%d = frm->v[%d] = alcvar_initial(ctx);\n", idx, idx);
@@ -303,7 +343,7 @@ static void translate_inst(xstr *code, kl_kir_func *f, kl_kir_inst *i, func_cont
         xstra_inst(code, "goto L%d;\n", i->labelid);
         break;
     case KIR_LABEL:
-        xstra_set(code, "L%d:;\n", i->labelid);
+        xstraf(code, "L%d:;\n", i->labelid);
         if (i->gcable) {
             xstra_inst(code, "GC_CHECK(ctx);\n");
         }
@@ -353,8 +393,8 @@ void translate_func(kl_kir_program *p, xstr *code, kl_kir_func *f)
     func_context fctx = {
         .has_frame = f->has_frame,
     };
-    xstra_set(code, "/* function:%s */\n", f->name);
-    xstra_set(code, "int %s_%d(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)\n{\n", f->name, f->funcid);
+    xstraf(code, "/* function:%s */\n", f->name);
+    xstraf(code, "int %s_%d(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)\n{\n", f->name, f->funcid);
     xstra_inst(code, "GC_CHECK(ctx);\n");
     xstra_inst(code, "int p, e = 0;\n");
 
@@ -367,7 +407,7 @@ void translate_func(kl_kir_program *p, xstr *code, kl_kir_func *f)
         i = i->next;
     }
 
-    xstra_set(code, "}\n\n");
+    xstraf(code, "}\n\n");
 }
 
 char *translate(kl_kir_program *p, int mode)
@@ -385,7 +425,7 @@ char *translate(kl_kir_program *p, int mode)
     };
 
     if (mode == TRANS_FULL) {
-        xstra_f(&str, "#define USE_INT64\n");
+        xstraf(&str, "#define USE_INT64\n");
         xstra(&str, header, len);
     }
     kl_kir_func *f = p->head;
@@ -395,10 +435,10 @@ char *translate(kl_kir_program *p, int mode)
     }
 
     if (mode == TRANS_FULL) {
-        xstra_set(&str, "void setup_context(vmctx *ctx)\n{\n");
+        xstraf(&str, "void setup_context(vmctx *ctx)\n{\n");
         xstra_inst(&str, "ctx->print_result = %d;\n", p->print_result);
         xstra_inst(&str, "ctx->verbose = %d;\n", p->verbose);
-        xstra_set(&str, "}\n");
+        xstraf(&str, "}\n");
     }
 
     return str.s;   /* this should be freed by the caller. */

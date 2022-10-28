@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <stdarg.h>
+#include <float.h>
 
 extern BigZ i64maxp1;
 extern BigZ i64minm1;
@@ -252,9 +253,19 @@ INLINE void bi_print(vmbgi *b);
 INLINE void bi_str(char *buf, int max, vmbgi *b);
 
 INLINE vmstr *str_dup(vmctx *ctx, vmstr *vs);
+INLINE vmstr *str_from_i64(vmctx *ctx, int64_t i);
+INLINE vmstr *str_from_dbl(vmctx *ctx, double d);
+INLINE vmstr *str_make_double(vmctx *ctx, vmstr *vs);
+INLINE vmstr *str_make_ntimes(vmctx *ctx, vmstr *vs, int n);
 INLINE vmstr *str_append(vmctx *ctx, vmstr *vs, const char *s, int len);
 INLINE vmstr *str_append_cp(vmctx *ctx, vmstr *vs, const char *s);
 INLINE vmstr *str_append_str(vmctx *ctx, vmstr *vs, vmstr *s2);
+INLINE vmstr *str_append_i64(vmctx *ctx, vmstr *vs, int64_t i);
+INLINE vmstr *str_append_dbl(vmctx *ctx, vmstr *vs, int64_t i);
+INLINE vmstr *str_make_path(vmctx *ctx, vmstr *v0, vmstr *v1);
+INLINE vmstr *str_make_path_i64(vmctx *ctx, vmstr *v0, int64_t i);
+INLINE vmstr *str_make_i64_path(vmctx *ctx, int64_t i, vmstr *v0);
+INLINE vmstr *str_trim(vmctx *ctx, vmstr *vs, const char *ch);
 INLINE vmstr *str_ltrim(vmctx *ctx, vmstr *vs, const char *ch);
 INLINE vmstr *str_rtrim(vmctx *ctx, vmstr *vs, const char *ch);
 
@@ -266,16 +277,50 @@ INLINE vmvar *hashmap_search(vmhsh *hsh, const char *s);
 
 INLINE void run_global(vmctx *ctx);
 
+INLINE int throw_system_exception(vmctx *ctx, int id);
+INLINE int throw_exception(vmctx *ctx, vmvar *e);
+
+INLINE int add_v_i(vmctx *ctx, vmvar *r, vmvar *v, int64_t i);
+INLINE int add_i_v(vmctx *ctx, vmvar *r, int64_t i, vmvar *v);
+INLINE int add_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1);
+
+INLINE int sub_v_i(vmctx *ctx, vmvar *r, vmvar *v, int64_t i);
+INLINE int sub_i_v(vmctx *ctx, vmvar *r, int64_t i, vmvar *v);
+INLINE int sub_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1);
+
+INLINE int mul_v_i(vmctx *ctx, vmvar *r, vmvar *v, int64_t i);
+INLINE int mul_i_v(vmctx *ctx, vmvar *, int64_t ir, vmvar *v);
+INLINE int mul_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1);
+
+INLINE int div_v_i(vmctx *ctx, vmvar *r, vmvar *v, int64_t i);
+INLINE int div_i_v(vmctx *ctx, vmvar *r, int64_t i, vmvar *v);
+INLINE int div_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1);
+
+INLINE int mod_v_i(vmctx *ctx, vmvar *r, vmvar *v, int64_t i);
+INLINE int mod_i_v(vmctx *ctx, vmvar *r, int64_t i, vmvar *v);
+INLINE int mod_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1);
+
+INLINE int eqeq_v_i(vmctx *ctx, vmvar *r, vmvar *v, int64_t i);
+INLINE int eqeq_i_v(vmctx *ctx, vmvar *r, int64_t i, vmvar *v);
+INLINE int eqeq_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1);
+
+
+/* System Exceptions */
+enum {
+    EXCEPT_DIVIDE_BY_ZERO = 1,
+    EXCEPT_UNSUPPORTED_OPERATION = 1,
+};
+
 /* Operator macros */
 
 /* Copy Variable */
 
-#define SET_I64(dst, v) (dst)->t = VAR_INT64; (dst)->i  = (v);
-#define SET_DBL(dst, v) (dst)->t = VAR_DBL;   (dst)->d  = (v);
-#define SET_BIG(dst, v) (dst)->t = VAR_BIG;   (dst)->bi = (v);
-#define SET_STR(dst, v) (dst)->t = VAR_STR;   (dst)->s  = (v);
-#define SET_FNC(dst, v) (dst)->t = VAR_FNC;   (dst)->f  = (v);
-#define SET_OBJ(dst, v) (dst)->t = VAR_OBJ;   (dst)->a  = (v);
+#define SET_I64(dst, v) { (dst)->t = VAR_INT64; (dst)->i  = (v); }
+#define SET_DBL(dst, v) { (dst)->t = VAR_DBL;   (dst)->d  = (v); }
+#define SET_BIG(dst, v) { (dst)->t = VAR_BIG;   (dst)->bi = (v); }
+#define SET_STR(dst, v) { (dst)->t = VAR_STR;   (dst)->s  = alcstr_str(ctx, (v)); }
+#define SET_FNC(dst, v) { (dst)->t = VAR_FNC;   (dst)->f  = (v); }
+#define SET_OBJ(dst, v) { (dst)->t = VAR_OBJ;   (dst)->a  = (v); }
 
 #define COPY_VAR_TO(ctx, dst, src) { \
     switch ((src)->t) { \
@@ -293,7 +338,7 @@ INLINE void run_global(vmctx *ctx);
         break; \
     case VAR_STR: \
         (dst)->t = VAR_STR; \
-        /* TODO: copy */ \
+        (dst)->s = str_dup(ctx, (src)->s); \
         break; \
     case VAR_FNC: \
         (dst)->t = VAR_FNC; \
@@ -389,7 +434,7 @@ INLINE void run_global(vmctx *ctx);
     } else if ((v0)->t == VAR_BIG) { \
         OP_ADD_B_I(ctx, r, v0, i1) \
     } else { \
-        /* TODO */ \
+        e = add_v_i(ctx, r, v0, i1); \
     } \
 } \
 /**/
@@ -401,23 +446,15 @@ INLINE void run_global(vmctx *ctx);
     } else if ((v1)->t == VAR_BIG) { \
         OP_ADD_I_B(ctx, r, i0, v1) \
     } else { \
-        /* TODO */ \
+        e = add_i_v(ctx, r, i0, v1); \
     } \
 } \
 /**/
 
 #define OP_ADD(ctx, r, v0, v1) { \
     if ((v0)->t == VAR_INT64) { \
-        if ((v1)->t == VAR_INT64) { \
-            int64_t i0 = (v0)->i; \
-            int64_t i1 = (v1)->i; \
-            OP_ADD_I_I(ctx, r, i0, i1) \
-        } else if ((v1)->t == VAR_BIG) { \
-            int64_t i0 = (v0)->i; \
-            OP_ADD_I_B(ctx, r, i0, v1) \
-        } else { \
-            /* TODO */ \
-        } \
+        int64_t i0 = (v0)->i; \
+        OP_ADD_I_V(ctx, r, i0, v1) \
     } else if ((v0)->t == VAR_BIG) { \
         if ((v1)->t = VAR_INT64) { \
             int64_t i1 = (v1)->i; \
@@ -427,10 +464,10 @@ INLINE void run_global(vmctx *ctx);
             (r)->bi = alcbgi_bigz(ctx, BzAdd((v0)->bi->b, (v1)->bi->b)); \
             bi_normalize(r); \
         } else { \
-            /* TODO */ \
+            e = add_v_v(ctx, r, v0, v1); \
         } \
     } else { \
-        /* TODO */ \
+        e = add_v_v(ctx, r, v0, v1); \
     } \
 } \
 /**/
@@ -491,35 +528,27 @@ INLINE void run_global(vmctx *ctx);
     } else if ((v0)->t == VAR_BIG) { \
         OP_SUB_B_I(ctx, r, v0, i1) \
     } else { \
-        /* TODO */ \
+        e = sub_v_i(ctx, r, v0, i1); \
     } \
 } \
 /**/
 
-#define OP_SUB_I_V(ctx, r, vi, v1) { \
+#define OP_SUB_I_V(ctx, r, i0, v1) { \
     if ((v1)->t == VAR_INT64) { \
         int64_t i1 = (v1)->i; \
         OP_SUB_I_I(ctx, r, i0, i1) \
     } else if ((v1)->t == VAR_BIG) { \
         OP_SUB_I_B(ctx, r, i0, v1) \
     } else { \
-        /* TODO */ \
+        e = sub_i_v(ctx, r, i0, v1); \
     } \
 } \
 /**/
 
 #define OP_SUB(ctx, r, v0, v1) { \
     if ((v0)->t == VAR_INT64) { \
-        if ((v1)->t == VAR_INT64) { \
-            int64_t i0 = (v0)->i; \
-            int64_t i1 = (v1)->i; \
-            OP_SUB_I_I(ctx, r, i0, i1) \
-        } else if ((v1)->t == VAR_BIG) { \
-            int64_t i0 = (v0)->i; \
-            OP_SUB_I_B(ctx, r, i0, v1) \
-        } else { \
-            /* TODO */ \
-        } \
+        int64_t i0 = (v0)->i; \
+        OP_SUB_I_V(ctx, r, i0, v1) \
     } else if ((v0)->t == VAR_BIG) { \
         if ((v1)->t = VAR_INT64) { \
             int64_t i1 = (v1)->i; \
@@ -528,10 +557,10 @@ INLINE void run_global(vmctx *ctx);
             (r)->t = VAR_BIG; \
             (r)->bi = alcbgi_bigz(ctx, BzSubtract((v0)->bi->b, (v1)->bi->b)); \
         } else { \
-            /* TODO */ \
+            e = sub_v_v(ctx, r, v0, v1); \
         } \
     } else { \
-        /* TODO */ \
+        e = sub_v_v(ctx, r, v0, v1); \
     } \
 } \
 /**/
@@ -601,7 +630,7 @@ INLINE void run_global(vmctx *ctx);
     } else if ((v0)->t == VAR_BIG) { \
         OP_MUL_B_I(ctx, r, v0, i1) \
     } else { \
-        /* TODO */ \
+        e = mul_v_i(ctx, r, v0, i1); \
     } \
 } \
 /**/
@@ -613,23 +642,15 @@ INLINE void run_global(vmctx *ctx);
     } else if ((v1)->t == VAR_BIG) { \
         OP_MUL_I_B(ctx, r, i0, v1) \
     } else { \
-        /* TODO */ \
+        e = mul_i_v(ctx, r, i0, v1); \
     } \
 } \
 /**/
 
 #define OP_MUL(ctx, r, v0, v1) { \
     if ((v0)->t == VAR_INT64) { \
-        if ((v1)->t == VAR_INT64) { \
-            int64_t i0 = (v0)->i; \
-            int64_t i1 = (v1)->i; \
-            OP_MUL_I_I(ctx, r, i0, i1) \
-        } else if ((v1)->t == VAR_BIG) { \
-            int64_t i0 = (v0)->i; \
-            OP_MUL_I_B(ctx, r, i0, v1) \
-        } else { \
-            /* TODO */ \
-        } \
+        int64_t i0 = (v0)->i; \
+        OP_MUL_I_V(ctx, r, i0, v1) \
     } else if ((v0)->t == VAR_BIG) { \
         if ((v1)->t = VAR_INT64) { \
             int64_t i1 = (v1)->i; \
@@ -638,10 +659,162 @@ INLINE void run_global(vmctx *ctx);
             (r)->t = VAR_BIG; \
             (r)->bi = alcbgi_bigz(ctx, BzMultiply((v0)->bi->b, (v1)->bi->b)); \
         } else { \
-            /* TODO */ \
+            e = mul_v_v(ctx, r, v0, v1); \
         } \
     } else { \
-        /* TODO */ \
+        e = mul_v_v(ctx, r, v0, v1); \
+    } \
+} \
+/**/
+
+/* DIV */
+
+#define OP_DIV_I_I(ctx, r, i0, i1) { \
+    if (i1 < DBL_EPSILON) { \
+        e = throw_system_exception(ctx, EXCEPT_DIVIDE_BY_ZERO); \
+    } \
+    (r)->t = VAR_DBL; \
+    (r)->d = ((double)(i0)) / (i1); \
+} \
+/**/
+
+#define OP_DIV_B_I(ctx, r, v0, i1) { \
+    if (i1 < DBL_EPSILON) { \
+        e = throw_system_exception(ctx, EXCEPT_DIVIDE_BY_ZERO); \
+    } \
+    (r)->t = VAR_DBL; \
+    (r)->d = ((double)(BzToDouble((v0)->bi->b))) / (i1); \
+} \
+/**/
+
+#define OP_DIV_I_B(ctx, r, i0, v1) { \
+    (r)->t = VAR_DBL; \
+    (r)->d = ((double)(i0)) / (BzToDouble((v1)->bi->b)); \
+} \
+/**/
+
+#define OP_DIV_V_I(ctx, r, v0, i1) { \
+    if ((v0)->t == VAR_INT64) { \
+        int64_t i0 = (v0)->i; \
+        OP_DIV_I_I(ctx, r, i0, i1) \
+    } else if ((v0)->t == VAR_BIG) { \
+        OP_DIV_B_I(ctx, r, v0, i1) \
+    } else { \
+        e = div_v_i(ctx, r, v0, i1); \
+    } \
+} \
+/**/
+
+#define OP_DIV_I_V(ctx, r, i0, v1) { \
+    if ((v1)->t == VAR_INT64) { \
+        int64_t i1 = (v1)->i; \
+        OP_DIV_I_I(ctx, r, i0, i1) \
+    } else if ((v1)->t == VAR_BIG) { \
+        OP_DIV_I_B(ctx, r, i0, v1) \
+    } else { \
+        e = div_i_v(ctx, r, i0, v1); \
+    } \
+} \
+/**/
+
+#define OP_DIV(ctx, r, v0, v1) { \
+    if ((v0)->t == VAR_INT64) { \
+        int64_t i0 = (v0)->i; \
+        OP_DIV_I_V(ctx, r, i0, v1) \
+    } else if ((v0)->t == VAR_BIG) { \
+        if ((v1)->t = VAR_INT64) { \
+            int64_t i1 = (v1)->i; \
+            OP_DIV_B_I(ctx, r, v0, i1) \
+        } else if ((v1)->t = VAR_BIG) { \
+            (r)->t = VAR_DBL; \
+            (r)->d = ((double)(BzToDouble((v0)->bi->b))) / (BzToDouble((v1)->bi->b)); \
+        } else { \
+            e = div_v_v(ctx, r, v0, v1); \
+        } \
+    } else { \
+        e = div_v_v(ctx, r, v0, v1); \
+    } \
+} \
+/**/
+
+/* MOD */
+
+#define OP_MOD_I_I(ctx, r, i0, i1) { \
+    if (i1 < DBL_EPSILON) { \
+        e = throw_system_exception(ctx, EXCEPT_DIVIDE_BY_ZERO); \
+    } \
+    (r)->t = VAR_INT64; \
+    (r)->i = (i0) % (i1); \
+} \
+/**/
+
+#define OP_MOD_B_I(ctx, r, v0, i1) { \
+    if (i1 < DBL_EPSILON) { \
+        e = throw_system_exception(ctx, EXCEPT_DIVIDE_BY_ZERO); \
+    } \
+    BigZ rx; \
+    BigZ b1 = BzFromInteger(i1); \
+    BigZ q = BzDivide((v0)->bi->b, b1, &rx); \
+    (r)->t = VAR_BIG; \
+    (r)->bi = alcbgi_bigz(ctx, rx); \
+    BzFree(b1); \
+    BzFree(q); \
+    bi_normalize(r); \
+} \
+/**/
+
+#define OP_MOD_I_B(ctx, r, i0, v1) { \
+    BigZ rx; \
+    BigZ b0 = BzFromInteger(i0); \
+    BigZ q = BzDivide(b0, (v1)->bi->b, &rx); \
+    (r)->t = VAR_BIG; \
+    (r)->bi = alcbgi_bigz(ctx, rx); \
+    BzFree(b0); \
+    BzFree(q); \
+    bi_normalize(r); \
+} \
+/**/
+
+#define OP_MOD_V_I(ctx, r, v0, i1) { \
+    if ((v0)->t == VAR_INT64) { \
+        int64_t i0 = (v0)->i; \
+        OP_MOD_I_I(ctx, r, i0, i1) \
+    } else if ((v0)->t == VAR_BIG) { \
+        OP_MOD_B_I(ctx, r, v0, i1) \
+    } else { \
+        e = mod_v_i(ctx, r, v0, i1); \
+    } \
+} \
+/**/
+
+#define OP_MOD_I_V(ctx, r, i0, v1) { \
+    if ((v1)->t == VAR_INT64) { \
+        int64_t i1 = (v1)->i; \
+        OP_MOD_I_I(ctx, r, i0, i1) \
+    } else if ((v1)->t == VAR_BIG) { \
+        OP_MOD_I_B(ctx, r, i0, v1) \
+    } else { \
+        e = mod_i_v(ctx, r, i0, v1); \
+    } \
+} \
+/**/
+
+#define OP_MOD(ctx, r, v0, v1) { \
+    if ((v0)->t == VAR_INT64) { \
+        int64_t i0 = (v0)->i; \
+        OP_MOD_I_V(ctx, r, i0, v1) \
+    } else if ((v0)->t == VAR_BIG) { \
+        if ((v1)->t = VAR_INT64) { \
+            int64_t i1 = (v1)->i; \
+            OP_MOD_B_I(ctx, r, v0, i1) \
+        } else if ((v1)->t = VAR_BIG) { \
+            (r)->t = VAR_DBL; \
+            (r)->d = ((double)(BzToDouble((v0)->bi->b))) / (BzToDouble((v1)->bi->b)); \
+        } else { \
+            e = mod_v_v(ctx, r, v0, v1); \
+        } \
+    } else { \
+        e = mod_v_v(ctx, r, v0, v1); \
     } \
 } \
 /**/
@@ -672,7 +845,7 @@ INLINE void run_global(vmctx *ctx);
     } else if ((v0)->t == VAR_BIG) { \
         OP_EQEQ_B_I(ctx, r, v0, i1) \
     } else { \
-        /* TODO */ \
+        e = eqeq_v_i(ctx, r, v0, i1); \
     } \
 } \
 /**/
@@ -680,24 +853,18 @@ INLINE void run_global(vmctx *ctx);
 #define OP_EQEQ_I_V(ctx, r, i0, v1) { \
     if ((v1)->t == VAR_INT64) { \
         OP_EQEQ_I_I(ctx, r, i0, (v1)->i) \
-    } else if ((v0)->t == VAR_BIG) { \
+    } else if ((v1)->t == VAR_BIG) { \
         OP_EQEQ_I_B(ctx, r, i0, v1) \
     } else { \
-        /* TODO */ \
+        e = eqeq_i_v(ctx, r, i0, v1); \
     } \
 } \
 /**/
 
 #define OP_EQEQ(ctx, r, v0, v1) { \
     if ((v0)->t == VAR_INT64) { \
-        if ((v1)->t == VAR_INT64) { \
-            OP_EQEQ_I_I(ctx, r, (v0)->i, (v1)->i); \
-        } else if ((v1)->t = VAR_BIG) { \
-            int64_t i0 = (v0)->i; \
-            OP_EQEQ_I_B(ctx, r, i0, v1) \
-        } else { \
-            /* TODO */ \
-        } \
+        int64_t i0 = (v0)->i; \
+        OP_EQEQ_I_V(ctx, r, i0, v1) \
     } else if ((v0)->t == VAR_BIG) { \
         if ((v1)->t = VAR_INT64) { \
             int64_t i1 = (v1)->i; \
@@ -707,10 +874,10 @@ INLINE void run_global(vmctx *ctx);
             (r)->t = VAR_INT64; \
             (r)->i = (c == BZ_EQ); \
         } else { \
-            /* TODO */ \
+            e = eqeq_v_v(ctx, r, v0, v1); \
         } \
     } else { \
-            /* TODO */ \
+        e = eqeq_v_v(ctx, r, v0, v1); \
     } \
 } \
 /**/
@@ -750,7 +917,7 @@ INLINE void run_global(vmctx *ctx);
 #define OP_NEQ_I_V(ctx, r, i0, v1) { \
     if ((v1)->t == VAR_INT64) { \
         OP_NEQ_I_I(ctx, r, i0, (v1)->i) \
-    } else if ((v0)->t == VAR_BIG) { \
+    } else if ((v1)->t == VAR_BIG) { \
         (r)->t = VAR_INT64; \
         (r)->i = 1; \
     } else { \
@@ -761,14 +928,8 @@ INLINE void run_global(vmctx *ctx);
 
 #define OP_NEQ(ctx, r, v0, v1) { \
     if ((v0)->t == VAR_INT64) { \
-        if ((v1)->t == VAR_INT64) { \
-            OP_NEQ_I_I(ctx, r, (v0)->i, (v1)->i); \
-        } else if ((v1)->t = VAR_BIG) { \
-            (r)->t = VAR_INT64; \
-            (r)->i = 1; \
-        } else { \
-            /* TODO */ \
-        } \
+        int64_t i0 = (v0)->i; \
+        OP_NEQ_I_V(ctx, r, i0, v1) \
     } else if ((v0)->t == VAR_BIG) { \
         if ((v1)->t = VAR_INT64) { \
             (r)->t = VAR_INT64; \
@@ -826,7 +987,7 @@ INLINE void run_global(vmctx *ctx);
 #define OP_LT_I_V(ctx, r, i0, v1) { \
     if ((v1)->t == VAR_INT64) { \
         OP_LT_I_I(ctx, r, i0, (v1)->i) \
-    } else if ((v0)->t == VAR_BIG) { \
+    } else if ((v1)->t == VAR_BIG) { \
         OP_LT_I_B(ctx, r, i0, v1) \
     } else { \
         /* TODO */ \
@@ -836,14 +997,8 @@ INLINE void run_global(vmctx *ctx);
 
 #define OP_LT(ctx, r, v0, v1) { \
     if ((v0)->t == VAR_INT64) { \
-        if ((v1)->t == VAR_INT64) { \
-            OP_LT_I_I(ctx, r, (v0)->i, (v1)->i); \
-        } else if ((v1)->t = VAR_BIG) { \
-            int64_t i0 = (v0)->i; \
-            OP_LT_I_B(ctx, r, i0, v1) \
-        } else { \
-            /* TODO */ \
-        } \
+        int64_t i0 = (v0)->i; \
+        OP_LT_I_V(ctx, r, i0, v1) \
     } else if ((v0)->t == VAR_BIG) { \
         if ((v1)->t = VAR_INT64) { \
             int64_t i1 = (v1)->i; \
@@ -852,6 +1007,162 @@ INLINE void run_global(vmctx *ctx);
             BzCmp c = BzCompare((v0)->bi->b, (v1)->bi->b); \
             (r)->t = VAR_INT64; \
             (r)->i = (c == BZ_LT); \
+        } else { \
+            /* TODO */ \
+        } \
+    } else { \
+            /* TODO */ \
+    } \
+} \
+/**/
+
+/* LE */
+
+#define OP_LE_I_I(ctx, r, i0, i1) { \
+    (r)->t = VAR_INT64; \
+    (r)->i = (i0) <= (i1); \
+} \
+/**/
+
+#define OP_LE_B_I(ctx, r, v0, i1) { \
+    BigZ b1 = BzFromInteger(i1); \
+    BzCmp c = BzCompare((v0)->bi->b, b1); \
+    BzFree(b1); \
+    (r)->t = VAR_INT64; \
+    (r)->i = (c != BZ_GT); \
+} \
+/**/
+
+#define OP_LE_I_B(ctx, r, i0, v1) { \
+    BigZ b0 = BzFromInteger(i0); \
+    BzCmp c = BzCompare(b0, (v1)->bi->b); \
+    BzFree(b0); \
+    (r)->t = VAR_INT64; \
+    (r)->i = (c != BZ_GT); \
+} \
+/**/
+
+#define OP_LE_V_I(ctx, r, v0, i1) { \
+    if ((v0)->t == VAR_INT64) { \
+        OP_LE_I_I(ctx, r, (v0)->i, i1) \
+    } else if ((v0)->t == VAR_BIG) { \
+        OP_LE_B_I(ctx, r, v0, i1) \
+    } else { \
+        /* TODO */ \
+    } \
+} \
+/**/
+
+#define OP_LE_I_V(ctx, r, i0, v1) { \
+    if ((v1)->t == VAR_INT64) { \
+        OP_LE_I_I(ctx, r, i0, (v1)->i) \
+    } else if ((v1)->t == VAR_BIG) { \
+        OP_LE_I_B(ctx, r, i0, v1) \
+    } else { \
+        /* TODO */ \
+    } \
+} \
+/**/
+
+#define OP_LE(ctx, r, v0, v1) { \
+    if ((v0)->t == VAR_INT64) { \
+        int64_t i0 = (v0)->i; \
+        OP_LE_I_V(ctx, r, i0, v1) \
+    } else if ((v0)->t == VAR_BIG) { \
+        if ((v1)->t = VAR_INT64) { \
+            int64_t i1 = (v1)->i; \
+            OP_LE_B_I(ctx, r, v0, i1) \
+        } else if ((v1)->t = VAR_BIG) { \
+            BzCmp c = BzCompare((v0)->bi->b, (v1)->bi->b); \
+            (r)->t = VAR_INT64; \
+            (r)->i = (c != BZ_GT); \
+        } else { \
+            /* TODO */ \
+        } \
+    } else { \
+            /* TODO */ \
+    } \
+} \
+/**/
+
+/* GT */
+
+#define OP_GT_I_I(ctx, r, i0, i1) { OP_LT_I_I(ctx, r, i1, i0) }
+#define OP_GT_B_I(ctx, r, v0, i1) { OP_LT_I_B(ctx, r, i1, v0) }
+#define OP_GT_I_B(ctx, r, i0, v1) { OP_LT_B_I(ctx, r, v1, i0) }
+#define OP_GT_V_I(ctx, r, v0, i1) { OP_LT_I_V(ctx, r, i1, v0) }
+#define OP_GT_I_V(ctx, r, i0, v1) { OP_LT_V_I(ctx, r, v1, i0) }
+#define OP_GT(ctx, r, v0, v1) { OP_LT(ctx, r, v1, v0) }
+
+/* GE */
+
+#define OP_GE_I_I(ctx, r, i0, i1) { OP_LE_I_I(ctx, r, i1, i0) }
+#define OP_GE_B_I(ctx, r, v0, i1) { OP_LE_I_B(ctx, r, i1, v0) }
+#define OP_GE_I_B(ctx, r, i0, v1) { OP_LE_B_I(ctx, r, v1, i0) }
+#define OP_GE_V_I(ctx, r, v0, i1) { OP_LE_I_V(ctx, r, i1, v0) }
+#define OP_GE_I_V(ctx, r, i0, v1) { OP_LE_V_I(ctx, r, v1, i0) }
+#define OP_GE(ctx, r, v0, v1) { OP_LE(ctx, r, v1, v0) }
+
+/* LGE */
+
+#define OP_LGE_I_I(ctx, r, i0, i1) { \
+    (r)->t = VAR_INT64; \
+    (r)->i = (i0) == (i1) ? 0 : ((i0) < (i1) ? -1 : 1); \
+} \
+/**/
+
+#define OP_LGE_B_I(ctx, r, v0, i1) { \
+    BigZ b1 = BzFromInteger(i1); \
+    BzCmp c = BzCompare((v0)->bi->b, b1); \
+    BzFree(b1); \
+    (r)->t = VAR_INT64; \
+    (r)->i = (c == BZ_EQ) ? 0 : ((c == BZ_LT) ? -1 : 1); \
+} \
+/**/
+
+#define OP_LGE_I_B(ctx, r, i0, v1) { \
+    BigZ b0 = BzFromInteger(i0); \
+    BzCmp c = BzCompare(b0, (v1)->bi->b); \
+    BzFree(b0); \
+    (r)->t = VAR_INT64; \
+    (r)->i = (c == BZ_EQ) ? 0 : ((c == BZ_LT) ? -1 : 1); \
+} \
+/**/
+
+#define OP_LGE_V_I(ctx, r, v0, i1) { \
+    if ((v0)->t == VAR_INT64) { \
+        OP_LGE_I_I(ctx, r, (v0)->i, i1) \
+    } else if ((v0)->t == VAR_BIG) { \
+        OP_LGE_B_I(ctx, r, v0, i1) \
+    } else { \
+        /* TODO */ \
+    } \
+} \
+/**/
+
+#define OP_LGE_I_V(ctx, r, i0, v1) { \
+    if ((v1)->t == VAR_INT64) { \
+        OP_LGE_I_I(ctx, r, i0, (v1)->i) \
+    } else if ((v1)->t == VAR_BIG) { \
+        OP_LGE_I_B(ctx, r, i0, v1) \
+    } else { \
+        /* TODO */ \
+    } \
+} \
+/**/
+
+#define OP_LGE(ctx, r, v0, v1) { \
+    if ((v0)->t == VAR_INT64) { \
+        int64_t i0 = (v0)->i; \
+        OP_LGE_I_V(ctx, r, i0, v1) \
+    } else if ((v0)->t == VAR_BIG) { \
+        if ((v1)->t = VAR_INT64) { \
+            int64_t i1 = (v1)->i; \
+            OP_LGE_B_I(ctx, r, v0, i1) \
+        } else if ((v1)->t = VAR_BIG) { \
+            BzCmp c = BzCompare((v0)->bi->b, (v1)->bi->b); \
+            (r)->t = VAR_INT64; \
+            (r)->i = (c == BZ_EQ) ? 0 : ((c == BZ_LT) ? -1 : 1); \
         } else { \
             /* TODO */ \
         } \

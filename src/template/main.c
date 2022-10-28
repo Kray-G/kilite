@@ -5,7 +5,7 @@ int main(void)
     vmctx *ctx = initialize();
     setup_context(ctx);
 
-    vmvar r;
+    vmvar r = {0};
     run_global_0(ctx, NULL, &r, 0);
     
     int ri = (r.t == VAR_INT64) ? r.i : 0;
