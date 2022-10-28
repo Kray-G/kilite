@@ -31,7 +31,9 @@ void *memset(void *, int, size_t);
 void free(void *);
 char *strcpy(char *s1, const char *s2);
 int strcmp(const char *s1, const char *s2);
+#ifndef NULL
 #define NULL ((void*)0)
+#endif
 #endif
 
 #define FRM_STACK_SIZE (1024)
