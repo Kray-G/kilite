@@ -53,7 +53,7 @@ type ..\src\template\util.c >> %TEMPF%
 type ..\src\template\bigi.c >> %TEMPF%
 type ..\src\template\str.c >> %TEMPF%
 type ..\src\template\hash.c >> %TEMPF%
-c2m -I lib -c %TEMPF%
+c2m -DUSE_INT64 -I lib -c %TEMPF%
 del kilite.bmir
 ren %TEMPF:.c=.bmir% kilite.bmir
 copy /y kilite.bmir ..\kilite.bmir
