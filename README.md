@@ -44,13 +44,25 @@ I will note the followings as I don't forget it.
 
 * [ ] Support almost all basic functionalities first.
   * [ ] Main structures of source code.
+    * [x] Make the Fibonacci benchmark work.
+    * [x] Make the factorial recursive function work with big integer.
+    * [ ] All basic comparisons including `<=>`.
+    * [ ] String operations.
+    * [ ] Array operations.
+    * [ ] Object operations.
+    * [ ] Support the loop like `for`, `while`, and `do-while`. And also `for-in`.
   * [ ] Class, module, function, inheritance, mix-in mechanism.
   * [ ] Statement and Expression.
   * [ ] Exception.
 * [ ] Notes for a special specifications of the language.
   * [ ] The last argument of function call could be outside arguments list if it's a block.
   * [ ] Object and array element's direct assignment.
+  * [ ] Coroutine with `yield`.
   * [ ] 'Case-When' expression.
+* Libraries support.
+  * [ ] Useful Libraries like Zip, Xml, PDF, or something.
+
+I could have something forgotten.
 
 ## Others
 
