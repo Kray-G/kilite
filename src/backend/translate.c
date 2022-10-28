@@ -85,11 +85,14 @@ static inline int is_var(kl_kir_opr *rn)
     return rn->t == TK_VAR;
 }
 
-static const char *var_or_int(char *buf, kl_kir_opr *rn)  /* buf should have at least 256 bytes. */
+static const char *var_value(char *buf, kl_kir_opr *rn)  /* buf should have at least 256 bytes. */
 {
     switch (rn->t) {
     case TK_VSINT:
         sprintf(buf, "%" PRId64, rn->i64);
+        break;
+    case TK_VDBL:
+        sprintf(buf, "%f", rn->dbl);
         break;
     case TK_VAR:
         if (rn->index < 0) {
@@ -117,9 +120,9 @@ static const char *var_or_int(char *buf, kl_kir_opr *rn)  /* buf should have at 
     return buf;
 }
 
-static const char *varvalue(char *buf, kl_kir_opr *rn)  /* buf should have at least 256 bytes. */
+static const char *int_value(char *buf, kl_kir_opr *rn)  /* buf should have at least 256 bytes. */
 {
-    var_or_int(buf, rn);
+    var_value(buf, rn);
     if (rn->t == TK_VAR) {
         strcat(buf, "->i");
     }
@@ -133,8 +136,11 @@ static void translate_pushvar(xstr *code, kl_kir_opr *rn)
     case TK_VSINT:
         xstra_inst(code, "{ vmvar c = { .t = VAR_INT64, .i = %" PRId64 " }; push_var(ctx, &c); }\n", rn->i64);
         break;
+    case TK_VDBL:
+        xstra_inst(code, "{ vmvar c = { .t = VAR_DBL, .i = %f }; push_var(ctx, &c); }\n", rn->dbl);
+        break;
     case TK_VAR:
-        xstra_inst(code, "push_var(ctx, %s);\n", var_or_int(buf1, rn));
+        xstra_inst(code, "push_var(ctx, %s);\n", var_value(buf1, rn));
         break;
     default:
         xstra_inst(code, "<ERROR>");
@@ -153,14 +159,14 @@ static void translate_op3(xstr *code, const char *op, const char *sop, kl_kir_in
     char buf1[256] = {0};
     char buf2[256] = {0};
     char buf3[256] = {0};
-    var_or_int(buf1, r1);
+    var_value(buf1, r1);
     if (r1->typeid == TK_TSINT64 && r2->typeid == TK_TSINT64 && r3->typeid == TK_TSINT64) {
-        varvalue(buf2, r2);
-        varvalue(buf3, r3);
+        int_value(buf2, r2);
+        int_value(buf3, r3);
         xstra_inst(code, "SET_I64(%s, %s %s %s);\n", buf1, buf1, buf2, sop, buf3);
     } else {
-        var_or_int(buf2, r2);
-        var_or_int(buf3, r3);
+        var_value(buf2, r2);
+        var_value(buf3, r3);
         if (r2->t == TK_VSINT) {
             if (r3->t == TK_VSINT) {
                 xstra_inst(code, "OP_%s_I_I(ctx, %s, %s, %s);\n", op, buf1, buf2, buf3);
@@ -181,7 +187,7 @@ static void translate_call(xstr *code, kl_kir_inst *i)
 {
     char buf1[256] = {0};
     char buf2[256] = {0};
-    var_or_int(buf1, &(i->r1));
+    var_value(buf1, &(i->r1));
     if (i->r2.funcid > 0) {
         if (i->r2.recursive) {
             xstra_inst(code, "e = (f%d->f)(ctx, lex, %s, 1);\n", i->r2.funcid, buf1);
@@ -189,7 +195,7 @@ static void translate_call(xstr *code, kl_kir_inst *i)
             xstra_inst(code, "e = (f%d->f)(ctx, f%d->lex, %s, 1);\n", i->r2.funcid, i->r2.funcid, buf1);
         }
     } else {
-        var_or_int(buf2, &(i->r2));
+        var_value(buf2, &(i->r2));
         xstra_inst(code, "e = (((%s)->f)->f)(ctx, ((%s)->f)->lex, %s, 1);\n", buf2, buf2, buf1);
     }
 }
@@ -208,17 +214,24 @@ static void escape_str(xstr *code, const char *s)
 static void translate_mov(xstr *code, kl_kir_inst *i)
 {
     char buf1[256] = {0};
-    var_or_int(buf1, &(i->r1));
-    if (i->r2.t == TK_VAR) {
+    var_value(buf1, &(i->r1));
+    switch (i->r2.t) {
+    case TK_VAR:
         char buf2[256] = {0};
-        var_or_int(buf2, &(i->r2));
+        var_value(buf2, &(i->r2));
         xstra_inst(code, "COPY_VAR_TO(ctx, %s, %s);\n", buf1, buf2);
-    } else if (i->r2.t == TK_VSINT) {
+        break;
+    case TK_VSINT:
         xstra_inst(code, "SET_I64(%s, %" PRId64 ");\n", buf1, i->r2.i64);
-    } else if (i->r2.t == TK_VSTR) {
+        break;
+    case TK_VDBL:
+        xstra_inst(code, "SET_DBL(%s, %f);\n", buf1, i->r2.dbl);
+        break;
+    case TK_VSTR:
         xstra_inst(code, "SET_STR(%s, \"", buf1);
         escape_str(code, i->r2.str);
         xstrs(code, "\");\n");
+        break;
     }
 }
 
@@ -239,7 +252,7 @@ static void translate_funcref(xstr *code, kl_kir_func *f)
                 }
             }
             if (id > 0) {
-                var_or_int(buf2, &(i->r2));
+                var_value(buf2, &(i->r2));
                 xstra_inst(code, "vmfnc *f%d = (%s)->f;\n", id, buf2);
                 check[p++] = id;
             }
@@ -337,7 +350,7 @@ static void translate_inst(xstr *code, kl_kir_func *f, kl_kir_inst *i, func_cont
         break;
 
     case KIR_JMPIFF:
-        xstra_inst(code, "OP_JMP_IF_FALSE(%s, L%d);\n", var_or_int(buf1, &(i->r1)), i->labelid);
+        xstra_inst(code, "OP_JMP_IF_FALSE(%s, L%d);\n", var_value(buf1, &(i->r1)), i->labelid);
         break;
     case KIR_JMP:
         xstra_inst(code, "goto L%d;\n", i->labelid);
@@ -354,7 +367,7 @@ static void translate_inst(xstr *code, kl_kir_func *f, kl_kir_inst *i, func_cont
         break;
 
     case KIR_MOVFNC:
-        var_or_int(buf1, &(i->r1));
+        var_value(buf1, &(i->r1));
         xstra_inst(code, "vmfnc *f%d = alcfnc(ctx, %s_%d, frm, 0);\n", i->r2.funcid, i->r2.name, i->r2.funcid);
         xstra_inst(code, "SET_FNC(%s, f%d);\n", buf1, i->r2.funcid);
         break;

@@ -164,11 +164,14 @@ static void add_func(kl_kir_program *prog, kl_kir_func *func)
     case TK_VSINT: \
         (rn) = make_lit_i64(ctx, (e)->val.i64); \
         break; \
-    case TK_VAR: \
-        (rn) = make_var_index(ctx, (e)->sym->ref ? (e)->sym->ref->index : (e)->sym->index, (e)->sym->level, (e)->typeid); \
+    case TK_VDBL: \
+        (rn) = make_lit_dbl(ctx, (e)->val.dbl); \
         break; \
     case TK_VSTR: \
         (rn) = make_lit_str(ctx, (e)->val.str); \
+        break; \
+    case TK_VAR: \
+        (rn) = make_var_index(ctx, (e)->sym->ref ? (e)->sym->ref->index : (e)->sym->index, (e)->sym->level, (e)->typeid); \
         break; \
     default: \
         if ((rn).index == 0) (rn) = make_var(ctx, sym); \
@@ -213,6 +216,16 @@ static kl_kir_opr make_lit_i64(kl_context *ctx, int64_t i64)
     kl_kir_opr r1 = (kl_kir_opr){
         .t = TK_VSINT,
         .i64 = i64,
+        .typeid = TK_TSINT64,
+    };
+    return r1;
+}
+
+static kl_kir_opr make_lit_dbl(kl_context *ctx, double dbl)
+{
+    kl_kir_opr r1 = (kl_kir_opr){
+        .t = TK_VDBL,
+        .dbl = dbl,
         .typeid = TK_TSINT64,
     };
     return r1;
@@ -265,8 +278,19 @@ static kl_kir_inst *gen_op3_inst(kl_context *ctx, kl_symbol *sym, kl_kir op, kl_
     kl_expr *r = e->rhs;
 
     KL_KIR_CHECK_LITERAL(l, r2, r2i);
-    KL_KIR_CHECK_LITERAL(r, r3, r3i);
+    if (!r2i && r2.t != TK_VSINT && r2.t != TK_VAR) {
+        kl_kir_opr r2x = make_var(ctx, sym);
+        r2i = new_inst_op2(ctx->program, e->line, e->pos, KIR_MOV, &r2x, &r2);
+        r2 = r2x;
+    }
     kl_kir_inst *r2l = get_last(r2i);
+
+    KL_KIR_CHECK_LITERAL(r, r3, r3i);
+    if (!r3i && r3.t != TK_VSINT && r3.t != TK_VAR) {
+        kl_kir_opr r3x = make_var(ctx, sym);
+        r3i = new_inst_op2(ctx->program, e->line, e->pos, KIR_MOV, &r3x, &r3);
+        r3 = r3x;
+    }
     kl_kir_inst *r3l = get_last(r3i);
 
     kl_kir_inst *inst = new_inst_op3(ctx->program, e->line, e->pos, op, r1, &r2, &r3);
@@ -488,11 +512,23 @@ static kl_kir_inst *gen_expr(kl_context *ctx, kl_symbol *sym, kl_kir_opr *r1, kl
     }
 
     switch (e->nodetype) {
-    case TK_VSINT:
-    case TK_VAR:
+    case TK_VSINT: {
+        kl_kir_opr rs = make_lit_i64(ctx, e->val.i64);
+        head = new_inst_op2(ctx->program, e->line, e->pos, KIR_MOV, r1, &rs);
         break;
+    }
+    case TK_VDBL: {
+        kl_kir_opr rs = make_lit_dbl(ctx, e->val.dbl);
+        head = new_inst_op2(ctx->program, e->line, e->pos, KIR_MOV, r1, &rs);
+        break;
+    }
     case TK_VSTR: {
         kl_kir_opr rs = make_lit_str(ctx, e->val.str);
+        head = new_inst_op2(ctx->program, e->line, e->pos, KIR_MOV, r1, &rs);
+        break;
+    }
+    case TK_VAR: {
+        kl_kir_opr rs = make_var_index(ctx, e->sym->index, e->sym->level, e->typeid);
         head = new_inst_op2(ctx->program, e->line, e->pos, KIR_MOV, r1, &rs);
         break;
     }

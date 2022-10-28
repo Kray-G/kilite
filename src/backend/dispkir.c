@@ -13,6 +13,9 @@
     case TK_VSINT: \
         printf("%" PRId64, i->r##n.i64); \
         break; \
+    case TK_VDBL: \
+        printf("%f", i->r##n.dbl); \
+        break; \
     case TK_VSTR: \
         printf("\"%s\"", i->r##n.str); \
         break; \
@@ -154,6 +157,18 @@ void disp_inst(kl_kir_program *p, kl_kir_inst *i)
         break;
     case KIR_LT:
         disp_3op("lt", i);
+        break;
+    case KIR_LE:
+        disp_3op("le", i);
+        break;
+    case KIR_GT:
+        disp_3op("gt", i);
+        break;
+    case KIR_GE:
+        disp_3op("ge", i);
+        break;
+    case KIR_LGE:
+        disp_3op("lge", i);
         break;
 
     }

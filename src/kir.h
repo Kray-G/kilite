@@ -224,7 +224,7 @@ typedef struct kl_kir_opr {
     int funcid;                 //  The function id to call.
     int recursive;              //  1 if the recursive call.
     int64_t i64;
-    int64_t u64;
+    double dbl;
     const char *str;
     tk_typeid typeid;           //  The value of the type.
     const char *typestr;        //  The type name as a string.
