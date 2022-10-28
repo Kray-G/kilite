@@ -170,7 +170,7 @@ typedef __uint128_t                     BzUInt;
 
 #if !defined(BZ_INT_TYPE)
 #define BZ_INT_TYPE
-#if defined(_WIN64) || ( defined(HAVE_STDINT_H) && (SIZEOF_VOID_P >= 8))
+#if defined(USE_INT64) || defined(_WIN64) || ( defined(HAVE_STDINT_H) && (SIZEOF_VOID_P >= 8))
 typedef int64_t                         BzInt;
 #else
 typedef int                             BzInt;
@@ -179,7 +179,7 @@ typedef int                             BzInt;
 
 #if !defined(BZ_UINT_TYPE)
 #define BZ_UINT_TYPE
-#if defined(_WIN64) || ( defined(HAVE_STDINT_H) && (SIZEOF_VOID_P >= 8))
+#if defined(USE_INT64) || defined(_WIN64) || ( defined(HAVE_STDINT_H) && (SIZEOF_VOID_P >= 8))
 typedef uint64_t                        BzUInt;
 #else
 typedef unsigned int                    BzUInt;

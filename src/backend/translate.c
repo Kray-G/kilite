@@ -385,6 +385,7 @@ char *translate(kl_kir_program *p, int mode)
     };
 
     if (mode == TRANS_FULL) {
+        xstra_f(&str, "#define USE_INT64\n");
         xstra(&str, header, len);
     }
     kl_kir_func *f = p->head;
