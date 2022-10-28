@@ -53,6 +53,7 @@ type ..\src\template\util.c >> %TEMPF%
 type ..\src\template\bigi.c >> %TEMPF%
 type ..\src\template\str.c >> %TEMPF%
 type ..\src\template\hash.c >> %TEMPF%
+type ..\src\template\op.c >> %TEMPF%
 c2m -DUSE_INT64 -I lib -c %TEMPF%
 del kilite.bmir
 ren %TEMPF:.c=.bmir% kilite.bmir
@@ -67,7 +68,8 @@ endlocal
 exit /b 0
 
 :CLEANUP
-del *.h *.c *.obj
+del *.h *.obj
+del *.c
 del makecstr.exe
 rmdir /s /q lib
 
