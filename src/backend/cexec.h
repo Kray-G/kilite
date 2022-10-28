@@ -2,7 +2,6 @@
 #define KILITE_EXEC_H
 
 #include "resolver.h"
-#include <stdio.h>
 
 typedef struct kl_opts {
     int mir;

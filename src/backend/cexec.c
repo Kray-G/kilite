@@ -1,6 +1,8 @@
 #include "cexec.h"
 #include "../../mir/c2mir/c2mir.h"
 #include "../../mir/mir-gen.h"
+#include <stdio.h>
+#include <string.h>
 
 struct data {
     const char *p;
