@@ -155,7 +155,7 @@ typedef struct vmfnc {
 
     int32_t flags;
     int32_t args;
-    vmfunc_t f;         /* function prototype have to be fixed */
+    void *f;            /* function pointer */
     struct vmfrm *frm;  /* the funtion frame holding arguments */
     struct vmfrm *lex;  /* the lexical frame bound with this function */
 } vmfnc;

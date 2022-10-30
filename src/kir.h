@@ -221,6 +221,7 @@ typedef struct kl_kir_opr {
     int t;                      //  The type of this value.
     int index;                  //  The variable index.
     int level;                  //  The lexical frame level.
+    int args;                   //  The argument count when calling the function.
     int funcid;                 //  The function id to call.
     int recursive;              //  1 if the recursive call.
     int64_t i64;

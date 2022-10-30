@@ -190,13 +190,13 @@ static void translate_call(xstr *code, kl_kir_inst *i)
     var_value(buf1, &(i->r1));
     if (i->r2.funcid > 0) {
         if (i->r2.recursive) {
-            xstra_inst(code, "e = (f%d->f)(ctx, lex, %s, 1);\n", i->r2.funcid, buf1);
+            xstra_inst(code, "e = ((vmfunc_t)(f%d->f))(ctx, lex, %s, %d);\n", i->r2.funcid, buf1, i->r2.args);
         } else {
-            xstra_inst(code, "e = (f%d->f)(ctx, f%d->lex, %s, 1);\n", i->r2.funcid, i->r2.funcid, buf1);
+            xstra_inst(code, "e = ((vmfunc_t)(f%d->f))(ctx, f%d->lex, %s, %d);\n", i->r2.funcid, i->r2.funcid, buf1, i->r2.args);
         }
     } else {
         var_value(buf2, &(i->r2));
-        xstra_inst(code, "e = (((%s)->f)->f)(ctx, ((%s)->f)->lex, %s, 1);\n", buf2, buf2, buf1);
+        xstra_inst(code, "e = ((vmfunc_t)(((%s)->f)->f))(ctx, ((%s)->f)->lex, %s, %d);\n", buf2, buf2, buf1, i->r2.args);
     }
 }
 

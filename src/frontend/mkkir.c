@@ -311,7 +311,7 @@ static kl_kir_inst *gen_op3_inst(kl_context *ctx, kl_symbol *sym, kl_kir op, kl_
     return inst;
 }
 
-static kl_kir_inst *gen_callargs(kl_context *ctx, kl_symbol *sym, kl_expr *e)
+static kl_kir_inst *gen_callargs(kl_context *ctx, kl_symbol *sym, kl_expr *e, int *args)
 {
     if (!e) {
         return NULL;
@@ -321,10 +321,10 @@ static kl_kir_inst *gen_callargs(kl_context *ctx, kl_symbol *sym, kl_expr *e)
     kl_kir_inst *last = NULL;
     if (e->nodetype == TK_COMMA) {        
         if (e->lhs) {
-            head = last = gen_callargs(ctx, sym, e->lhs);
+            head = last = gen_callargs(ctx, sym, e->lhs, args);
             if (last) {
                 if (e->rhs) {
-                    kl_kir_inst *next = gen_callargs(ctx, sym, e->lhs);
+                    kl_kir_inst *next = gen_callargs(ctx, sym, e->lhs, args);
                     KIR_ADD_NEXT(last, next);
                 }
             }
@@ -345,6 +345,7 @@ static kl_kir_inst *gen_callargs(kl_context *ctx, kl_symbol *sym, kl_expr *e)
                 last = last->next;
             }
         }
+        ++(*args);
     }
     return head;
 }
@@ -375,7 +376,7 @@ static kl_kir_inst *gen_call(kl_context *ctx, kl_symbol *sym, kl_kir_opr *r1, kl
         r1l = get_last(r1i);
     }
  
-    kl_kir_inst *r2i = gen_callargs(ctx, sym, e->rhs);
+    kl_kir_inst *r2i = gen_callargs(ctx, sym, e->rhs, &(r2.args));
     kl_kir_inst *inst = new_inst_op2(ctx->program, e->line, e->pos, KIR_CALL, r1, &r2);
     kl_kir_inst *ilst = get_last(inst);
     ilst->next = new_inst(ctx->program, e->line, e->pos, KIR_RSSTKP);
