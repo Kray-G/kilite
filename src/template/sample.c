@@ -116,19 +116,25 @@ L1:;
     return e;
 }
 
-typedef int (*fib_t)(int64_t n);
-int fib(int64_t n)
+typedef int (*fib_t)(vmctx *ctx, vmfrm *lex, int64_t *r, int64_t n);
+int fib(vmctx *ctx, vmfrm *lex, int64_t *r, int64_t n)
 {
     int e = 0;
     if (n < 2) {
-        return n;
+        *r = n;
+        return e;
     }
-    int64_t r1 = fib(n-2);
-    int64_t r2 = fib(n-1);
-    return r1 + r2;
+    int64_t r1 = 0;
+    e = fib(ctx, lex, &r1, n-2);
+    if (e) return e;
+    int64_t r2 = 0;
+    e = fib(ctx, lex, &r2, n-1);
+    if (e) return e;
+    *r = r1 + r2;
+    return e;
 }
 
-void run_global(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+int run_global(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     vmfrm *global = alcfrm(ctx, 16);
     push_frm(ctx, global);
@@ -164,7 +170,7 @@ void run_global(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
         global->v[0] = l1;
 
         vmvar *r = alcvar(ctx, VAR_INT64, 1);
-        r->i = ((fib_t)(f1->f))(c);
+        ((fib_t)(f1->f))(ctx, lex, &(r->i), c);
         printf("fib(%d) = %lld\n", c, r->i);
         pbakvar(ctx, r);
     }

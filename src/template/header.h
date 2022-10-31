@@ -275,7 +275,7 @@ INLINE vmhsh *hashmap_set(vmctx *ctx, vmhsh *hsh, const char *s, vmvar *v);
 INLINE vmhsh *hashmap_remove(vmctx *ctx, vmhsh *hsh, const char *s);
 INLINE vmvar *hashmap_search(vmhsh *hsh, const char *s);
 
-INLINE void run_global(vmctx *ctx, vmfrm *lex, vmvar *r, int ac);
+INLINE int run_global(vmctx *ctx, vmfrm *lex, vmvar *r, int ac);
 
 INLINE int throw_system_exception(vmctx *ctx, int id);
 INLINE int throw_exception(vmctx *ctx, vmvar *e);
@@ -368,6 +368,15 @@ enum {
 /**/
 
 /* Conditional Jump */
+
+#define OP_JMP_IF_TRUE(r, label) { \
+    if ((r)->t == VAR_INT64) { \
+        if ((r)->i) goto label; \
+    } else { \
+        /* TODO */ \
+    } \
+} \
+/**/
 
 #define OP_JMP_IF_FALSE(r, label) { \
     if ((r)->t == VAR_INT64) { \
