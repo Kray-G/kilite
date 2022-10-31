@@ -59,20 +59,21 @@ I will note the followings as I don't forget it.
   * [ ] Object and array element's direct assignment.
   * [ ] Coroutine with `yield`.
   * [ ] 'Case-When' expression.
+  * [ ] Support `native` keyword for high performance.
 * Libraries support.
   * [ ] Useful Libraries like Zip, Xml, PDF, or something.
 
-I could have something forgotten.
+There could be something I'm forgetting.
+
+In addition, the followings are the task list for the current implementation.
+
+* [ ] Remaining items.
+  * [ ] Error recovery during parsing like a panic mode.
+  * [ ] Error report for reassigning a value into a variable of `const`.
 
 ## Others
 
-### About `native`
+### `native`
 
-Note that the `native` keyword will be no longer supported because this solution is always using a native-call compilation.
-
-The original `native` function was super fast, but there are a lot of limitations.
-For example, promoting from integer to big integer does not work, a lot of memory would be used, or some exceptions from `native` to VM couldn't work well.
-But the kilite code will be translated to the native code with all functionalities that the language has.
-This would be nice even if kilite could be slower than `native` before because it could be useful for users.
-Of course, I will try to make it faster like same as `native` in future.
-Stay tuned!
+I decided I would support the `native` keyword for more convenience solution to make the code faster. However, I don't know that this can make it actually.
+I can't promise anything, but I'll challenge myself to do it.
