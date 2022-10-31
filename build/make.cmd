@@ -28,6 +28,7 @@ cl -O2 -I ..\..\mir ^
     ..\src\frontend\error.c ^
     ..\src\frontend\dispast.c ^
     ..\src\frontend\mkkir.c ^
+    ..\src\frontend\opt/type.c ^
     ..\src\backend\dispkir.c ^
     ..\src\backend\translate.c ^
     ..\src\backend\resolver.c ^
