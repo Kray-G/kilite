@@ -17,6 +17,7 @@ struct kl_stmt;
 
 typedef struct kl_symbol {
     const char *name;               //  Symbol's name like a function name, a class name, a variable name, or somthing.
+    const char *funcname;           //  The name with a namespace when it's a function.
     int has_func;                   //  If 1, this symbol's scope has an internal function. If 0, this func doesn't need a frame.
     int is_callable;                //  The callable symbol, which is like TK_FUNC, TK_CLASS, or something.
     int is_recursive;               //  This reference symbol could be recursive call. ref->is_callable should be 1.
@@ -47,7 +48,8 @@ typedef struct kl_symbol {
 
 typedef struct kl_nsstack {
     const char *name;               //  The name which is the base of stack.
-    int scopetype;                  //  The scope type of the namespace.
+    int scopetype;                  //  The scope type of the namespace, such as TK_NAMESPACE, TK_CLASS, TK_FUNC, or TK_BLOCK.
+    int is_global;                  //  The flag when it's a global namespace.
     kl_symbol *list;                //  Symbol list in this namespace stack.
     struct kl_nsstack *prev;        //  Stack of namespace, which is from the top to the bottom.
     struct kl_nsstack *chn;         //  For memory allocation control.

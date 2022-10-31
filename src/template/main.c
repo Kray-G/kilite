@@ -6,7 +6,7 @@ int main(void)
     setup_context(ctx);
 
     vmvar r = {0};
-    run_global_0(ctx, NULL, &r, 0);
+    run_global(ctx, NULL, &r, 0);
     
     int ri = (r.t == VAR_INT64) ? r.i : 0;
     if (ctx->verbose || ctx->print_result) {

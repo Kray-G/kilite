@@ -248,6 +248,7 @@ typedef struct kl_kir_inst {
 
 typedef struct kl_kir_func {
     const char *name;
+    const char *funcname;
     int has_frame;
     int funcid;
     int funcend;

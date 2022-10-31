@@ -368,7 +368,7 @@ static void translate_inst(xstr *code, kl_kir_func *f, kl_kir_inst *i, func_cont
 
     case KIR_MOVFNC:
         var_value(buf1, &(i->r1));
-        xstra_inst(code, "vmfnc *f%d = alcfnc(ctx, %s_%d, frm, 0);\n", i->r2.funcid, i->r2.name, i->r2.funcid);
+        xstra_inst(code, "vmfnc *f%d = alcfnc(ctx, %s, frm, 0);\n", i->r2.funcid, i->r2.name);
         xstra_inst(code, "SET_FNC(%s, f%d);\n", buf1, i->r2.funcid);
         break;
 
@@ -407,7 +407,7 @@ void translate_func(kl_kir_program *p, xstr *code, kl_kir_func *f)
         .has_frame = f->has_frame,
     };
     xstraf(code, "/* function:%s */\n", f->name);
-    xstraf(code, "int %s_%d(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)\n{\n", f->name, f->funcid);
+    xstraf(code, "int %s(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)\n{\n", f->funcname);
     xstra_inst(code, "GC_CHECK(ctx);\n");
     xstra_inst(code, "int p, e = 0;\n");
 

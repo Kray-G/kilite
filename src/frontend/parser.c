@@ -73,6 +73,46 @@ kl_context *parser_new_context(void)
     return (kl_context *)calloc(1, sizeof(kl_context));
 }
 
+static inline int append_ns_prefix(char *buf, int pos)
+{
+    /* This prefix is to make risk lower used by users. */
+    buf[pos++] = '_'; buf[pos++] = '_';
+    buf[pos++] = 'w'; buf[pos++] = 'i'; buf[pos++] = 't'; buf[pos++] = 'h';
+    buf[pos++] = 'n'; buf[pos++] = 's';
+    buf[pos++] = '_';
+    return pos;
+}
+
+static char *make_func_name(kl_context *ctx, kl_lexer *l, const char *str)
+{
+    char buf[1024] = {0};
+    int pos = 0;
+    int len = strlen(str);
+    if (pos + len > 1016) {
+        parse_error(ctx, __LINE__, "Compile", l, "Internal error with allocation failed.");
+    } else {
+        kl_nsstack *n = ctx->ns;
+        strcpy(buf + pos, str);
+        pos += len;
+        if (n->prev) {
+            pos = append_ns_prefix(buf, pos);
+        }
+        buf[pos] = 0;
+        while (n->prev) {   /* skips a global namespace. */
+            buf[pos++] = '_';
+            int len = strlen(n->name);
+            if (pos + len + 3 > 1016) {
+                parse_error(ctx, __LINE__, "Compile", l, "Internal error with allocation failed.");
+                break;
+            }
+            strcpy(buf + pos, n->name);
+            pos += len;
+            n = n->prev;
+        }
+    }
+    return const_str(ctx, "Compile", l->tokline, l->tokpos, l->toklen, buf);
+}
+
 static inline kl_nsstack *make_nsstack(kl_context *ctx, kl_lexer *l, const char *name, int scope)
 {
     kl_nsstack *n = (kl_nsstack *)calloc(1, sizeof(kl_nsstack));
@@ -1162,6 +1202,7 @@ static kl_stmt *parse_function(kl_context *ctx, kl_lexer *l, int funcscope)
     /* The name is not needed for function */
     if (l->tok == TK_NAME) {
         sym->name = parse_const_str(ctx, l, l->str);
+        sym->funcname = make_func_name(ctx, l, l->str);
         lexer_fetch(l);
     }
     add_sym2method(ctx->scope, sym);
@@ -1369,6 +1410,7 @@ static kl_stmt *parse_statement_list(kl_context *ctx, kl_lexer *l)
 int parse(kl_context *ctx, kl_lexer *l)
 {
     kl_nsstack *n = make_nsstack(ctx, l, "run_global", TK_NAMESPACE);
+    n->is_global = 1;
     push_nsstack(ctx, n);
     kl_stmt *s = make_stmt(ctx, l, TK_NAMESPACE);
     kl_symbol *sym = make_symbol(ctx, l, TK_NAMESPACE);

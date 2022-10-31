@@ -43,7 +43,7 @@ COND2:;
 
     p = vstackp(ctx);
     push_var(ctx, n1);
-    e = (f1->f)(ctx, f1->lex, n2, 1);
+    e = ((vmfunc_t)(f1->f))(ctx, f1->lex, n2, 1);
     restore_vstackp(ctx, p);
     if (e) goto END;
 
@@ -51,7 +51,7 @@ COND2:;
 
     p = vstackp(ctx);
     push_var(ctx, n1);
-    e = (f1->f)(ctx, f1->lex, n3, 1);
+    e = ((vmfunc_t)(f1->f))(ctx, f1->lex, n3, 1);
     restore_vstackp(ctx, p);
     if (e) goto END;
 
@@ -95,13 +95,13 @@ L4:;
     p = vstackp(ctx);
     OP_SUB_V_I(ctx, n2, n0, 2);
     push_var(ctx, n2);
-    e = (f1->f)(ctx, lex, n1, 1);
+    e = ((vmfunc_t)(f1->f))(ctx, lex, n1, 1);
     restore_vstackp(ctx, p);
     if (e) goto L1;
     p = vstackp(ctx);
     OP_SUB_V_I(ctx, n4, n0, 1);
     push_var(ctx, n4);
-    e = (f1->f)(ctx, lex, n3, 1);
+    e = ((vmfunc_t)(f1->f))(ctx, lex, n3, 1);
     restore_vstackp(ctx, p);
     if (e) goto L1;
     OP_ADD(ctx, r, n1, n3);
@@ -119,7 +119,7 @@ int64_t fib(int64_t n)
     return fib(n-2) + fib(n-1);
 }
 
-void run_global_0(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+void run_global(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     vmfrm *global = alcfrm(ctx, 16);
     push_frm(ctx, global);
@@ -135,7 +135,7 @@ void run_global_0(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 
         int p = vstackp(ctx);
         push_var(ctx, global->v[1]);
-        (f1->f)(ctx, f1->lex, r, 1);
+        ((vmfunc_t)(f1->f))(ctx, f1->lex, r, 1);
         restore_vstackp(ctx, p);
 
         if (r->t == VAR_INT64) {

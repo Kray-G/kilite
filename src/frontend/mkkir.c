@@ -247,7 +247,7 @@ static kl_kir_opr make_lit_func(kl_context *ctx, kl_symbol *sym)
         .t = TK_FUNC,
         .funcid = sym->funcid,
         .typeid = TK_TFUNC,
-        .name = mkkir_const_str(ctx, sym->name),
+        .name = mkkir_const_str(ctx, sym->funcname ? sym->funcname : sym->name),
     };
     return r1;
 }
@@ -668,6 +668,7 @@ static kl_kir_func *gen_function(kl_context *ctx, kl_symbol *sym, kl_stmt *s)
         s = s->next;
     }
 
+    func->funcname = sym->funcname ? sym->funcname : sym->name;
     func->funcid = sym->funcid;
     func->head->r1 = (kl_kir_opr){ .t = TK_VSINT, .i64 = sym->count, .typeid = TK_TSINT64 };
     func->head->r2 = (kl_kir_opr){ .t = TK_VSINT, .i64 = localvars, .typeid = TK_TSINT64 };
@@ -712,6 +713,7 @@ static kl_kir_func *gen_namespace(kl_context *ctx, kl_symbol *sym, kl_stmt *s)
         s = s->next;
     }
 
+    func->funcname = sym->funcname ? sym->funcname : sym->name;
     func->funcid = sym->funcid;
     func->head->r1 = (kl_kir_opr){ .t = TK_VSINT, .i64 = sym->count, .typeid = TK_TSINT64 };
     func->head->r2 = (kl_kir_opr){ .t = TK_VSINT, .i64 = localvars, .typeid = TK_TSINT64 };
