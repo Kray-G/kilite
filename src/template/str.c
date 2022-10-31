@@ -71,6 +71,7 @@ vmstr *str_clear(vmstr *vs)
 {
     vs->s[0] = 0;
     vs->len = 0;
+    return vs;
 }
 
 vmstr *str_dup(vmctx *ctx, vmstr *vs)

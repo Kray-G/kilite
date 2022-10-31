@@ -26,7 +26,7 @@ void hashmap_print(vmhsh *hsh)
             printf("EMPTY   ");
         }
         if (v->s && v->s->s) {
-            printf("[%d], key(%s) => var(%p)", v->i, v->s->s, v->a);
+            printf("[%d], key(%s) => var(%p)", (int)v->i, v->s->s, v->a);
         }
         printf("\n");
     }

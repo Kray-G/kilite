@@ -261,7 +261,7 @@ INLINE vmstr *str_append(vmctx *ctx, vmstr *vs, const char *s, int len);
 INLINE vmstr *str_append_cp(vmctx *ctx, vmstr *vs, const char *s);
 INLINE vmstr *str_append_str(vmctx *ctx, vmstr *vs, vmstr *s2);
 INLINE vmstr *str_append_i64(vmctx *ctx, vmstr *vs, int64_t i);
-INLINE vmstr *str_append_dbl(vmctx *ctx, vmstr *vs, int64_t i);
+INLINE vmstr *str_append_dbl(vmctx *ctx, vmstr *vs, double d);
 INLINE vmstr *str_make_path(vmctx *ctx, vmstr *v0, vmstr *v1);
 INLINE vmstr *str_make_path_i64(vmctx *ctx, vmstr *v0, int64_t i);
 INLINE vmstr *str_make_i64_path(vmctx *ctx, int64_t i, vmstr *v0);

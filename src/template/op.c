@@ -438,33 +438,32 @@ int div_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
 
 int mod_v_i(vmctx *ctx, vmvar *r, vmvar *v, int64_t i)
 {
-
+    return 0;
 }
 
 int mod_i_v(vmctx *ctx, vmvar *r, int64_t i, vmvar *v)
 {
-
+    return 0;
 }
 
 int mod_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
 {
-
+    return 0;
 }
 
 /* EQEQ */
 
 int eqeq_v_i(vmctx *ctx, vmvar *r, vmvar *v, int64_t i)
 {
-
+    return 0;
 }
 
 int eqeq_i_v(vmctx *ctx, vmvar *r, int64_t i, vmvar *v)
 {
-
+    return 0;
 }
 
 int eqeq_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
 {
-
+    return 0;
 }
-

@@ -4,6 +4,7 @@
  * Garbage Collection
 */
 void mark_frm(vmfrm *m);
+void mark_var(vmvar *v);
 
 void unmark_all(vmctx *ctx)
 {

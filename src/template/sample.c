@@ -1,12 +1,18 @@
 #include "common.h"
 
-// c2m -c alloc.c gc.c init.c main.c util.c bigi.c str.c hash.c lib\bign.c lib\bigz.c
-// timecmd c2m alloc.bmir gc.bmir init.bmir main.bmir util.bmir bigi.bmir hash.bmir str.bmir bign.bmir bigz.bmir sample.c -eg
-// cl -O2 -Fesample.exe alloc.c gc.c init.c main.c util.c bigi.c str.c hash.c lib\bign.c lib\bigz.c sample.c
+// c2m -c alloc.c gc.c init.c main.c util.c bigi.c str.c hash.c op.c lib\bign.c lib\bigz.c
+// timecmd c2m alloc.bmir gc.bmir init.bmir main.bmir util.bmir bigi.bmir hash.bmir op.bmir str.bmir bign.bmir bigz.bmir sample.c -eg
+// cl -O2 -Fesample.exe alloc.c gc.c init.c main.c util.c bigi.c str.c hash.c op.c lib\bign.c lib\bigz.c sample.c
 
-// c2m -c alloc.c gc.c init.c main.c util.c bigi.c str.c hash.c lib/bign.c lib/bigz.c
-// time c2m alloc.bmir gc.bmir init.bmir main.bmir util.bmir bigi.bmir hash.bmir str.bmir bign.bmir bigz.bmir sample.c -eg
-// cl -O2 -Fesample.exe alloc.c gc.c init.c main.c util.c bigi.c str.c hash.c lib/bign.c lib/bigz.c sample.c
+// c2m -c alloc.c gc.c init.c main.c util.c bigi.c str.c hash.c op.c lib/bign.c lib/bigz.c
+// time c2m alloc.bmir gc.bmir init.bmir main.bmir util.bmir bigi.bmir hash.bmir op.bmir str.bmir bign.bmir bigz.bmir sample.c -eg
+// cl -O2 -Fesample.exe alloc.c gc.c init.c main.c util.c bigi.c str.c hash.c op.c lib/bign.c lib/bigz.c sample.c
+
+void setup_context(vmctx *ctx)
+{
+    ctx->print_result = 0;
+    ctx->verbose = 0;
+}
 
 int func_fib(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
@@ -110,13 +116,16 @@ L1:;
     return e;
 }
 
-typedef int64_t (*fib_t)(int64_t n);
-int64_t fib(int64_t n)
+typedef int (*fib_t)(int64_t n);
+int fib(int64_t n)
 {
+    int e = 0;
     if (n < 2) {
         return n;
     }
-    return fib(n-2) + fib(n-1);
+    int64_t r1 = fib(n-2);
+    int64_t r2 = fib(n-1);
+    return r1 + r2;
 }
 
 void run_global(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
@@ -127,38 +136,38 @@ void run_global(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     int c = 38;
 
     /* Pattern 1 */
-    {
-        vmfnc *f1 = alcfnc(ctx, func_fib2, global, 1);
-        vmvar *l1 = alcvar_fnc(ctx, f1);
-        global->v[0] = l1;
-        global->v[1] = alcvar_int64(ctx, c, 0);
-
-        int p = vstackp(ctx);
-        push_var(ctx, global->v[1]);
-        ((vmfunc_t)(f1->f))(ctx, f1->lex, r, 1);
-        restore_vstackp(ctx, p);
-
-        if (r->t == VAR_INT64) {
-            printf("fib(%d) = %lld\n", c, r->i);
-        } else if (r->t == VAR_BIG) {
-            char s1[1024] = {0};
-            bi_str(s1, 1024, r->bi);
-            printf("fib(%d) = %s\n", c, s1);
-        }
-        pbakvar(ctx, r);
-    }
-
-    /* Pattern 2 */
     // {
-    //     vmfnc *f1 = alcfnc(ctx, fib, global, 1);
+    //     vmfnc *f1 = alcfnc(ctx, func_fib2, global, 1);
     //     vmvar *l1 = alcvar_fnc(ctx, f1);
     //     global->v[0] = l1;
+    //     global->v[1] = alcvar_int64(ctx, c, 0);
 
-    //     vmvar r = alcvar(ctx, VAR_INT64, 1);
-    //     r->i = ((fib_t)(f1->f))(c);
-    //     printf("fib(%d) = %lld\n", c, r->i);
+    //     int p = vstackp(ctx);
+    //     push_var(ctx, global->v[1]);
+    //     ((vmfunc_t)(f1->f))(ctx, f1->lex, r, 1);
+    //     restore_vstackp(ctx, p);
+
+    //     if (r->t == VAR_INT64) {
+    //         printf("fib(%d) = %lld\n", c, r->i);
+    //     } else if (r->t == VAR_BIG) {
+    //         char s1[1024] = {0};
+    //         bi_str(s1, 1024, r->bi);
+    //         printf("fib(%d) = %s\n", c, s1);
+    //     }
     //     pbakvar(ctx, r);
     // }
+
+    /* Pattern 2 */
+    {
+        vmfnc *f1 = alcfnc(ctx, fib, global, 1);
+        vmvar *l1 = alcvar_fnc(ctx, f1);
+        global->v[0] = l1;
+
+        vmvar *r = alcvar(ctx, VAR_INT64, 1);
+        r->i = ((fib_t)(f1->f))(c);
+        printf("fib(%d) = %lld\n", c, r->i);
+        pbakvar(ctx, r);
+    }
 
     pop_frm(ctx);
 }
