@@ -178,6 +178,7 @@ static inline kl_symbol *make_ref_symbol(kl_context *ctx, kl_lexer *l, tk_token 
         kl_symbol *ref = search_symbol_in_scope(ctx, l, ns, name);
         if (ref) {
             sym->ref = ref;
+            sym->index = ref->index;
             sym->level = level;
             return sym;
         }
@@ -547,6 +548,7 @@ static kl_expr *parse_expr_factor(kl_context *ctx, kl_lexer *l)
         break;
     case TK_LT:
         e = make_expr(ctx, l, TK_VBIN);
+        e->typeid = TK_TBIN;
         l->binmode = 1;
         lexer_fetch(l);
         e->lhs = parse_expr_list(ctx, l, TK_BINEND);
@@ -558,21 +560,25 @@ static kl_expr *parse_expr_factor(kl_context *ctx, kl_lexer *l)
         break;
     case TK_VSINT:
         e = make_expr(ctx, l, TK_VSINT);
+        e->typeid = TK_TSINT64;
         e->val.i64 = l->i64;
         lexer_fetch(l);
         break;
     case TK_VDBL:
         e = make_expr(ctx, l, TK_VDBL);
+        e->typeid = TK_TDBL;
         e->val.dbl = l->dbl;
         lexer_fetch(l);
         break;
     case TK_VBIGINT:
         e = make_expr(ctx, l, TK_VBIGINT);
+        e->typeid = TK_TBIGINT;
         e->val.big = parse_const_str(ctx, l, l->str);
         lexer_fetch(l);
         break;
     case TK_VSTR:
         e = make_expr(ctx, l, TK_VSTR);
+        e->typeid = TK_TSTR;
         e->val.str = parse_const_str(ctx, l, l->str);
         lexer_fetch(l);
         break;
@@ -1198,6 +1204,7 @@ static kl_stmt *parse_function(kl_context *ctx, kl_lexer *l, int funcscope)
     kl_symbol *sym = make_symbol(ctx, l, funcscope);
     s->sym = sym;
     sym->is_callable = 1;
+    sym->is_native = funcscope == TK_NATIVE;
 
     /* The name is not needed for function */
     if (l->tok == TK_NAME) {
@@ -1342,10 +1349,11 @@ static kl_stmt *parse_statement(kl_context *ctx, kl_lexer *l)
         lexer_fetch(l);
         r = parse_namespace(ctx, l);
         break;
-    case TK_FUNC:
     case TK_PRIVATE:
     case TK_PROTECTED:
     case TK_PUBLIC:
+    case TK_FUNC:
+    case TK_NATIVE:
         lexer_fetch(l);
         r = parse_function(ctx, l, tok);
         break;

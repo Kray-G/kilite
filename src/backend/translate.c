@@ -13,6 +13,7 @@ typedef struct func_context {
     int local_vars;
     int arg_count;
     int temp_count;
+    int skip;
 } func_context;
 
 #define XSTR_UNIT (64)
@@ -150,7 +151,7 @@ static void translate_pushvar(xstr *code, kl_kir_opr *rn)
 
 }
 
-static void translate_op3(xstr *code, const char *op, const char *sop, kl_kir_inst *i)
+static void translate_op3(func_context *fctx, xstr *code, const char *op, const char *sop, kl_kir_inst *i)
 {
     kl_kir_opr *r1 = &(i->r1);
     kl_kir_opr *r2 = &(i->r2);
@@ -163,7 +164,7 @@ static void translate_op3(xstr *code, const char *op, const char *sop, kl_kir_in
     if (r1->typeid == TK_TSINT64 && r2->typeid == TK_TSINT64 && r3->typeid == TK_TSINT64) {
         int_value(buf2, r2);
         int_value(buf3, r3);
-        xstra_inst(code, "SET_I64(%s, %s %s %s);\n", buf1, buf1, buf2, sop, buf3);
+        xstra_inst(code, "SET_I64(%s, (%s) %s (%s));\n", buf1, buf2, sop, buf3);
     } else {
         var_value(buf2, r2);
         var_value(buf3, r3);
@@ -181,6 +182,30 @@ static void translate_op3(xstr *code, const char *op, const char *sop, kl_kir_in
             }
         }
     }
+}
+
+static void translate_chkcnd(func_context *fctx, xstr *code, const char *op, const char *sop, kl_kir_inst *i)
+{
+    if (i->next && (i->next->opcode == KIR_JMPIFT || i->next->opcode == KIR_JMPIFF)) {
+        kl_kir_inst *n = i->next;
+        if (i->r1.level == n->r1.level && i->r1.index == n->r1.index) {
+            kl_kir_opr *r1 = &(i->r1);
+            kl_kir_opr *r2 = &(i->r2);
+            kl_kir_opr *r3 = &(i->r3);
+            if (r1->typeid == TK_TSINT64 && r2->typeid == TK_TSINT64 && r3->typeid == TK_TSINT64) {
+                char buf2[256] = {0};
+                char buf3[256] = {0};
+                int_value(buf2, r2);
+                int_value(buf3, r3);
+                xstra_inst(code, "if (%s((%s) %s (%s))) goto L%d;\n",
+                    i->next->opcode == KIR_JMPIFT ? "" : "!",
+                    buf2, sop, buf3, n->labelid);
+                fctx->skip = 1;
+                return;
+            }
+        }
+    }
+    translate_op3(fctx, code, op, sop, i);
 }
 
 static void translate_call(xstr *code, kl_kir_inst *i)
@@ -216,11 +241,17 @@ static void translate_mov(xstr *code, kl_kir_inst *i)
     char buf1[256] = {0};
     var_value(buf1, &(i->r1));
     switch (i->r2.t) {
-    case TK_VAR:
+    case TK_VAR: {
         char buf2[256] = {0};
-        var_value(buf2, &(i->r2));
-        xstra_inst(code, "COPY_VAR_TO(ctx, %s, %s);\n", buf1, buf2);
+        if (i->r1.typeid == TK_TSINT64) {
+            int_value(buf2, &(i->r2));
+            xstra_inst(code, "SET_I64(%s, %s);\n", buf1, buf2);
+        } else {
+            var_value(buf2, &(i->r2));
+            xstra_inst(code, "COPY_VAR_TO(ctx, %s, %s);\n", buf1, buf2);
+        }
         break;
+    }
     case TK_VSINT:
         xstra_inst(code, "SET_I64(%s, %" PRId64 ");\n", buf1, i->r2.i64);
         break;
@@ -349,6 +380,9 @@ static void translate_inst(xstr *code, kl_kir_func *f, kl_kir_inst *i, func_cont
         xstra_inst(code, "return e;\n");
         break;
 
+    case KIR_JMPIFT:
+        xstra_inst(code, "OP_JMP_IF_TRUE(%s, L%d);\n", var_value(buf1, &(i->r1)), i->labelid);
+        break;
     case KIR_JMPIFF:
         xstra_inst(code, "OP_JMP_IF_FALSE(%s, L%d);\n", var_value(buf1, &(i->r1)), i->labelid);
         break;
@@ -373,29 +407,29 @@ static void translate_inst(xstr *code, kl_kir_func *f, kl_kir_inst *i, func_cont
         break;
 
     case KIR_ADD:
-        translate_op3(code, "ADD", "+", i);
+        translate_chkcnd(fctx, code, "ADD", "+", i);
         break;
     case KIR_SUB:
-        translate_op3(code, "SUB", "-", i);
+        translate_chkcnd(fctx, code, "SUB", "-", i);
         break;
     case KIR_MUL:
-        translate_op3(code, "MUL", "*", i);
+        translate_chkcnd(fctx, code, "MUL", "*", i);
         break;
     case KIR_DIV:
-        translate_op3(code, "DIV", "/", i);
+        translate_chkcnd(fctx, code, "DIV", "/", i);
         break;
     case KIR_MOD:
-        translate_op3(code, "mod", "%", i);
+        translate_chkcnd(fctx, code, "mod", "%", i);
         break;
 
     case KIR_EQEQ:
-        translate_op3(code, "EQEQ", "==", i);
+        translate_chkcnd(fctx, code, "EQEQ", "==", i);
         break;
     case KIR_NEQ:
-        translate_op3(code, "NEQ", "!=", i);
+        translate_chkcnd(fctx, code, "NEQ", "!=", i);
         break;
     case KIR_LT:
-        translate_op3(code, "LT", "<", i);
+        translate_chkcnd(fctx, code, "LT", "<", i);
         break;
 
     }
@@ -416,6 +450,10 @@ void translate_func(kl_kir_program *p, xstr *code, kl_kir_func *f)
     while (i) {
         int blank = prev && prev->opcode != KIR_LABEL && i->opcode == KIR_LABEL;
         translate_inst(code, f, i, &fctx, blank);
+        while (fctx.skip > 0) {
+            fctx.skip--;
+            i = i->next;
+        }
         prev = i;
         i = i->next;
     }

@@ -44,6 +44,7 @@ static const char *tkname[] = {
     "TK_PUBLIC",
     "TK_MIXIN",
     "TK_FUNC",
+    "TK_NATIVE",
     "TK_IF",
     "TK_ELSE",
     "TK_DO",
@@ -431,6 +432,7 @@ static inline int check_keyword(kl_lexer *l)
     case 'n':
         if (strcmp(l->str, "new") == 0) return TK_NEW;
         if (strcmp(l->str, "namespace") == 0) return TK_NAMESPACE;
+        if (strcmp(l->str, "native") == 0) return TK_NATIVE;
         break;
     case 'o':
         if (strcmp(l->str, "otherwise") == 0) return TK_OTHERWISE;

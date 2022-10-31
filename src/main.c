@@ -1,5 +1,6 @@
 #include "frontend/parser.h"
 #include "frontend/mkkir.h"
+#include "frontend/opt/type.h"
 #include "frontend/dispast.h"
 #include "backend/cexec.h"
 #include "backend/dispkir.h"
@@ -90,6 +91,7 @@ int main(int ac, char **av)
     if (r > 0) {
         goto END;
     }
+    update_ast_type(ctx);
     if (opts.out_src && opts.out_ast) {
         disp_ast(ctx);
     }

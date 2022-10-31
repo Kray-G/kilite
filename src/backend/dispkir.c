@@ -72,7 +72,7 @@ void disp_call(const char *op, kl_kir_inst *i)
     printf(", ");
     disp_v(i, 2);
     if (i->r2.funcid > 0) {
-        printf("(func:%d)", i->r2.funcid);
+        printf("(%s)", i->r2.name);
     }
     printf("\n");
 }
@@ -117,6 +117,11 @@ void disp_inst(kl_kir_program *p, kl_kir_inst *i)
         printf(IDT OP "\n", "ret");
         break;
 
+    case KIR_JMPIFT:
+        printf(IDT OP, "jmpift");
+        disp_v(i, 1);
+        printf(", L%d\n", i->labelid);
+        break;
     case KIR_JMPIFF:
         printf(IDT OP, "jmpiff");
         disp_v(i, 1);

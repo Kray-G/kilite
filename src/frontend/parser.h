@@ -19,6 +19,7 @@ typedef struct kl_symbol {
     const char *name;               //  Symbol's name like a function name, a class name, a variable name, or somthing.
     const char *funcname;           //  The name with a namespace when it's a function.
     int has_func;                   //  If 1, this symbol's scope has an internal function. If 0, this func doesn't need a frame.
+    int is_native;                  //  The function with `native` keyword.
     int is_callable;                //  The callable symbol, which is like TK_FUNC, TK_CLASS, or something.
     int is_recursive;               //  This reference symbol could be recursive call. ref->is_callable should be 1.
     int level;                      //  The level of lexical scope, which means a distance from the scope having the 'ref' symbol.

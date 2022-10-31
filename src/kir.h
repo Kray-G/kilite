@@ -58,6 +58,7 @@ typedef enum tk_token {
     TK_PUBLIC,              //  * public
     TK_MIXIN,               //    mixin
     TK_FUNC,                //  * func/function, which one you can choose as you like.
+    TK_NATIVE,              //    native
     TK_IF,                  //  * if
     TK_ELSE,                //  * else
     TK_DO,                  //  * do
@@ -188,6 +189,7 @@ typedef enum kl_kir {
     /*
      * Conditional and unconditional Jump.
      */
+    KIR_JMPIFT,     //  <r1>, <label>           ;   if <r1> is true, it will jump to the label.
     KIR_JMPIFF,     //  <r1>, <label>           ;   if <r1> is false, it will jump to the label.
     KIR_JMP,        //  <label>                 ;   always jump to the label.
     KIR_LABEL,      //  <label>:                ;   The label location.

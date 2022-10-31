@@ -244,7 +244,7 @@ static void disp_expr(kl_expr *e, int indent)
     case TK_LAND:
     case TK_LOR:
     case TK_COMMA:
-        printf("op(%s)\n", tokenname(e->nodetype));
+        printf("op(%s): %s\n", tokenname(e->nodetype), typeidname(e->typeid));
         disp_expr(e->lhs, indent + 1);
         disp_expr(e->rhs, indent + 1);
         break;
@@ -305,7 +305,7 @@ static void disp_stmt(kl_stmt *s, int indent)
             case TK_PROTECTED: printf("protected "); break;
             case TK_PUBLIC: printf("public "); break;
             }
-            printf("func %s(\n", s->sym->name);
+            printf("%s %s(\n", s->sym->is_native ? "native" : "func", s->sym->name);
             if (s->e1) {
                 disp_expr(s->e1, indent + 1);
             }
