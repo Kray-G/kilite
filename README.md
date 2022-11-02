@@ -77,3 +77,5 @@ In addition, the followings are the task list for the current implementation.
 
 I decided I would support the `native` keyword for more convenience solution to make the code faster. However, I don't know that this can make it actually.
 I can't promise anything, but I'll challenge myself to do it.
+
+Note that the current implementation will work with `native` but it's almost same as the code without `native`.
