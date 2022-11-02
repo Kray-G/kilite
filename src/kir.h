@@ -158,6 +158,8 @@ typedef enum tk_token {
     TK_IDX,                 //  For array index reference.
     TK_TYPENODE,            //  The node will represent the type.
     TK_BINEND,              //  The mark for the end of a binary literal.
+    TK_COMMENT1,            //  1 line comment.
+    TK_COMMENTX,            //  Multi lines comment.
 } tk_token;
 
 typedef enum kl_kir {

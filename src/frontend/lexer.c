@@ -885,7 +885,7 @@ static tk_token lexer_fetch_token(kl_lexer *l)
     case '*':
         LEXER_CHECK_12_13_123_TOK('*', '=', TK_MUL, TK_EXP, TK_MULEQ, TK_EXPEQ)
     case '/':
-        LEXER_CHECK_12_TOK('=', TK_DIV, TK_DIVEQ)
+        LEXER_CHECK_12_13_14_TOK('=', '*', '/', TK_DIV, TK_DIVEQ, TK_COMMENTX, TK_COMMENT1)
     case '%':
         LEXER_CHECK_12_TOK('=', TK_MOD, TK_MODEQ)
     case '&':
@@ -959,6 +959,7 @@ void lexer_unfetch(kl_lexer *l, tk_token prev)
 
 tk_token lexer_fetch(kl_lexer *l)
 {
+L0:
     if (l->unfetch) {
         l->tok = l->unfetch;
         l->unfetch = 0;
@@ -984,6 +985,29 @@ tk_token lexer_fetch(kl_lexer *l)
         } else {
             fprintf(stderr, "kl_lexer: fetched(%s)\n", tkname[l->tok]);
         }
+    }
+    if (l->tok == TK_COMMENT1) {
+        while (l->ch != '\n' && l->ch != EOF) {
+            lexer_getch(l); // skip until new line found.
+        }
+        goto L0;
+    }
+    if (l->tok == TK_COMMENTX) {
+        for ( ; ; ) {
+            if (l->ch == EOF) {
+                break;
+            }
+            if (l->ch != '*') {
+                lexer_getch(l);
+            } else {
+                lexer_getch(l);
+                if (l->ch == '/') {
+                    lexer_getch(l);
+                    break;
+                }
+            }
+        }
+        goto L0;
     }
     if (l->binmode && l->tok == TK_GT) {
         l->binmode = 0;
