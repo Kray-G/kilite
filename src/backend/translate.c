@@ -151,6 +151,35 @@ static void translate_pushvar(xstr *code, kl_kir_opr *rn)
 
 }
 
+static void translate_incdec(func_context *fctx, xstr *code, const char *op, const char *sop, int is_postfix, kl_kir_inst *i)
+{
+    kl_kir_opr *r1 = &(i->r1);
+    kl_kir_opr *r2 = &(i->r2);
+
+    char buf1[256] = {0};
+    char buf2[256] = {0};
+    var_value(buf1, r1);
+    if (r2->typeid == TK_TSINT64) {
+        int_value(buf2, r2);
+        if (is_postfix) {
+            if (r1->prevent) {
+                xstra_inst(code, "(%s)%s;\n", buf2, sop);
+            }  else {
+                xstra_inst(code, "SET_I64(%s, (%s)%s);\n", buf1, buf2, sop);
+            }
+        } else {
+            if (r1->prevent) {
+                xstra_inst(code, "%s(%s);\n", sop, buf2);
+            }  else {
+                xstra_inst(code, "SET_I64(%s, %s(%s));\n", buf1, sop, buf2);
+            }
+        }
+    } else {
+        var_value(buf2, r2);
+        xstra_inst(code, "OP_%s(ctx, %s, %s);\n", op, buf1, buf2);
+    }
+}
+
 static void translate_op3(func_context *fctx, xstr *code, const char *op, const char *sop, kl_kir_inst *i)
 {
     kl_kir_opr *r1 = &(i->r1);
@@ -161,7 +190,7 @@ static void translate_op3(func_context *fctx, xstr *code, const char *op, const 
     char buf2[256] = {0};
     char buf3[256] = {0};
     var_value(buf1, r1);
-    if (r1->typeid == TK_TSINT64 && r2->typeid == TK_TSINT64 && r3->typeid == TK_TSINT64) {
+    if (r2->typeid == TK_TSINT64 && r3->typeid == TK_TSINT64) {
         int_value(buf2, r2);
         int_value(buf3, r3);
         xstra_inst(code, "SET_I64(%s, (%s) %s (%s));\n", buf1, buf2, sop, buf3);
@@ -243,7 +272,7 @@ static void translate_mov(xstr *code, kl_kir_inst *i)
     switch (i->r2.t) {
     case TK_VAR: {
         char buf2[256] = {0};
-        if (i->r1.typeid == TK_TSINT64) {
+        if (i->r1.typeid == TK_TSINT64 && i->r2.typeid == TK_TSINT64) {
             int_value(buf2, &(i->r2));
             xstra_inst(code, "SET_I64(%s, %s);\n", buf1, buf2);
         } else {
@@ -263,7 +292,43 @@ static void translate_mov(xstr *code, kl_kir_inst *i)
         escape_str(code, i->r2.str);
         xstrs(code, "\");\n");
         break;
+    default:
+        break;
     }
+}
+
+static void translate_mova(xstr *code, kl_kir_inst *i)
+{
+    char buf1[256] = {0};
+    var_value(buf1, &(i->r1));
+    switch (i->r2.t) {
+    case TK_VAR: {
+        char buf2[256] = {0};
+        if (i->r1.typeid == TK_TSINT64 && i->r2.typeid == TK_TSINT64) {
+            int_value(buf2, &(i->r2));
+            xstra_inst(code, "SET_I64((%s)->a, %s);\n", buf1, buf2);
+        } else {
+            var_value(buf2, &(i->r2));
+            xstra_inst(code, "COPY_VAR_TO(ctx, (%s)->a, %s);\n", buf1, buf2);
+        }
+        break;
+    }
+    case TK_VSINT:
+        xstra_inst(code, "SET_I64((%s)->a, %" PRId64 ");\n", buf1, i->r2.i64);
+        break;
+    case TK_VDBL:
+        xstra_inst(code, "SET_DBL((%s)->a, %f);\n", buf1, i->r2.dbl);
+        break;
+    case TK_VSTR:
+        xstra_inst(code, "SET_STR((%s)->a, \"", buf1);
+        escape_str(code, i->r2.str);
+        xstrs(code, "\");\n");
+        break;
+    default:
+        break;
+    }
+    xstra_inst(code, "COPY_VAR_TO(ctx, (%s), (%s)->a);\n", buf1, buf1);
+    xstra_inst(code, "(%s)->a = NULL;\n", buf1);
 }
 
 static void translate_funcref(xstr *code, kl_kir_func *f)
@@ -399,8 +464,10 @@ static void translate_inst(xstr *code, kl_kir_func *f, kl_kir_inst *i, func_cont
     case KIR_MOV:
         translate_mov(code, i);
         break;
-
-    case KIR_MOVFNC:
+    case KIR_MOVA:
+        translate_mova(code, i);
+        break;
+    case KIR_MOVF:
         var_value(buf1, &(i->r1));
         xstra_inst(code, "vmfnc *f%d = alcfnc(ctx, %s, frm, 0);\n", i->r2.funcid, i->r2.name);
         xstra_inst(code, "SET_FNC(%s, f%d);\n", buf1, i->r2.funcid);
@@ -431,7 +498,43 @@ static void translate_inst(xstr *code, kl_kir_func *f, kl_kir_inst *i, func_cont
     case KIR_LT:
         translate_chkcnd(fctx, code, "LT", "<", i);
         break;
+    case KIR_LE:
+        translate_chkcnd(fctx, code, "LE", "<=", i);
+        break;
+    case KIR_GT:
+        translate_chkcnd(fctx, code, "GT", ">", i);
+        break;
+    case KIR_GE:
+        translate_chkcnd(fctx, code, "GE", ">=", i);
+        break;
 
+    case KIR_INC:
+        translate_incdec(fctx, code, "INC", "++", 0, i);
+        break;
+    case KIR_INCP:
+        translate_incdec(fctx, code, "INCP", "++", 1, i);
+        break;
+    case KIR_DEC:
+        translate_incdec(fctx, code, "DEC", "++", 0, i);
+        break;
+    case KIR_DECP:
+        translate_incdec(fctx, code, "DECP", "++", 1, i);
+        break;
+
+    case KIR_APLY:
+        var_value(buf1, &(i->r1));
+        var_value(buf2, &(i->r2));
+        xstra_inst(code, "OP_APPLY(ctx, %s, %s, \"", buf1, buf2);
+        escape_str(code, i->r3.str);
+        xstrs(code, "\");\n");
+        break;
+    case KIR_APLYL:
+        var_value(buf1, &(i->r1));
+        var_value(buf2, &(i->r2));
+        xstra_inst(code, "OP_APPLYL(ctx, %s, %s, \"", buf1, buf2);
+        escape_str(code, i->r3.str);
+        xstrs(code, "\");\n");
+        break;
     }
 }
 

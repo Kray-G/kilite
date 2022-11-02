@@ -18,7 +18,9 @@ struct kl_stmt;
 typedef struct kl_symbol {
     const char *name;               //  Symbol's name like a function name, a class name, a variable name, or somthing.
     const char *funcname;           //  The name with a namespace when it's a function.
+    const char *prototype;          //  The function prototype of this function.
     int has_func;                   //  If 1, this symbol's scope has an internal function. If 0, this func doesn't need a frame.
+    int is_const;                   //  If true, the symbole can't be modfied.
     int is_native;                  //  The function with `native` keyword.
     int is_callable;                //  The callable symbol, which is like TK_FUNC, TK_CLASS, or something.
     int is_recursive;               //  This reference symbol could be recursive call. ref->is_callable should be 1.
@@ -31,8 +33,9 @@ typedef struct kl_symbol {
     int funcend;                    //  The label to the point where the function ends.
     int line;                       //  The line in the source code.
     int pos;                        //  The pos in the source code.
-    tk_typeid symtype;              //  TK_VAR, TK_NAMESPACE, TK_CLASS, TK_MODULE, TK_FUNC, TK_PRIVATE, TK_PROTECTED, or TK_PUBLIC.
-    tk_typeid type;                 //  Return type if this is a function. The variable type if this is a variable.
+    tk_token symtoken;              //  TK_VAR, TK_NAMESPACE, TK_CLASS, TK_MODULE, TK_FUNC, TK_PRIVATE, TK_PROTECTED, or TK_PUBLIC.
+    tk_typeid typeid;               //  The variable type if this is a variable.
+    tk_typeid rettype;              //  Return type if this is a function.
 
     struct kl_expr *base;           //  Base class expression when it's TK_CLASS.
     struct kl_expr *args;           //  Constructor or function's arguments.
@@ -42,7 +45,7 @@ typedef struct kl_symbol {
     struct kl_symbol *method;       //  Method symbol chain in the current scope when it's TK_NAMESPACE, TK_CLASS, or TK_MODULE.
     struct kl_symbol *next;         //  Symbol chain in the current namespace.
 
-    struct kl_expr *typ;            //  Type expression.
+    struct kl_expr *typetree;       //  Type expression.
     struct kl_symbol *ref;          //  Reference to the symbol defined earlier.
     struct kl_symbol *chn;          //  For memory allocation control.
 } kl_symbol;
@@ -60,6 +63,8 @@ typedef struct kl_expr {
     tk_token nodetype;              //  Operator type like TK_ADD, the value type like TK_VSINT, or TK_LET for variable.
     tk_typeid typeid;               //  Type of this node.
     kl_symbol *sym;                 //  The symbol of this node.
+    const char *prototype;          //  The function prototype of this function.
+
     union {
         int64_t i64;
         uint64_t u64;

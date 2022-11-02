@@ -137,6 +137,12 @@ void disp_inst(kl_kir_program *p, kl_kir_inst *i)
     case KIR_MOV:
         disp_2op("mov", i);
         break;
+    case KIR_MOVA:
+        disp_2op("mova", i);
+        break;
+    case KIR_MOVF:
+        disp_2op("movf", i);
+        break;
 
     case KIR_ADD:
         disp_3op("add", i);
@@ -176,6 +182,31 @@ void disp_inst(kl_kir_program *p, kl_kir_inst *i)
         disp_3op("lge", i);
         break;
 
+    case KIR_INC:
+        disp_2op("inc", i);
+        break;
+    case KIR_INCP:
+        disp_2op("incp", i);
+        break;
+    case KIR_DEC:
+        disp_2op("dec", i);
+        break;
+    case KIR_DECP:
+        disp_2op("decp", i);
+        break;
+
+    case KIR_IDX:
+        disp_3op("idx", i);
+        break;
+    case KIR_IDXL:
+        disp_3op("idxl", i);
+        break;
+    case KIR_APLY:
+        disp_3op("apply", i);
+        break;
+    case KIR_APLYL:
+        disp_3op("applyl", i);
+        break;
     }
 }
 

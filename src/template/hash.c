@@ -11,6 +11,59 @@ static inline unsigned int hashcode(const char *s, int sz)
     return h % sz;
 }
 
+static void hashmap_print_indent(int indent)
+{
+    for (int i = 0; i < indent; ++i) {
+        printf("    ");
+    }
+}
+
+static void hashmap_objprint_impl(vmhsh *hsh, int indent)
+{
+    int sz = hsh->sz;
+    vmvar *map = hsh->map;
+    printf("{\n");
+    for (int i = 0; i < sz; ++i) {
+        vmvar *v = &(map[i]);
+        if (IS_HASHITEM_EXIST(v)) {
+            if (v->s && v->s->s) {
+                hashmap_print_indent(indent + 1);
+                printf("\"%s\": ", v->s->s);
+                switch (v->a->t) {
+                case VAR_INT64:
+                    printf("%lld\n", v->a->i);
+                    break;
+                case VAR_DBL:
+                    printf("%f\n", v->a->d);
+                    break;
+                case VAR_BIG: {
+                    char *bs = BzToString(v->a->bi->b, 10, 0);
+                    printf("%s\n", bs);
+                    BzFreeString(bs);
+                    break;
+                }
+                case VAR_STR:
+                    printf("%s\n", v->a->s);
+                    break;
+                case VAR_FNC:
+                    printf("func(%p)\n", v->a->f);
+                    break;
+                case VAR_OBJ:
+                    hashmap_objprint_impl(v->a->h, indent + 1);
+                    break;
+                }
+            }
+        }
+    }
+    hashmap_print_indent(indent);
+    printf("}%s\n", indent == 0 ? "" : ",");
+}
+
+void hashmap_objprint(vmhsh *hsh)
+{
+    hashmap_objprint_impl(hsh, 0);
+}
+
 void hashmap_print(vmhsh *hsh)
 {
     printf("---------\n");
@@ -131,6 +184,25 @@ static vmhsh *hashmap_extend(vmctx *ctx, vmhsh *hsh)
 
     hsh->sz = (hsh->sz << 1) + 1;
     hsh->map = (vmvar *)calloc(hsh->sz, sizeof(vmvar));
+    for (int i = 0; i < sz; ++i) {
+        vmvar *v = &(map[i]);
+        if (IS_HASHITEM_EXIST(v)) {
+            hashmap_set(ctx, hsh, v->s->s, v->a);
+        }
+    }
+
+    return hsh;
+}
+
+vmhsh *hashmap_copy(vmctx *ctx, vmhsh *h)
+{
+    vmhsh *hsh = alchsh(ctx);
+    hashmap_create(hsh, HASH_SIZE);
+    int sz = h->sz;
+    vmvar *map = h->map;
+
+    hsh->sz = sz;
+    hsh->map = (vmvar *)calloc(sz, sizeof(vmvar));
     for (int i = 0; i < sz; ++i) {
         vmvar *v = &(map[i]);
         if (IS_HASHITEM_EXIST(v)) {

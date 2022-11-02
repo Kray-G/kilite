@@ -270,10 +270,12 @@ INLINE vmstr *str_ltrim(vmctx *ctx, vmstr *vs, const char *ch);
 INLINE vmstr *str_rtrim(vmctx *ctx, vmstr *vs, const char *ch);
 
 INLINE void hashmap_print(vmhsh *hsh);
+INLINE void hashmap_objprint(vmhsh *hsh);
 INLINE vmhsh *hashmap_create(vmhsh *h, int sz);
 INLINE vmhsh *hashmap_set(vmctx *ctx, vmhsh *hsh, const char *s, vmvar *v);
 INLINE vmhsh *hashmap_remove(vmctx *ctx, vmhsh *hsh, const char *s);
 INLINE vmvar *hashmap_search(vmhsh *hsh, const char *s);
+INLINE vmhsh *hashmap_copy(vmctx *ctx, vmhsh *h);
 
 INLINE int run_global(vmctx *ctx, vmfrm *lex, vmvar *r, int ac);
 
@@ -315,12 +317,12 @@ enum {
 
 /* Copy Variable */
 
-#define SET_I64(dst, v) { (dst)->t = VAR_INT64; (dst)->i  = (v); }
-#define SET_DBL(dst, v) { (dst)->t = VAR_DBL;   (dst)->d  = (v); }
-#define SET_BIG(dst, v) { (dst)->t = VAR_BIG;   (dst)->bi = (v); }
+#define SET_I64(dst, v) { (dst)->t = VAR_INT64; (dst)->i  = (v);                  }
+#define SET_DBL(dst, v) { (dst)->t = VAR_DBL;   (dst)->d  = (v);                  }
+#define SET_BIG(dst, v) { (dst)->t = VAR_BIG;   (dst)->bi = (v);                  }
 #define SET_STR(dst, v) { (dst)->t = VAR_STR;   (dst)->s  = alcstr_str(ctx, (v)); }
-#define SET_FNC(dst, v) { (dst)->t = VAR_FNC;   (dst)->f  = (v); }
-#define SET_OBJ(dst, v) { (dst)->t = VAR_OBJ;   (dst)->a  = (v); }
+#define SET_FNC(dst, v) { (dst)->t = VAR_FNC;   (dst)->f  = (v);                  }
+#define SET_OBJ(dst, v) { (dst)->t = VAR_OBJ;   (dst)->a  = (v);                  }
 
 #define COPY_VAR_TO(ctx, dst, src) { \
     switch ((src)->t) { \
@@ -346,7 +348,7 @@ enum {
         break; \
     case VAR_OBJ: \
         (dst)->t = VAR_OBJ; \
-        (dst)->a = (src)->a; \
+        (dst)->h = (src)->h; \
         break; \
     default: \
         /* Error */ \
@@ -381,6 +383,85 @@ enum {
 #define OP_JMP_IF_FALSE(r, label) { \
     if ((r)->t == VAR_INT64) { \
         if ((r)->i == 0) goto label; \
+    } else { \
+        /* TODO */ \
+    } \
+} \
+/**/
+
+/* Hashmap control */
+
+#define OP_APPLY(ctx, r, v, str) { \
+    (r)->a = NULL; \
+    vmvar *t1 = ((v)->a) ? (v)->a : (v); \
+    if ((t1)->t == VAR_OBJ) { \
+        if (!((t1)->h)) { \
+            (r)->t = VAR_INT64; \
+            (r)->i = 0; \
+        } else { \
+            vmvar *t2 = hashmap_search((t1)->h, str); \
+            COPY_VAR_TO(ctx, (r), t2); \
+        } \
+    } else { \
+        (r)->t = VAR_INT64; \
+        (r)->i = 0; \
+    } \
+} \
+/**/
+
+#define OP_APPLYL(ctx, r, v, str) { \
+    vmvar *t1 = ((v)->a) ? (v)->a : (v); \
+    if ((t1)->t != VAR_OBJ) { \
+        (t1)->t = VAR_OBJ; \
+    } \
+    vmvar *t2 = NULL; \
+    if (!(t1)->h) { \
+        (t1)->h = alchsh(ctx); \
+        hashmap_create((t1)->h, HASH_SIZE); \
+    } else { \
+        t2 = hashmap_search((t1)->h, str); \
+    } \
+    if (!t2) { \
+        t2 = alcvar_int64(ctx, 0, 0); \
+        (t1)->h = hashmap_set(ctx, (t1)->h, str, t2); \
+    } \
+    r->t = VAR_OBJ; \
+    r->a = t2; \
+} \
+/**/
+
+/* Increment/Decrement */
+
+#define OP_INC(ctx, r, v) { \
+    if ((v)->t == VAR_INT64) { \
+        (r)->i = ++((v)->i); \
+    } else { \
+        /* TODO */ \
+    } \
+} \
+/**/
+
+#define OP_INCP(ctx, r, v) { \
+    if ((v)->t == VAR_INT64) { \
+        (r)->i = ((v)->i)++; \
+    } else { \
+        /* TODO */ \
+    } \
+} \
+/**/
+
+#define OP_DEC(ctx, r, v) { \
+    if ((v)->t == VAR_INT64) { \
+        (r)->i = --((v)->i); \
+    } else { \
+        /* TODO */ \
+    } \
+} \
+/**/
+
+#define OP_DECP(ctx, r, v) { \
+    if ((v)->t == VAR_INT64) { \
+        (r)->i = ((v)->i)--; \
     } else { \
         /* TODO */ \
     } \

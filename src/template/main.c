@@ -20,8 +20,10 @@ int main(void)
             BzFreeString(bs);
         } else if (r.t == VAR_STR) {
             printf("%s\n", r.s->s);
+        } else if (r.t == VAR_OBJ) {
+            hashmap_objprint(r.h);
         } else {
-            printf("<OBJ>\n");
+            printf("<UNKNOWN>\n");
         }
     }
     if (ctx->verbose) {

@@ -28,18 +28,23 @@ static void type_expr(kl_context *ctx, type_context *tc, kl_expr *e)
     if (l && r) {
         if (e->nodetype == TK_EQ) {
             l->typeid = r->typeid;
-        }
-        if (tc->in_native) {
-            if (l->typeid == r->typeid) {
-                /* Even if it's an integer type, it's never promoted to the big integer in native. */
-                e->typeid = l->typeid;
-            }
-        } else {
-            if (l->typeid == r->typeid && l->typeid > TK_TUINT64) {
-                /* When it's an integer type, it could be promoted to the big integer. */
-                e->typeid = l->typeid;
+            if (!l->prototype && r->prototype) {
+                l->prototype = r->prototype;
             }
         }
+        if (l->typeid == r->typeid && (!tc->in_native || l->typeid > TK_TUINT64)) {
+            /* Even if it's an integer type, it's never promoted to the big integer in native. */
+            /* When it's an integer type, it could be promoted to the big integer. */
+            e->typeid = l->typeid;
+            e->prototype = l->prototype;
+        }
+    }
+    if (e->sym) {
+        if (e->sym->ref) {
+            e->sym->typeid = e->sym->ref->typeid;
+            e->sym->prototype = e->sym->ref->prototype;
+        }
+        e->typeid = e->sym->typeid;
     }
 }
 

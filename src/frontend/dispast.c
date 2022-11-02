@@ -9,63 +9,6 @@ static void make_indent(int indent)
         for (int i = 0; i < indent; ++i) printf("  ");
 }
 
-static int append_str(char *buf, int i, int max, const char *str)
-{
-    while (*str && i < max) {
-        buf[i++] = *str++;
-    }
-    return i;
-}
-
-static int create_proto_string_expr(char *buf, int i, int max, kl_expr *e)
-{
-    if (!e) {
-        return i;
-    }
-
-    switch (e->nodetype) {
-    case TK_VAR:
-    case TK_TYPENODE:
-        i = append_str(buf, i, max, typeidname(e->typeid));
-        break;
-    case TK_COMMA:
-        i = create_proto_string_expr(buf, i, max, e->lhs);
-        i = append_str(buf, i, max, ", ");
-        i = create_proto_string_expr(buf, i, max, e->rhs);
-        break;
-    case TK_DARROW:
-        i = append_str(buf, i, max, "(");
-        i = create_proto_string_expr(buf, i, max, e->lhs);
-        i = append_str(buf, i, max, ") => ");
-        i = create_proto_string_expr(buf, i, max, e->rhs);
-        break;
-    case TK_VARY:
-        i = append_str(buf, i, max, "[]");
-        break;
-    case TK_VOBJ:
-        i = append_str(buf, i, max, "{}");
-        break;
-    }
-    return i;
-}
-
-static void print_prototype(kl_symbol *sym)
-{
-    int i = 0;
-    char buf[256] = {0};
-    i = append_str(buf, i, 254, "(");
-    i = create_proto_string_expr(buf, i, 254, sym->args);
-    i = append_str(buf, i, 254, ") => ");
-    if (sym->typ) {
-        i = append_str(buf, i, 254, "(");
-        i = create_proto_string_expr(buf, i, 254, sym->typ);
-        i = append_str(buf, i, 254, ")");
-    } else {
-        append_str(buf, i, 254, typeidname(sym->type));
-    }
-    printf(", %s", buf);
-}
-
 static void print_typenode(kl_expr *e)
 {
     if (!e) return;
@@ -166,31 +109,27 @@ static void disp_expr(kl_expr *e, int indent)
 
     case TK_VAR:
         if (e->sym) {
-            if (e->sym->ref) {
-                int index = e->sym->ref->index;
-                int level = e->sym->level;
-                if (e->sym->typ) {
-                    printf("[$%d(%d)] %s:", index, level, e->sym->name);
-                    print_typenode(e->sym->typ);
-                } else {
-                    printf("[$%d(%d)] %s:%s", index, level, e->sym->name, typeidname(e->typeid));
-                }
+            kl_symbol *ref = e->sym->ref;
+            kl_symbol *sym = e->sym;
+            int index = sym->index;
+            int level = sym->level;
+            if (ref) {
+                printf("[$%d(%d)] %s:%s", index, level, sym->name, typeidname(e->typeid));
             } else {
-                int index = e->sym->index;
-                if (e->sym->typ) {
-                    printf("[$%d] %s:", index, e->sym->name);
-                    print_typenode(e->sym->typ);
-                } else {
-                    printf("[$%d] %s:%s", index, e->sym->name, typeidname(e->typeid));
-                }
+                printf("[$%d] %s:%s", index, sym->name, typeidname(e->typeid));
             }
-            if (e->sym->ref) {
-                kl_symbol *ref = e->sym->ref;
+            if (sym->typetree) {
+                printf(", ");
+                print_typenode(sym->typetree);
+            }
+            if (ref) {
                 if (ref->is_callable) {
-                    if (e->sym->is_recursive) {
+                    if (sym->is_recursive) {
                         printf(", [=]");
                     }
-                    print_prototype(ref);
+                    if (sym->prototype) {
+                        printf(", %s", sym->prototype);
+                    }
                 }
             }
             if (indent > 0) printf("\n");
@@ -199,7 +138,7 @@ static void disp_expr(kl_expr *e, int indent)
 
     case TK_CALL:
         if (e->lhs) {
-            printf("call\n");
+            printf("call:%s\n", typeidname(e->typeid));
             disp_expr(e->lhs, indent + 1);
         }
         if (e->rhs) {
@@ -243,8 +182,13 @@ static void disp_expr(kl_expr *e, int indent)
     case TK_RSH:
     case TK_LAND:
     case TK_LOR:
+    case TK_DOT:
     case TK_COMMA:
-        printf("op(%s): %s\n", tokenname(e->nodetype), typeidname(e->typeid));
+        printf("op(%s): %s", tokenname(e->nodetype), typeidname(e->typeid));
+        if (e->prototype) {
+            printf(", %s", e->prototype);
+        }
+        printf("\n");
         disp_expr(e->lhs, indent + 1);
         disp_expr(e->rhs, indent + 1);
         break;
@@ -253,6 +197,13 @@ static void disp_expr(kl_expr *e, int indent)
         disp_expr(e->lhs, indent + 1);
         disp_expr(e->rhs, indent + 1);
         disp_expr(e->xhs, indent + 1);
+        break;
+    case TK_INC:
+    case TK_INCP:
+    case TK_DEC:
+    case TK_DECP:
+        printf("op(%s): %s\n", tokenname(e->nodetype), typeidname(e->typeid));
+        disp_expr(e->lhs, indent + 1);
         break;
     default:
         printf("[MISSING]: %s\n", tokenname(e->nodetype));
@@ -300,7 +251,7 @@ static void disp_stmt(kl_stmt *s, int indent)
     case TK_FUNC:
         if (s->sym) {
             printf("def[$%d] ", s->sym->index);
-            switch (s->sym->symtype) {
+            switch (s->sym->symtoken) {
             case TK_PRIVATE: printf("private "); break;
             case TK_PROTECTED: printf("protected "); break;
             case TK_PUBLIC: printf("public "); break;
@@ -310,9 +261,9 @@ static void disp_stmt(kl_stmt *s, int indent)
                 disp_expr(s->e1, indent + 1);
             }
             make_indent(indent);
-            if (s->sym->typ) {
+            if (s->sym->typetree) {
                 printf(") : ");
-                print_typenode(s->sym->typ);
+                print_typenode(s->sym->typetree);
                 printf("\n");
             } else {
                 printf(") : %s\n", typeidname(s->typeid));
@@ -346,24 +297,48 @@ static void disp_stmt(kl_stmt *s, int indent)
             disp_stmt_list(s->s2, indent + 1);
         }
         break;
-    case TK_WHILE:
-        printf("while\n");
-        if (s->e1) {
-            disp_expr(s->e1, indent + 1);
-        }
-        if (s->s1) {
-            disp_stmt_list(s->s1, indent + 1);
-        }
-        break;
     case TK_DO:
         printf("do\n");
         if (s->s1) {
             disp_stmt_list(s->s1, indent + 1);
         }
-        make_indent(indent);
-        printf("- while condition\n");
+        make_indent(indent+1);
+        printf("while-cond:\n");
         if (s->e1) {
-            disp_expr(s->e1, indent + 1);
+            disp_expr(s->e1, indent + 2);
+        }
+        break;
+    case TK_WHILE:
+        printf("while\n");
+        make_indent(indent+1);
+        printf("cond:\n");
+        if (s->e1) {
+            disp_expr(s->e1, indent + 2);
+        }
+        if (s->s1) {
+            disp_stmt_list(s->s1, indent + 1);
+        }
+        break;
+    case TK_FOR:
+        printf("for\n");
+        make_indent(indent+1);
+        printf("cond1:\n");
+        if (s->e1) {
+            disp_expr(s->e1, indent + 2);
+        }
+        make_indent(indent+1);
+        printf("cond2:\n");
+        if (s->e2) {
+            disp_expr(s->e2, indent + 2);
+        }
+        make_indent(indent+1);
+        printf("cond3:\n");
+        if (s->e3) {
+            disp_expr(s->e3, indent + 2);
+        }
+        /* then part */
+        if (s->s1) {
+            disp_stmt_list(s->s1, indent + 1);
         }
         break;
     case TK_RETURN:

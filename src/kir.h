@@ -63,7 +63,7 @@ typedef enum tk_token {
     TK_ELSE,                //  * else
     TK_DO,                  //  * do
     TK_WHILE,               //  * while
-    TK_FOR,                 //    for
+    TK_FOR,                 //  * for
     TK_IN,                  //    in
     TK_RETURN,              //  * return
     TK_SWITCH,              //    switch
@@ -124,6 +124,10 @@ typedef enum tk_token {
     TK_RSH,                 //  * >>
     TK_LAND,                //  * &&
     TK_LOR,                 //  * ||
+    TK_INC,                 //  * ++x
+    TK_INCP,                //  * x++ (postfix)
+    TK_DEC,                 //  * --x
+    TK_DECP,                //  * x-- (postfix)
 
     // Punctuations
     TK_COMMA,               //  ,
@@ -199,7 +203,8 @@ typedef enum kl_kir {
      *  <r*> is the value with a type.
      */
     KIR_MOV,        //  <r1>, <r2>              ;   <r1>  <-  <r2>
-    KIR_MOVFNC,     //  <r1>, <r2>:func         ;   <r1>  <-  <r2>:func
+    KIR_MOVA,       //  <r1>, <r2>              ;   *<r1> <-  <r2>
+    KIR_MOVF,       //  <r1>, <r2>:func         ;   <r1>  <-  <r2>:func
     KIR_ADD,        //  <r1>, <r2>, <r3>        ;   <r1>  <-  <r2> + <r3>
     KIR_SUB,        //  <r1>, <r2>, <r3>        ;   <r1>  <-  <r2> - <r3>
     KIR_MUL,        //  <r1>, <r2>, <r3>        ;   <r1>  <-  <r2> * <r3>
@@ -214,8 +219,15 @@ typedef enum kl_kir {
     KIR_GE,         //  <r1>, <r2>, <r3>        ;   <r1>  <-  <r2> => <r3>
     KIR_LGE,        //  <r1>, <r2>, <r3>        ;   <r1>  <-  <r2> <=> <r3>
 
+    KIR_INC,        //  <r1>, <r2>              ;   <r1>  <-  inc <r2>
+    KIR_INCP,       //  <r1>, <r2>              ;   <r1>  <-  <r2>,  inc <r2>
+    KIR_DEC,        //  <r1>, <r2>              ;   <r1>  <-  dec <r2>
+    KIR_DECP,       //  <r1>, <r2>              ;   <r1>  <-  <r2>,  dec <r2>
+
     KIR_IDX,        //  <r1>, <r2>, <idx>       ;   <r1>  <-  <r2>[<idx>]
+    KIR_IDXL,       //  <r1>, <r2>, <idx>       ;   <r1>  <-  <r2>[<idx>]
     KIR_APLY,       //  <r1>, <r2>, <str>       ;   <r1>  <-  <r2>.<str>
+    KIR_APLYL,      //  <r1>, <r2>, <str>       ;   <r1>  <-  &<r2>.<str>
 
 } kl_kir;
 
@@ -226,6 +238,7 @@ typedef struct kl_kir_opr {
     int args;                   //  The argument count when calling the function.
     int funcid;                 //  The function id to call.
     int recursive;              //  1 if the recursive call.
+    int prevent;                //  Prevent an assignment to the variable.
     int64_t i64;
     double dbl;
     const char *str;

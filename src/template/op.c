@@ -112,11 +112,13 @@ int add_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
             r->s = str_dup(ctx, v0->s);
             str_append_i64(ctx, r->s, v1->d);
             break;
-        case VAR_STR:
+        case VAR_STR: {
+            vmstr *s = str_dup(ctx, v0->s);
+            str_append_str(ctx, s, v1->s);
             r->t = VAR_STR;
-            r->s = str_dup(ctx, v0->s);
-            str_append_str(ctx, r->s, v1->s);
+            r->s = s;
             break;
+        }
         case VAR_FNC:
         case VAR_OBJ:
             return throw_system_exception(ctx, EXCEPT_UNSUPPORTED_OPERATION);
@@ -417,11 +419,13 @@ int div_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
             r->s = str_dup(ctx, v0->s);
             str_make_path_i64(ctx, r->s, (int64_t)(v1->d));
             break;
-        case VAR_STR:
+        case VAR_STR: {
+            vmstr *s = str_dup(ctx, v0->s);
+            str_make_path(ctx, s, v1->s);
             r->t = VAR_STR;
-            r->s = str_dup(ctx, v0->s);
-            str_make_path(ctx, r->s, v1->s);
+            r->s = s;
             break;
+        }
         case VAR_FNC:
         case VAR_OBJ:
             return throw_system_exception(ctx, EXCEPT_UNSUPPORTED_OPERATION);

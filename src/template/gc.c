@@ -89,19 +89,35 @@ void mark_var(vmvar *v)
 
     MARK(v);
     if (v->f) {
-        mark_fnc(v->f);
+        if (v->t == VAR_FNC) {
+            mark_fnc(v->f);
+        } else {
+            v->f = NULL;
+        }
     }
     if (v->h) {
-        mark_hsh(v->h);
+        if (v->t == VAR_OBJ) {
+            mark_hsh(v->h);
+        } else {
+            v->h = NULL;
+        }
     }
     if (v->s) {
-        MARK(v->s);
+        if (v->t == VAR_STR) {
+            MARK(v->s);
+        } else {
+            v->s = NULL;
+        }
     }
     if (v->bi) {
-        MARK(v->bi);
+        if (v->t == VAR_BIG) {
+            MARK(v->bi);
+        } else {
+            v->bi = NULL;
+        }
     }
     if (v->a) {
-        MARK(v->a);
+        mark_var(v->a);
     }
 }
 

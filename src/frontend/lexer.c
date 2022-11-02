@@ -108,6 +108,10 @@ static const char *tkname[] = {
     "TK_RSH",
     "TK_LAND",
     "TK_LOR",
+    "TK_INC",
+    "TK_INCP",
+    "TK_DEC",
+    "TK_DECP",
 
     "TK_COMMA",
     "TK_COLON",
@@ -875,9 +879,9 @@ static tk_token lexer_fetch_token(kl_lexer *l)
     case '!':
         LEXER_CHECK_12_13_TOK('=', '~', TK_NOT, TK_NEQ, TK_REGNE)
     case '+':
-        LEXER_CHECK_12_TOK('=', TK_ADD, TK_ADDEQ)
+        LEXER_CHECK_12_13_TOK('=', '+', TK_ADD, TK_ADDEQ, TK_INC)
     case '-':
-        LEXER_CHECK_12_13_TOK('=', '>', TK_SUB, TK_SUBEQ, TK_ARROW)
+        LEXER_CHECK_12_13_TOK('=', '-', TK_SUB, TK_SUBEQ, TK_DEC)
     case '*':
         LEXER_CHECK_12_13_123_TOK('*', '=', TK_MUL, TK_EXP, TK_MULEQ, TK_EXPEQ)
     case '/':
