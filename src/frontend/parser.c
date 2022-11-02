@@ -716,7 +716,8 @@ static kl_expr *parse_expr_postfix(kl_context *ctx, kl_lexer *l)
             tok = l->tok;
         } else if (tok == TK_DOT) {
             lexer_fetch(l);
-            if (l->tok != TK_NAME) {
+            const char *name = (l->tok == TK_TYPEID) ? typeidname(l->typeid) : l->str;
+            if (!name || name[0] == 0) {
                 parse_error(ctx, __LINE__, "Compile", l, "Property name is needed.");
                 return panic_mode_expr(lhs, ';', ctx, l);
             }
@@ -972,7 +973,7 @@ static kl_expr *parse_type(kl_context *ctx, kl_lexer *l)
         }
         if (l->tok == TK_TYPEID) {
             kl_expr *e1 = make_expr(ctx, l, TK_TYPENODE);
-            e1->typeid = l->type;
+            e1->typeid = l->typeid;
             e = make_bin_expr(ctx, l, TK_COMMA, e, e1);
             lexer_fetch(l);
         } else {
@@ -989,7 +990,7 @@ static kl_expr *parse_type(kl_context *ctx, kl_lexer *l)
         lexer_fetch(l);
         if (l->tok == TK_TYPEID) {
             kl_expr *e1 = make_expr(ctx, l, TK_TYPENODE);
-            e1->typeid = l->type;
+            e1->typeid = l->typeid;
             e = make_conn_expr(ctx, l, TK_DARROW, e, e1);
             lexer_fetch(l);
         } else {
@@ -1022,7 +1023,7 @@ static kl_expr *parse_type_expr(kl_context *ctx, kl_lexer *l, kl_expr *e, kl_sym
 {
     lexer_fetch(l);
     if (l->tok == TK_TYPEID) {
-        e->typeid = sym->typeid = l->type;
+        e->typeid = sym->typeid = l->typeid;
         lexer_fetch(l);
     } else {
         sym->typetree = parse_type(ctx, l);
@@ -1035,7 +1036,7 @@ static kl_stmt *parse_type_stmt(kl_context *ctx, kl_lexer *l, kl_stmt *s, kl_sym
 {
     lexer_fetch(l);
     if (l->tok == TK_TYPEID) {
-        s->typeid = sym->typeid = l->type;
+        s->typeid = sym->typeid = l->typeid;
         lexer_fetch(l);
     } else {
         sym->typetree = parse_type(ctx, l);
