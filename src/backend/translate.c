@@ -237,7 +237,7 @@ static void translate_chkcnd(func_context *fctx, xstr *code, const char *op, con
     translate_op3(fctx, code, op, sop, i);
 }
 
-static void translate_call(xstr *code, kl_kir_inst *i)
+static void translate_call(xstr *code, kl_kir_func *f, kl_kir_inst *i)
 {
     char buf1[256] = {0};
     char buf2[256] = {0};
@@ -250,6 +250,7 @@ static void translate_call(xstr *code, kl_kir_inst *i)
         }
     } else {
         var_value(buf2, &(i->r2));
+        xstra_inst(code, "CHECK_FUNC(%s, L%d);\n", buf2, f->funcend);
         xstra_inst(code, "e = ((vmfunc_t)(((%s)->f)->f))(ctx, ((%s)->f)->lex, %s, %d);\n", buf2, buf2, buf1, i->r2.args);
     }
 }
@@ -432,7 +433,7 @@ static void translate_inst(xstr *code, kl_kir_func *f, kl_kir_inst *i, func_cont
         xstra_inst(code, "if (e) goto L%d;\n", f->funcend);
         break;
     case KIR_CALL:
-        translate_call(code, i);
+        translate_call(code, f, i);
         break;
     case KIR_RSSTKP:
         xstra_inst(code, "restore_vstackp(ctx, p);\n");

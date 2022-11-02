@@ -315,6 +315,10 @@ enum {
 
 /* Operator macros */
 
+/* Check if it's a function */
+
+#define CHECK_FUNC(v, l) do { if ((v)->t != VAR_FNC) { /* TODO: MethodMissing Exception */; goto l; } } while (0);
+
 /* Copy Variable */
 
 #define SET_I64(dst, v) { (dst)->t = VAR_INT64; (dst)->i  = (v);                  }
@@ -392,7 +396,6 @@ enum {
 /* Hashmap control */
 
 #define OP_APPLY(ctx, r, v, str) { \
-    (r)->a = NULL; \
     vmvar *t1 = ((v)->a) ? (v)->a : (v); \
     if ((t1)->t == VAR_OBJ) { \
         if (!((t1)->h)) { \
@@ -400,7 +403,12 @@ enum {
             (r)->i = 0; \
         } else { \
             vmvar *t2 = hashmap_search((t1)->h, str); \
-            COPY_VAR_TO(ctx, (r), t2); \
+            if (!t2) { \
+                (r)->t = VAR_INT64; \
+                (r)->i = 0; \
+            } else { \
+                COPY_VAR_TO(ctx, (r), t2); \
+            } \
         } \
     } else { \
         (r)->t = VAR_INT64; \
