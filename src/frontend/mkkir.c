@@ -300,6 +300,35 @@ static kl_kir_opr make_var_index(kl_context *ctx, int index, int level, tk_typei
     return r1;
 }
 
+static kl_kir_inst *gen_object_literal(kl_context *ctx, kl_symbol *sym, kl_kir_opr *r1, kl_expr *e)
+{
+    kl_kir_inst *head = NULL;
+    switch (e->nodetype) {
+    case TK_VKV: {
+        /* e->lhs should be a string. */
+        kl_kir_opr rs = {0};
+        KL_KIR_CHECK_LITERAL(e->rhs, rs, head);
+        kl_kir_opr r2 = make_var(ctx, sym, TK_TANY);
+        kl_kir_opr r3 = make_lit_str(ctx, e->lhs->val.str);
+        kl_kir_inst *inst = new_inst_op3(ctx->program, e->line, e->pos, KIR_APLYL, &r2, r1, &r3);
+        if (!head) {
+            head = inst;
+        } else {
+            kl_kir_inst *last = get_last(head);
+            last->next = inst;
+        }
+        inst->next = new_inst_op2(ctx->program, e->line, e->pos, KIR_MOVA, &r2, &rs);
+        break;
+    }
+    case TK_COMMA:
+        head = gen_object_literal(ctx, sym, r1, e->lhs);
+        kl_kir_inst *last = get_last(head);
+        last->next = gen_object_literal(ctx, sym, r1, e->rhs);
+        break;
+    }
+    return head;
+}
+
 static kl_kir_inst *gen_incdec(kl_context *ctx, kl_symbol *sym, kl_kir op, kl_kir_opr *r1, kl_expr *e)
 {
     kl_kir_opr rr = {0};
@@ -744,6 +773,7 @@ static kl_kir_inst *gen_expr(kl_context *ctx, kl_symbol *sym, kl_kir_opr *r1, kl
         break;
     }
     case TK_VOBJ: {
+        head = gen_object_literal(ctx, sym, r1, e->lhs);
         break;
     }
     case TK_VAR: {
