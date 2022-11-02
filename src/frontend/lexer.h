@@ -33,7 +33,7 @@ typedef struct kl_lexer {
     int binmode;            //  If 1, it's parsing a binary.
     tk_token tok;           //  Current token.
     tk_token unfetch;       //  Buffer for unfetch.
-    tk_typeid type;         //  Type value
+    tk_typeid typeid;       //  Type ID
     uint32_t options;
 
     int64_t i64;

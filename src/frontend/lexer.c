@@ -383,7 +383,7 @@ static inline int is_16num_char(int ch)
 
 static inline int set_type(kl_lexer *l, tk_token tok, tk_typeid tid)
 {
-    l->type = tid;
+    l->typeid = tid;
     return tok;
 }
 
