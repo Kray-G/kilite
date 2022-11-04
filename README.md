@@ -38,6 +38,27 @@ To meet the goal, I will try with followings.
     * Compiling separatedly, you can execute it all together later.
     * You can write the library by C language if you need, and use it as a .bmir as it is.
 
+## Benchmark
+
+Now, I did benchmark with some script languages because the current version of kilite can run the code if it's like a fibonacci.
+That's why I'll show it below.
+The target program is the 38th result of a fibonacci as usual.
+
+|              | Version     | Time  |
+| ------------ | ----------- | ----- |
+| luajit       | 2.1.0-beta3 | 0.42s |
+| PyPy         | 7.3.9       | 0.42s |
+| Kinx(native) | 1.1.1       | 0.57s |
+| Kilite       | (beta)      | 1.67s |
+| Lua          | 5.4.4       | 2.78s |
+| Ruby         | 3.1.2p20    | 3.30s |
+| Kinx         | 1.1.1       | 5.63s |
+| Python       | 3.11.0      | 6.28s |
+
+luajit and pypy was very fast. That's exactly JIT as expected.
+Kilite has already been 2x faster than Ruby, and 3.3x faster than Kinx.
+In the future, it could be slower by increasing the code, but I will try to keep the perfrmance even if the code would be more complex.
+
 ## TODO
 
 I will note the followings as I don't forget it.
