@@ -357,19 +357,46 @@ static kl_kir_inst *gen_incdec(kl_context *ctx, kl_symbol *sym, kl_kir op, kl_ki
     return inst;
 }
 
-static kl_kir_inst *gen_apply_str(kl_context *ctx, kl_symbol *sym, kl_kir_opr *r1, kl_expr *e)
+static kl_kir_inst *gen_apply(kl_context *ctx, kl_symbol *sym, kl_kir_opr *r1, kl_expr *e)
 {
-    kl_kir_inst *r2i = NULL;
-    kl_kir_opr r2 = {0};
     kl_expr *l = e->lhs;
     kl_expr *r = e->rhs;
 
+    kl_kir_inst *r2i = NULL;
+    kl_kir_opr r2 = {0};
     KL_KIR_CHECK_LVALUE(l, r2, r2i);
+    kl_kir_inst *r3i = NULL;
+    kl_kir_opr r3 = {0};
+    KL_KIR_CHECK_LITERAL(r, r3, r3i);
+
+    kl_kir_inst *inst = new_inst_op3(ctx->program, e->line, e->pos, ctx->in_lvalue ? KIR_IDXL : KIR_IDX, r1, &r2, &r3);
+    if (r2i) {
+        kl_kir_inst *r2l = get_last(r2i);
+        r2l->next = inst;
+        inst = r2i;
+    }
+    if (r3i) {
+        kl_kir_inst *r3l = get_last(r3i);
+        r3l->next = inst;
+        inst = r3i;
+    }
+
+    return inst;
+}
+
+static kl_kir_inst *gen_apply_str(kl_context *ctx, kl_symbol *sym, kl_kir_opr *r1, kl_expr *e)
+{
+    kl_expr *l = e->lhs;
+    kl_expr *r = e->rhs;
     if (r->nodetype != TK_VSTR) {
         return NULL;
     }
 
+    kl_kir_inst *r2i = NULL;
+    kl_kir_opr r2 = {0};
+    KL_KIR_CHECK_LVALUE(l, r2, r2i);
     kl_kir_opr r3 = make_lit_str(ctx, r->val.str);
+
     kl_kir_inst *inst = new_inst_op3(ctx->program, e->line, e->pos, ctx->in_lvalue ? KIR_APLYL : KIR_APLY, r1, &r2, &r3);
     if (r2i) {
         kl_kir_inst *r2l = get_last(r2i);
@@ -541,7 +568,7 @@ static kl_kir_inst *gen_assign(kl_context *ctx, kl_symbol *sym, kl_kir_opr *r1, 
                 last->next = new_inst_op2(ctx->program, l->line, l->pos, KIR_MOV, r1, &r2);
             }
         }
-    } else if (l->nodetype == TK_DOT) {
+    } else if (l->nodetype == TK_DOT || l->nodetype == TK_IDX) {
         ctx->in_lvalue = 1;
         kl_kir_opr rr = {0};
         if (!r1 || r1->index < 0) {
@@ -864,6 +891,9 @@ static kl_kir_inst *gen_expr(kl_context *ctx, kl_symbol *sym, kl_kir_opr *r1, kl
     case TK_RSH:
     case TK_LAND:
     case TK_LOR:
+        break;
+    case TK_IDX:
+        head = gen_apply(ctx, sym, r1, e);
         break;
     case TK_DOT:
         head = gen_apply_str(ctx, sym, r1, e);

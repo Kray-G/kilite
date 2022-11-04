@@ -182,6 +182,7 @@ static void disp_expr(kl_expr *e, int indent)
     case TK_RSH:
     case TK_LAND:
     case TK_LOR:
+    case TK_IDX:
     case TK_DOT:
     case TK_COMMA:
         printf("op(%s): %s", tokenname(e->nodetype), typeidname(e->typeid));

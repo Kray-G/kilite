@@ -67,7 +67,7 @@ void mark_hsh(vmobj *h)
 
     vmvar *v = h->map;
     if (v) {
-        for (int i = 0; i < h->sz; ++i) {
+        for (int i = 0; i < h->hsz; ++i) {
             if (v[i].s) {
                 MARK(v[i].s);
             }
@@ -255,7 +255,10 @@ void sweep(vmctx *ctx)
             ++hc;
             free(h->map);
             h->map = NULL;
-            h->sz = 0;
+            h->hsz = 0;
+            free(h->ary);
+            h->ary = NULL;
+            h->asz = 0;
             pbakobj(ctx, h);
         }
         h = n;

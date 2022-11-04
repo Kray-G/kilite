@@ -81,6 +81,17 @@ static xstr *xstraf(xstr *vs, const char *fmt, ...)
     return vs;
 }
 
+static void escape_str(xstr *code, const char *s)
+{
+    while (*s) {
+        if (*s == '"' || *s == '\\') {
+            xstrc(code, '\\');
+        }
+        xstrc(code, *s);
+        s++;
+    }
+}
+
 static inline int is_var(kl_kir_opr *rn)
 {
     return rn->t == TK_VAR;
@@ -180,6 +191,31 @@ static void translate_incdec(func_context *fctx, xstr *code, const char *op, con
     }
 }
 
+static void translate_idx(func_context *fctx, xstr *code, kl_kir_inst *i, int r3typeid, int lvalue)
+{
+    char buf1[256] = {0};
+    char buf2[256] = {0};
+    char buf3[256] = {0};
+    var_value(buf1, &(i->r1));
+    var_value(buf2, &(i->r2));
+    switch (r3typeid) {
+    case TK_TSINT64:
+        xstra_inst(code, "OP_ARRAY_REF%s_I(ctx, %s, %s, %" PRId64 ");\n", (lvalue ? "L" : ""), buf1, buf2, i->r3.i64);
+        break;
+    case TK_TDBL:
+        xstra_inst(code, "OP_ARRAY_REF%s_I(ctx, %s, %s, %" PRId64 ");\n", (lvalue ? "L" : ""), buf1, buf2, (int)(i->r3.dbl));
+        break;
+    case TK_TSTR:
+        xstra_inst(code, "OP_HASH_APPLY%s(ctx, %s, %s, \"", (lvalue ? "L" : ""), buf1, buf2);
+        escape_str(code, i->r3.str);
+        xstrs(code, "\");\n");
+        break;
+    default:
+        xstra_inst(code, "OP_ARRAY_REF%s(ctx, %s, %s, %s);\n", (lvalue ? "L" : ""), buf1, buf2, var_value(buf3, &(i->r3)));
+        break;
+    }
+}
+
 static void translate_op3(func_context *fctx, xstr *code, const char *op, const char *sop, kl_kir_inst *i)
 {
     kl_kir_opr *r1 = &(i->r1);
@@ -252,17 +288,6 @@ static void translate_call(xstr *code, kl_kir_func *f, kl_kir_inst *i)
         var_value(buf2, &(i->r2));
         xstra_inst(code, "CHECK_FUNC(%s, L%d);\n", buf2, f->funcend);
         xstra_inst(code, "e = ((vmfunc_t)(((%s)->f)->f))(ctx, ((%s)->f)->lex, %s, %d);\n", buf2, buf2, buf1, i->r2.args);
-    }
-}
-
-static void escape_str(xstr *code, const char *s)
-{
-    while (*s) {
-        if (*s == '"' || *s == '\\') {
-            xstrc(code, '\\');
-        }
-        xstrc(code, *s);
-        s++;
     }
 }
 
@@ -522,19 +547,18 @@ static void translate_inst(xstr *code, kl_kir_func *f, kl_kir_inst *i, func_cont
         translate_incdec(fctx, code, "DECP", "++", 1, i);
         break;
 
+    case KIR_IDX:
+        translate_idx(fctx, code, i, i->r3.typeid, 0);
+        break;
+    case KIR_IDXL:
+        translate_idx(fctx, code, i, i->r3.typeid, 1);
+        break;
+
     case KIR_APLY:
-        var_value(buf1, &(i->r1));
-        var_value(buf2, &(i->r2));
-        xstra_inst(code, "OP_APPLY(ctx, %s, %s, \"", buf1, buf2);
-        escape_str(code, i->r3.str);
-        xstrs(code, "\");\n");
+        translate_idx(fctx, code, i, TK_TSTR, 0);
         break;
     case KIR_APLYL:
-        var_value(buf1, &(i->r1));
-        var_value(buf2, &(i->r2));
-        xstra_inst(code, "OP_APPLYL(ctx, %s, %s, \"", buf1, buf2);
-        escape_str(code, i->r3.str);
-        xstrs(code, "\");\n");
+        translate_idx(fctx, code, i, TK_TSTR, 1);
         break;
     }
 }

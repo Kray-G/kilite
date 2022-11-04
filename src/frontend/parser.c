@@ -708,7 +708,7 @@ static kl_expr *parse_expr_postfix(kl_context *ctx, kl_lexer *l)
             lexer_fetch(l);
             kl_expr *rhs = parse_expression(ctx, l);
             lhs = make_bin_expr(ctx, l, TK_IDX, lhs, rhs);
-            if (l->tok != TK_RSBR) {
+            if (l->tok != TK_RLBR) {
                 parse_error(ctx, __LINE__, "Compile", l, "The ']' is missing.");
                 return panic_mode_expr(lhs, ';', ctx, l);
             }

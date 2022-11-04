@@ -44,6 +44,7 @@ int strcmp(const char *s1, const char *s2);
 #define TICK_UNIT (1024*64)
 #define STR_UNIT (32)
 #define HASH_SIZE (23)
+#define ARRAY_UNIT (64)
 #define HASHITEM_EMPTY(h) ((h)->hasht = 0x00)
 #define HASHITEM_EXIST(h) ((h)->hasht = 0x01)
 #define HASHITEM_REMVD(h) ((h)->hasht = 0x02)
@@ -124,8 +125,11 @@ typedef struct vmobj {
     struct vmobj *chn;  /* The link in allocated object list */
 
     int32_t flags;
-    int32_t sz;
-    struct vmvar *map;
+    int32_t lastidx;
+    int32_t asz;
+    int32_t hsz;
+    struct vmvar **ary; /* Array holder */
+    struct vmvar *map;  /* Hashmap holder */
 } vmobj;
 
 typedef struct vmvar {
@@ -276,6 +280,7 @@ INLINE vmobj *hashmap_set(vmctx *ctx, vmobj *obj, const char *s, vmvar *v);
 INLINE vmobj *hashmap_remove(vmctx *ctx, vmobj *obj, const char *s);
 INLINE vmvar *hashmap_search(vmobj *obj, const char *s);
 INLINE vmobj *hashmap_copy(vmctx *ctx, vmobj *h);
+INLINE vmobj *array_set(vmctx *ctx, vmobj *obj, int64_t idx, vmvar *vs);
 
 INLINE int run_global(vmctx *ctx, vmfrm *lex, vmvar *r, int ac);
 
@@ -395,20 +400,14 @@ enum {
 
 /* Object control */
 
-#define OP_APPLY(ctx, r, v, str) { \
-    vmvar *t1 = ((v)->a) ? (v)->a : (v); \
-    if ((t1)->t == VAR_OBJ) { \
-        if (!((t1)->o)) { \
+#define OP_HASH_APPLY_OBJ(ctx, r, t1, str) { \
+    if ((t1)->o) { \
+        vmvar *t2 = hashmap_search((t1)->o, str); \
+        if (!t2) { \
             (r)->t = VAR_INT64; \
             (r)->i = 0; \
         } else { \
-            vmvar *t2 = hashmap_search((t1)->o, str); \
-            if (!t2) { \
-                (r)->t = VAR_INT64; \
-                (r)->i = 0; \
-            } else { \
-                COPY_VAR_TO(ctx, (r), t2); \
-            } \
+            COPY_VAR_TO(ctx, (r), t2); \
         } \
     } else { \
         (r)->t = VAR_INT64; \
@@ -417,23 +416,124 @@ enum {
 } \
 /**/
 
-#define OP_APPLYL(ctx, r, v, str) { \
+#define OP_HASH_APPLY(ctx, r, v, str) { \
     vmvar *t1 = ((v)->a) ? (v)->a : (v); \
-    if ((t1)->t != VAR_OBJ) { \
-        (t1)->t = VAR_OBJ; \
-    } \
-    vmvar *t2 = NULL; \
-    if (!(t1)->o) { \
-        (t1)->o = alcobj(ctx); \
+    if ((t1)->t == VAR_OBJ) { \
+        OP_HASH_APPLY_OBJ(ctx, r, t1, str) \
     } else { \
-        t2 = hashmap_search((t1)->o, str); \
+        (r)->t = VAR_INT64; \
+        (r)->i = 0; \
     } \
+} \
+/**/
+
+#define OP_HASH_APPLYL_OBJ(ctx, r, t1, str) { \
+    vmvar *t2 = hashmap_search((t1)->o, str); \
     if (!t2) { \
         t2 = alcvar_int64(ctx, 0, 0); \
         (t1)->o = hashmap_set(ctx, (t1)->o, str, t2); \
     } \
-    r->t = VAR_OBJ; \
-    r->a = t2; \
+    (r)->t = VAR_OBJ; \
+    (r)->a = t2; \
+} \
+/**/
+
+#define OP_HASH_APPLYL(ctx, r, v, str) { \
+    vmvar *t1 = ((v)->a) ? (v)->a : (v); \
+    if ((t1)->t != VAR_OBJ) { \
+        (t1)->t = VAR_OBJ; \
+        if (!(t1)->o) { \
+            (t1)->o = alcobj(ctx); \
+        } \
+    } \
+    OP_HASH_APPLYL_OBJ(ctx, r, t1, str) \
+} \
+/**/
+
+#define OP_ARRAY_REF_I(ctx, r, v, i) { \
+    if (i < (v)->asz) { \
+        COPY_VAR_TO(ctx, r, (v)->ary[i]); \
+    } else { \
+        (r)->t = VAR_INT64; \
+        (r)->i = 0; \
+    } \
+} \
+/**/
+
+#define OP_ARRAY_REF(ctx, r, v, iv) { \
+    switch ((iv)->t) { \
+    case VAR_INT64: { \
+        int64_t i = (iv)->i; \
+        OP_ARRAY_REF_I(ctx, r, v, i) \
+        break; \
+    } \
+    case VAR_DBL: { \
+        int64_t i = (int64_t)iv->d; \
+        OP_ARRAY_REF_I(ctx, r, v, i) \
+        break; \
+    } \
+    case VAR_STR: { \
+        OP_HASH_APPLY_OBJ(ctx, r, t1, (iv)->s) \
+        break; \
+    } \
+    default: \
+        /* TODO: operator[] */ \
+        break; \
+    } \
+} \
+/**/
+
+#define OP_ARRAY_REFL_CHKV(ctx, t1, v) \
+    vmvar *t1 = ((v)->a) ? (v)->a : (v); \
+    if ((t1)->t != VAR_OBJ) { \
+        (t1)->t = VAR_OBJ; \
+        if (!(t1)->o) { \
+            (t1)->o = alcobj(ctx); \
+        } \
+    } \
+/**/
+
+#define OP_ARRAY_REFL_I(ctx, r, v, i) { \
+    OP_ARRAY_REFL_CHKV(ctx, t1, v) \
+    vmvar *t2 = NULL; \
+    if (i < (t1)->o->asz) { \
+        t2 = (t1)->o->ary[i]; \
+    } \
+    if (!t2) { \
+        t2 = alcvar_int64(ctx, 0, 0); \
+        (t1)->o = array_set(ctx, (t1)->o, i, t2); \
+    } \
+    (r)->t = VAR_OBJ; \
+    (r)->a = t2; \
+} \
+/**/
+
+#define OP_ARRAY_REFL_S(ctx, r, v, s) { \
+    OP_ARRAY_REFL_CHKV(ctx, t1, v) \
+    OP_HASH_APPLYL_OBJ(ctx, r, t1, s) \
+} \
+/**/
+
+#define OP_ARRAY_REFL(ctx, r, v, iv) { \
+    switch (iv->t) { \
+    case VAR_INT64: { \
+        int64_t i = iv->i; \
+        OP_ARRAY_REFL_I(ctx, r, v, i) \
+        break; \
+    } \
+    case VAR_DBL: { \
+        int64_t i = (int64_t)iv->d; \
+        OP_ARRAY_REFL_I(ctx, r, v, i) \
+        break; \
+    } \
+    case VAR_STR: { \
+        OP_ARRAY_REFL_S(ctx, r, v, (iv)->s) \
+        break; \
+    } \
+    default: \
+        /* TODO: operator[] */ \
+        break; \
+    } \
 } \
 /**/
 
