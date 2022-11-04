@@ -21,7 +21,7 @@ int main(void)
         } else if (r.t == VAR_STR) {
             printf("%s\n", r.s->s);
         } else if (r.t == VAR_OBJ) {
-            hashmap_objprint(r.h);
+            hashmap_objprint(r.o);
         } else {
             printf("<UNKNOWN>\n");
         }

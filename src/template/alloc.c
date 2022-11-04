@@ -261,49 +261,49 @@ void pbakbgi(vmctx *ctx, vmbgi *p)
     }
 }
 
-// hashmap
-static void alloc_hshs(vmctx *ctx, int n)
+// object
+static void alloc_objs(vmctx *ctx, int n)
 {
     while (n--) {
-        vmhsh *h = (vmhsh *)calloc(1, sizeof(vmhsh));
-        h->nxt = ctx->alc.hsh.nxt;
-        h->chn = ctx->alc.hsh.chn;
-        ctx->alc.hsh.nxt = ctx->alc.hsh.chn = h;
+        vmobj *h = (vmobj *)calloc(1, sizeof(vmobj));
+        h->nxt = ctx->alc.obj.nxt;
+        h->chn = ctx->alc.obj.chn;
+        ctx->alc.obj.nxt = ctx->alc.obj.chn = h;
     }
 }
 
-vmhsh *alchsh(vmctx *ctx)
+vmobj *alcobj(vmctx *ctx)
 {
-    if (ctx->alc.hsh.nxt == &(ctx->alc.hsh)) {
-        alloc_hshs(ctx, ALC_UNIT);
-        ctx->cnt.hsh += ALC_UNIT;
-        ctx->fre.hsh += ALC_UNIT;
+    if (ctx->alc.obj.nxt == &(ctx->alc.obj)) {
+        alloc_objs(ctx, ALC_UNIT);
+        ctx->cnt.obj += ALC_UNIT;
+        ctx->fre.obj += ALC_UNIT;
     }
-    vmhsh *v = ctx->alc.hsh.nxt;
-    ctx->alc.hsh.nxt = v->nxt;
+    vmobj *v = ctx->alc.obj.nxt;
+    ctx->alc.obj.nxt = v->nxt;
     v->nxt = NULL;
     v->prv = NULL;
-    v->liv = ctx->alc.hsh.liv;
-    ctx->alc.hsh.liv = v;
+    v->liv = ctx->alc.obj.liv;
+    ctx->alc.obj.liv = v;
     if (v->liv) {
         v->liv->prv = v;
     }
 
-    ctx->fre.hsh--;
+    ctx->fre.obj--;
     return v;
 }
 
-void pbakhsh(vmctx *ctx, vmhsh *p)
+void pbakobj(vmctx *ctx, vmobj *p)
 {
     if (p && !p->nxt) {
-        p->nxt = ctx->alc.hsh.nxt;
-        ctx->alc.hsh.nxt = p;
-        ctx->fre.hsh++;
+        p->nxt = ctx->alc.obj.nxt;
+        ctx->alc.obj.nxt = p;
+        ctx->fre.obj++;
 
         if (p->prv) {
             p->prv->liv = p->liv;
         } else {
-            ctx->alc.hsh.liv = p->liv;
+            ctx->alc.obj.liv = p->liv;
         }
         if (p->liv) {
             p->liv->prv = p->prv;
@@ -470,6 +470,6 @@ void initialize_allocators(vmctx *ctx)
     HOLD(ctx->alc.str.nxt);
     ctx->alc.bgi.nxt = &(ctx->alc.bgi);
     HOLD(ctx->alc.bgi.nxt);
-    ctx->alc.hsh.nxt = &(ctx->alc.hsh);
-    HOLD(ctx->alc.hsh.nxt);
+    ctx->alc.obj.nxt = &(ctx->alc.obj);
+    HOLD(ctx->alc.obj.nxt);
 }

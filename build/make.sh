@@ -55,7 +55,7 @@ cat ../src/template/main.c >> $TEMPF
 cat ../src/template/util.c >> $TEMPF
 cat ../src/template/bigi.c >> $TEMPF
 cat ../src/template/str.c >> $TEMPF
-cat ../src/template/hash.c >> $TEMPF
+cat ../src/template/obj.c >> $TEMPF
 cat ../src/template/op.c >> $TEMPF
 ./c2m -DUSE_INT64 -I lib -c $TEMPF
 rm kilite.bmir

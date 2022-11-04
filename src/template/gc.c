@@ -18,7 +18,7 @@ void unmark_all(vmctx *ctx)
         UNMARK(bi);
         bi = bi->liv;
     }
-    vmhsh *h = ctx->alc.hsh.liv;
+    vmobj *h = ctx->alc.obj.liv;
     while (h) {
         UNMARK(h);
         h = h->liv;
@@ -58,7 +58,7 @@ void mark_fnc(vmfnc *f)
     }
 }
 
-void mark_hsh(vmhsh *h)
+void mark_hsh(vmobj *h)
 {
     if (!h) {
         return;
@@ -95,11 +95,11 @@ void mark_var(vmvar *v)
             v->f = NULL;
         }
     }
-    if (v->h) {
+    if (v->o) {
         if (v->t == VAR_OBJ) {
-            mark_hsh(v->h);
+            mark_hsh(v->o);
         } else {
-            v->h = NULL;
+            v->o = NULL;
         }
     }
     if (v->s) {
@@ -160,9 +160,9 @@ void premark_all(vmctx *ctx)
         }
         bi = n;
     }
-    vmhsh *h = ctx->alc.hsh.liv;
+    vmobj *h = ctx->alc.obj.liv;
     while (h) {
-        vmhsh *n = h->liv;
+        vmobj *n = h->liv;
         if (IS_HELD(h)) {
             mark_hsh(h);
         }
@@ -247,16 +247,16 @@ void sweep(vmctx *ctx)
     }
     int hliv = 0;
     int hc = 0;
-    vmhsh *h = ctx->alc.hsh.liv;
+    vmobj *h = ctx->alc.obj.liv;
     while (h) {
         ++hliv;
-        vmhsh *n = h->liv;
+        vmobj *n = h->liv;
         if (!IS_MARKED(h)) {
             ++hc;
             free(h->map);
             h->map = NULL;
             h->sz = 0;
-            pbakhsh(ctx, h);
+            pbakobj(ctx, h);
         }
         h = n;
     }
@@ -268,8 +268,8 @@ void sweep(vmctx *ctx)
         vmvar *n = v->liv;
         if (!IS_MARKED(v)) {
             ++vc;
-            if (v->h) {
-                v->h = NULL;
+            if (v->o) {
+                v->o = NULL;
             }
             pbakvar(ctx, v);
         }
@@ -310,7 +310,7 @@ void sweep(vmctx *ctx)
             printf("(bgi:%d,scan:%d)", bic, biliv);
         }
         if (hc > 0) {
-            printf("(hsh:%d,scan:%d)", hc, hliv);
+            printf("(obj:%d,scan:%d)", hc, hliv);
         }
         if (vc > 0) {
             printf("(var:%d,scan:%d)", vc, vliv);

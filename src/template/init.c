@@ -41,7 +41,7 @@ void finalize(vmctx *ctx)
     FREELIST(bgi, { if (v->b) BzFree(v->b); });
     FREELIST(fnc, {});
     FREELIST(frm, { free(v->v); });
-    FREELIST(hsh, {});
+    FREELIST(obj, {});
     #undef FREELIST
 
     free(ctx->fstk);

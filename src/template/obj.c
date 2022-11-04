@@ -1,6 +1,6 @@
 #include "common.h"
 
-static vmhsh *hashmap_extend(vmctx *ctx, vmhsh *hsh);
+static vmobj *hashmap_extend(vmctx *ctx, vmobj *obj);
 
 static inline unsigned int hashcode(const char *s, int sz)
 {
@@ -18,10 +18,10 @@ static void hashmap_print_indent(int indent)
     }
 }
 
-static void hashmap_objprint_impl(vmhsh *hsh, int indent)
+static void hashmap_objprint_impl(vmobj *obj, int indent)
 {
-    int sz = hsh->sz;
-    vmvar *map = hsh->map;
+    int sz = obj->sz;
+    vmvar *map = obj->map;
     printf("{\n");
     for (int i = 0; i < sz; ++i) {
         vmvar *v = &(map[i]);
@@ -49,7 +49,7 @@ static void hashmap_objprint_impl(vmhsh *hsh, int indent)
                     printf("func(%p)\n", v->a->f);
                     break;
                 case VAR_OBJ:
-                    hashmap_objprint_impl(v->a->h, indent + 1);
+                    hashmap_objprint_impl(v->a->o, indent + 1);
                     break;
                 }
             }
@@ -59,16 +59,16 @@ static void hashmap_objprint_impl(vmhsh *hsh, int indent)
     printf("}%s\n", indent == 0 ? "" : ",");
 }
 
-void hashmap_objprint(vmhsh *hsh)
+void hashmap_objprint(vmobj *obj)
 {
-    hashmap_objprint_impl(hsh, 0);
+    hashmap_objprint_impl(obj, 0);
 }
 
-void hashmap_print(vmhsh *hsh)
+void hashmap_print(vmobj *obj)
 {
     printf("---------\n");
-    int sz = hsh->sz;
-    vmvar *map = hsh->map;
+    int sz = obj->sz;
+    vmvar *map = obj->map;
     for (int i = 0; i < sz; ++i) {
         vmvar *v = &(map[i % sz]);
         if (IS_HASHITEM_REMVD(v)) {
@@ -85,29 +85,29 @@ void hashmap_print(vmhsh *hsh)
     }
 }
 
-vmhsh *hashmap_create(vmhsh *h, int sz)
+vmobj *hashmap_create(vmobj *h, int sz)
 {
     h->map = (vmvar *)calloc(sz, sizeof(vmvar));
     h->sz = sz;
     return h;
 }
 
-vmhsh *hashmap_set(vmctx *ctx, vmhsh *hsh, const char *s, vmvar *vs)
+vmobj *hashmap_set(vmctx *ctx, vmobj *obj, const char *s, vmvar *vs)
 {
-    if (!hsh->map) {
-        hashmap_create(hsh, HASH_SIZE);
+    if (!obj->map) {
+        hashmap_create(obj, HASH_SIZE);
     }
-    int sz = hsh->sz;
+    int sz = obj->sz;
     unsigned int h = hashcode(s, sz);
     unsigned int hc = h;
     for (int i = 0; i < sz; ++i) {
-        vmvar *v = &(hsh->map[h]);
+        vmvar *v = &(obj->map[h]);
         if (IS_HASHITEM_EXIST(v)) {
             if (strcmp(v->s->s, s) == 0) {
                 /* if the key string has been already registered, overwrite it. */
                 v->i = hc;
                 v->a = vs;
-                return hsh;
+                return obj;
             }
         } else if (IS_HASHITEM_EMPTY(v) || IS_HASHITEM_REMVD(v)) {
             /* The value can be registered to the place where is either empty or removed. */
@@ -115,7 +115,7 @@ vmhsh *hashmap_set(vmctx *ctx, vmhsh *hsh, const char *s, vmvar *vs)
             v->i = hc;
             v->s = alcstr_str(ctx, s);
             v->a = vs;
-            return hsh;
+            return obj;
         }
         ++h;
         if (h >= sz) {
@@ -123,23 +123,27 @@ vmhsh *hashmap_set(vmctx *ctx, vmhsh *hsh, const char *s, vmvar *vs)
         }
     }
 
-    hsh = hashmap_extend(ctx, hsh);
-    return hashmap_set(ctx, hsh, s, vs);
+    obj = hashmap_extend(ctx, obj);
+    return hashmap_set(ctx, obj, s, vs);
 }
 
-vmhsh *hashmap_remove(vmctx *ctx, vmhsh *hsh, const char *s)
+vmobj *hashmap_remove(vmctx *ctx, vmobj *obj, const char *s)
 {
-    int sz = hsh->sz;
+    if (!obj->map) {
+        return obj;
+    }
+
+    int sz = obj->sz;
     unsigned int h = hashcode(s, sz);
     for (int i = 0; i < sz; ++i) {
-        vmvar *v = &(hsh->map[h]);
+        vmvar *v = &(obj->map[h]);
         if (IS_HASHITEM_EXIST(v)) {
             if (strcmp(v->s->s, s) == 0) {
                 v->i = 0;
                 v->s = NULL;
                 v->a = NULL;
                 HASHITEM_REMVD(v);
-                return hsh;
+                return obj;
             }
         }
         ++h;
@@ -147,17 +151,21 @@ vmhsh *hashmap_remove(vmctx *ctx, vmhsh *hsh, const char *s)
             h = 0;
         }
     }
-    return hsh;
+    return obj;
 }
 
-vmvar *hashmap_search(vmhsh *hsh, const char *s)
+vmvar *hashmap_search(vmobj *obj, const char *s)
 {
-    int sz = hsh->sz;
+    if (!obj->map) {
+        return NULL;
+    }
+
+    int sz = obj->sz;
     unsigned int h = hashcode(s, sz);
     unsigned int hc = h;
-    vmvar *map = hsh->map;
+    vmvar *map = obj->map;
     for (int i = 0; i < sz; ++i) {
-        vmvar *v = &(hsh->map[h]);
+        vmvar *v = &(obj->map[h]);
         if (IS_HASHITEM_EMPTY(v)) {
             return NULL;
         }
@@ -174,41 +182,41 @@ vmvar *hashmap_search(vmhsh *hsh, const char *s)
     return NULL;
 }
 
-static vmhsh *hashmap_extend(vmctx *ctx, vmhsh *hsh)
+static vmobj *hashmap_extend(vmctx *ctx, vmobj *obj)
 {
-    if (!hsh->map) {
-        return hashmap_create(hsh, HASH_SIZE);
+    if (!obj->map) {
+        return hashmap_create(obj, HASH_SIZE);
     }
-    int sz = hsh->sz;
-    vmvar *map = hsh->map;
+    int sz = obj->sz;
+    vmvar *map = obj->map;
 
-    hsh->sz = (hsh->sz << 1) + 1;
-    hsh->map = (vmvar *)calloc(hsh->sz, sizeof(vmvar));
+    obj->sz = (obj->sz << 1) + 1;
+    obj->map = (vmvar *)calloc(obj->sz, sizeof(vmvar));
     for (int i = 0; i < sz; ++i) {
         vmvar *v = &(map[i]);
         if (IS_HASHITEM_EXIST(v)) {
-            hashmap_set(ctx, hsh, v->s->s, v->a);
+            hashmap_set(ctx, obj, v->s->s, v->a);
         }
     }
 
-    return hsh;
+    return obj;
 }
 
-vmhsh *hashmap_copy(vmctx *ctx, vmhsh *h)
+vmobj *hashmap_copy(vmctx *ctx, vmobj *h)
 {
-    vmhsh *hsh = alchsh(ctx);
-    hashmap_create(hsh, HASH_SIZE);
+    vmobj *obj = alcobj(ctx);
+    hashmap_create(obj, HASH_SIZE);
     int sz = h->sz;
     vmvar *map = h->map;
 
-    hsh->sz = sz;
-    hsh->map = (vmvar *)calloc(sz, sizeof(vmvar));
+    obj->sz = sz;
+    obj->map = (vmvar *)calloc(sz, sizeof(vmvar));
     for (int i = 0; i < sz; ++i) {
         vmvar *v = &(map[i]);
         if (IS_HASHITEM_EXIST(v)) {
-            hashmap_set(ctx, hsh, v->s->s, v->a);
+            hashmap_set(ctx, obj, v->s->s, v->a);
         }
     }
 
-    return hsh;
+    return obj;
 }

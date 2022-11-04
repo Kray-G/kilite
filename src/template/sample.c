@@ -1,12 +1,12 @@
 #include "common.h"
 
-// c2m -c alloc.c gc.c init.c main.c util.c bigi.c str.c hash.c op.c lib\bign.c lib\bigz.c
+// c2m -c alloc.c gc.c init.c main.c util.c bigi.c str.c obj.c op.c lib\bign.c lib\bigz.c
 // timecmd c2m alloc.bmir gc.bmir init.bmir main.bmir util.bmir bigi.bmir hash.bmir op.bmir str.bmir bign.bmir bigz.bmir sample.c -eg
-// cl -O2 -Fesample.exe alloc.c gc.c init.c main.c util.c bigi.c str.c hash.c op.c lib\bign.c lib\bigz.c sample.c
+// cl -O2 -Fesample.exe alloc.c gc.c init.c main.c util.c bigi.c str.c obj.c op.c lib\bign.c lib\bigz.c sample.c
 
-// c2m -c alloc.c gc.c init.c main.c util.c bigi.c str.c hash.c op.c lib/bign.c lib/bigz.c
+// c2m -c alloc.c gc.c init.c main.c util.c bigi.c str.c obj.c op.c lib/bign.c lib/bigz.c
 // time c2m alloc.bmir gc.bmir init.bmir main.bmir util.bmir bigi.bmir hash.bmir op.bmir str.bmir bign.bmir bigz.bmir sample.c -eg
-// cl -O2 -Fesample.exe alloc.c gc.c init.c main.c util.c bigi.c str.c hash.c op.c lib/bign.c lib/bigz.c sample.c
+// cl -O2 -Fesample.exe alloc.c gc.c init.c main.c util.c bigi.c str.c obj.c op.c lib/bign.c lib/bigz.c sample.c
 
 void setup_context(vmctx *ctx)
 {

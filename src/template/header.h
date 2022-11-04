@@ -117,16 +117,16 @@ typedef struct vmstr {
     char *hd;
 } vmstr;
 
-typedef struct vmhsh {
-    struct vmhsh *prv;  /* The link to the previous item in alive list. */
-    struct vmhsh *liv;  /* The link to the next item in alive list. */
-    struct vmhsh *nxt;  /* The link to the next item in free list. */
-    struct vmhsh *chn;  /* The link in allocated object list */
+typedef struct vmobj {
+    struct vmobj *prv;  /* The link to the previous item in alive list. */
+    struct vmobj *liv;  /* The link to the next item in alive list. */
+    struct vmobj *nxt;  /* The link to the next item in free list. */
+    struct vmobj *chn;  /* The link in allocated object list */
 
     int32_t flags;
     int32_t sz;
     struct vmvar *map;
-} vmhsh;
+} vmobj;
 
 typedef struct vmvar {
     struct vmvar *prv;  /* The link to the previous item in alive list. */
@@ -141,7 +141,7 @@ typedef struct vmvar {
     double d;
     vmbgi *bi;
     vmstr *s;
-    vmhsh *h;           /* The hashmap from string to object */
+    vmobj *o;           /* The hashmap from string to object */
     struct vmfnc *f;
     struct vmvar *a;    /* an object */
 } vmvar;
@@ -198,7 +198,7 @@ typedef struct vmctx {
         vmfrm frm;
         vmstr str;
         vmbgi bgi;
-        vmhsh hsh;
+        vmobj obj;
     } alc;
     struct {
         int var;
@@ -206,7 +206,7 @@ typedef struct vmctx {
         int frm;
         int str;
         int bgi;
-        int hsh;
+        int obj;
     } cnt;
     struct {
         int var;
@@ -214,7 +214,7 @@ typedef struct vmctx {
         int frm;
         int str;
         int bgi;
-        int hsh;
+        int obj;
     } fre;
 } vmctx;
 
@@ -230,8 +230,8 @@ INLINE vmstr *alcstr_str(vmctx *ctx, const char *s);
 INLINE void pbakstr(vmctx *ctx, vmstr *p);
 INLINE vmbgi *alcbgi_bigz(vmctx *ctx, BigZ bz);
 INLINE void pbakbgi(vmctx *ctx, vmbgi *p);
-INLINE vmhsh *alchsh(vmctx *ctx);
-INLINE void pbakhsh(vmctx *ctx, vmhsh *p);
+INLINE vmobj *alcobj(vmctx *ctx);
+INLINE void pbakobj(vmctx *ctx, vmobj *p);
 INLINE vmvar *alcvar(vmctx *ctx, vartype t, int hold);
 INLINE vmvar *alcvar_initial(vmctx *ctx);
 INLINE vmvar *alcvar_fnc(vmctx *ctx, vmfnc *f);
@@ -269,13 +269,13 @@ INLINE vmstr *str_trim(vmctx *ctx, vmstr *vs, const char *ch);
 INLINE vmstr *str_ltrim(vmctx *ctx, vmstr *vs, const char *ch);
 INLINE vmstr *str_rtrim(vmctx *ctx, vmstr *vs, const char *ch);
 
-INLINE void hashmap_print(vmhsh *hsh);
-INLINE void hashmap_objprint(vmhsh *hsh);
-INLINE vmhsh *hashmap_create(vmhsh *h, int sz);
-INLINE vmhsh *hashmap_set(vmctx *ctx, vmhsh *hsh, const char *s, vmvar *v);
-INLINE vmhsh *hashmap_remove(vmctx *ctx, vmhsh *hsh, const char *s);
-INLINE vmvar *hashmap_search(vmhsh *hsh, const char *s);
-INLINE vmhsh *hashmap_copy(vmctx *ctx, vmhsh *h);
+INLINE void hashmap_print(vmobj *obj);
+INLINE void hashmap_objprint(vmobj *obj);
+INLINE vmobj *hashmap_create(vmobj *h, int sz);
+INLINE vmobj *hashmap_set(vmctx *ctx, vmobj *obj, const char *s, vmvar *v);
+INLINE vmobj *hashmap_remove(vmctx *ctx, vmobj *obj, const char *s);
+INLINE vmvar *hashmap_search(vmobj *obj, const char *s);
+INLINE vmobj *hashmap_copy(vmctx *ctx, vmobj *h);
 
 INLINE int run_global(vmctx *ctx, vmfrm *lex, vmvar *r, int ac);
 
@@ -326,7 +326,7 @@ enum {
 #define SET_BIG(dst, v) { (dst)->t = VAR_BIG;   (dst)->bi = (v);                  }
 #define SET_STR(dst, v) { (dst)->t = VAR_STR;   (dst)->s  = alcstr_str(ctx, (v)); }
 #define SET_FNC(dst, v) { (dst)->t = VAR_FNC;   (dst)->f  = (v);                  }
-#define SET_OBJ(dst, v) { (dst)->t = VAR_OBJ;   (dst)->a  = (v);                  }
+#define SET_OBJ(dst, v) { (dst)->t = VAR_OBJ;   (dst)->o  = (v);                  }
 
 #define COPY_VAR_TO(ctx, dst, src) { \
     switch ((src)->t) { \
@@ -352,7 +352,7 @@ enum {
         break; \
     case VAR_OBJ: \
         (dst)->t = VAR_OBJ; \
-        (dst)->h = (src)->h; \
+        (dst)->o = (src)->o; \
         break; \
     default: \
         /* Error */ \
@@ -393,16 +393,16 @@ enum {
 } \
 /**/
 
-/* Hashmap control */
+/* Object control */
 
 #define OP_APPLY(ctx, r, v, str) { \
     vmvar *t1 = ((v)->a) ? (v)->a : (v); \
     if ((t1)->t == VAR_OBJ) { \
-        if (!((t1)->h)) { \
+        if (!((t1)->o)) { \
             (r)->t = VAR_INT64; \
             (r)->i = 0; \
         } else { \
-            vmvar *t2 = hashmap_search((t1)->h, str); \
+            vmvar *t2 = hashmap_search((t1)->o, str); \
             if (!t2) { \
                 (r)->t = VAR_INT64; \
                 (r)->i = 0; \
@@ -423,15 +423,14 @@ enum {
         (t1)->t = VAR_OBJ; \
     } \
     vmvar *t2 = NULL; \
-    if (!(t1)->h) { \
-        (t1)->h = alchsh(ctx); \
-        hashmap_create((t1)->h, HASH_SIZE); \
+    if (!(t1)->o) { \
+        (t1)->o = alcobj(ctx); \
     } else { \
-        t2 = hashmap_search((t1)->h, str); \
+        t2 = hashmap_search((t1)->o, str); \
     } \
     if (!t2) { \
         t2 = alcvar_int64(ctx, 0, 0); \
-        (t1)->h = hashmap_set(ctx, (t1)->h, str, t2); \
+        (t1)->o = hashmap_set(ctx, (t1)->o, str, t2); \
     } \
     r->t = VAR_OBJ; \
     r->a = t2; \
