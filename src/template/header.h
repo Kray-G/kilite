@@ -66,10 +66,11 @@ int strcmp(const char *s1, const char *s2);
 
 #define alloc_var(ctx, n) do { if ((ctx)->vstksz <= ((ctx)->vstkp + n)) { /* TODO: stack overflow */ } (((ctx)->vstkp) += (n)); } while (0)
 #define vstackp(ctx) ((ctx)->vstkp)
-#define push_var(ctx, v) do { if ((ctx)->vstksz <= (ctx)->vstkp) { /* TODO: stack overflow */ } (((ctx)->vstk)[((ctx)->vstkp)++].a = (v)); } while (0)
+#define push_var(ctx, v) do { if ((ctx)->vstksz <= (ctx)->vstkp) { /* TODO: stack overflow */ } vmvar *px = &(((ctx)->vstk)[((ctx)->vstkp)++]); SHCOPY_VAR_TO(ctx, px, v); } while (0)
+#define push_var_i(ctx, v) do { if ((ctx)->vstksz <= (ctx)->vstkp) { /* TODO: stack overflow */ } vmvar *px = &(((ctx)->vstk)[((ctx)->vstkp)++]); px->t = VAR_INT64; px->i = (v); } while (0)
+#define push_var_d(ctx, v) do { if ((ctx)->vstksz <= (ctx)->vstkp) { /* TODO: stack overflow */ } vmvar *px = &(((ctx)->vstk)[((ctx)->vstkp)++]); px->t = VAR_DBL; px->d = (v); } while (0)
+#define push_var_s(ctx, v) do { if ((ctx)->vstksz <= (ctx)->vstkp) { /* TODO: stack overflow */ } vmvar *px = &(((ctx)->vstk)[((ctx)->vstkp)++]); px->t = VAR_STR; px->s = alcstr_str(ctx, v); } while (0)
 #define pop_var(ctx) (--((ctx)->vstkp))
-#define top_var(ctx) (((ctx)->vstk)[((ctx)->vstkp) - 1].a)
-#define arg_var(ctx, n) (((ctx)->vstk)[(ctx)->vstkp - ((n) + 1)].a)
 #define reduce_vstackp(ctx, n) (((ctx)->vstkp) -= (n))
 #define restore_vstackp(ctx, p) (((ctx)->vstkp) = (p))
 #define init_var(v) ((v)->t = VAR_INT64, (v)->i = 0)
@@ -256,6 +257,7 @@ INLINE vmbgi *bi_copy(vmctx *ctx, vmbgi *src);
 INLINE void bi_print(vmbgi *b);
 INLINE void bi_str(char *buf, int max, vmbgi *b);
 
+INLINE void print_escape_str(vmstr *vs);
 INLINE vmstr *str_dup(vmctx *ctx, vmstr *vs);
 INLINE vmstr *str_from_i64(vmctx *ctx, int64_t i);
 INLINE vmstr *str_from_dbl(vmctx *ctx, double d);
@@ -333,6 +335,41 @@ enum {
 #define SET_FNC(dst, v) { (dst)->t = VAR_FNC;   (dst)->f  = (v);                  }
 #define SET_OBJ(dst, v) { (dst)->t = VAR_OBJ;   (dst)->o  = (v);                  }
 
+#define SHCOPY_VAR_TO(ctx, dst, src) { \
+    switch ((src)->t) { \
+    case VAR_INT64: \
+        (dst)->t = VAR_INT64; \
+        (dst)->i = (src)->i; \
+        break; \
+    case VAR_DBL: \
+        (dst)->t = VAR_DBL; \
+        (dst)->d = (src)->d; \
+        break; \
+    case VAR_BIG: \
+        (dst)->t = VAR_BIG; \
+        (dst)->bi = (src)->bi; \
+        break; \
+    case VAR_STR: \
+        (dst)->t = VAR_STR; \
+        (dst)->s = (src)->s; \
+        break; \
+    case VAR_FNC: \
+        (dst)->t = VAR_FNC; \
+        (dst)->f = (src)->f; \
+        break; \
+    case VAR_OBJ: \
+        (dst)->t = VAR_OBJ; \
+        (dst)->o = (src)->o; \
+        break; \
+    default: \
+        /* Error */ \
+        (dst)->t = VAR_INT64; \
+        (dst)->i = 0; \
+        break; \
+    } \
+} \
+/**/
+
 #define COPY_VAR_TO(ctx, dst, src) { \
     switch ((src)->t) { \
     case VAR_INT64: \
@@ -370,8 +407,8 @@ enum {
 
 #define SET_ARGVAR(idx, alc) { \
     if (ac > idx) { \
-        vmvar *a##idx = arg_var(ctx, alc); \
-        COPY_VAR_TO(ctx, n##idx, a##idx); \
+        vmvar *a##idx = local_var(ctx, (idx + alc)); \
+        SHCOPY_VAR_TO(ctx, n##idx, a##idx); \
     } else { \
         init_var(n##idx); \
     } \

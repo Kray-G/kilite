@@ -140,9 +140,6 @@ void disp_inst(kl_kir_program *p, kl_kir_inst *i)
     case KIR_MOVA:
         disp_2op("mova", i);
         break;
-    case KIR_MOVF:
-        disp_2op("movf", i);
-        break;
 
     case KIR_ADD:
         disp_3op("add", i);

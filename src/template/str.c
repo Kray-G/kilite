@@ -38,6 +38,22 @@ static inline vmstr *str_append_impl(vmctx *ctx, vmstr *vs, const char *s, int l
     return vs;
 }
 
+void print_escape_str(vmstr *vs)
+{
+    const char *s = vs->s;
+    if (!s) {
+        return;
+    }
+
+    while (*s) {
+        if (*s == '"' || *s == '\\') {
+            printf("\\");
+        }
+        printf("%c", *s);
+        s++;
+    }
+}
+
 vmstr *str_append(vmctx *ctx, vmstr *vs, const char *s, int len)
 {
     return str_append_impl(ctx, vs, s, len);

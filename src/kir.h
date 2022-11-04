@@ -208,7 +208,6 @@ typedef enum kl_kir {
      */
     KIR_MOV,        //  <r1>, <r2>              ;   <r1>  <-  <r2>
     KIR_MOVA,       //  <r1>, <r2>              ;   *<r1> <-  <r2>
-    KIR_MOVF,       //  <r1>, <r2>:func         ;   <r1>  <-  <r2>:func
     KIR_ADD,        //  <r1>, <r2>, <r3>        ;   <r1>  <-  <r2> + <r3>
     KIR_SUB,        //  <r1>, <r2>, <r3>        ;   <r1>  <-  <r2> - <r3>
     KIR_MUL,        //  <r1>, <r2>, <r3>        ;   <r1>  <-  <r2> * <r3>

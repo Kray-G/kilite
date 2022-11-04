@@ -10,6 +10,7 @@ static kl_expr *parse_expression(kl_context *ctx, kl_lexer *l);
 static kl_expr *parse_decl_expr(kl_context *ctx, kl_lexer *l, int is_const);
 static kl_stmt *parse_statement(kl_context *ctx, kl_lexer *l);
 static kl_stmt *parse_statement_list(kl_context *ctx, kl_lexer *l);
+static kl_expr *parse_block_function(kl_context *ctx, kl_lexer *l);
 
 #define DEBUG_PARSER_PHASE()\
 if ((ctx->options & PARSER_OPT_PHASE) == PARSER_OPT_PHASE) printf("[parser] %s\n", __func__);\
@@ -66,6 +67,13 @@ char *const_str(kl_context *ctx, const char *phase, int line, int pos, int len, 
 
 static char *parse_const_str(kl_context *ctx, kl_lexer *l, const char *str)
 {
+    return const_str(ctx, "Compile", l->tokline, l->tokpos, l->toklen, str);
+}
+
+static char *parse_const_funcidname(kl_context *ctx, kl_lexer *l, int id)
+{
+    char str[32] = {0};
+    sprintf(str, "anonymous_func%d", id);
     return const_str(ctx, "Compile", l->tokline, l->tokpos, l->toklen, str);
 }
 
@@ -256,13 +264,13 @@ static inline kl_symbol *make_ref_symbol(kl_context *ctx, kl_lexer *l, tk_token 
     return sym;
 }
 
-static inline kl_symbol *make_symbol(kl_context *ctx, kl_lexer *l, tk_token tk)
+static inline kl_symbol *make_symbol(kl_context *ctx, kl_lexer *l, tk_token tk, int noindex)
 {
     kl_symbol *sym = (kl_symbol *)calloc(1, sizeof(kl_symbol));
     sym->chn = ctx->symchn;
     ctx->symchn = sym;
     sym->symtoken = tk;
-    sym->index = ctx->scope ? ctx->scope->idxmax++ : 0;
+    sym->index = noindex ? 0 : (ctx->scope ? ctx->scope->idxmax++ : 0);
     sym->ref = NULL;
     sym->line = l->tokline;
     sym->pos = l->tokpos;
@@ -471,7 +479,7 @@ static kl_expr *parse_expr_varname(kl_context *ctx, kl_lexer *l, const char *nam
     kl_symbol *sym;
     if (ctx->in_lvalue) {
         check_symbol(ctx, l, name);
-        sym = make_symbol(ctx, l, TK_VAR);
+        sym = make_symbol(ctx, l, TK_VAR, 0);
     } else {
         sym = make_ref_symbol(ctx, l, TK_VAR, name);
     }
@@ -554,6 +562,12 @@ static kl_expr *parse_lvalue_factor(kl_context *ctx, kl_lexer *l)
     switch (l->tok) {
     case TK_LXBR:
         lexer_fetch(l);
+        if (l->tok == TK_AND || l->tok == TK_DARROW) {
+            if (ctx->in_lvalue) {
+                parse_error(ctx, __LINE__, "Compile", l, "The block function can't be an l-value.");
+            }
+            return parse_block_function(ctx, l);
+        }
         e = make_expr(ctx, l, TK_VOBJ);
         if (l->tok != TK_RXBR) {
             e->lhs = parse_expr_keyvalue(ctx, l);
@@ -592,6 +606,7 @@ static kl_expr *parse_lvalue_factor(kl_context *ctx, kl_lexer *l)
         }
         break;
     }
+
     return e;
 }
 
@@ -935,7 +950,6 @@ static kl_expr *parse_expr_assignment(kl_context *ctx, kl_lexer *l)
         lexer_fetch(l);
         kl_expr *rhs = parse_expr_assignment(ctx, l);   // Right recursion.
         lhs = make_bin_expr(ctx, l, tok, lhs, rhs);
-        tok = l->tok;
     }
     return lhs;
 }
@@ -945,7 +959,7 @@ static kl_expr *parse_expression(kl_context *ctx, kl_lexer *l)
     DEBUG_PARSER_PHASE();
     kl_expr *lhs = parse_expr_assignment(ctx, l);
     tk_token tok = l->tok;
-    if (tok == TK_COMMA) {
+    while (tok == TK_COMMA) {
         lexer_fetch(l);
         kl_expr *rhs = parse_expr_assignment(ctx, l);
         lhs = make_bin_expr(ctx, l, tok, lhs, rhs);
@@ -1072,7 +1086,7 @@ static kl_expr *parse_def_arglist(kl_context *ctx, kl_lexer *l)
         if (l->tok == TK_NAME) {
             check_symbol(ctx, l, l->str);
             kl_expr *e1 = make_expr(ctx, l, TK_VAR);
-            kl_symbol *sym = make_symbol(ctx, l, TK_VAR);
+            kl_symbol *sym = make_symbol(ctx, l, TK_VAR, 0);
             sym->name = parse_const_str(ctx, l, l->str);
             e1->sym = sym;
             lexer_fetch(l);
@@ -1270,7 +1284,7 @@ static kl_expr *parse_decl_expr(kl_context *ctx, kl_lexer *l, int is_const)
         if (l->tok == TK_NAME) {
             check_symbol(ctx, l, l->str);
             lhs = make_expr(ctx, l, TK_VAR);
-            kl_symbol *sym = make_symbol(ctx, l, TK_VAR);
+            kl_symbol *sym = make_symbol(ctx, l, TK_VAR, 0);
             sym->is_const = is_const;
             sym->name = parse_const_str(ctx, l, l->str);
             lhs->sym = sym;
@@ -1344,7 +1358,7 @@ static kl_stmt *parse_class(kl_context *ctx, kl_lexer *l)
 {
     DEBUG_PARSER_PHASE();
     kl_stmt *s = make_stmt(ctx, l, TK_CLASS);
-    kl_symbol *sym = make_symbol(ctx, l, TK_CLASS);
+    kl_symbol *sym = make_symbol(ctx, l, TK_CLASS, 0);
     s->sym = sym;
     sym->is_callable = 1;
     ctx->scope->has_func = 1;
@@ -1407,13 +1421,72 @@ static kl_stmt *parse_class(kl_context *ctx, kl_lexer *l)
     return s;
 }
 
+static kl_expr *parse_block_function(kl_context *ctx, kl_lexer *l)
+{
+    kl_expr *e = make_expr(ctx, l, TK_FUNC);
+    kl_symbol *sym = make_symbol(ctx, l, TK_FUNC, 1);
+    e->sym = sym;
+    sym->funcid = ++ctx->funcid;
+    sym->is_callable = 1;
+    sym->name = parse_const_funcidname(ctx, l, sym->funcid);
+    sym->funcname = make_func_name(ctx, l, sym->name);
+    add_sym2method(ctx->scope, sym);
+
+    /* Push the scope */
+    kl_nsstack *n = make_nsstack(ctx, l, sym->name ? sym->name : "anonymous func", TK_FUNC);
+    push_nsstack(ctx, n);
+    ctx->scope->has_func = 1;
+    sym->scope = ctx->scope;
+    ctx->scope = sym;
+
+    if (l->tok == TK_AND) {
+        lexer_fetch(l);
+
+        /* Function arguments */
+        if (l->tok != TK_LSBR) {
+            parse_error(ctx, __LINE__, "Compile", l, "The '(' is missing.");
+            return panic_mode_expr(e, '{', ctx, l);
+        }
+        lexer_fetch(l);
+        ctx->in_lvalue = 1;
+        e->e = sym->args = parse_def_arglist(ctx, l);
+        sym->argcount = sym->idxmax;
+        ctx->in_lvalue = 0;
+        if (l->tok != TK_RSBR) {
+            parse_error(ctx, __LINE__, "Compile", l, "The ')' is missing.");
+            return e;
+        }
+        lexer_fetch(l);
+    } 
+
+    if (l->tok == TK_DARROW) {
+        lexer_fetch(l);
+        e->s = make_stmt(ctx, l, TK_RETURN);
+        e->s->e1 = parse_expression(ctx, l);
+    } else {
+        e->s = parse_statement_list(ctx, l);
+    }
+
+    if (l->tok != TK_RXBR) {
+        parse_error(ctx, __LINE__, "Compile", l, "The '}' is missing.");
+        return e;
+    }
+
+    sym->prototype = create_prototype(ctx, l, sym);
+    ctx->scope = sym->scope;
+    pop_nsstack(ctx);
+    lexer_fetch(l);
+    return e;
+}
+
 static kl_stmt *parse_function(kl_context *ctx, kl_lexer *l, int funcscope)
 {
     DEBUG_PARSER_PHASE();
 
     kl_stmt *s = make_stmt(ctx, l, TK_FUNC);
-    kl_symbol *sym = make_symbol(ctx, l, funcscope);
+    kl_symbol *sym = make_symbol(ctx, l, funcscope, 0);
     s->sym = sym;
+    sym->funcid = ++ctx->funcid;
     sym->is_callable = 1;
     sym->is_native = funcscope == TK_NATIVE;
 
@@ -1422,6 +1495,9 @@ static kl_stmt *parse_function(kl_context *ctx, kl_lexer *l, int funcscope)
         sym->name = parse_const_str(ctx, l, l->str);
         sym->funcname = make_func_name(ctx, l, l->str);
         lexer_fetch(l);
+    } else {
+        sym->name = parse_const_funcidname(ctx, l, sym->funcid);
+        sym->funcname = make_func_name(ctx, l, sym->name);
     }
     add_sym2method(ctx->scope, sym);
 
@@ -1480,7 +1556,7 @@ static kl_stmt *parse_namespace(kl_context *ctx, kl_lexer *l)
 {
     DEBUG_PARSER_PHASE();
     kl_stmt *s = make_stmt(ctx, l, TK_NAMESPACE);
-    kl_symbol *sym = make_symbol(ctx, l, TK_NAMESPACE);
+    kl_symbol *sym = make_symbol(ctx, l, TK_NAMESPACE, 0);
     s->sym = sym;
 
     kl_nsstack *n = make_nsstack(ctx, l, l->tok == TK_NAME ? l->str : "anonymous ns", TK_NAMESPACE);
@@ -1633,7 +1709,7 @@ int parse(kl_context *ctx, kl_lexer *l)
     n->is_global = 1;
     push_nsstack(ctx, n);
     kl_stmt *s = make_stmt(ctx, l, TK_NAMESPACE);
-    kl_symbol *sym = make_symbol(ctx, l, TK_NAMESPACE);
+    kl_symbol *sym = make_symbol(ctx, l, TK_NAMESPACE, 0);
     sym->name = parse_const_str(ctx, l, "run_global");
     s->sym = sym;
 

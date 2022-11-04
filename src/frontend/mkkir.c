@@ -7,6 +7,7 @@
 static kl_kir_inst *gen_block(kl_context *ctx, kl_symbol *sym, kl_stmt *s);
 static kl_kir_inst *gen_expr(kl_context *ctx, kl_symbol *sym, kl_kir_opr *r1, kl_expr *e);
 static kl_kir_inst *gen_stmt(kl_context *ctx, kl_symbol *sym, kl_stmt *s);
+static kl_kir_func *gen_function(kl_context *ctx, kl_symbol *sym, kl_stmt *s);
 
 static char *mkkir_const_str(kl_context *ctx, const char *str)
 {
@@ -187,6 +188,12 @@ static void add_func(kl_kir_program *prog, kl_kir_func *func)
         break; \
     case TK_VAR: \
         (rn) = make_var_index(ctx, (e)->sym->ref ? (e)->sym->ref->index : (e)->sym->index, (e)->sym->level, (e)->typeid); \
+        break; \
+    case TK_FUNC: \
+        kl_symbol *f = e->sym; \
+        kl_kir_func *func = gen_function(ctx, f, (e)->s); \
+        add_func(ctx->program, func); \
+        (rn) = make_lit_func(ctx, (e)->sym); \
         break; \
     default: \
         if ((rn).index == 0) (rn) = make_var(ctx, sym, e->typeid); \
@@ -459,10 +466,10 @@ static kl_kir_inst *gen_callargs(kl_context *ctx, kl_symbol *sym, kl_expr *e, in
     kl_kir_inst *head = NULL;
     kl_kir_inst *last = NULL;
     if (e->nodetype == TK_COMMA) {        
-        if (e->lhs) {
-            head = last = gen_callargs(ctx, sym, e->lhs, args);
+        if (e->rhs) {
+            head = last = gen_callargs(ctx, sym, e->rhs, args);
             if (last) {
-                if (e->rhs) {
+                if (e->lhs) {
                     kl_kir_inst *next = gen_callargs(ctx, sym, e->lhs, args);
                     KIR_ADD_NEXT(last, next);
                 }
@@ -812,6 +819,16 @@ static kl_kir_inst *gen_expr(kl_context *ctx, kl_symbol *sym, kl_kir_opr *r1, kl
         break;
     }
 
+    case TK_FUNC:
+        if (e->s) {
+            kl_symbol *f = e->sym;
+            kl_kir_func *func = gen_function(ctx, f, e->s);
+            add_func(ctx->program, func);
+            kl_kir_opr r2 = make_lit_func(ctx, e->sym);
+            head = new_inst_op2(ctx->program, e->line, e->pos, KIR_MOV, r1, &r2);
+        }
+        break;
+
     case TK_CALL:
         head = gen_call(ctx, sym, r1, e);
         break;
@@ -1063,12 +1080,11 @@ static kl_kir_inst *gen_stmt(kl_context *ctx, kl_symbol *sym, kl_stmt *s)
     case TK_FUNC:
         if (s->s1) {
             kl_symbol *f = s->sym;
-            f->funcid = ++ctx->funcid;
             kl_kir_func *func = gen_function(ctx, f, s->s1);
             add_func(ctx->program, func);
             kl_kir_opr r1 = make_var_index(ctx, f->ref ? f->ref->index : f->index, f->level, TK_TFUNC);
             kl_kir_opr r2 = make_lit_func(ctx, s->sym);
-            head = new_inst_op2(ctx->program, s->line, s->pos, KIR_MOVF, &r1, &r2);
+            head = new_inst_op2(ctx->program, s->line, s->pos, KIR_MOV, &r1, &r2);
         }
         break;
 

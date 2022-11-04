@@ -46,7 +46,9 @@ static void hashmap_objprint_impl(vmobj *obj, int indent)
                     break;
                 }
                 case VAR_STR:
-                    printf("%s", v->s);
+                    printf("\"");
+                    print_escape_str(v->s);
+                    printf("\"");
                     if (i < lsz) printf(", ");
                     break;
                 case VAR_FNC:
@@ -89,19 +91,20 @@ static void hashmap_objprint_impl(vmobj *obj, int indent)
                 if (v->s && v->s->s) {
                     hashmap_print_indent(indent + 1);
                     printf("\"%s\": ", v->s->s);
-                    switch (v->a->t) {
+                    vmvar *va = v->a;
+                    switch (va->t) {
                     case VAR_INT64:
-                        printf("%lld", v->a->i);
+                        printf("%lld", va->i);
                         if (c < count) printf(",\n");
                         else           printf("\n");
                         break;
                     case VAR_DBL:
-                        printf("%f", v->a->d);
+                        printf("%f", va->d);
                         if (c < count) printf(",\n");
                         else           printf("\n");
                         break;
                     case VAR_BIG: {
-                        char *bs = BzToString(v->a->bi->b, 10, 0);
+                        char *bs = BzToString(va->bi->b, 10, 0);
                         printf("%s", bs);
                         BzFreeString(bs);
                         if (c < count) printf(",\n");
@@ -109,17 +112,19 @@ static void hashmap_objprint_impl(vmobj *obj, int indent)
                         break;
                     }
                     case VAR_STR:
-                        printf("%s", v->a->s);
+                        printf("\"");
+                        print_escape_str(va->s);
+                        printf("\"");
                         if (c < count) printf(",\n");
                         else           printf("\n");
                         break;
                     case VAR_FNC:
-                        printf("func(%p)", v->a->f);
+                        printf("func(%p)", va->f);
                         if (c < count) printf(",\n");
                         else           printf("\n");
                         break;
                     case VAR_OBJ:
-                        hashmap_objprint_impl(v->a->o, indent + 1);
+                        hashmap_objprint_impl(va->o, indent + 1);
                         if (c < count) printf(",\n");
                         else           printf("\n");
                         break;

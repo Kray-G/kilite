@@ -146,10 +146,15 @@ static void translate_pushvar(xstr *code, kl_kir_opr *rn)
     char buf1[256] = {0};
     switch (rn->t) {
     case TK_VSINT:
-        xstra_inst(code, "{ vmvar c = { .t = VAR_INT64, .i = %" PRId64 " }; push_var(ctx, &c); }\n", rn->i64);
+        xstra_inst(code, "{ push_var_i(ctx, %" PRId64 "); }\n", rn->i64);
         break;
     case TK_VDBL:
-        xstra_inst(code, "{ vmvar c = { .t = VAR_DBL, .i = %f }; push_var(ctx, &c); }\n", rn->dbl);
+        xstra_inst(code, "{ push_var_d(ctx, %f); }\n", rn->dbl);
+        break;
+    case TK_VSTR:
+        xstra_inst(code, "{ push_var_s(ctx, \"");
+        escape_str(code, rn->str);
+        xstrs(code, "\"); }\n");
         break;
     case TK_VAR:
         xstra_inst(code, "push_var(ctx, %s);\n", var_value(buf1, rn));
@@ -332,6 +337,10 @@ static void translate_mov(xstr *code, kl_kir_inst *i)
         escape_str(code, i->r2.str);
         xstrs(code, "\");\n");
         break;
+    case TK_FUNC:
+        xstra_inst(code, "vmfnc *f%d = alcfnc(ctx, %s, frm, 0);\n", i->r2.funcid, i->r2.name);
+        xstra_inst(code, "SET_FNC(%s, f%d);\n", buf1, i->r2.funcid);
+        break;
     default:
         break;
     }
@@ -507,11 +516,6 @@ static void translate_inst(xstr *code, kl_kir_func *f, kl_kir_inst *i, func_cont
     case KIR_MOVA:
         translate_mova(code, i);
         break;
-    case KIR_MOVF:
-        var_value(buf1, &(i->r1));
-        xstra_inst(code, "vmfnc *f%d = alcfnc(ctx, %s, frm, 0);\n", i->r2.funcid, i->r2.name);
-        xstra_inst(code, "SET_FNC(%s, f%d);\n", buf1, i->r2.funcid);
-        break;
 
     case KIR_ADD:
         translate_chkcnd(fctx, code, "ADD", "+", i);
@@ -592,7 +596,7 @@ void translate_func(kl_kir_program *p, xstr *code, kl_kir_func *f)
     xstraf(code, "/* function:%s */\n", f->name);
     xstraf(code, "int %s(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)\n{\n", f->funcname);
     xstra_inst(code, "GC_CHECK(ctx);\n");
-    xstra_inst(code, "int p, e = 0;\n");
+    xstra_inst(code, "int p, e = 0;\n\n");
 
     kl_kir_inst *i = f->head;
     kl_kir_inst *prev = NULL;

@@ -64,6 +64,8 @@ typedef struct kl_expr {
     tk_typeid typeid;               //  Type of this node.
     kl_symbol *sym;                 //  The symbol of this node.
     const char *prototype;          //  The function prototype of this function.
+    struct kl_expr *e;              //  Use this when it's like a function expression block.
+    struct kl_stmt *s;              //  Use this when it's like a function expression block.
 
     union {
         int64_t i64;

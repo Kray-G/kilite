@@ -136,6 +136,26 @@ static void disp_expr(kl_expr *e, int indent)
         }
         break;
 
+    case TK_FUNC:
+        if (e->sym) {
+            printf("def funcexpr %s(\n", e->sym->name);
+            if (e->e) {
+                disp_expr(e->e, indent + 1);
+            }
+            make_indent(indent);
+            if (e->sym->typetree) {
+                printf(") : ");
+                print_typenode(e->sym->typetree);
+                printf("\n");
+            } else {
+                printf(") : %s\n", typeidname(e->typeid));
+            }
+            if (e->s) {
+                disp_stmt_list(e->s, indent + 1);
+            }
+        }
+        break;
+
     case TK_CALL:
         if (e->lhs) {
             printf("call:%s\n", typeidname(e->typeid));
