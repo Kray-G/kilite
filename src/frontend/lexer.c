@@ -51,6 +51,7 @@ static const char *tkname[] = {
     "TK_WHILE",
     "TK_FOR",
     "TK_IN",
+    "TK_FORIN",
     "TK_RETURN",
     "TK_SWITCH",
     "TK_CASE",
@@ -134,9 +135,11 @@ static const char *tkname[] = {
     "TK_BLOCK",
     "TK_CONNECT",
     "TK_VAR",
+    "TK_MINUS",
     "TK_EXPR",
     "TK_CALL",
     "TK_IDX",
+    "TK_TYPENODE",
     "TK_BINEND",
 };
 

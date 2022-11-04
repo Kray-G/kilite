@@ -203,6 +203,7 @@ static void disp_expr(kl_expr *e, int indent)
     case TK_INCP:
     case TK_DEC:
     case TK_DECP:
+    case TK_MINUS:
         printf("op(%s): %s\n", tokenname(e->nodetype), typeidname(e->typeid));
         disp_expr(e->lhs, indent + 1);
         break;
@@ -336,6 +337,23 @@ static void disp_stmt(kl_stmt *s, int indent)
         printf("cond3:\n");
         if (s->e3) {
             disp_expr(s->e3, indent + 2);
+        }
+        /* then part */
+        if (s->s1) {
+            disp_stmt_list(s->s1, indent + 1);
+        }
+        break;
+    case TK_FORIN:
+        printf("for-in\n");
+        make_indent(indent+1);
+        printf("cond1:\n");
+        if (s->e1) {
+            disp_expr(s->e1, indent + 2);
+        }
+        make_indent(indent+1);
+        printf("cond2:\n");
+        if (s->e2) {
+            disp_expr(s->e2, indent + 2);
         }
         /* then part */
         if (s->s1) {

@@ -800,7 +800,8 @@ static kl_kir_inst *gen_expr(kl_context *ctx, kl_symbol *sym, kl_kir_opr *r1, kl
         break;
     }
     case TK_VOBJ: {
-        head = gen_object_literal(ctx, sym, r1, e->lhs);
+        head = new_inst_op1(ctx->program, e->line, e->pos, KIR_NEWOBJ, r1);
+        head->next = gen_object_literal(ctx, sym, r1, e->lhs);
         break;
     }
     case TK_VAR: {
@@ -919,6 +920,13 @@ static kl_kir_inst *gen_expr(kl_context *ctx, kl_symbol *sym, kl_kir_opr *r1, kl
     case TK_DECP:
         head = gen_incdec(ctx, sym, KIR_DECP, r1, e);
         break;
+
+    case TK_MINUS: {
+        kl_kir_opr rr = make_var(ctx, sym, TK_TANY);
+        head = gen_expr(ctx, sym, &rr, e->lhs);
+        head->next = new_inst_op2(ctx->program, e->line, e->pos, KIR_MINUS, r1, &rr);
+        break;
+    }
     default:
         ;
     }

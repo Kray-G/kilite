@@ -194,7 +194,13 @@ void disp_inst(kl_kir_program *p, kl_kir_inst *i)
     case KIR_DECP:
         disp_2op("decp", i);
         break;
+    case KIR_MINUS:
+        disp_2op("uminus", i);
+        break;
 
+    case KIR_NEWOBJ:
+        disp_1op("newobj", i);
+        break;
     case KIR_IDX:
         disp_3op("idx", i);
         break;

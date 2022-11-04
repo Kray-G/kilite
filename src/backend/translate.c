@@ -169,6 +169,7 @@ static void translate_incdec(func_context *fctx, xstr *code, const char *op, con
 
     char buf1[256] = {0};
     char buf2[256] = {0};
+
     var_value(buf1, r1);
     if (r2->typeid == TK_TSINT64) {
         int_value(buf2, r2);
@@ -186,8 +187,12 @@ static void translate_incdec(func_context *fctx, xstr *code, const char *op, con
             }
         }
     } else {
-        var_value(buf2, r2);
-        xstra_inst(code, "OP_%s(ctx, %s, %s);\n", op, buf1, buf2);
+        if (r1->prevent) {
+            xstra_inst(code, "OP_%s_SAME(ctx, %s);\n", op, buf1);
+        } else {
+            var_value(buf2, r2);
+            xstra_inst(code, "OP_%s(ctx, %s, %s);\n", op, buf1, buf2);
+        }
     }
 }
 
@@ -198,20 +203,29 @@ static void translate_idx(func_context *fctx, xstr *code, kl_kir_inst *i, int r3
     char buf3[256] = {0};
     var_value(buf1, &(i->r1));
     var_value(buf2, &(i->r2));
-    switch (r3typeid) {
-    case TK_TSINT64:
+    switch (i->r3.t) {
+    case TK_VSINT:
         xstra_inst(code, "OP_ARRAY_REF%s_I(ctx, %s, %s, %" PRId64 ");\n", (lvalue ? "L" : ""), buf1, buf2, i->r3.i64);
         break;
-    case TK_TDBL:
+    case TK_VDBL:
         xstra_inst(code, "OP_ARRAY_REF%s_I(ctx, %s, %s, %" PRId64 ");\n", (lvalue ? "L" : ""), buf1, buf2, (int)(i->r3.dbl));
         break;
-    case TK_TSTR:
+    case TK_VSTR:
         xstra_inst(code, "OP_HASH_APPLY%s(ctx, %s, %s, \"", (lvalue ? "L" : ""), buf1, buf2);
         escape_str(code, i->r3.str);
         xstrs(code, "\");\n");
         break;
+    case TK_VAR:
+        switch (r3typeid) {
+        case TK_TSINT64:
+            xstra_inst(code, "OP_ARRAY_REF%s_I(ctx, %s, %s, %s);\n", (lvalue ? "L" : ""), buf1, buf2, int_value(buf3, &(i->r3)));
+            break;
+        default:
+            xstra_inst(code, "OP_ARRAY_REF%s(ctx, %s, %s, %s);\n", (lvalue ? "L" : ""), buf1, buf2, var_value(buf3, &(i->r3)));
+            break;
+        }
+        break;
     default:
-        xstra_inst(code, "OP_ARRAY_REF%s(ctx, %s, %s, %s);\n", (lvalue ? "L" : ""), buf1, buf2, var_value(buf3, &(i->r3)));
         break;
     }
 }
@@ -545,6 +559,13 @@ static void translate_inst(xstr *code, kl_kir_func *f, kl_kir_inst *i, func_cont
         break;
     case KIR_DECP:
         translate_incdec(fctx, code, "DECP", "++", 1, i);
+        break;
+    case KIR_MINUS:
+        xstra_inst(code, "OP_UMINUS(ctx, %s, %s);\n", var_value(buf1, &(i->r1)), var_value(buf2, &(i->r2)));
+        break;
+
+    case KIR_NEWOBJ:
+        xstra_inst(code, "SET_OBJ(%s, alcobj(ctx));\n", var_value(buf1, &(i->r1)));
         break;
 
     case KIR_IDX:

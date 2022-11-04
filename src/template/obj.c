@@ -20,91 +20,115 @@ static void hashmap_print_indent(int indent)
 
 static void hashmap_objprint_impl(vmobj *obj, int indent)
 {
-    int lsz = obj->lastidx;
+    int lsz = obj->idxsz - 1;
     if (lsz > 0) {
         printf("[");
         for (int i = 0; i <= lsz; ++i) {
             vmvar *v = obj->ary[i];
             if (!v) {
-                printf("0");
+                if (i < lsz) printf("0, ");
+                else         printf("0");
             } else {
                 switch (v->t) {
                 case VAR_INT64:
                     printf("%lld", v->i);
+                    if (i < lsz) printf(", ");
                     break;
                 case VAR_DBL:
                     printf("%f", v->d);
+                    if (i < lsz) printf(", ");
                     break;
                 case VAR_BIG: {
                     char *bs = BzToString(v->bi->b, 10, 0);
                     printf("%s", bs);
                     BzFreeString(bs);
+                    if (i < lsz) printf(", ");
                     break;
                 }
                 case VAR_STR:
                     printf("%s", v->s);
+                    if (i < lsz) printf(", ");
                     break;
                 case VAR_FNC:
                     printf("func(%p)", v->f);
+                    if (i < lsz) printf(", ");
                     break;
                 case VAR_OBJ:
+                    printf("\n");
+                    hashmap_print_indent(indent + 1);
                     hashmap_objprint_impl(v->o, indent + 1);
+                    if (i < lsz) {
+                        printf(", ");
+                    } else {
+                        printf("\n");
+                        hashmap_print_indent(indent);
+                    }
                     break;
                 }
             }
-            if (i < lsz) {
-                printf(", ");
-            }
         }
-        if (indent > 0) {
-            hashmap_print_indent(indent);
-            printf("],\n");
-        } else {
-            printf("]\n");
-        }
+        printf("]");
     }
     int hsz = obj->hsz;
     if (hsz > 0) {
+        if (lsz > 0) printf("\n");
+        int count = 0;
         vmvar *map = obj->map;
-        printf("{\n");
         for (int i = 0; i < hsz; ++i) {
             vmvar *v = &(map[i]);
             if (IS_HASHITEM_EXIST(v)) {
+                count++;
+            }
+        }
+        printf("{\n");
+        int c = 0;
+        for (int i = 0; i < hsz; ++i) {
+            vmvar *v = &(map[i]);
+            if (IS_HASHITEM_EXIST(v)) {
+                ++c;
                 if (v->s && v->s->s) {
                     hashmap_print_indent(indent + 1);
                     printf("\"%s\": ", v->s->s);
                     switch (v->a->t) {
                     case VAR_INT64:
-                        printf("%lld\n", v->a->i);
+                        printf("%lld", v->a->i);
+                        if (c < count) printf(",\n");
+                        else           printf("\n");
                         break;
                     case VAR_DBL:
-                        printf("%f\n", v->a->d);
+                        printf("%f", v->a->d);
+                        if (c < count) printf(",\n");
+                        else           printf("\n");
                         break;
                     case VAR_BIG: {
                         char *bs = BzToString(v->a->bi->b, 10, 0);
-                        printf("%s\n", bs);
+                        printf("%s", bs);
                         BzFreeString(bs);
+                        if (c < count) printf(",\n");
+                        else           printf("\n");
                         break;
                     }
                     case VAR_STR:
-                        printf("%s\n", v->a->s);
+                        printf("%s", v->a->s);
+                        if (c < count) printf(",\n");
+                        else           printf("\n");
                         break;
                     case VAR_FNC:
-                        printf("func(%p)\n", v->a->f);
+                        printf("func(%p)", v->a->f);
+                        if (c < count) printf(",\n");
+                        else           printf("\n");
                         break;
                     case VAR_OBJ:
                         hashmap_objprint_impl(v->a->o, indent + 1);
+                        if (c < count) printf(",\n");
+                        else           printf("\n");
                         break;
                     }
                 }
             }
         }
-        if (indent > 0) {
-            hashmap_print_indent(indent);
-            printf("},\n");
-        } else {
-            printf("}\n");
-        }
+        hashmap_print_indent(indent);
+        printf("}");
     }
 }
 
@@ -274,7 +298,7 @@ vmobj *array_create(vmobj *obj, int asz)
 {
     obj->ary = (vmvar **)calloc(asz, sizeof(vmvar*));
     obj->asz = asz;
-    obj->lastidx = 0;
+    obj->idxsz = 0;
     return obj;
 }
 
@@ -299,10 +323,10 @@ vmobj *array_set(vmctx *ctx, vmobj *obj, int64_t idx, vmvar *vs)
 {
     int asz = obj->asz;
     if (asz <= idx) {
-        array_extend(ctx, obj, idx);
-        obj->lastidx = idx;
-    } else if (obj->lastidx < idx) {
-        obj->lastidx = idx;
+        array_extend(ctx, obj, idx + 1);
+        obj->idxsz = idx + 1;
+    } else if (obj->idxsz <= idx) {
+        obj->idxsz = idx + 1;
     }
 
     obj->ary[idx] = vs;

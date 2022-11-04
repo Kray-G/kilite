@@ -125,7 +125,7 @@ typedef struct vmobj {
     struct vmobj *chn;  /* The link in allocated object list */
 
     int32_t flags;
-    int32_t lastidx;
+    int32_t idxsz;
     int32_t asz;
     int32_t hsz;
     struct vmvar **ary; /* Array holder */
@@ -450,9 +450,13 @@ enum {
 } \
 /**/
 
-#define OP_ARRAY_REF_I(ctx, r, v, i) { \
-    if (i < (v)->asz) { \
-        COPY_VAR_TO(ctx, r, (v)->ary[i]); \
+#define OP_ARRAY_REF_I(ctx, r, v, idx) { \
+    int ii = idx; \
+    if (ii < 0) { \
+        do { ii += (v)->o->idxsz; } while (ii < 0); \
+    } \
+    if (0 <= ii && ii < (v)->o->asz && (v)->o->ary[ii]) { \
+        COPY_VAR_TO(ctx, r, (v)->o->ary[ii]); \
     } else { \
         (r)->t = VAR_INT64; \
         (r)->i = 0; \
@@ -493,15 +497,19 @@ enum {
     } \
 /**/
 
-#define OP_ARRAY_REFL_I(ctx, r, v, i) { \
+#define OP_ARRAY_REFL_I(ctx, r, v, idx) { \
     OP_ARRAY_REFL_CHKV(ctx, t1, v) \
+    int ii = idx; \
+    if (ii < 0) { \
+        do { ii += (t1)->o->idxsz; } while (ii < 0); \
+    } \
     vmvar *t2 = NULL; \
-    if (i < (t1)->o->asz) { \
-        t2 = (t1)->o->ary[i]; \
+    if (0 <= ii && ii < (t1)->o->asz) { \
+        t2 = (t1)->o->ary[ii]; \
     } \
     if (!t2) { \
         t2 = alcvar_int64(ctx, 0, 0); \
-        (t1)->o = array_set(ctx, (t1)->o, i, t2); \
+        (t1)->o = array_set(ctx, (t1)->o, ii, t2); \
     } \
     (r)->t = VAR_OBJ; \
     (r)->a = t2; \
@@ -539,8 +547,45 @@ enum {
 
 /* Increment/Decrement */
 
+#define OP_INC_SAME(ctx, r) { \
+    if ((r)->t == VAR_INT64) { \
+        ++((r)->i); \
+    } else { \
+        /* TODO */ \
+    } \
+} \
+/**/
+
+#define OP_INCP_SAME(ctx, r, v) { \
+    if ((r)->t == VAR_INT64) { \
+        ((r)->i)++; \
+    } else { \
+        /* TODO */ \
+    } \
+} \
+/**/
+
+#define OP_DEC_SAME(ctx, r, v) { \
+    if ((r)->t == VAR_INT64) { \
+        --((r)->i); \
+    } else { \
+        /* TODO */ \
+    } \
+} \
+/**/
+
+#define OP_DECP_SAME(ctx, r, v) { \
+    if ((r)->t == VAR_INT64) { \
+        --((r)->i); \
+    } else { \
+        /* TODO */ \
+    } \
+} \
+/**/
+
 #define OP_INC(ctx, r, v) { \
     if ((v)->t == VAR_INT64) { \
+        (r)->t = VAR_INT64; \
         (r)->i = ++((v)->i); \
     } else { \
         /* TODO */ \
@@ -550,6 +595,7 @@ enum {
 
 #define OP_INCP(ctx, r, v) { \
     if ((v)->t == VAR_INT64) { \
+        (r)->t = VAR_INT64; \
         (r)->i = ((v)->i)++; \
     } else { \
         /* TODO */ \
@@ -559,6 +605,7 @@ enum {
 
 #define OP_DEC(ctx, r, v) { \
     if ((v)->t == VAR_INT64) { \
+        (r)->t = VAR_INT64; \
         (r)->i = --((v)->i); \
     } else { \
         /* TODO */ \
@@ -568,7 +615,20 @@ enum {
 
 #define OP_DECP(ctx, r, v) { \
     if ((v)->t == VAR_INT64) { \
+        (r)->t = VAR_INT64; \
         (r)->i = ((v)->i)--; \
+    } else { \
+        /* TODO */ \
+    } \
+} \
+/**/
+
+/* Unary minus */
+
+#define OP_UMINUS(ctx, r, v) { \
+    if ((v)->t == VAR_INT64) { \
+        (r)->t = VAR_INT64; \
+        (r)->i = -((v)->i); \
     } else { \
         /* TODO */ \
     } \

@@ -738,6 +738,18 @@ static kl_expr *parse_expr_prefix(kl_context *ctx, kl_lexer *l)
     DEBUG_PARSER_PHASE();
     kl_expr *lhs = NULL;
     tk_token tok = l->tok;
+    if (tok == TK_SUB) {
+        lexer_fetch(l);
+        lhs = parse_expr_postfix(ctx, l);
+        if (lhs->nodetype == TK_VSINT) {
+            lhs->val.i64 = -(lhs->val.i64);
+            return lhs;
+        }
+        kl_expr *e = make_expr(ctx, l, TK_MINUS);
+        e->lhs = lhs;
+        e->typeid = lhs->typeid;
+        return e;
+    }
     if (tok == TK_INC || tok == TK_DEC) {
         lhs = make_expr(ctx, l, tok);
         lexer_fetch(l);
@@ -1210,20 +1222,27 @@ static kl_stmt *parse_for(kl_context *ctx, kl_lexer *l)
             s->e1 = parse_expression(ctx, l);
         }
     }
-    if (l->tok == TK_SEMICOLON) {
+    if (l->tok == TK_IN) {
+        s->nodetype = TK_FORIN; /* replace the tag */
         lexer_fetch(l);
-        if (l->tok != TK_SEMICOLON) {
-            /* 2nd part */
-            s->e2 = parse_expression(ctx, l);
+        s->e2 = parse_expression(ctx, l);
+    } else {
+        if (l->tok == TK_SEMICOLON) {
+            lexer_fetch(l);
+            if (l->tok != TK_SEMICOLON) {
+                /* 2nd part */
+                s->e2 = parse_expression(ctx, l);
+            }
+        }
+        if (l->tok == TK_SEMICOLON) {
+            lexer_fetch(l);
+            if (l->tok != TK_RSBR) {
+                /* 3nd part */
+                s->e3 = parse_expression(ctx, l);
+            }
         }
     }
-    if (l->tok == TK_SEMICOLON) {
-        lexer_fetch(l);
-        if (l->tok != TK_RSBR) {
-            /* 3nd part */
-            s->e3 = parse_expression(ctx, l);
-        }
-    }
+
     if (l->tok != TK_RSBR) {
         parse_error(ctx, __LINE__, "Compile", l, "The ')' is missing.");
     } else {

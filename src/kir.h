@@ -65,6 +65,7 @@ typedef enum tk_token {
     TK_WHILE,               //  * while
     TK_FOR,                 //  * for
     TK_IN,                  //    in
+    TK_FORIN,               //    for-in
     TK_RETURN,              //  * return
     TK_SWITCH,              //    switch
     TK_CASE,                //    case
@@ -153,6 +154,7 @@ typedef enum tk_token {
     TK_BLOCK,               //  For block.
     TK_CONNECT,             //  For connected expressions.
     TK_VAR,                 //  For variable.
+    TK_MINUS,               //  Unary minus.
     TK_EXPR,                //  For expression type.
     TK_CALL,                //  For function call.
     TK_IDX,                 //  For array index reference.
@@ -225,7 +227,9 @@ typedef enum kl_kir {
     KIR_INCP,       //  <r1>, <r2>              ;   <r1>  <-  <r2>,  inc <r2>
     KIR_DEC,        //  <r1>, <r2>              ;   <r1>  <-  dec <r2>
     KIR_DECP,       //  <r1>, <r2>              ;   <r1>  <-  <r2>,  dec <r2>
+    KIR_MINUS,      //  <r1>, -<r2>             ;   <r1>  <-  -<r2>
 
+    KIR_NEWOBJ,     //  <r1>                    ;   <r1>  <-  new obj
     KIR_IDX,        //  <r1>, <r2>, <idx>       ;   <r1>  <-  <r2>[<idx>]
     KIR_IDXL,       //  <r1>, <r2>, <idx>       ;   <r1>  <-  <r2>[<idx>]
     KIR_APLY,       //  <r1>, <r2>, <str>       ;   <r1>  <-  <r2>.<str>
