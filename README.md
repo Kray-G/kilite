@@ -46,11 +46,15 @@ I will note the followings as I don't forget it.
   * [ ] Main structures of source code.
     * [x] Make the Fibonacci benchmark work.
     * [x] Make the factorial recursive function work with big integer.
-    * [ ] All basic comparisons including `<=>`.
-    * [ ] String operations.
-    * [ ] Array operations.
-    * [ ] Object operations.
-    * [ ] Support the loop like `for`, `while`, and `do-while`. And also `for-in`.
+    * [x] All basic comparisons including `<=>`.
+    * [x] String operations.
+    * [x] Array operations.
+    * [x] Object operations.
+    * [ ] Range operations.
+    * [x] Support the loop like `for`, `while`, and `do-while`.
+    * [ ] `for-in` for Array.
+    * [ ] `for-in` for Object.
+    * [ ] `for-in` for Range.
   * [ ] Class, module, function, inheritance, mix-in mechanism.
   * [ ] Statement and Expression.
   * [ ] Exception.
@@ -63,7 +67,7 @@ I will note the followings as I don't forget it.
 * Libraries support.
   * [ ] Useful Libraries like Zip, Xml, PDF, or something.
 
-There could be something I'm forgetting.
+There could be something I've forgotten.
 
 In addition, the followings are the task list for the current implementation.
 
