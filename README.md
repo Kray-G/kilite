@@ -76,6 +76,7 @@ I will note the followings as I don't forget it.
     * [ ] `for-in` for Array.
     * [ ] `for-in` for Object.
     * [ ] `for-in` for Range.
+    * [ ] Anonymous function in an expression.
   * [ ] Class, module, function, inheritance, mix-in mechanism.
   * [ ] Statement and Expression.
   * [ ] Exception.
