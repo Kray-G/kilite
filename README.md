@@ -55,7 +55,7 @@ The target program is the 38th result of a fibonacci as usual.
 | Kinx         | 1.1.1       | 5.63s |
 | Python       | 3.11.0      | 6.28s |
 
-luajit and pypy was very fast. That's exactly JIT as expected.
+luajit and PyPy was very fast. That's exactly JIT as expected.
 Kilite has already been 2x faster than Ruby, and 3.3x faster than Kinx.
 In the future, it could be slower by increasing the code, but I will try to keep the perfrmance even if the code would be more complex.
 
