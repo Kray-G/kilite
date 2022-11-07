@@ -76,20 +76,26 @@ I will note the followings as I don't forget it.
     * [ ] `for-in` for Array.
     * [ ] `for-in` for Object.
     * [ ] `for-in` for Range.
-    * [ ] Anonymous function in an expression.
-  * [ ] Class, module, function, inheritance, mix-in mechanism.
-  * [ ] Statement and Expression.
+    * [x] Anonymous function in an expression.
+  * [ ] Namespaces, classes, modules, functions, inheritance, and mix-in mechanism.
+    * [ ] Nemaspace works.
+    * [x] Class definition.
+    * [ ] The `new` operator.
+    * [ ] Module definition.
+    * [ ] The `mixin` statement.
   * [ ] Exception.
+    * [ ] throwing an exception.
+    * [ ] `try`, `catch`, and `finally`.
 * [ ] Notes for a special specifications of the language.
   * [ ] The last argument of function call could be outside arguments list if it's a block.
   * [ ] Object and array element's direct assignment.
   * [ ] Coroutine with `yield`.
   * [ ] 'Case-When' expression.
   * [ ] Support `native` keyword for high performance.
-* Libraries support.
+* [ ] Libraries support.
   * [ ] Useful Libraries like Zip, Xml, PDF, or something.
 
-There could be something I've forgotten.
+There could be something I've forgotten. I'll add it when I remember it.
 
 In addition, the followings are the task list for the current implementation.
 
