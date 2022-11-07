@@ -654,7 +654,7 @@ static kl_kir_inst *gen_if(kl_context *ctx, kl_symbol *sym, kl_stmt *s)
     KIR_MOVE_LAST(last);
     kl_kir_inst *next = new_inst_jumpiff(ctx->program, s->line, s->pos, &r1, l2);
     KIR_ADD_NEXT(last, next);
-    next = new_inst_label(ctx->program, s->line, s->pos, l1, last, 1);
+    next = new_inst_label(ctx->program, s->line, s->pos, l1, last, 0);
     KIR_ADD_NEXT(last, next);
     if (s->s1) {
         next = gen_block(ctx, sym, s->s1);
@@ -663,14 +663,14 @@ static kl_kir_inst *gen_if(kl_context *ctx, kl_symbol *sym, kl_stmt *s)
         next = new_inst_jump(ctx->program, s->line, s->pos, l3, last);
         KIR_ADD_NEXT(last, next);
     }
-    next = new_inst_label(ctx->program, s->line, s->pos, l2, last, s->s2 ? 1 : 0);
+    next = new_inst_label(ctx->program, s->line, s->pos, l2, last, 0);
     KIR_ADD_NEXT(last, next);
     if (s->s2) {
         next = gen_block(ctx, sym, s->s1);
         KIR_ADD_NEXT(last, next);
         KIR_MOVE_LAST(last);
     }
-    next = new_inst_label(ctx->program, s->line, s->pos, l3, last, s->s2 ? 0 : 1);
+    next = new_inst_label(ctx->program, s->line, s->pos, l3, last, 0);
     KIR_ADD_NEXT(last, next);
 
     return head;
