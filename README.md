@@ -80,7 +80,7 @@ I will note the followings as I don't forget it.
   * [ ] Namespaces, classes, modules, functions, inheritance, and mix-in mechanism.
     * [ ] Namespace works.
     * [x] Class definition.
-    * [ ] The `new` operator.
+    * [x] The `new` operator.
     * [ ] Module definition.
     * [ ] The `mixin` statement.
   * [ ] Exception.
