@@ -78,7 +78,7 @@ I will note the followings as I don't forget it.
     * [ ] `for-in` for Range.
     * [x] Anonymous function in an expression.
   * [ ] Namespaces, classes, modules, functions, inheritance, and mix-in mechanism.
-    * [ ] Nemaspace works.
+    * [ ] Namespace works.
     * [x] Class definition.
     * [ ] The `new` operator.
     * [ ] Module definition.
