@@ -198,6 +198,9 @@ void disp_inst(kl_kir_program *p, kl_kir_inst *i)
     case KIR_NEWOBJ:
         disp_1op("newobj", i);
         break;
+    case KIR_MKSUPER:
+        disp_2op("makesuper", i);
+        break;
     case KIR_IDX:
         disp_3op("idx", i);
         break;
@@ -215,7 +218,7 @@ void disp_inst(kl_kir_program *p, kl_kir_inst *i)
 
 void disp_func(kl_kir_program *p, kl_kir_func *f)
 {
-    printf("func: %s\n", f->name);
+    printf("func: %s\n", f->funcname);
 
     kl_kir_inst *i = f->head;
     while (i) {

@@ -282,6 +282,7 @@ INLINE vmobj *hashmap_set(vmctx *ctx, vmobj *obj, const char *s, vmvar *v);
 INLINE vmobj *hashmap_remove(vmctx *ctx, vmobj *obj, const char *s);
 INLINE vmvar *hashmap_search(vmobj *obj, const char *s);
 INLINE vmobj *hashmap_copy(vmctx *ctx, vmobj *h);
+INLINE vmobj *hashmap_copy_method(vmctx *ctx, vmobj *src);
 INLINE vmobj *array_set(vmctx *ctx, vmobj *obj, int64_t idx, vmvar *vs);
 
 INLINE int run_global(vmctx *ctx, vmfrm *lex, vmvar *r, int ac);
@@ -322,11 +323,14 @@ enum {
 
 /* Operator macros */
 
-/* Check if it's a function */
+/* Check if it's a function, exception. */
 
-#define CHECK_FUNC(v, l) do { if ((v)->t != VAR_FNC) { /* TODO: MethodMissing Exception */; goto l; } } while (0);
+#define CHECK_FUNC(v, l) if ((v)->t != VAR_FNC) { e = 1; /* TODO: MethodMissing Exception */; goto l; }
+#define CHECK_EXCEPTION(l) if (e) { goto l; }
 
 /* Copy Variable */
+
+#define MAKE_SUPER(ctx, dst, src) { vmobj *o = hashmap_copy_method(ctx, src->o); (dst)->t = VAR_OBJ; (dst)->o = o; }
 
 #define SET_I64(dst, v) { (dst)->t = VAR_INT64; (dst)->i  = (v);                  }
 #define SET_DBL(dst, v) { (dst)->t = VAR_DBL;   (dst)->d  = (v);                  }

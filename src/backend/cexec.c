@@ -68,7 +68,7 @@ static MIR_item_t load_main_modules(MIR_context_t ctx)
 int run(int *ret, const char *fname, const char *src, int ac, char **av, char **ev, kl_opts *opts)
 {
     open_std_libs();
-    int r = 1, lazy = 0;
+    int r = 1, lazy = 1;
     MIR_context_t ctx = MIR_init();
     struct c2mir_options options = {0};
     struct data getc_data = { .p = src };

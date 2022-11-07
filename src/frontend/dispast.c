@@ -247,7 +247,7 @@ static void disp_stmt(kl_stmt *s, int indent)
     if (!s) return;
 
     if (s->nodetype != TK_EXPR) {
-        for (int i = 0; i < indent; ++i) printf("  ");
+        make_indent(indent);
     }
     if (s->sym) {
         printf("%s", s->sym->has_func ? "*" : "");
@@ -297,13 +297,22 @@ static void disp_stmt(kl_stmt *s, int indent)
         break;
     case TK_CLASS:
         if (s->sym) {
-            printf("def class %s(", s->sym->name);
-            if (s->e1) {
-                disp_expr(s->e1, -1);
+            printf("def class %s, method(%d)", s->sym->name, method_count(s->sym));
+            if (s->sym->base) {
+                printf(" : %s\n", s->sym->basename);
+            } else {
+                printf("\n");
             }
-            printf("), method(%d)\n", method_count(s->sym));
+            if (s->e1) {
+                make_indent(indent);
+                printf("(\n");
+                disp_expr(s->e1, indent + 1);
+                make_indent(indent);
+                printf(")\n");
+            }
             if (s->s1) {
                 disp_stmt_list(s->s1, indent + 1);
+
             }
         }
         break;
@@ -398,6 +407,14 @@ static void disp_stmt(kl_stmt *s, int indent)
         break;
     case TK_EXPR:
         disp_expr(s->e1, indent);
+        break;
+    case TK_MKSUPER:
+        printf("makesuper\n");
+        make_indent(indent + 1);
+        printf("[method copy] super <- this\n");
+        break;
+    default:
+        printf("[MISSING]: %s\n", tokenname(s->nodetype));
         break;
     }
 }

@@ -92,7 +92,15 @@ static inline int append_ns_prefix(char *buf, int pos)
     return pos;
 }
 
-static char *make_func_name(kl_context *ctx, kl_lexer *l, const char *str)
+static inline int append_constructor_name(char *buf, int pos)
+{
+    /* This prefix is to make risk lower used by users. */
+    buf[pos++] = '_'; buf[pos++] = '_';
+    buf[pos++] = 'c'; buf[pos++] = 'r'; buf[pos++] = 'e'; buf[pos++] = 'a';buf[pos++] = 't'; buf[pos++] = 'e';
+    return pos;
+}
+
+static char *make_func_name(kl_context *ctx, kl_lexer *l, const char *str, int is_classname)
 {
     char buf[1024] = {0};
     int pos = 0;
@@ -103,6 +111,9 @@ static char *make_func_name(kl_context *ctx, kl_lexer *l, const char *str)
         kl_nsstack *n = ctx->ns;
         strcpy(buf + pos, str);
         pos += len;
+        if (is_classname) {
+            pos = append_constructor_name(buf, pos);
+        }
         if (n->prev) {
             pos = append_ns_prefix(buf, pos);
         }
@@ -286,6 +297,14 @@ static inline kl_expr *make_expr(kl_context *ctx, kl_lexer *l, tk_token tk)
     e->nodetype = tk;
     e->line = l->tokline;
     e->pos = l->tokpos;
+    return e;
+}
+
+static inline kl_expr *make_str_expr(kl_context *ctx, kl_lexer *l, const char *str)
+{
+    kl_expr *e = make_expr(ctx, l, TK_VSTR);
+    e->typeid = TK_TSTR;
+    e->val.str = parse_const_str(ctx, l, str);
     return e;
 }
 
@@ -524,6 +543,32 @@ static kl_expr *parse_expr_keyvalue(kl_context *ctx, kl_lexer *l)
         }
     }
     return e;
+}
+
+static inline kl_stmt *add_method2class(kl_context *ctx, kl_lexer *l, kl_symbol *sym, tk_token funcscope)
+{
+    if (ctx->scope->symtoken != TK_CLASS) {
+        return NULL;
+    }
+
+    kl_stmt *s = NULL;
+    switch (funcscope) {
+    case TK_PROTECTED:
+    case TK_PUBLIC: {
+        s = make_stmt(ctx, l, TK_EXPR);
+        kl_expr *ell = parse_expr_varname(ctx, l, "this");
+        kl_expr *elr = make_str_expr(ctx, l, sym->name);
+        kl_expr *el = make_bin_expr(ctx, l, TK_DOT, ell, elr);
+        kl_expr *er = parse_expr_varname(ctx, l, sym->name);
+        s->e1 = make_bin_expr(ctx, l, TK_EQ, el, er);
+        break;
+    }
+    // case TK_PRIVATE:
+    default:
+        break;
+    }
+
+    return s;
 }
 
 static kl_expr *parse_expr_arrayitem(kl_context *ctx, kl_lexer *l)
@@ -1360,6 +1405,7 @@ static kl_stmt *parse_class(kl_context *ctx, kl_lexer *l)
     kl_stmt *s = make_stmt(ctx, l, TK_CLASS);
     kl_symbol *sym = make_symbol(ctx, l, TK_CLASS, 0);
     s->sym = sym;
+    sym->funcid = ++ctx->funcid;
     sym->is_callable = 1;
     ctx->scope->has_func = 1;
     sym->scope = ctx->scope;
@@ -1370,21 +1416,23 @@ static kl_stmt *parse_class(kl_context *ctx, kl_lexer *l)
         parse_error(ctx, __LINE__, "Compile", l, "Class name is missing.");
         return s;
     }
+    sym->name = parse_const_str(ctx, l, l->str);
+    sym->funcname = make_func_name(ctx, l, sym->name, 1);
 
     /* Push the scope */
-    kl_nsstack *n = make_nsstack(ctx, l, l->str, TK_CLASS);
+    kl_nsstack *n = make_nsstack(ctx, l, sym->name, TK_CLASS);
     push_nsstack(ctx, n);
 
-    sym->name = parse_const_str(ctx, l, l->str);
     lexer_fetch(l);
 
     /* Constructor arguments if exists */
     if (l->tok == TK_LSBR) {
         lexer_fetch(l);
+        int lvalue = ctx->in_lvalue;
         ctx->in_lvalue = 1;
         s->e1 = sym->args = parse_def_arglist(ctx, l);
         sym->argcount = sym->idxmax;
-        ctx->in_lvalue = 0;
+        ctx->in_lvalue = lvalue;
         if (l->tok != TK_RSBR) {
             parse_error(ctx, __LINE__, "Compile", l, "The ')' is missing.");
             return s;
@@ -1394,12 +1442,34 @@ static kl_stmt *parse_class(kl_context *ctx, kl_lexer *l)
 
     if (l->tok == TK_COLON) {
         lexer_fetch(l);
+        // TODO: TK_DOT should be also accepted because it means the class in a namespace.
         if (l->tok != TK_NAME) {
             parse_error(ctx, __LINE__, "Compile", l, "Base class name is missing.");
             return s;
         }
+        sym->basename = parse_const_str(ctx, l, l->str);
         sym->base = parse_expression(ctx, l);
+        if (sym->base->nodetype != TK_CALL) {
+            sym->base = make_bin_expr(ctx, l, TK_CALL, sym->base, NULL);
+        }
+        kl_expr *r = make_str_expr(ctx, l, "create");
+        sym->base->lhs = make_bin_expr(ctx, l, TK_DOT, sym->base->lhs, r);
     }
+
+    /* Making `this` and `super`. */
+    kl_stmt *thisobj = make_stmt(ctx, l, TK_EXPR);
+    int lvalue = ctx->in_lvalue;
+    ctx->in_lvalue = 1;
+    thisobj->e1 = parse_expr_varname(ctx, l, "this");
+    if (sym->base) {
+        thisobj->e1 = make_bin_expr(ctx, l, TK_EQ, thisobj->e1, sym->base);
+        kl_stmt *superobj = make_stmt(ctx, l, TK_MKSUPER);
+        superobj->e1 = parse_expr_varname(ctx, l, "super");
+        ctx->in_lvalue = 0;
+        superobj->e2 = parse_expr_varname(ctx, l, "this");
+        thisobj->next = superobj;
+    }
+    ctx->in_lvalue = lvalue;
 
     /* Class body */
     if (l->tok != TK_LXBR) {
@@ -1407,13 +1477,24 @@ static kl_stmt *parse_class(kl_context *ctx, kl_lexer *l)
         return s;
     }
     lexer_fetch(l);
+    s->s1 = sym->body = thisobj;
     if (l->tok != TK_RXBR) {
-        s->s1 = sym->body = parse_statement_list(ctx, l);
+        kl_stmt *body = parse_statement_list(ctx, l);
+        connect_stmt(thisobj, body);
+        s->s1 = sym->body = thisobj;
         if (l->tok != TK_RXBR) {
             parse_error(ctx, __LINE__, "Compile", l, "The '}' is missing.");
             return s;
         }
     }
+
+    /* return this */
+    kl_stmt *retthis = make_stmt(ctx, l, TK_RETURN);
+    lvalue = ctx->in_lvalue;
+    ctx->in_lvalue = 0;
+    retthis->e1 = parse_expr_varname(ctx, l, "this");
+    connect_stmt(thisobj, retthis);
+    ctx->in_lvalue = lvalue;
 
     ctx->scope = sym->scope;
     pop_nsstack(ctx);
@@ -1429,7 +1510,7 @@ static kl_expr *parse_block_function(kl_context *ctx, kl_lexer *l)
     sym->funcid = ++ctx->funcid;
     sym->is_callable = 1;
     sym->name = parse_const_funcidname(ctx, l, sym->funcid);
-    sym->funcname = make_func_name(ctx, l, sym->name);
+    sym->funcname = make_func_name(ctx, l, sym->name, 0);
     add_sym2method(ctx->scope, sym);
 
     /* Push the scope */
@@ -1479,7 +1560,7 @@ static kl_expr *parse_block_function(kl_context *ctx, kl_lexer *l)
     return e;
 }
 
-static kl_stmt *parse_function(kl_context *ctx, kl_lexer *l, int funcscope)
+static kl_stmt *parse_function(kl_context *ctx, kl_lexer *l, tk_token funcscope)
 {
     DEBUG_PARSER_PHASE();
 
@@ -1488,16 +1569,16 @@ static kl_stmt *parse_function(kl_context *ctx, kl_lexer *l, int funcscope)
     s->sym = sym;
     sym->funcid = ++ctx->funcid;
     sym->is_callable = 1;
-    sym->is_native = funcscope == TK_NATIVE;
+    sym->is_native = (funcscope == TK_NATIVE);
 
     /* The name is not needed for function */
     if (l->tok == TK_NAME) {
         sym->name = parse_const_str(ctx, l, l->str);
-        sym->funcname = make_func_name(ctx, l, l->str);
+        sym->funcname = make_func_name(ctx, l, l->str, 0);
         lexer_fetch(l);
     } else {
         sym->name = parse_const_funcidname(ctx, l, sym->funcid);
-        sym->funcname = make_func_name(ctx, l, sym->name);
+        sym->funcname = make_func_name(ctx, l, sym->name, 0);
     }
     add_sym2method(ctx->scope, sym);
 
@@ -1548,6 +1629,9 @@ static kl_stmt *parse_function(kl_context *ctx, kl_lexer *l, int funcscope)
     sym->prototype = create_prototype(ctx, l, sym);
     ctx->scope = sym->scope;
     pop_nsstack(ctx);
+
+    kl_stmt *addm = add_method2class(ctx, l, sym, funcscope);
+    connect_stmt(s, addm);
     lexer_fetch(l);
     return s;
 }

@@ -18,6 +18,7 @@ struct kl_stmt;
 typedef struct kl_symbol {
     const char *name;               //  Symbol's name like a function name, a class name, a variable name, or somthing.
     const char *funcname;           //  The name with a namespace when it's a function.
+    const char *basename;           //  The name of the base class.
     const char *prototype;          //  The function prototype of this function.
     int has_func;                   //  If 1, this symbol's scope has an internal function. If 0, this func doesn't need a frame.
     int is_const;                   //  If true, the symbole can't be modfied.

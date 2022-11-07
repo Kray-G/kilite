@@ -159,6 +159,7 @@ typedef enum tk_token {
     TK_CALL,                //  For function call.
     TK_IDX,                 //  For array index reference.
     TK_TYPENODE,            //  The node will represent the type.
+    TK_MKSUPER,             //  The mark of making `super` object.
     TK_BINEND,              //  The mark for the end of a binary literal.
     TK_COMMENT1,            //  1 line comment.
     TK_COMMENTX,            //  Multi lines comment.
@@ -229,6 +230,7 @@ typedef enum kl_kir {
     KIR_MINUS,      //  <r1>, -<r2>             ;   <r1>  <-  -<r2>
 
     KIR_NEWOBJ,     //  <r1>                    ;   <r1>  <-  new obj
+    KIR_MKSUPER,    //  <r1>                    ;   <r1>  <-  `super` object
     KIR_IDX,        //  <r1>, <r2>, <idx>       ;   <r1>  <-  <r2>[<idx>]
     KIR_IDXL,       //  <r1>, <r2>, <idx>       ;   <r1>  <-  <r2>[<idx>]
     KIR_APLY,       //  <r1>, <r2>, <str>       ;   <r1>  <-  <r2>.<str>

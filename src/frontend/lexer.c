@@ -140,7 +140,10 @@ static const char *tkname[] = {
     "TK_CALL",
     "TK_IDX",
     "TK_TYPENODE",
+    "TK_MKSUPER",
     "TK_BINEND",
+    "TK_COMMENT1",
+    "TK_COMMENTX",
 };
 
 #define LEXER_CHECK_12_TOK(ch2, tok1, tok12)\

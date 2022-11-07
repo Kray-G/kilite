@@ -1018,6 +1018,11 @@ static kl_kir_func *gen_function(kl_context *ctx, kl_symbol *sym, kl_stmt *s)
     return func;
 }
 
+static kl_kir_func *gen_class(kl_context *ctx, kl_symbol *sym, kl_stmt *s)
+{
+    return gen_function(ctx, sym, s);
+}
+
 static kl_kir_func *gen_namespace(kl_context *ctx, kl_symbol *sym, kl_stmt *s)
 {
     if (!s) return NULL;
@@ -1089,6 +1094,17 @@ static kl_kir_inst *gen_stmt(kl_context *ctx, kl_symbol *sym, kl_stmt *s)
         break;
 
     case TK_CLASS:
+        if (s->s1) {
+            kl_kir_opr rr = make_var(ctx, sym, TK_TANY);
+            kl_symbol *f = s->sym;
+            kl_kir_func *func = gen_class(ctx, f, s->s1);
+            add_func(ctx->program, func);
+            kl_kir_opr r1 = make_var_index(ctx, f->ref ? f->ref->index : f->index, f->level, TK_TFUNC);
+            kl_kir_opr r2 = make_lit_str(ctx, "create");
+            head = new_inst_op3(ctx->program, s->line, s->pos, KIR_APLYL, &rr, &r1, &r2);
+            kl_kir_opr r3 = make_lit_func(ctx, s->sym);
+            head->next = new_inst_op2(ctx->program, s->line, s->pos, KIR_MOVA, &rr, &r3);
+        }
         break;
 
     case TK_IF:
@@ -1125,6 +1141,19 @@ static kl_kir_inst *gen_stmt(kl_context *ctx, kl_symbol *sym, kl_stmt *s)
             head = gen_expr(ctx, sym, NULL, s->e1);
         }
         break;
+
+    case TK_MKSUPER: {
+        kl_expr *e1 = s->e1;
+        kl_symbol *super = e1 ? e1->sym : NULL;
+        kl_expr *e2 = s->e2;
+        kl_symbol *thisobj = e2 ? e2->sym : NULL;
+        if (super && thisobj) {
+            kl_kir_opr r1 = make_var_index(ctx, super->index, super->level, TK_TANY);
+            kl_kir_opr r2 = make_var_index(ctx, thisobj->index, thisobj->level, TK_TANY);
+            head = new_inst_op2(ctx->program, s->line, s->pos, KIR_MKSUPER, &r1, &r2);
+        }
+        break;
+    }
     default:
         ;
     }
