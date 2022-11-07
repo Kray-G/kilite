@@ -32,6 +32,7 @@ typedef struct kl_symbol {
     int argcount;                   //  The number of arguments.
     int funcid;                     //  The function id to specify the function.
     int funcend;                    //  The label to the point where the function ends.
+    int callcnt;                    //  The call count in this function.
     int line;                       //  The line in the source code.
     int pos;                        //  The pos in the source code.
     tk_token symtoken;              //  TK_VAR, TK_NAMESPACE, TK_CLASS, TK_MODULE, TK_FUNC, TK_PRIVATE, TK_PROTECTED, or TK_PUBLIC.

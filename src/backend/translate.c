@@ -481,7 +481,7 @@ static void translate_inst(xstr *code, kl_kir_func *f, kl_kir_inst *i, func_cont
         break;
 
     case KIR_SVSTKP:
-        xstra_inst(code, "p = vstackp(ctx);\n");
+        xstra_inst(code, "int p%" PRId64 " = vstackp(ctx);\n", i->r1.i64);
         break;
     case KIR_PUSHARG:
         translate_pushvar(code, &(i->r1));
@@ -491,7 +491,7 @@ static void translate_inst(xstr *code, kl_kir_func *f, kl_kir_inst *i, func_cont
         translate_call(code, f, i);
         break;
     case KIR_RSSTKP:
-        xstra_inst(code, "restore_vstackp(ctx, p);\n");
+        xstra_inst(code, "restore_vstackp(ctx, p%" PRId64 ");\n", i->r1.i64);
         break;
     case KIR_CHKEXCEPT:
         xstra_inst(code, "CHECK_EXCEPTION(L%d);\n", i->labelid);
@@ -606,7 +606,7 @@ void translate_func(kl_kir_program *p, xstr *code, kl_kir_func *f)
     xstraf(code, "/* function:%s */\n", f->name);
     xstraf(code, "int %s(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)\n{\n", f->funcname);
     xstra_inst(code, "GC_CHECK(ctx);\n");
-    xstra_inst(code, "int p, e = 0;\n\n");
+    xstra_inst(code, "int e = 0;\n\n");
 
     kl_kir_inst *i = f->head;
     kl_kir_inst *prev = NULL;

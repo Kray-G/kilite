@@ -98,7 +98,7 @@ void disp_inst(kl_kir_program *p, kl_kir_inst *i)
         break;
 
     case KIR_SVSTKP:
-        printf(IDT OP "\n", "savestkp");
+        disp_1op("savestkp", i);
         break;
     case KIR_PUSHARG:
         disp_1op("pusharg", i);
@@ -107,7 +107,7 @@ void disp_inst(kl_kir_program *p, kl_kir_inst *i)
         disp_call("call", i);
         break;
     case KIR_RSSTKP:
-        printf(IDT OP "\n", "restorestkp");
+        disp_1op("restorestkp", i);
         break;
     case KIR_CHKEXCEPT:
         printf(IDT OP "L%d\n", "chkexcept", i->labelid);
