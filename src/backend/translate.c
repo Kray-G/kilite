@@ -298,6 +298,10 @@ static void translate_call(xstr *code, kl_kir_func *f, kl_kir_inst *i)
     char buf2[256] = {0};
     var_value(buf1, &(i->r1));
     if (i->r2.funcid > 0) {
+        if (i->r2.t == TK_FUNC) {
+            /* This means a direct call of an anonymous function. */
+            xstra_inst(code, "vmfnc *f%d = alcfnc(ctx, %s, frm, 0);\n", i->r2.funcid, i->r2.name);
+        }
         if (i->r2.recursive) {
             xstra_inst(code, "e = ((vmfunc_t)(f%d->f))(ctx, lex, %s, %d);\n", i->r2.funcid, buf1, i->r2.args);
         } else {
