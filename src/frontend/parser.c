@@ -805,6 +805,10 @@ static kl_expr *parse_expr_prefix(kl_context *ctx, kl_lexer *l)
             lhs->val.i64 = -(lhs->val.i64);
             return lhs;
         }
+        if (lhs->nodetype == TK_VDBL) {
+            lhs->val.dbl = -(lhs->val.dbl);
+            return lhs;
+        }
         kl_expr *e = make_expr(ctx, l, TK_MINUS);
         e->lhs = lhs;
         e->typeid = lhs->typeid;
