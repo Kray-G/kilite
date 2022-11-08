@@ -1,11 +1,11 @@
 #include "common.h"
 
-// c2m -c alloc.c gc.c init.c main.c util.c bigi.c str.c obj.c op.c lib\bign.c lib\bigz.c
-// timecmd c2m alloc.bmir gc.bmir init.bmir main.bmir util.bmir bigi.bmir hash.bmir op.bmir str.bmir bign.bmir bigz.bmir sample.c -eg
+// ..\..\bin\c2m -c alloc.c gc.c init.c main.c util.c bigi.c str.c obj.c op.c lib\bign.c lib\bigz.c
+// timecmd ..\..\bin\c2m alloc.bmir gc.bmir init.bmir main.bmir util.bmir bigi.bmir obj.bmir op.bmir str.bmir bign.bmir bigz.bmir sample.c -eg
 // cl -O2 -Fesample.exe alloc.c gc.c init.c main.c util.c bigi.c str.c obj.c op.c lib\bign.c lib\bigz.c sample.c
 
-// c2m -c alloc.c gc.c init.c main.c util.c bigi.c str.c obj.c op.c lib/bign.c lib/bigz.c
-// time c2m alloc.bmir gc.bmir init.bmir main.bmir util.bmir bigi.bmir hash.bmir op.bmir str.bmir bign.bmir bigz.bmir sample.c -eg
+// ../../bin/c2m -c alloc.c gc.c init.c main.c util.c bigi.c str.c obj.c op.c lib/bign.c lib/bigz.c
+// time ../../bin/c2m alloc.bmir gc.bmir init.bmir main.bmir util.bmir bigi.bmir obj.bmir op.bmir str.bmir bign.bmir bigz.bmir sample.c -eg
 // cl -O2 -Fesample.exe alloc.c gc.c init.c main.c util.c bigi.c str.c obj.c op.c lib/bign.c lib/bigz.c sample.c
 
 void setup_context(vmctx *ctx)
@@ -134,6 +134,89 @@ int fib(vmctx *ctx, vmfrm *lex, int64_t *r, int64_t n)
     return e;
 }
 
+/* function:fact */
+typedef int64_t (*fact_t)(int64_t *e, int64_t a0);
+int64_t nfact(int64_t *e, int64_t a0)
+{
+    int64_t r;
+    int64_t n = a0;
+    int64_t n0 = 0;
+    int64_t n1 = 0;
+    int64_t n2 = 0;
+    fact_t f1 = nfact;
+
+    n0 = a0;
+    n1 = (n0 == 0);
+    if (!n1) goto L3;
+
+L2:;
+    r = 1;
+    goto L1;
+
+L3:;
+L4:;
+    OP_NSUB_I_I(e, n, n2, n0, 1, L1)
+    n1 = f1(e, n2);
+    OP_NMUL_I_I(e, n, r, n0, n1, L1)
+
+L1:;
+    return r;
+}
+
+
+int fact(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    GC_CHECK(ctx);
+    int e = 0;
+
+    const int allocated_local = 3;
+    alloc_var(ctx, 3);
+    CHECK_EXCEPTION(L1);
+    vmvar *n0 = local_var(ctx, 0);
+    vmvar *n1 = local_var(ctx, 1);
+    vmvar *n2 = local_var(ctx, 2);
+    SET_ARGVAR(0, 3);
+
+    if (n0->t == VAR_INT64 && (ctx->callee->n == 0 || n0->i < ctx->callee->n)) {
+        int64_t error = 0;
+        int64_t ret = nfact(&error, n0->i);
+        if (error > 0) {
+            ctx->callee->n = error;
+            goto L10;
+        }
+        SET_I64((r), ret);
+        goto L1;
+    }
+
+L10:;
+    vmfnc *f1 = ((lex->v[0]))->f;
+
+    OP_EQEQ_V_I(ctx, n1, n0, 0);
+    OP_JMP_IF_FALSE(n1, L3);
+
+L2:;
+    SET_I64((r), 1);
+    goto L1;
+
+L3:;
+L4:;
+    int p0 = vstackp(ctx);
+    OP_SUB_V_I(ctx, n2, n0, 1);
+    push_var(ctx, n2);
+    CHECK_EXCEPTION(L1);
+    vmfnc *callee = ctx->callee;
+    ctx->callee = f1;
+    e = ((vmfunc_t)(f1->f))(ctx, lex, n1, 1);
+    ctx->callee = callee;
+    restore_vstackp(ctx, p0);
+    CHECK_EXCEPTION(L1);
+    OP_MUL(ctx, (r), n0, n1);
+
+L1:;
+    reduce_vstackp(ctx, allocated_local);
+    return e;
+}
+
 int run_global(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     vmfrm *global = alcfrm(ctx, 16);
@@ -164,16 +247,38 @@ int run_global(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     // }
 
     /* Pattern 2 */
+    // {
+    //     vmfnc *f1 = alcfnc(ctx, fib, global, 1);
+    //     vmvar *l1 = alcvar_fnc(ctx, f1);
+    //     global->v[0] = l1;
+
+    //     vmvar *r = alcvar(ctx, VAR_INT64, 1);
+    //     ((fib_t)(f1->f))(ctx, lex, &(r->i), c);
+    //     printf("fib(%d) = %lld\n", c, r->i);
+    //     pbakvar(ctx, r);
+    // }
+
+
+    /* Fact */
     {
-        vmfnc *f1 = alcfnc(ctx, fib, global, 1);
+        vmfnc *f1 = alcfnc(ctx, fact, global, 1);
         vmvar *l1 = alcvar_fnc(ctx, f1);
         global->v[0] = l1;
+        vmvar *n0 = alcvar_int64(ctx, 500, 1);
 
         vmvar *r = alcvar(ctx, VAR_INT64, 1);
-        ((fib_t)(f1->f))(ctx, lex, &(r->i), c);
-        printf("fib(%d) = %lld\n", c, r->i);
+        push_var(ctx, n0);
+        vmfnc *callee = ctx->callee;
+        ctx->callee = f1;
+        ((vmfunc_t)(f1->f))(ctx, f1->lex, r, 1);
+        ctx->callee = callee;
+        if (r->t == VAR_BIG) {
+            char *bs = BzToString(r->bi->b, 10, 0);
+            printf("%s\n", bs);
+            BzFreeString(bs);
+        }
+
         pbakvar(ctx, r);
     }
-
     pop_frm(ctx);
 }

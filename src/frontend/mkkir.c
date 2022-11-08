@@ -1004,6 +1004,7 @@ static kl_kir_func *gen_function(kl_context *ctx, kl_symbol *sym, kl_stmt *s)
 
     func->funcname = sym->funcname ? sym->funcname : sym->name;
     func->funcid = sym->funcid;
+    func->arg_count = sym->argcount;
     func->head->r1 = (kl_kir_opr){ .t = TK_VSINT, .i64 = sym->count, .typeid = TK_TSINT64 };
     func->head->r2 = (kl_kir_opr){ .t = TK_VSINT, .i64 = localvars, .typeid = TK_TSINT64 };
     func->head->r3 = (kl_kir_opr){ .t = TK_VSINT, .i64 = sym->argcount, .typeid = TK_TSINT64 };
@@ -1091,6 +1092,9 @@ static kl_kir_inst *gen_stmt(kl_context *ctx, kl_symbol *sym, kl_stmt *s)
         if (s->s1) {
             kl_symbol *f = s->sym;
             kl_kir_func *func = gen_function(ctx, f, s->s1);
+            if (1 <= func->arg_count && func->arg_count < 5) {
+                func->is_pure = check_pure_function(ctx, s->s1);
+            }
             add_func(ctx->program, func);
             kl_kir_opr r1 = make_var_index(ctx, f->ref ? f->ref->index : f->index, f->level, TK_TFUNC);
             kl_kir_opr r2 = make_lit_func(ctx, s->sym);

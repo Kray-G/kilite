@@ -160,6 +160,7 @@ typedef struct vmfnc {
 
     int32_t flags;
     int32_t args;
+    int64_t n;          /* The minimum of n */
     void *f;            /* function pointer */
     struct vmfrm *frm;  /* the funtion frame holding arguments */
     struct vmfrm *lex;  /* the lexical frame bound with this function */
@@ -196,6 +197,7 @@ typedef struct vmctx {
     vmfrm **fstk;
 
     vmvar *except;  /* Current exception that was thrown. */
+    vmfnc *callee;
 
     struct {
         vmvar var;
@@ -250,6 +252,10 @@ INLINE void copy_var_to(vmctx *ctx, vmvar *dst, vmvar *src);
 INLINE void initialize_allocators(vmctx *ctx);
 INLINE void mark_and_sweep(vmctx *ctx);
 INLINE void count(vmctx *ctx);
+INLINE int get_min2(int a0, int a1);
+INLINE int get_min3(int a0, int a1, int a2);
+INLINE int get_min4(int a0, int a1, int a2, int a3);
+INLINE int get_min5(int a0, int a1, int a2, int a3, int a4);
 
 INLINE void bi_initialize(void);
 INLINE void bi_finalize(void);
@@ -678,6 +684,22 @@ enum {
 
 /* ADD */
 
+#define OP_NADD_I_I(e, n, r, i0, i1, label) { \
+    if ((i0) >= 0) { \
+        if (((i1) <= 0) || ((i0) <= (INT64_MAX - (i1)))) { \
+            (r) = (i0) + (i1); \
+        } else { \
+            if (*e == 0 || n < *e) *e = n; \
+        } \
+    } else if (((i1) >= 0) || ((i0) >= (INT64_MIN - (i1))))  { \
+        (r) = (i0) + (i1); \
+    } else { \
+            if (*e == 0 || n < *e) *e = n; \
+    } \
+    if (*e > 0) goto label; \
+} \
+/**/
+
 #define OP_ADD_I_I(ctx, r, i0, i1) { \
     if ((i0) >= 0) { \
         if (((i1) <= 0) || ((i0) <= (INT64_MAX - (i1)))) { \
@@ -772,6 +794,22 @@ enum {
 
 /* SUB */
 
+#define OP_NSUB_I_I(e, n, r, i0, i1, label) { \
+    if ((i0) >= 0) { \
+        if (((i1) >= 0) || ((i0) <= (INT64_MAX + (i1)))) { \
+            (r) = (i0) - (i1); \
+        } else { \
+            if (*e == 0 || n < *e) *e = n; \
+        } \
+    } else if (((i1) <= 0) || ((i0) >= (INT64_MIN + (i1)))) { \
+        (r) = (i0) - (i1); \
+    } else { \
+        if (*e == 0 || n < *e) *e = n; \
+    } \
+    if (*e > 0) goto label; \
+} \
+/**/
+
 #define OP_SUB_I_I(ctx, r, i0, i1) { \
     if ((i0) >= 0) { \
         if (((i1) >= 0) || ((i0) <= (INT64_MAX + (i1)))) { \
@@ -864,6 +902,30 @@ enum {
 /**/
 
 /* MUL */
+
+#define OP_NMUL_I_I(e, n, r, i0, i1, label) { \
+    if ((i0) == 0 || (i1) == 0) { \
+        (r) = 0; \
+    } else if ((i1) == -1) { \
+        if ((i0) == INT64_MIN) { \
+            if (*e == 0 || n < *e) *e = n; \
+        } else { \
+            (r) = -(i0); \
+        } \
+    } else if (((i0) > 0 && (i1) > 0) || ((i0) < 0 && (i1) < 0)) { \
+        if ((i0) > (INT64_MAX)/(i1)) { \
+            if (*e == 0 || n < *e) *e = n; \
+        } else { \
+            (r) = (i0) * (i1); \
+        } \
+    } else if ((i0) < (INT64_MIN)/(i1)) { \
+        if (*e == 0 || n < *e) *e = n; \
+    } else { \
+        (r) = (i0) * (i1); \
+    } \
+    if (*e > 0) goto label; \
+} \
+/**/
 
 #define OP_MUL_I_I(ctx, r, i0, i1) { \
     if ((i0) == 0 || (i1) == 0) { \
@@ -1036,6 +1098,11 @@ enum {
 /**/
 
 /* MOD */
+
+#define OP_NMOD_I_I(e, n, r, i0, i1, label) { \
+    (r) = (i0) % (i1); \
+} \
+/**/
 
 #define OP_MOD_I_I(ctx, r, i0, i1) { \
     if (i1 < DBL_EPSILON) { \

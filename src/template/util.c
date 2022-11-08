@@ -23,3 +23,23 @@ void count(vmctx *ctx)
     count_fnc(ctx);
     count_var(ctx);
 }
+
+int get_min2(int a0, int a1)
+{
+    return a0 < a1 ? a0 : a1;
+}
+
+int get_min3(int a0, int a1, int a2)
+{
+    return a0 < a1 ? get_min2(a0, a2) : get_min2(a1, a2);
+}
+
+int get_min4(int a0, int a1, int a2, int a3)
+{
+    return a0 < a1 ? get_min3(a0, a2, a3) : get_min3(a1, a2, a3);
+}
+
+int get_min5(int a0, int a1, int a2, int a3, int a4)
+{
+    return a0 < a1 ? get_min4(a0, a2, a3, a4) : get_min4(a1, a2, a3, a4);
+}

@@ -218,7 +218,7 @@ void disp_inst(kl_kir_program *p, kl_kir_inst *i)
 
 void disp_func(kl_kir_program *p, kl_kir_func *f)
 {
-    printf("func: %s\n", f->funcname);
+    printf("func%s: %s\n", f->is_pure ? "[*]" : "", f->funcname);
 
     kl_kir_inst *i = f->head;
     while (i) {
