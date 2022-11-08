@@ -140,6 +140,7 @@ static void hashmap_objprint_impl(vmobj *obj, int indent)
 void hashmap_objprint(vmobj *obj)
 {
     hashmap_objprint_impl(obj, 0);
+    printf("\n");
 }
 
 void hashmap_print(vmobj *obj)

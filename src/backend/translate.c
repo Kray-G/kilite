@@ -495,20 +495,12 @@ static void translate_incdec(func_context *fctx, xstr *code, const char *op, con
     char buf2[256] = {0};
 
     var_value(buf1, r1);
-    if (r2->typeid == TK_TSINT64) {
-        int_value(buf2, r2);
-        if (is_postfix) {
-            if (r1->prevent) {
-                xstra_inst(code, "(%s)%s;\n", buf2, sop);
-            }  else {
-                xstra_inst(code, "SET_I64(%s, (%s)%s);\n", buf1, buf2, sop);
-            }
+    if (is_postfix) {
+        if (r1->prevent) {
+            xstra_inst(code, "OP_%sP_SAME(ctx, %s);\n", op, buf1);
         } else {
-            if (r1->prevent) {
-                xstra_inst(code, "%s(%s);\n", sop, buf2);
-            }  else {
-                xstra_inst(code, "SET_I64(%s, %s(%s));\n", buf1, sop, buf2);
-            }
+            var_value(buf2, r2);
+            xstra_inst(code, "OP_%sP(ctx, %s, %s);\n", op, buf1, buf2);
         }
     } else {
         if (r1->prevent) {

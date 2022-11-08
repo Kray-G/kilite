@@ -594,36 +594,63 @@ enum {
 
 /* Increment/Decrement */
 
-#define OP_INC_SAME(ctx, r) { \
-    if ((r)->t == VAR_INT64) { \
+#define OP_INC_SAME_I(ctx, r) { \
+    if ((r)->i < INT64_MAX) { \
         ++((r)->i); \
     } else { \
-        /* TODO */ \
+        BigZ b2 = BzFromInteger(1); \
+        BigZ bi = BzFromInteger((r)->i); \
+        (r)->t = VAR_BIG; \
+        (r)->bi = alcbgi_bigz(ctx, BzAdd(bi, b2)); \
+        BzFree(bi); \
+        BzFree(b2); \
     } \
 } \
 /**/
 
-#define OP_INCP_SAME(ctx, r, v) { \
+#define OP_INC_SAME(ctx, r) { \
     if ((r)->t == VAR_INT64) { \
-        ((r)->i)++; \
+        OP_INC_SAME_I(ctx, r) \
     } else { \
         /* TODO */ \
     } \
 } \
 /**/
 
-#define OP_DEC_SAME(ctx, r, v) { \
+#define OP_INCP_SAME(ctx, r) { \
     if ((r)->t == VAR_INT64) { \
-        --((r)->i); \
+        OP_INC_SAME_I(ctx, r) \
     } else { \
         /* TODO */ \
     } \
 } \
 /**/
 
-#define OP_DECP_SAME(ctx, r, v) { \
-    if ((r)->t == VAR_INT64) { \
+#define OP_DEC_SAME_I(ctx, r) { \
+    if (INT64_MIN < (r)->i) { \
         --((r)->i); \
+    } else { \
+        BigZ b2 = BzFromInteger(1); \
+        BigZ bi = BzFromInteger((r)->i); \
+        (r)->t = VAR_BIG; \
+        (r)->bi = alcbgi_bigz(ctx, BzAdd(bi, b2)); \
+        BzFree(bi); \
+        BzFree(b2); \
+    } \
+} \
+
+#define OP_DEC_SAME(ctx, r) { \
+    if ((r)->t == VAR_INT64) { \
+        OP_DEC_SAME_I(ctx, r) \
+    } else { \
+        /* TODO */ \
+    } \
+} \
+/**/
+
+#define OP_DECP_SAME(ctx, r) { \
+    if ((r)->t == VAR_INT64) { \
+        OP_DEC_SAME_I(ctx, r) \
     } else { \
         /* TODO */ \
     } \
@@ -631,9 +658,10 @@ enum {
 /**/
 
 #define OP_INC(ctx, r, v) { \
-    if ((v)->t == VAR_INT64) { \
-        (r)->t = VAR_INT64; \
-        (r)->i = ++((v)->i); \
+    vmvar *t1 = (v); \
+    if ((t1)->t == VAR_INT64) { \
+        OP_INC_SAME_I(ctx, t1) \
+        SHCOPY_VAR_TO(ctx, r, t1) \
     } else { \
         /* TODO */ \
     } \
@@ -641,9 +669,11 @@ enum {
 /**/
 
 #define OP_INCP(ctx, r, v) { \
-    if ((v)->t == VAR_INT64) { \
+    vmvar *t1 = (v); \
+    if ((t1)->t == VAR_INT64) { \
         (r)->t = VAR_INT64; \
-        (r)->i = ((v)->i)++; \
+        (r)->i = ((t1)->i); \
+        OP_INC_SAME_I(ctx, t1) \
     } else { \
         /* TODO */ \
     } \
@@ -651,9 +681,10 @@ enum {
 /**/
 
 #define OP_DEC(ctx, r, v) { \
-    if ((v)->t == VAR_INT64) { \
-        (r)->t = VAR_INT64; \
-        (r)->i = --((v)->i); \
+    vmvar *t1 = (v); \
+    if ((t1)->t == VAR_INT64) { \
+        OP_DEC_SAME_I(ctx, t1) \
+        SHCOPY_VAR_TO(ctx, r, t1) \
     } else { \
         /* TODO */ \
     } \
@@ -661,9 +692,11 @@ enum {
 /**/
 
 #define OP_DECP(ctx, r, v) { \
-    if ((v)->t == VAR_INT64) { \
+    vmvar *t1 = (v); \
+    if ((t1)->t == VAR_INT64) { \
         (r)->t = VAR_INT64; \
-        (r)->i = ((v)->i)--; \
+        (r)->i = ((t1)->i); \
+        OP_DEC_SAME_I(ctx, t1) \
     } else { \
         /* TODO */ \
     } \
@@ -673,9 +706,10 @@ enum {
 /* Unary minus */
 
 #define OP_UMINUS(ctx, r, v) { \
-    if ((v)->t == VAR_INT64) { \
+    vmvar *t1 = (v); \
+    if ((t1)->t == VAR_INT64) { \
         (r)->t = VAR_INT64; \
-        (r)->i = -((v)->i); \
+        (r)->i = -((t1)->i); \
     } else { \
         /* TODO */ \
     } \
