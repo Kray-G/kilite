@@ -1,4 +1,5 @@
 #include "common.h"
+#include <limits.h>
 
 #define DEF_COUNT(type, idx)\
     void count_##idx(vmctx *ctx)\
@@ -43,3 +44,34 @@ int get_min5(int a0, int a1, int a2, int a3, int a4)
 {
     return a0 < a1 ? get_min4(a0, a2, a3, a4) : get_min4(a1, a2, a3, a4);
 }
+
+void print(vmvar *v)
+{
+    switch (v->t) {
+    case VAR_INT64:
+        printf("%lld", v->i);
+        break;
+    case VAR_DBL:
+        printf("%f", v->d);
+        break;
+    case VAR_BIG: {
+        char *bs = BzToString(v->bi->b, 10, 0);
+        printf("%s", bs);
+        BzFreeString(bs);
+        break;
+    }
+    case VAR_STR:
+        printf("%s", v->s->s);
+        break;
+    case VAR_OBJ:
+        hashmap_objprint(v->o);
+        break;
+    case VAR_FNC:
+        printf("<function>");
+        break;
+    default:
+        printf("<UNKNOWN>");
+        break;
+    }
+}
+

@@ -69,18 +69,58 @@ vmstr *str_append_str(vmctx *ctx, vmstr *vs, vmstr *s2)
     return str_append_impl(ctx, vs, s2->hd, s2->len);
 }
 
-vmstr *str_append_i64(vmctx *ctx, vmstr *vs, int64_t i)
+vmstr *str_append_fmt(vmctx *ctx, vmstr *vs, const char *fmt, ...)
 {
-    char buf[32] = {0};
-    snprintf(buf, 31, "%lld", i);
-    return str_append_impl(ctx, vs, buf, strlen(buf));
+    if (vs->s < vs->hd) {
+        char *sp = vs->s;
+        char *hp = vs->hd;
+        while (*hp) {
+            *sp++ = *hp++;
+        }
+        *sp = 0;
+        vs->hd = vs->s;
+    }
+
+    va_list tmpa;
+    va_start(tmpa, fmt);
+    int l = vsnprintf(NULL, 0, fmt, tmpa);
+    va_end(tmpa);
+
+    va_list ap;
+    va_start(ap, fmt);
+    int len = vs->len + l;
+    if (len < vs->cap) {
+        vsnprintf(vs->s + vs->len, l + 1, fmt, ap);
+        vs->len = len;
+    } else {
+        int cap = (len < STR_UNIT) ? STR_UNIT : ((len / STR_UNIT) * (STR_UNIT << 1));
+        char *ns = (char *)calloc(cap, sizeof(char));
+        strcpy(ns, vs->s);
+        vsnprintf(ns + vs->len, l + 1, fmt, ap);
+        free(vs->s);
+        vs->hd = vs->s = ns;
+        vs->len = len;
+        vs->cap = cap;
+    }
+
+    va_end(ap);
+    return vs;
+}
+
+vmstr *str_append_ch(vmctx *ctx, vmstr *vs, const char ch)
+{
+    char buf[2] = {ch, 0};
+    return str_append_impl(ctx, vs, buf, 1);
 }
 
 vmstr *str_append_dbl(vmctx *ctx, vmstr *vs, double d)
 {
-    char buf[32] = {0};
-    snprintf(buf, 31, "%f", d);
-    return str_append_impl(ctx, vs, buf, strlen(buf));
+    return str_append_fmt(ctx, vs, "%f", d);
+}
+
+vmstr *str_append_i64(vmctx *ctx, vmstr *vs, int64_t i)
+{
+    return str_append_fmt(ctx, vs, "%lld", i);
 }
 
 vmstr *str_clear(vmstr *vs)

@@ -99,6 +99,7 @@ int run(int *ret, const char *fname, const char *src, int ac, char **av, char **
         if (opts->modules) {
             load_additional_modules(ctx, opts->modules);
         }
+        MIR_load_external(ctx, "_putchar", putchar);
         MIR_item_t main_func = load_main_modules(ctx);
         if (main_func == NULL || main_func->addr == NULL) {
             printf("Can't find the 'main'\n");
