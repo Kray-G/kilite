@@ -382,15 +382,15 @@ vmvar *alcvar_int64(vmctx *ctx, int64_t i, int hold)
 
 vmvar *alcvar_str(vmctx *ctx, const char *s)
 {
-    vmvar *v = alcvar_pure(ctx, VAR_BIG);
-    vmstr *r = v->s = alcstr_str(ctx, s);
+    vmvar *v = alcvar_pure(ctx, VAR_STR);
+    v->s = alcstr_str(ctx, s);
     return v;
 }
 
 vmvar *alcvar_bgistr(vmctx *ctx, const char *s, int radix)
 {
     vmvar *v = alcvar_pure(ctx, VAR_BIG);
-    vmbgi *r = v->bi = alcbgi_bigz(ctx, BzFromString(s, radix, BZ_UNTIL_END));
+    v->bi = alcbgi_bigz(ctx, BzFromString(s, radix, BZ_UNTIL_END));
     bi_normalize(v);
     return v;
 }

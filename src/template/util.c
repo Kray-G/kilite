@@ -1,5 +1,4 @@
 #include "common.h"
-#include <limits.h>
 
 #define DEF_COUNT(type, idx)\
     void count_##idx(vmctx *ctx)\

@@ -54,6 +54,7 @@ type ..\src\template\gc.c >> %TEMPF%
 type ..\src\template\init.c >> %TEMPF%
 type ..\src\template\main.c >> %TEMPF%
 type ..\src\template\util.c >> %TEMPF%
+type ..\src\template\format.c >> %TEMPF%
 type ..\src\template\bigi.c >> %TEMPF%
 type ..\src\template\str.c >> %TEMPF%
 type ..\src\template\obj.c >> %TEMPF%

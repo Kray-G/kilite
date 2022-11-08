@@ -56,6 +56,7 @@ cat ../src/template/gc.c >> $TEMPF
 cat ../src/template/init.c >> $TEMPF
 cat ../src/template/main.c >> $TEMPF
 cat ../src/template/util.c >> $TEMPF
+cat ../src/template/format.c >> $TEMPF
 cat ../src/template/bigi.c >> $TEMPF
 cat ../src/template/str.c >> $TEMPF
 cat ../src/template/obj.c >> $TEMPF
