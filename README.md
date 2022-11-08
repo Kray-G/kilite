@@ -74,6 +74,7 @@ I will note the followings as I don't forget it.
     * [x] Array operations.
     * [x] Object operations.
     * [ ] Range operations.
+    * [ ] Support a `switch-case` statement.
     * [x] Support the loop like `for`, `while`, and `do-while`.
     * [ ] `for-in` for Array.
     * [ ] `for-in` for Object.
@@ -92,8 +93,7 @@ I will note the followings as I don't forget it.
   * [ ] The last argument of function call could be outside arguments list if it's a block.
   * [ ] Object and array element's direct assignment.
   * [ ] Coroutine with `yield`.
-  * [ ] 'Case-When' expression.
-  * [ ] Support `native` keyword for high performance.
+  * [ ] `case-when` expression.
 * [ ] Libraries support.
   * [ ] Useful Libraries like Zip, Xml, PDF, or something.
 
