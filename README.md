@@ -49,6 +49,7 @@ The target program is the 38th result of a fibonacci as usual.
 | luajit       | 2.1.0-beta3 | 0.42s |
 | PyPy         | 7.3.9       | 0.42s |
 | Kinx(native) | 1.1.1       | 0.57s |
+| Kilite       | (beta-x)    | 0.60s |
 | Kilite       | (beta)      | 1.67s |
 | Lua          | 5.4.4       | 2.78s |
 | Ruby         | 3.1.2p20    | 3.30s |
@@ -56,7 +57,8 @@ The target program is the 38th result of a fibonacci as usual.
 | Python       | 3.11.0      | 6.28s |
 
 luajit and PyPy was very fast. That's exactly JIT as expected.
-Kilite has already been 2x faster than Ruby, and 3.3x faster than Kinx.
+Kilite(beta-x) will make a specialized method for 64bit integers and it will automtically work, so it's very fast when it's using only a 64bit integer.
+Even with Kilite(beta) that turned this optimization off, it's been 2x faster than Ruby, and 3.3x faster than Kinx.
 In the future, it could be slower by increasing the code, but I will try to keep the perfrmance even if the code would be more complex.
 
 ## TODO
@@ -107,7 +109,6 @@ In addition, the followings are the task list for the current implementation.
 
 ### `native`
 
-I decided I would support the `native` keyword for more convenience solution to make the code faster. However, I don't know that this can make it actually.
-I can't promise anything, but I'll challenge myself to do it.
-
-Note that the current implementation will work with `native` but it's almost same as the code without `native`.
+Note that `native` keyword will be no longer supported because Kilite will work automatically with a similar way thought it's a little different.
+For example, as you looked at above, the Kilite(beta-x) is working with a specialized method for 64bit integers and it has been already optimized.
+It's like `native` in Kinx, but we don't have to use some keywords like `native` and it will work automatilly as we write it naturally.
