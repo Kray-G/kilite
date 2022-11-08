@@ -19,6 +19,7 @@ TEMPF=h.c
 gcc -O2 -o makecstr ../utils/makecstr.c
 cat ../src/template/lib/bign.h > $TEMPF
 cat ../src/template/lib/bigz.h >> $TEMPF
+cat ../src/template/lib/printf.h >> $TEMPF
 cat ../src/template/header.h >> $TEMPF
 ./makecstr $TEMPF > ../src/backend/header.c
 rm $TEMPF
@@ -44,10 +45,12 @@ cp -f kilite ../kilite
 mkdir -p lib
 cp -f ../src/template/lib/bign.h ./lib/bign.h
 cp -f ../src/template/lib/bigz.h ./lib/bigz.h
+cp -f ../src/template/lib/printf.h ./lib/printf.h
 cp -f ../src/template/common.h ./common.h
 cp -f ../src/template/header.h ./header.h
 cat ../src/template/lib/bign.c > $TEMPF
 cat ../src/template/lib/bigz.c >> $TEMPF
+cat ../src/template/lib/printf.c >> $TEMPF
 cat ../src/template/alloc.c >> $TEMPF
 cat ../src/template/gc.c >> $TEMPF
 cat ../src/template/init.c >> $TEMPF

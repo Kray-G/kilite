@@ -18,13 +18,6 @@ extern BigZ i64minm1;
 #include <string.h>
 #else
 #define INLINE inline
-int printf(const char *, ...);
-#ifdef WIN32
-int _snprintf(char *, int, const char *, ...);
-#define snprintf _snprintf
-#else
-int snprintf(char *, int, const char *, ...);
-#endif
 int64_t strtoll(const char*, char**, int);
 void *malloc(size_t);
 void *calloc(size_t, size_t);
@@ -256,6 +249,7 @@ INLINE int get_min2(int a0, int a1);
 INLINE int get_min3(int a0, int a1, int a2);
 INLINE int get_min4(int a0, int a1, int a2, int a3);
 INLINE int get_min5(int a0, int a1, int a2, int a3, int a4);
+INLINE vmstr *format(vmctx *ctx, vmvar *v);
 
 INLINE void bi_initialize(void);
 INLINE void bi_finalize(void);
@@ -270,8 +264,10 @@ INLINE vmstr *str_from_dbl(vmctx *ctx, double d);
 INLINE vmstr *str_make_double(vmctx *ctx, vmstr *vs);
 INLINE vmstr *str_make_ntimes(vmctx *ctx, vmstr *vs, int n);
 INLINE vmstr *str_append(vmctx *ctx, vmstr *vs, const char *s, int len);
+INLINE vmstr *str_append_ch(vmctx *ctx, vmstr *vs, const char ch);
 INLINE vmstr *str_append_cp(vmctx *ctx, vmstr *vs, const char *s);
 INLINE vmstr *str_append_str(vmctx *ctx, vmstr *vs, vmstr *s2);
+INLINE vmstr *str_append_fmt(vmctx *ctx, vmstr *vs, const char *fmt, ...);
 INLINE vmstr *str_append_i64(vmctx *ctx, vmstr *vs, int64_t i);
 INLINE vmstr *str_append_dbl(vmctx *ctx, vmstr *vs, double d);
 INLINE vmstr *str_make_path(vmctx *ctx, vmstr *v0, vmstr *v1);

@@ -16,6 +16,7 @@ set TEMPF=h.c
 cl -O2 ..\utils\makecstr.c
 type ..\src\template\lib\bign.h > %TEMPF%
 type ..\src\template\lib\bigz.h >> %TEMPF%
+type ..\src\template\lib\printf.h >> %TEMPF%
 type ..\src\template\header.h >> %TEMPF%
 makecstr.exe %TEMPF% > ..\src\backend\header.c
 del %TEMPF%
@@ -42,10 +43,12 @@ copy /y kilite.exe ..\kilite.exe
 if not exist lib mkdir lib
 copy /y ..\src\template\lib\bign.h .\lib\bign.h
 copy /y ..\src\template\lib\bigz.h .\lib\bigz.h
+copy /y ..\src\template\lib\printf.h .\lib\printf.h
 copy /y ..\src\template\common.h .\common.h
 copy /y ..\src\template\header.h .\header.h
 type ..\src\template\lib\bign.c > %TEMPF%
 type ..\src\template\lib\bigz.c >> %TEMPF%
+type ..\src\template\lib\printf.c >> %TEMPF%
 type ..\src\template\alloc.c >> %TEMPF%
 type ..\src\template\gc.c >> %TEMPF%
 type ..\src\template\init.c >> %TEMPF%
