@@ -363,6 +363,13 @@ vmvar *alcvar_initial(vmctx *ctx)
     return v;
 }
 
+vmvar *alcvar_obj(vmctx *ctx, vmobj *o)
+{
+    vmvar *v = alcvar_pure(ctx, VAR_OBJ);
+    v->o = o;
+    return v;
+}
+
 vmvar *alcvar_fnc(vmctx *ctx, vmfnc *f)
 {
     vmvar *v = alcvar_pure(ctx, VAR_FNC);

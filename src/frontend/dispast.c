@@ -396,7 +396,11 @@ static void disp_stmt(kl_stmt *s, int indent)
     case TK_EXTERN:
         printf("extern: ");
         disp_expr(s->e2, -1);
-        printf(" <- %s\n", s->e1->val.str);
+        printf(" <- %s", s->e1->val.str);
+        if (s->typeid == TK_TFUNC) {
+            printf("()");
+        }
+        printf("\n");
         break;
     case TK_CONST:
         printf("const\n");

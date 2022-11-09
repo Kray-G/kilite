@@ -234,6 +234,7 @@ INLINE vmobj *alcobj(vmctx *ctx);
 INLINE void pbakobj(vmctx *ctx, vmobj *p);
 INLINE vmvar *alcvar(vmctx *ctx, vartype t, int hold);
 INLINE vmvar *alcvar_initial(vmctx *ctx);
+INLINE vmvar *alcvar_obj(vmctx *ctx, vmobj *o);
 INLINE vmvar *alcvar_fnc(vmctx *ctx, vmfnc *f);
 INLINE vmvar *alcvar_int64(vmctx *ctx, int64_t i, int hold);
 INLINE vmvar *alcvar_str(vmctx *ctx, const char *s);

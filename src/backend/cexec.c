@@ -4,6 +4,70 @@
 #include <stdio.h>
 #include <string.h>
 
+#if defined(_WIN32) || defined(_WIN64)
+#include <windows.h>
+#pragma comment(lib, "advapi32.lib")
+HCRYPTPROV gmathh = (HCRYPTPROV)NULL;
+#else
+#include <stdio.h>
+FILE* gmathh = NULL;
+#endif
+
+#if defined(_WIN32) || defined(_WIN64)
+void Math_initialize(void)
+{
+    if (!CryptAcquireContext(&gmathh,
+                                NULL,
+                                NULL,
+                                PROV_RSA_FULL,
+                                CRYPT_SILENT)) {
+        if (GetLastError() != (DWORD)NTE_BAD_KEYSET) {
+            gmathh = (HCRYPTPROV)NULL;
+            return;
+        }
+        if (!CryptAcquireContext(&gmathh,
+                                    NULL,
+                                    NULL,
+                                    PROV_RSA_FULL,
+                                    CRYPT_SILENT | CRYPT_NEWKEYSET)) {
+            gmathh = (HCRYPTPROV)NULL;
+            return;
+        }
+    }
+}
+
+void Math_finalize(void)
+{
+    if (gmathh)
+        CryptReleaseContext(gmathh, 0);
+}
+
+uint32_t Math_random_impl(void)
+{
+    uint32_t result;
+    CryptGenRandom(gmathh, sizeof(result), (BYTE*)&result);
+    return result;
+}
+#else
+void Math_initialize(void)
+{
+    gmathh = fopen("/dev/urandom", "rb");
+}
+
+void Math_finalize(void)
+{
+    if (gmathh)
+        fclose(gmathh);
+}
+
+uint32_t Math_random_impl(void)
+{
+    uint32_t result;
+    fread(&result, sizeof(result), 1, gmathh);
+    return result;
+}
+#endif
+
 struct data {
     const char *p;
 };
@@ -99,6 +163,7 @@ int run(int *ret, const char *fname, const char *src, int ac, char **av, char **
         if (opts->modules) {
             load_additional_modules(ctx, opts->modules);
         }
+        MIR_load_external(ctx, "Math_random_impl", Math_random_impl);
         MIR_load_external(ctx, "_putchar", putchar);
         MIR_item_t main_func = load_main_modules(ctx);
         if (main_func == NULL || main_func->addr == NULL) {
@@ -106,11 +171,13 @@ int run(int *ret, const char *fname, const char *src, int ac, char **av, char **
             goto END;
         }
 
+        Math_initialize();
         MIR_gen_init(ctx, 1);
         MIR_link(ctx, lazy ? MIR_set_lazy_gen_interface : MIR_set_gen_interface, import_resolver);
         main_t fun_addr = (main_t)(main_func->addr);
         int rc = fun_addr(ac, av, ev);
         MIR_gen_finish(ctx);
+        Math_finalize();
         if (ret) *ret = rc;
         r = 0;  /* successful */
     }

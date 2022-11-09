@@ -1826,13 +1826,26 @@ static kl_stmt *parse_statement(kl_context *ctx, kl_lexer *l)
         lexer_fetch(l);
         if (l->tok != TK_NAME) {
             parse_error(ctx, __LINE__, "Compile", l, "Function name is needed after 'extern'.");
+            return panic_mode_stmt(r, ';', ctx, l);
         }
         r = make_stmt(ctx, l, TK_EXTERN);
         r->e1 = make_str_expr(ctx, l, l->str);
         r->e2 = parse_expr_varname(ctx, l, l->str, 1);
         lexer_fetch(l);
+        if (l->tok == TK_LSBR) {
+            lexer_fetch(l);
+            if (l->tok != TK_RSBR) {
+                parse_error(ctx, __LINE__, "Compile", l, "The ')' is missing in key value.");
+                return panic_mode_stmt(r, ';', ctx, l);
+            }
+            lexer_fetch(l);
+            r->typeid = TK_TFUNC;
+        } else {
+            r->typeid = TK_TANY;
+        }
         if (l->tok != TK_SEMICOLON) {
             parse_error(ctx, __LINE__, "Compile", l, "The ':' is missing in key value.");
+            return panic_mode_stmt(r, ';', ctx, l);
         }
         lexer_fetch(l);
         break;

@@ -59,6 +59,8 @@ type ..\src\template\bigi.c >> %TEMPF%
 type ..\src\template\str.c >> %TEMPF%
 type ..\src\template\obj.c >> %TEMPF%
 type ..\src\template\op.c >> %TEMPF%
+type ..\src\template\libstd.c >> %TEMPF%
+type ..\src\template\libmath.c >> %TEMPF%
 c2m -DUSE_INT64 -I lib -c %TEMPF%
 del kilite.bmir
 ren %TEMPF:.c=.bmir% kilite.bmir
