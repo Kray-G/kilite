@@ -3,4 +3,4 @@ func fact(n) {
     return n * fact(n-1);
 }
 
-fact(500);
+System.println(fact(500));

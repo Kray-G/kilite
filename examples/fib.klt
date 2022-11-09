@@ -3,4 +3,4 @@ func fib(n) {
     return fib(n-1) + fib(n-2);
 }
 
-fib(38);
+System.println(fib(38));

@@ -5,4 +5,4 @@ function A(x,  y) {
     return A(x - 1, A(x, y - 1));
 }
 
-return A(3, 7);
+System.println(A(3, 7));
