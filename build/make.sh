@@ -24,7 +24,7 @@ cat ../src/template/header.h >> $TEMPF
 ./makecstr $TEMPF > ../src/backend/header.c
 rm $TEMPF
 
-gcc -O2 -I ../mir \
+gcc -Wno-unused-result -O2 -I ../mir \
     -DUSE_INT64 -o kilite \
     ../src/main.c \
     ../src/frontend/lexer.c \
