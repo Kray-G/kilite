@@ -289,7 +289,7 @@ static kl_lexer *lexer_new(void)
     l->tokline = 0;
     l->tokpos = 0;
     l->toklen = 1;
-    l->precode = "extern print(); extern println(); extern Math;\n";
+    l->precode = "extern System; extern Math;\n";
     return l;
 }
 

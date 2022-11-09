@@ -70,6 +70,11 @@ int strcmp(const char *s1, const char *s2);
 #define local_var(ctx, n) (&(((ctx)->vstk)[(ctx)->vstkp - ((n) + 1)]))
 #define local_var_index(n) ((ctx)->vstkp - ((n) + 1))
 
+#define KL_SET_METHOD(o, name, fname, args) \
+    hashmap_set(ctx, o, #name, alcvar_fnc(ctx, alcfnc(ctx, fname, NULL, args))); \
+/**/
+
+
 /***************************************************************************
  * VM Variable
 */
