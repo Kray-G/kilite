@@ -5,6 +5,7 @@
 int throw_system_exception(vmctx *ctx, int id)
 {
     /* TODO */
+    printf("System exception occurred\n");
     return 1;
 }
 
@@ -58,10 +59,13 @@ int add_i_v(vmctx *ctx, vmvar *r, int64_t i, vmvar *v)
 
 int add_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
 {
-    /* This should care about what can't be cared by *_i_v/*_v_i method. */
+    int e = 0;
     switch (v0->t) {
     case VAR_BIG:
         switch (v1->t) {
+        case VAR_INT64:
+            OP_ADD_B_I(ctx, r, v0, v1->i);
+            break;
         case VAR_DBL:
             r->t = VAR_DBL;
             r->d = BzToDouble(v0->bi->b) + v1->d;
@@ -80,6 +84,9 @@ int add_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
         break;
     case VAR_DBL:
         switch (v1->t) {
+        case VAR_INT64:
+            OP_ADD_V_I(ctx, r, v0, v1->i);
+            break;
         case VAR_BIG:
             r->t = VAR_DBL;
             r->d = v0->d + BzToDouble(v1->bi->b);
@@ -100,6 +107,9 @@ int add_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
         break;
     case VAR_STR:
         switch (v1->t) {
+        case VAR_INT64:
+            OP_ADD_V_I(ctx, r, v0, v1->i);
+            break;
         case VAR_BIG:
             r->t = VAR_STR;
             r->s = str_dup(ctx, v0->s);
@@ -128,7 +138,7 @@ int add_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
     case VAR_OBJ:
         return throw_system_exception(ctx, EXCEPT_UNSUPPORTED_OPERATION);
     }
-    return 0;
+    return e;
 }
 
 /* SUB */
@@ -167,10 +177,13 @@ int sub_i_v(vmctx *ctx, vmvar *r, int64_t i, vmvar *v)
 
 int sub_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
 {
-     /* This should care about what can't be cared by *_i_v/*_v_i method. */
+    int e = 0;
     switch (v0->t) {
     case VAR_BIG:
         switch (v1->t) {
+        case VAR_INT64:
+            OP_SUB_B_I(ctx, r, v0, v1->i);
+            break;
         case VAR_DBL:
             r->t = VAR_DBL;
             r->d = BzToDouble(v0->bi->b) - v1->d;
@@ -183,6 +196,9 @@ int sub_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
         break;
     case VAR_DBL:
         switch (v1->t) {
+        case VAR_INT64:
+            OP_SUB_V_I(ctx, r, v0, v1->i);
+            break;
         case VAR_BIG:
             r->t = VAR_DBL;
             r->d = v0->d - BzToDouble(v1->bi->b);
@@ -199,6 +215,7 @@ int sub_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
         break;
     case VAR_STR:
         switch (v1->t) {
+        case VAR_INT64:
         case VAR_BIG:
         case VAR_DBL:
         case VAR_STR:
@@ -211,7 +228,7 @@ int sub_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
     case VAR_OBJ:
         return throw_system_exception(ctx, EXCEPT_UNSUPPORTED_OPERATION);
     }
-    return 0;
+    return e;
 }
 
 /* MUL */
@@ -258,10 +275,13 @@ int mul_i_v(vmctx *ctx, vmvar *r, int64_t i, vmvar *v)
 
 int mul_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
 {
-     /* This should care about what can't be cared by *_i_v/*_v_i method. */
+    int e = 0;
     switch (v0->t) {
     case VAR_BIG:
         switch (v1->t) {
+        case VAR_INT64:
+            OP_MUL_B_I(ctx, r, v0, v1->i);
+            break;
         case VAR_DBL:
             r->t = VAR_DBL;
             r->d = BzToDouble(v0->bi->b) * v1->d;
@@ -275,6 +295,9 @@ int mul_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
         break;
     case VAR_DBL:
         switch (v1->t) {
+        case VAR_INT64:
+            OP_MUL_V_I(ctx, r, v0, v1->i);
+            break;
         case VAR_BIG:
             r->t = VAR_DBL;
             r->d = v0->d * BzToDouble(v1->bi->b);
@@ -296,6 +319,9 @@ int mul_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
         break;
     case VAR_STR:
         switch (v1->t) {
+        case VAR_INT64:
+            OP_MUL_V_I(ctx, r, v0, v1->i);
+            break;
         case VAR_BIG:
             /* Unsupported because big int could be so big! */
             return throw_system_exception(ctx, EXCEPT_UNSUPPORTED_OPERATION);
@@ -315,7 +341,7 @@ int mul_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
     case VAR_OBJ:
         return throw_system_exception(ctx, EXCEPT_UNSUPPORTED_OPERATION);
     }
-    return 0;
+    return e;
 }
 
 /* DIV */
@@ -370,10 +396,13 @@ int div_i_v(vmctx *ctx, vmvar *r, int64_t i, vmvar *v)
 
 int div_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
 {
-     /* This should care about what can't be cared by *_i_v/*_v_i method. */
+    int e = 0;
     switch (v0->t) {
     case VAR_BIG:
         switch (v1->t) {
+        case VAR_INT64:
+            OP_DIV_B_I(ctx, r, v0, v1->i);
+            break;
         case VAR_DBL:
             if (v1->d < DBL_EPSILON) {
                 return throw_system_exception(ctx, EXCEPT_DIVIDE_BY_ZERO);
@@ -389,13 +418,19 @@ int div_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
         break;
     case VAR_DBL:
         switch (v1->t) {
+        case VAR_INT64:
+            OP_DIV_V_I(ctx, r, v0, v1->i);
+            break;
         case VAR_BIG:
             r->t = VAR_DBL;
             r->d = v0->d / BzToDouble(v1->bi->b);
             break;
         case VAR_DBL:
+            if (v1->d < DBL_EPSILON) {
+                return throw_system_exception(ctx, EXCEPT_DIVIDE_BY_ZERO);
+            }
             r->t = VAR_DBL;
-            r->d = v0->d * v1->d;
+            r->d = v0->d / v1->d;
             break;
         case VAR_STR:
             /* double value can be used as an int in some cases. */
@@ -410,6 +445,9 @@ int div_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
         break;
     case VAR_STR:
         switch (v1->t) {
+        case VAR_INT64:
+            OP_DIV_V_I(ctx, r, v0, v1->i);
+            break;
         case VAR_BIG:
             /* Unsupported because big int could be so big! */
             return throw_system_exception(ctx, EXCEPT_UNSUPPORTED_OPERATION);
