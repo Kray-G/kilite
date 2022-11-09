@@ -44,22 +44,75 @@ Now, I did benchmark with some script languages because the current version of k
 That's why I'll show it below.
 The target program is the 38th result of a fibonacci as usual.
 
-|              | Version     | Time  |
-| ------------ | ----------- | ----- |
-| luajit       | 2.1.0-beta3 | 0.42s |
-| PyPy         | 7.3.9       | 0.42s |
-| Kinx(native) | 1.1.1       | 0.57s |
-| Kilite       | (beta-x)    | 0.60s |
-| Kilite       | (beta)      | 1.67s |
-| Lua          | 5.4.4       | 2.78s |
-| Ruby         | 3.1.2p20    | 3.30s |
-| Kinx         | 1.1.1       | 5.63s |
-| Python       | 3.11.0      | 6.28s |
+|              | Version     | Time  | Result   |
+| ------------ | ----------- | ----- | -------- |
+| luajit       | 2.1.0-beta3 | 0.42s | 39088169 |
+| PyPy         | 7.3.9       | 0.42s | 39088169 |
+| Kinx(native) | 1.1.1       | 0.57s | 39088169 |
+| Kilite       | (beta-x)    | 0.60s | 39088169 |
+| Kilite       | (beta)      | 1.67s | 39088169 |
+| Lua          | 5.4.4       | 2.78s | 39088169 |
+| Ruby         | 3.1.2p20    | 3.30s | 39088169 |
+| Kinx         | 1.1.1       | 5.63s | 39088169 |
+| Python       | 3.11.0      | 6.28s | 39088169 |
 
 luajit and PyPy was very fast. That's exactly JIT as expected.
-Kilite(beta-x) will make a specialized method for 64bit integers and it will automtically work, so it's very fast when it's using only a 64bit integer.
+Kilite(beta-x) will create a specialized method for 64bit integers and it will automtically work, so it's very fast when it's using only a 64bit integer.
 Even with Kilite(beta) that turned this optimization off, it's been 2x faster than Ruby, and 3.3x faster than Kinx.
-In the future, it could be slower by increasing the code, but I will try to keep the perfrmance even if the code would be more complex.
+This is the result as I wanted, but it could be slower by increasing the code in the future.
+I will try to keep the perfrmance even if the code would be more complex.
+
+The source code for each language is shown below.
+
+#### Kinx/Kilite
+
+Kilite has no output method like `print` so far, so it will show the result with the option `-x`.
+
+    function fib(n) {
+        if (n < 2) return n;
+        return fib(n - 2) + fib(n - 1);
+    }
+    return fib(38);
+
+#### Kinx(native)
+
+Kinx `native` was super fast, but we have to specify the `native` everytime.
+
+    native fib(n) {
+        if (n < 2) return n;
+        return fib(n - 2) + fib(n - 1);
+    }
+    System.println(fib(38));
+
+#### Ruby
+
+Ruby is now much faster than before.
+
+    def fib(n)
+        return n if n < 2
+        fib(n - 2) + fib(n - 1)
+    end
+    puts fib(38)
+
+#### Lua/luajit
+
+Lua is almost same as Ruby about the performance, but luajit is amazing and super fast.
+
+    function fib(n)
+        if n < 2 then return n end
+        return fib(n - 2) + fib(n - 1)
+    end
+    print(fib(38))
+
+#### Python/PyPy
+
+Python was slow, but PyPy was very fast.
+
+    def fib(n):
+        if n < 2:
+            return n
+        return fib(n-2) + fib(n-1)
+    print(fib(38))
 
 ## TODO
 
@@ -80,6 +133,7 @@ I will note the followings as I don't forget it.
     * [ ] `for-in` for Object.
     * [ ] `for-in` for Range.
     * [x] Anonymous function in an expression.
+    * [ ] Easy print method.
   * [ ] Namespaces, classes, modules, functions, inheritance, and mix-in mechanism.
     * [ ] Namespace works.
     * [x] Class definition.
@@ -94,6 +148,7 @@ I will note the followings as I don't forget it.
   * [ ] Object and array element's direct assignment.
   * [ ] Coroutine with `yield`.
   * [ ] `case-when` expression.
+  * [ ] Formatter object.
 * [ ] Libraries support.
   * [ ] Useful Libraries like Zip, Xml, PDF, or something.
 
