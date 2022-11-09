@@ -1,12 +1,12 @@
 #include "../src/frontend/lexer.h"
 
-// cl test_lexer.c ..\src\lexer.c ..\src\error.c
-// gcc test_lexer.c ../src/lexer.c ../src\error.c
+// cl test_lexer.c ..\src\frontend\lexer.c ..\src\frontend\error.c
+// gcc test_lexer.c ../src/frontend/lexer.c ../src/frontend/error.c
 
 const char *teststr =
-    "! = + - * / % & | ^ ? ** << >> && || += -= -> *= /= %= &= |= ^= **= <<= >>= &&= ||= =~ => !~ == != < <= > >= <=> "
+    "! = + - * / % & | ^ ? ** << >> && || += -= *= /= %= &= |= ^= **= <<= >>= &&= ||= =~ => !~ == != < <= > >= <=> "
     ", : ; . .. ... ( ) [ ] { } "
-    "const var let new import namespace module class private protected public mixin func function if else do while for in return "
+    "extern const var let new import namespace module class private protected public mixin func function if else do while for in return "
         "switch case when break continue default otherwise fallthrough yield try catch finally throw "
     "xconst xvar xlet xnew xmodule xclass xprivate xprotected xpublic xmixin xfunc xfunction xif xelse xdo xwhile xfor "
         "xin xreturn xswitch xcase xwhen xbreak xcontinue xdefault xotherwise xfallthrough xyield xtry xcatch xfinally xthrow "
@@ -16,10 +16,10 @@ const char *teststr =
 ;
 const tk_token expected[] = {
     TK_NOT, TK_EQ, TK_ADD, TK_SUB, TK_MUL, TK_DIV, TK_MOD, TK_AND, TK_OR, TK_XOR, TK_QES, TK_EXP, TK_LSH, TK_RSH, TK_LAND, TK_LOR,
-    TK_ADDEQ, TK_SUBEQ, TK_ARROW, TK_MULEQ, TK_DIVEQ, TK_MODEQ, TK_ANDEQ, TK_OREQ, TK_XOREQ, TK_EXPEQ, TK_LSHEQ, TK_RSHEQ, TK_LANDEQ,
+    TK_ADDEQ, TK_SUBEQ, TK_MULEQ, TK_DIVEQ, TK_MODEQ, TK_ANDEQ, TK_OREQ, TK_XOREQ, TK_EXPEQ, TK_LSHEQ, TK_RSHEQ, TK_LANDEQ,
     TK_LOREQ, TK_REGEQ, TK_DARROW, TK_REGNE, TK_EQEQ, TK_NEQ, TK_LT, TK_LE, TK_GT, TK_GE, TK_LGE,
     TK_COMMA, TK_COLON, TK_SEMICOLON, TK_DOT, TK_DOT2, TK_DOT3, TK_LSBR, TK_RSBR, TK_LLBR, TK_RLBR, TK_LXBR, TK_RXBR,
-    TK_CONST, TK_LET, TK_LET, TK_NEW, TK_IMPORT, TK_NAMESPACE, TK_MODULE, TK_CLASS, TK_PRIVATE, TK_PROTECTED, TK_PUBLIC, TK_MIXIN, TK_FUNC,
+    TK_EXTERN, TK_CONST, TK_LET, TK_LET, TK_NEW, TK_IMPORT, TK_NAMESPACE, TK_MODULE, TK_CLASS, TK_PRIVATE, TK_PROTECTED, TK_PUBLIC, TK_MIXIN, TK_FUNC,
         TK_FUNC, TK_IF, TK_ELSE, TK_DO, TK_WHILE, TK_FOR, TK_IN, TK_RETURN, TK_SWITCH, TK_CASE, TK_WHEN, TK_BREAK, TK_CONTINUE,
         TK_DEFAULT, TK_OTHERWISE, TK_FALLTHROUGH, TK_YIELD, TK_TRY, TK_CATCH, TK_FINALLY, TK_THROW,
     TK_NAME, TK_NAME, TK_NAME, TK_NAME, TK_NAME, TK_NAME, TK_NAME, TK_NAME, TK_NAME, TK_NAME, TK_NAME, TK_NAME, TK_NAME,
