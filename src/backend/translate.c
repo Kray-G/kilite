@@ -274,7 +274,7 @@ static void translate_chkcnd_pure(func_context *fctx, xstr *code, kl_kir_func *f
     translate_op3_pure(fctx, code, f, op, sop, i);
 }
 
-static void translate_incdec_pure(func_context *fctx, xstr *code, const char *op, const char *sop, int is_postfix, kl_kir_inst *i)
+static void translate_incdec_pure(func_context *fctx, xstr *code, const char *sop, int is_postfix, kl_kir_inst *i)
 {
     kl_kir_opr *r1 = &(i->r1);
     kl_kir_opr *r2 = &(i->r2);
@@ -406,16 +406,16 @@ static void translate_inst_pure(xstr *code, kl_kir_func *f, kl_kir_inst *i, func
         break;
 
     case KIR_INC:
-        translate_incdec_pure(fctx, code, "INC", "++", 0, i);
+        translate_incdec_pure(fctx, code, "++", 0, i);
         break;
     case KIR_INCP:
-        translate_incdec_pure(fctx, code, "INCP", "++", 1, i);
+        translate_incdec_pure(fctx, code, "++", 1, i);
         break;
     case KIR_DEC:
-        translate_incdec_pure(fctx, code, "DEC", "++", 0, i);
+        translate_incdec_pure(fctx, code, "--", 0, i);
         break;
     case KIR_DECP:
-        translate_incdec_pure(fctx, code, "DECP", "++", 1, i);
+        translate_incdec_pure(fctx, code, "--", 1, i);
         break;
     case KIR_MINUS:
         break;
@@ -502,6 +502,9 @@ static void translate_pushvar(xstr *code, kl_kir_opr *rn)
     case TK_VSINT:
         xstra_inst(code, "{ push_var_i(ctx, %" PRId64 "); }\n", rn->i64);
         break;
+    case TK_VBIGINT:
+        xstra_inst(code, "{ push_var_b(ctx, \"%s\"); }\n", rn->str);
+        break;
     case TK_VDBL:
         xstra_inst(code, "{ push_var_d(ctx, %f); }\n", rn->dbl);
         break;
@@ -521,7 +524,7 @@ static void translate_pushvar(xstr *code, kl_kir_opr *rn)
 
 }
 
-static void translate_incdec(func_context *fctx, xstr *code, const char *op, const char *sop, int is_postfix, kl_kir_inst *i)
+static void translate_incdec(func_context *fctx, xstr *code, const char *op, const char *sop, kl_kir_inst *i)
 {
     kl_kir_opr *r1 = &(i->r1);
     kl_kir_opr *r2 = &(i->r2);
@@ -530,20 +533,11 @@ static void translate_incdec(func_context *fctx, xstr *code, const char *op, con
     char buf2[256] = {0};
 
     var_value(buf2, r2);
-    if (is_postfix) {
-        if (r1->prevent) {
-            xstra_inst(code, "OP_%sP_SAME(ctx, %s);\n", op, buf2);
-        } else {
-            var_value(buf1, r1);
-            xstra_inst(code, "OP_%sP(ctx, %s, %s);\n", op, buf1, buf2);
-        }
+    if (r1->prevent) {
+        xstra_inst(code, "OP_%s_SAME(ctx, %s);\n", op, buf2);
     } else {
-        if (r1->prevent) {
-            xstra_inst(code, "OP_%s_SAME(ctx, %s);\n", op, buf2);
-        } else {
-            var_value(buf1, r1);
-            xstra_inst(code, "OP_%s(ctx, %s, %s);\n", op, buf1, buf2);
-        }
+        var_value(buf1, r1);
+        xstra_inst(code, "OP_%s(ctx, %s, %s);\n", op, buf1, buf2);
     }
 }
 
@@ -689,6 +683,9 @@ static void translate_mov(xstr *code, kl_kir_inst *i)
     }
     case TK_VSINT:
         xstra_inst(code, "SET_I64(%s, %" PRId64 ");\n", buf1, i->r2.i64);
+        break;
+    case TK_VBIGINT:
+        xstra_inst(code, "SET_BIG(%s, \"%s\");\n", buf1, i->r2.str);
         break;
     case TK_VDBL:
         xstra_inst(code, "SET_DBL(%s, %f);\n", buf1, i->r2.dbl);
@@ -970,16 +967,16 @@ static void translate_inst(xstr *code, kl_kir_func *f, kl_kir_inst *i, func_cont
         break;
 
     case KIR_INC:
-        translate_incdec(fctx, code, "INC", "++", 0, i);
+        translate_incdec(fctx, code, "INC", "++", i);
         break;
     case KIR_INCP:
-        translate_incdec(fctx, code, "INCP", "++", 1, i);
+        translate_incdec(fctx, code, "INCP", "++", i);
         break;
     case KIR_DEC:
-        translate_incdec(fctx, code, "DEC", "++", 0, i);
+        translate_incdec(fctx, code, "DEC", "--", i);
         break;
     case KIR_DECP:
-        translate_incdec(fctx, code, "DECP", "++", 1, i);
+        translate_incdec(fctx, code, "DECP", "--", i);
         break;
     case KIR_MINUS:
         xstra_inst(code, "OP_UMINUS(ctx, %s, %s);\n", var_value(buf1, &(i->r1)), var_value(buf2, &(i->r2)));

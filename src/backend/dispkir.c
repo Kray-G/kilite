@@ -13,6 +13,9 @@
     case TK_VSINT: \
         printf("%" PRId64, i->r##n.i64); \
         break; \
+    case TK_VBIGINT: \
+        printf("%s", i->r##n.str); \
+        break; \
     case TK_VDBL: \
         printf("%f", i->r##n.dbl); \
         break; \

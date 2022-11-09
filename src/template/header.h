@@ -59,8 +59,9 @@ int strcmp(const char *s1, const char *s2);
 
 #define alloc_var(ctx, n) do { if ((ctx)->vstksz <= ((ctx)->vstkp + n)) { /* TODO: stack overflow */ } (((ctx)->vstkp) += (n)); } while (0)
 #define vstackp(ctx) ((ctx)->vstkp)
-#define push_var(ctx, v) do { if ((ctx)->vstksz <= (ctx)->vstkp) { /* TODO: stack overflow */ } vmvar *px = &(((ctx)->vstk)[((ctx)->vstkp)++]); SHCOPY_VAR_TO(ctx, px, v); } while (0)
+#define push_var(ctx, v)   do { if ((ctx)->vstksz <= (ctx)->vstkp) { /* TODO: stack overflow */ } vmvar *px = &(((ctx)->vstk)[((ctx)->vstkp)++]); SHCOPY_VAR_TO(ctx, px, v); } while (0)
 #define push_var_i(ctx, v) do { if ((ctx)->vstksz <= (ctx)->vstkp) { /* TODO: stack overflow */ } vmvar *px = &(((ctx)->vstk)[((ctx)->vstkp)++]); px->t = VAR_INT64; px->i = (v); } while (0)
+#define push_var_b(ctx, v) do { if ((ctx)->vstksz <= (ctx)->vstkp) { /* TODO: stack overflow */ } vmvar *px = &(((ctx)->vstk)[((ctx)->vstkp)++]); px->t = VAR_BIG; px->bi = alcbgi_bigz(ctx, BzFromString((v), 10, BZ_UNTIL_END)); } while (0)
 #define push_var_d(ctx, v) do { if ((ctx)->vstksz <= (ctx)->vstkp) { /* TODO: stack overflow */ } vmvar *px = &(((ctx)->vstk)[((ctx)->vstkp)++]); px->t = VAR_DBL; px->d = (v); } while (0)
 #define push_var_s(ctx, v) do { if ((ctx)->vstksz <= (ctx)->vstkp) { /* TODO: stack overflow */ } vmvar *px = &(((ctx)->vstk)[((ctx)->vstkp)++]); px->t = VAR_STR; px->s = alcstr_str(ctx, v); } while (0)
 #define pop_var(ctx) (--((ctx)->vstkp))
@@ -194,6 +195,7 @@ typedef struct vmctx {
     int fstkp;
     vmfrm **fstk;
 
+    int exceptl;    /* The line where the exception occurred. */
     vmvar *except;  /* Current exception that was thrown. */
     vmfnc *callee;
 
@@ -343,7 +345,7 @@ enum {
 
 #define SET_I64(dst, v) { (dst)->t = VAR_INT64; (dst)->i  = (v);                  }
 #define SET_DBL(dst, v) { (dst)->t = VAR_DBL;   (dst)->d  = (v);                  }
-#define SET_BIG(dst, v) { (dst)->t = VAR_BIG;   (dst)->bi = (v);                  }
+#define SET_BIG(dst, v) { (dst)->t = VAR_BIG;   (dst)->bi = alcbgi_bigz(ctx, BzFromString((v), 10, BZ_UNTIL_END)); }
 #define SET_STR(dst, v) { (dst)->t = VAR_STR;   (dst)->s  = alcstr_str(ctx, (v)); }
 #define SET_FNC(dst, v) { (dst)->t = VAR_FNC;   (dst)->f  = (v);                  }
 #define SET_OBJ(dst, v) { (dst)->t = VAR_OBJ;   (dst)->o  = (v);                  }
@@ -1210,8 +1212,12 @@ enum {
             int64_t i1 = (v1)->i; \
             OP_MOD_B_I(ctx, r, v0, i1) \
         } else if ((v1)->t = VAR_BIG) { \
-            (r)->t = VAR_DBL; \
-            (r)->d = ((double)(BzToDouble((v0)->bi->b))) / (BzToDouble((v1)->bi->b)); \
+            BigZ rx; \
+            BigZ q = BzDivide((v0)->bi->b, (v1)->bi->b, &rx); \
+            (r)->t = VAR_BIG; \
+            (r)->bi = alcbgi_bigz(ctx, rx); \
+            BzFree(q); \
+            bi_normalize(r); \
         } else { \
             e = mod_v_v(ctx, r, v0, v1); \
         } \

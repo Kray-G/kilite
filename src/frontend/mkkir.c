@@ -180,6 +180,9 @@ static void add_func(kl_kir_program *prog, kl_kir_func *func)
     case TK_VSINT: \
         (rn) = make_lit_i64(ctx, (e)->val.i64); \
         break; \
+    case TK_VBIGINT: \
+        (rn) = make_lit_big(ctx, (e)->val.big); \
+        break; \
     case TK_VDBL: \
         (rn) = make_lit_dbl(ctx, (e)->val.dbl); \
         break; \
@@ -261,6 +264,16 @@ static kl_kir_opr make_lit_i64(kl_context *ctx, int64_t i64)
         .t = TK_VSINT,
         .i64 = i64,
         .typeid = TK_TSINT64,
+    };
+    return r1;
+}
+
+static kl_kir_opr make_lit_big(kl_context *ctx, const char *big)
+{
+    kl_kir_opr r1 = {
+        .t = TK_VBIGINT,
+        .str = big,
+        .typeid = TK_TBIGINT,
     };
     return r1;
 }
@@ -1093,7 +1106,9 @@ static kl_kir_inst *gen_stmt(kl_context *ctx, kl_symbol *sym, kl_stmt *s)
             kl_symbol *f = s->sym;
             kl_kir_func *func = gen_function(ctx, f, s->s1);
             if (1 <= func->arg_count && func->arg_count < 5) {
-                func->is_pure = check_pure_function(ctx, s->s1);
+                if ((ctx->options & PARSER_OPT_DISABLE_PURE) == 0) {
+                    func->is_pure = check_pure_function(ctx, s->s1);
+                }
             }
             add_func(ctx->program, func);
             kl_kir_opr r1 = make_var_index(ctx, f->ref ? f->ref->index : f->index, f->level, TK_TFUNC);

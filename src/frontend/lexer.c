@@ -578,6 +578,16 @@ static inline int get_integer(kl_lexer *l, char *buf, int i, int max, int (*is_x
     return generate_int_value(l, buf, radix);
 }
 
+static inline int get_exp(kl_lexer *l, const char *buf, char *exp, int max)
+{
+    get_10fixnum(l, exp, 0, max);
+    int v = strtol(buf, NULL, 10);
+    int e = strtol(exp, NULL, 10);
+    if (64 < e) { e = 64; /* TODO: control maximum length */}
+    sprintf(exp, "%d%0*d", v, e, 0);
+    return generate_int_value(l, exp, 10);
+}
+
 static inline int get_number(kl_lexer *l)
 {
     #define TOKEN_BUFSIZE (1023)
@@ -604,6 +614,12 @@ static inline int get_number(kl_lexer *l)
     buf[0] = l->ch;
     lexer_getch(l);
     int i = get_10fixnum(l, buf, 1, TOKEN_BUFSIZE);
+    if (l->ch == 'e' || l->ch == 'E') {
+        lexer_getch(l);
+        char exp[TOKEN_BUFSIZE+1] = {0};
+        int t = get_exp(l, buf, exp, TOKEN_BUFSIZE);
+        return t;
+    }
     if (l->ch == '.') {
         return get_real(l, buf, i, TOKEN_BUFSIZE);
     }
