@@ -16,6 +16,7 @@ typedef struct kl_argopts {
     int out_stdout;
     int in_stdin;
     int out_src;
+    int disable_pure;
     int print_result;
     int verbose;
     const char *ext;
@@ -34,6 +35,8 @@ void parse_long_options(int ac, char **av, int i, kl_argopts *opts)
         opts->out_cfull = 1;
     } else if (strcmp(av[i], "--stdout") == 0) {
         opts->out_stdout = 1;
+    } else if (strcmp(av[i], "--disable-pure") == 0) {
+        opts->disable_pure = 1;
     } else if (strcmp(av[i], "--verbose") == 0) {
         opts->verbose = 1;
     } else if (strcmp(av[i], "--ext") == 0) {
@@ -86,6 +89,9 @@ int main(int ac, char **av)
 
     kl_lexer *l = lexer_new_file(opts.in_stdin ? NULL : opts.file);
     kl_context *ctx = parser_new_context();
+    if (opts.disable_pure) {
+        ctx->options |= PARSER_OPT_DISABLE_PURE;
+    }
 
     int r = parse(ctx, l);
     if (r > 0) {
