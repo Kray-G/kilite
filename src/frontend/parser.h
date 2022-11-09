@@ -125,6 +125,7 @@ extern kl_stmt *copy_tree(kl_context *ctx, kl_lexer *l, kl_stmt *src);
 extern int parse(kl_context *ctx, kl_lexer *l);
 extern void free_context(kl_context *ctx);
 
-#define PARSER_OPT_PHASE (0x01)
+#define PARSER_OPT_PHASE        (0x01)
+#define PARSER_OPT_DISABLE_PURE (0x02)
 
 #endif /* KILITE_PARSER_H */
