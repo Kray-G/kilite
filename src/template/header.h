@@ -249,7 +249,7 @@ INLINE int get_min2(int a0, int a1);
 INLINE int get_min3(int a0, int a1, int a2);
 INLINE int get_min4(int a0, int a1, int a2, int a3);
 INLINE int get_min5(int a0, int a1, int a2, int a3, int a4);
-INLINE void print(vmvar *v);
+INLINE void print_obj(vmvar *v);
 INLINE vmstr *format(vmctx *ctx, vmvar *v);
 
 INLINE void bi_initialize(void);

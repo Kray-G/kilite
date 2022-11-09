@@ -89,8 +89,43 @@ static void escape_str(xstr *code, const char *s)
         if (*s == '"' || *s == '\\') {
             xstrc(code, '\\');
         }
-        xstrc(code, *s);
-        s++;
+        switch (*s) {
+        case '\a':
+            xstrs(code, "\\a");
+            s++;
+            break;
+        case '\b':
+            xstrs(code, "\\b");
+            s++;
+            break;
+        case '\x1b':
+            xstrs(code, "\\e");
+            s++;
+            break;
+        case '\f':
+            xstrs(code, "\\f");
+            s++;
+            break;
+        case '\n':
+            xstrs(code, "\\n");
+            s++;
+            break;
+        case '\r':
+            xstrs(code, "\\r");
+            s++;
+            break;
+        case '\t':
+            xstrs(code, "\\t");
+            s++;
+            break;
+        case '\v':
+            xstrs(code, "\\v");
+            s++;
+            break;
+        default:
+            xstrc(code, *s);
+            s++;
+        }
     }
 }
 
@@ -782,6 +817,14 @@ static void translate_inst(xstr *code, kl_kir_func *f, kl_kir_inst *i, func_cont
     char buf1[256] = {0};
     char buf2[256] = {0};
     switch (i->opcode) {
+    case KIR_EXTERN:
+        xstra_inst(code, "{\n", i->r2.str);
+        xstra_inst(code, "    int %s(vmctx *ctx, vmfrm *lex, vmvar *r, int ac);\n", i->r2.str);
+        xstra_inst(code, "    vmfnc *f = alcfnc(ctx, %s, frm, 0);\n", i->r2.str);
+        xstra_inst(code, "    SET_FNC(%s, f);\n", var_value(buf1, &(i->r1)), i->r2.str);
+        xstra_inst(code, "}\n");
+        break;
+
     case KIR_ALOCAL:
         fctx->total_vars = i->r1.i64;
         fctx->local_vars = i->r2.i64;   // including arguments.

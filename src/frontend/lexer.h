@@ -20,6 +20,7 @@ typedef struct kl_lexer {
     FILE *f;
     char *s;
     char *p;
+    char *precode;
     int errors;             //  Error count.
     int line;
     int pos;

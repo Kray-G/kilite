@@ -493,11 +493,11 @@ static void check_symbol(kl_context *ctx, kl_lexer *l, const char *name)
     }
 }
 
-static kl_expr *parse_expr_varname(kl_context *ctx, kl_lexer *l, const char *name)
+static kl_expr *parse_expr_varname(kl_context *ctx, kl_lexer *l, const char *name, int lvalue)
 {
     kl_expr *e = make_expr(ctx, l, TK_VAR);
     kl_symbol *sym;
-    if (ctx->in_lvalue) {
+    if (lvalue) {
         check_symbol(ctx, l, name);
         sym = make_symbol(ctx, l, TK_VAR, 0);
     } else {
@@ -535,7 +535,7 @@ static kl_expr *parse_expr_keyvalue(kl_context *ctx, kl_lexer *l)
                 parse_error(ctx, __LINE__, "Compile", l, "The ':' is missing in key value.");
                 return panic_mode_expr(e, ';', ctx, l);
             }
-            kl_expr *e3 = parse_expr_varname(ctx, l, name);
+            kl_expr *e3 = parse_expr_varname(ctx, l, name, ctx->in_lvalue);
             e2 = make_bin_expr(ctx, l, TK_VKV, e2, e3);
             e = make_bin_expr(ctx, l, TK_COMMA, e, e2);
         }
@@ -557,10 +557,10 @@ static inline kl_stmt *add_method2class(kl_context *ctx, kl_lexer *l, kl_symbol 
     case TK_PROTECTED:
     case TK_PUBLIC: {
         s = make_stmt(ctx, l, TK_EXPR);
-        kl_expr *ell = parse_expr_varname(ctx, l, "this");
+        kl_expr *ell = parse_expr_varname(ctx, l, "this", ctx->in_lvalue);
         kl_expr *elr = make_str_expr(ctx, l, sym->name);
         kl_expr *el = make_bin_expr(ctx, l, TK_DOT, ell, elr);
-        kl_expr *er = parse_expr_varname(ctx, l, sym->name);
+        kl_expr *er = parse_expr_varname(ctx, l, sym->name, ctx->in_lvalue);
         s->e1 = make_bin_expr(ctx, l, TK_EQ, el, er);
         break;
     }
@@ -669,7 +669,7 @@ static kl_expr *parse_expr_factor(kl_context *ctx, kl_lexer *l)
     // int, real, string, array, object, ...
     switch (l->tok) {
     case TK_NAME:
-        e = parse_expr_varname(ctx, l, l->str);
+        e = parse_expr_varname(ctx, l, l->str, ctx->in_lvalue);
         lexer_fetch(l);
         break;
     case TK_LT:
@@ -1478,18 +1478,14 @@ static kl_stmt *parse_class(kl_context *ctx, kl_lexer *l)
 
     /* Making `this` and `super`. */
     kl_stmt *thisobj = make_stmt(ctx, l, TK_EXPR);
-    int lvalue = ctx->in_lvalue;
-    ctx->in_lvalue = 1;
-    thisobj->e1 = parse_expr_varname(ctx, l, "this");
+    thisobj->e1 = parse_expr_varname(ctx, l, "this", 1);
     if (sym->base) {
         thisobj->e1 = make_bin_expr(ctx, l, TK_EQ, thisobj->e1, sym->base);
         kl_stmt *superobj = make_stmt(ctx, l, TK_MKSUPER);
-        superobj->e1 = parse_expr_varname(ctx, l, "super");
-        ctx->in_lvalue = 0;
-        superobj->e2 = parse_expr_varname(ctx, l, "this");
+        superobj->e1 = parse_expr_varname(ctx, l, "super", 1);
+        superobj->e2 = parse_expr_varname(ctx, l, "this", 0);
         thisobj->next = superobj;
     }
-    ctx->in_lvalue = lvalue;
 
     /* Class body */
     if (l->tok != TK_LXBR) {
@@ -1510,11 +1506,8 @@ static kl_stmt *parse_class(kl_context *ctx, kl_lexer *l)
 
     /* return this */
     kl_stmt *retthis = make_stmt(ctx, l, TK_RETURN);
-    lvalue = ctx->in_lvalue;
-    ctx->in_lvalue = 0;
-    retthis->e1 = parse_expr_varname(ctx, l, "this");
+    retthis->e1 = parse_expr_varname(ctx, l, "this", 0);
     connect_stmt(thisobj, retthis);
-    ctx->in_lvalue = lvalue;
 
     ctx->scope = sym->scope;
     pop_nsstack(ctx);
@@ -1828,6 +1821,20 @@ static kl_stmt *parse_statement(kl_context *ctx, kl_lexer *l)
     case TK_RETURN:
         lexer_fetch(l);
         r = parse_return(ctx, l);
+        break;
+    case TK_EXTERN:
+        lexer_fetch(l);
+        if (l->tok != TK_NAME) {
+            parse_error(ctx, __LINE__, "Compile", l, "Function name is needed after 'extern'.");
+        }
+        r = make_stmt(ctx, l, TK_EXTERN);
+        r->e1 = make_str_expr(ctx, l, l->str);
+        r->e2 = parse_expr_varname(ctx, l, l->str, 1);
+        lexer_fetch(l);
+        if (l->tok != TK_SEMICOLON) {
+            parse_error(ctx, __LINE__, "Compile", l, "The ':' is missing in key value.");
+        }
+        lexer_fetch(l);
         break;
     case TK_LET:
     case TK_CONST:

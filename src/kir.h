@@ -46,6 +46,7 @@ typedef enum tk_token {
     TK_VKV,                 //  * Key value literal.
 
     // Keywords
+    TK_EXTERN,              //    extern
     TK_CONST,               //  * const
     TK_LET,                 //  * let/var, and var is same as let. So it's different from JavaScript.
     TK_NEW,                 //    new
@@ -171,7 +172,8 @@ typedef enum kl_kir {
      * The code for function frames.
      *  either KIR_MKFRM or KIR_LOCAL could be used, but those are exclusive.
      */
-    KIR_FUNC,       //  <name>                  ;   just an entry point of the funtion.   
+    KIR_EXTERN,     //  <name>                  ;   load the external function in C.
+    KIR_FUNC,       //  <name>                  ;   just an entry point of the funtion.
     KIR_ALOCAL,     //  <n>                     ;   allocate <n> local vars on stack, without creating a frame.
     KIR_RLOCAL,     //  -                       ;   reduce the stack to make the size back.
     KIR_MKFRM,      //  <n>                     ;   create a frame of this function with <n> local vars, and push it.

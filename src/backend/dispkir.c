@@ -84,6 +84,10 @@ void disp_inst(kl_kir_program *p, kl_kir_inst *i)
     }
 
     switch (i->opcode) {
+    case KIR_EXTERN:
+        disp_2op("extern", i);
+        break;
+
     case KIR_ALOCAL:
         disp_3op("local", i);
         break;

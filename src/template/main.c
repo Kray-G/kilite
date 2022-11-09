@@ -13,7 +13,7 @@ int main(void)
     } else {
         ri = (r.t == VAR_INT64) ? r.i : 0;
         if (ctx->verbose || ctx->print_result) {
-            print(&r);
+            print_obj(&r);
             printf("\n");
         }
     }

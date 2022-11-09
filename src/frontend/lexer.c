@@ -32,6 +32,7 @@ static const char *tkname[] = {
     "TK_VOBJ",
     "TK_VKV",
 
+    "TK_EXTERN",
     "TK_CONST",
     "TK_LET",
     "TK_NEW",
@@ -278,33 +279,33 @@ const char *tokenname(int tok)
     return "TK_UNKNOWN";
 }
 
-kl_lexer *lexer_new_file(const char *f)
+static kl_lexer *lexer_new(void)
 {
     kl_lexer *l = (kl_lexer *)calloc(1, sizeof(kl_lexer));
-    l->s = l->p = NULL;
-    l->f = f ? (FILE *)fopen(f, "rb") : stdin;
     l->ch = ' ';
     l->tok = EOF;
-    l->line = 1;
+    l->line = 0;
     l->pos = 0;
-    l->tokline = 1;
+    l->tokline = 0;
     l->tokpos = 0;
     l->toklen = 1;
+    l->precode = "extern print; extern println;\n";
+    return l;
+}
+
+kl_lexer *lexer_new_file(const char *f)
+{
+    kl_lexer *l = lexer_new();
+    l->s = l->p = NULL;
+    l->f = f ? (FILE *)fopen(f, "rb") : stdin;
     return l;
 }
 
 kl_lexer *lexer_new_string(const char *s)
 {
-    kl_lexer *l = (kl_lexer *)calloc(1, sizeof(kl_lexer));
+    kl_lexer *l = lexer_new();
     l->s = l->p = strdup(s);
     l->f = NULL;
-    l->ch = ' ';
-    l->tok = EOF;
-    l->line = 1;
-    l->pos = 0;
-    l->tokline = 1;
-    l->tokpos = 0;
-    l->toklen = 1;
     return l;
 }
 
@@ -322,7 +323,14 @@ void lexer_free(kl_lexer *l)
 
 static inline void lexer_getch(kl_lexer *l)
 {
-    if (l->f) {
+    if (l->precode && *(l->precode)) {
+        l->ch = *(l->precode);
+        (l->precode)++;
+        if (!*(l->precode)) {
+            (l->precode) = NULL;
+        }
+    }
+    else if (l->f) {
         l->ch = fgetc(l->f);
     } else if (l->p) {
         if (*(l->p)) {
@@ -334,6 +342,7 @@ static inline void lexer_getch(kl_lexer *l)
     } else {
         l->ch = EOF;
     }
+
     if (l->ch == '\n') {
         l->line++;
         l->pos = 0;
@@ -415,6 +424,7 @@ static inline int check_keyword(kl_lexer *l)
         break;
     case 'e':
         if (strcmp(l->str, "else") == 0) return TK_ELSE;
+        if (strcmp(l->str, "extern") == 0) return TK_EXTERN;
         break;
     case 'f':
         if (strcmp(l->str, "func") == 0) return TK_FUNC;

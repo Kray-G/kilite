@@ -44,7 +44,7 @@ int get_min5(int a0, int a1, int a2, int a3, int a4)
     return a0 < a1 ? get_min4(a0, a2, a3, a4) : get_min4(a1, a2, a3, a4);
 }
 
-void print(vmvar *v)
+void print_obj(vmvar *v)
 {
     switch (v->t) {
     case VAR_INT64:
@@ -74,3 +74,19 @@ void print(vmvar *v)
     }
 }
 
+int print(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    for (int i = 0; i < ac; ++i) {
+        vmvar *an = local_var(ctx, i);
+        print_obj(an);
+    }
+}
+
+int println(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    for (int i = 0; i < ac; ++i) {
+        vmvar *an = local_var(ctx, i);
+        print_obj(an);
+    }
+    printf("\n");
+}
