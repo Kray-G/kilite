@@ -529,19 +529,19 @@ static void translate_incdec(func_context *fctx, xstr *code, const char *op, con
     char buf1[256] = {0};
     char buf2[256] = {0};
 
-    var_value(buf1, r1);
+    var_value(buf2, r2);
     if (is_postfix) {
         if (r1->prevent) {
-            xstra_inst(code, "OP_%sP_SAME(ctx, %s);\n", op, buf1);
+            xstra_inst(code, "OP_%sP_SAME(ctx, %s);\n", op, buf2);
         } else {
-            var_value(buf2, r2);
+            var_value(buf1, r1);
             xstra_inst(code, "OP_%sP(ctx, %s, %s);\n", op, buf1, buf2);
         }
     } else {
         if (r1->prevent) {
-            xstra_inst(code, "OP_%s_SAME(ctx, %s);\n", op, buf1);
+            xstra_inst(code, "OP_%s_SAME(ctx, %s);\n", op, buf2);
         } else {
-            var_value(buf2, r2);
+            var_value(buf1, r1);
             xstra_inst(code, "OP_%s(ctx, %s, %s);\n", op, buf1, buf2);
         }
     }
@@ -818,11 +818,19 @@ static void translate_inst(xstr *code, kl_kir_func *f, kl_kir_inst *i, func_cont
     char buf2[256] = {0};
     switch (i->opcode) {
     case KIR_EXTERN:
-        xstra_inst(code, "{\n", i->r2.str);
-        xstra_inst(code, "    int %s(vmctx *ctx, vmfrm *lex, vmvar *r, int ac);\n", i->r2.str);
-        xstra_inst(code, "    vmfnc *f = alcfnc(ctx, %s, frm, 0);\n", i->r2.str);
-        xstra_inst(code, "    SET_FNC(%s, f);\n", var_value(buf1, &(i->r1)), i->r2.str);
-        xstra_inst(code, "}\n");
+        if (i->r1.typeid == TK_TFUNC) {
+            xstra_inst(code, "{\n");
+            xstra_inst(code, "    int %s(vmctx *ctx, vmfrm *lex, vmvar *r, int ac);\n", i->r2.str);
+            xstra_inst(code, "    vmfnc *f = alcfnc(ctx, %s, frm, 0);\n", i->r2.str);
+            xstra_inst(code, "    SET_FNC(%s, f);\n", var_value(buf1, &(i->r1)), i->r2.str);
+            xstra_inst(code, "}\n");
+        } else {
+            xstra_inst(code, "{\n", i->r2.str);
+            xstra_inst(code, "    int %s(vmctx *ctx, vmfrm *lex, vmvar *r, int ac);\n", i->r2.str);
+            xstra_inst(code, "    vmfnc *f = alcfnc(ctx, %s, frm, 0);\n", i->r2.str);
+            xstra_inst(code, "    e = ((vmfunc_t)(f->f))(ctx, lex, %s, 0);\n", var_value(buf1, &(i->r1)));
+            xstra_inst(code, "}\n");
+        }
         break;
 
     case KIR_ALOCAL:
