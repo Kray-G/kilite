@@ -66,13 +66,13 @@ The source code for each language is shown below.
 
 #### Kinx/Kilite
 
-Kilite has no output method like `print` so far, so it will show the result with the option `-x`.
+Kilite has supported `System.println` method as well.
 
     function fib(n) {
         if (n < 2) return n;
         return fib(n - 2) + fib(n - 1);
     }
-    return fib(38);
+    System.println(fib(38));
 
 #### Kinx(native)
 
