@@ -840,11 +840,15 @@ int mod_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
         }
         break;
     case VAR_FNC:
+        break;
     case VAR_OBJ:
         if (!v0->o->is_formatter) {
             return throw_system_exception(ctx, EXCEPT_UNSUPPORTED_OPERATION);
         }
+        r->t = VAR_OBJ;
+        r->o = v0->o;
         array_push(ctx, r->o, v1);
+        break;
     }
     return 0;
 }
