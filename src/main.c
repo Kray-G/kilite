@@ -110,6 +110,9 @@ int main(int ac, char **av)
     if (opts.out_src && (opts.out_csrc || opts.out_cfull)) {
         s = translate(ctx->program, opts.out_cfull ? TRANS_FULL : TRANS_SRC);
         printf("%s\n", s);
+        if (opts.out_cfull) {
+            printf("void _putchar(char ch) { putchar(ch); }\nuint32_t Math_random_impl(void) { return 0; }\n\n");
+        }
     } else {
         s = translate(ctx->program, TRANS_FULL);
     }
