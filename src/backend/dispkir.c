@@ -2,6 +2,8 @@
 #include "../kir.h"
 #include "dispkir.h"
 
+extern void escape_print(const char *);
+
 #define IDT "    "
 #define OP "%-16s"
 #define REG "$%d(%d):%s"
@@ -20,7 +22,9 @@
         printf("%f", i->r##n.dbl); \
         break; \
     case TK_VSTR: \
-        printf("\"%s\"", i->r##n.str); \
+        printf("\""); \
+        escape_print(i->r##n.str); \
+        printf("\""); \
         break; \
     case TK_VAR: \
         if (i->r##n.index < 0) { \
@@ -81,6 +85,14 @@ void disp_mov(const char *op, kl_kir_inst *i)
     }
 }
 
+void disp_pushsys(kl_kir_inst *i)
+{
+    printf(IDT OP, "pushsys");
+    printf("%d, ", i->r1.callcnt);
+    disp_v(i, 1);
+    printf("\n");
+}
+
 void disp_pusharg(kl_kir_inst *i)
 {
     printf(IDT OP, i->r1.has_dot3 ? "pusharga" : "pusharg");
@@ -128,6 +140,9 @@ void disp_inst(kl_kir_program *p, kl_kir_inst *i)
 
     case KIR_SVSTKP:
         disp_1op("savestkp", i);
+        break;
+    case KIR_PUSHSYS:
+        disp_pushsys(i);
         break;
     case KIR_PUSHARG:
         disp_pusharg(i);

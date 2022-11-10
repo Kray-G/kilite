@@ -157,7 +157,7 @@ static const char *var_value_pure(char *buf, kl_kir_opr *rn)  /* buf should have
     return buf;
 }
 
-static void translate_pushvar_pure(xstr *code, func_context *fctx, kl_kir_opr *rn)
+static void translate_pusharg_pure(xstr *code, func_context *fctx, kl_kir_opr *rn)
 {
     int pushed = fctx->push_count++;
     const char *typestr = (fctx->push_max <= pushed) ? "int64_t " : "";
@@ -345,7 +345,7 @@ static void translate_inst_pure(xstr *code, kl_kir_func *f, kl_kir_inst *i, func
         break;
 
     case KIR_PUSHARG:
-        translate_pushvar_pure(code, fctx, &(i->r1));
+        translate_pusharg_pure(code, fctx, &(i->r1));
         break;
     case KIR_CALL:
         translate_call_pure(code, f, fctx, i);
@@ -495,7 +495,7 @@ static const char *int_value(char *buf, kl_kir_opr *rn)  /* buf should have at l
     return buf;
 }
 
-static void translate_pushvar(xstr *code, kl_kir_opr *rn, int fend)
+static void translate_pusharg(xstr *code, kl_kir_opr *rn, int fend)
 {
     char buf1[256] = {0};
     switch (rn->t) {
@@ -905,8 +905,11 @@ static void translate_inst(xstr *code, kl_kir_func *f, kl_kir_inst *i, func_cont
     case KIR_SVSTKP:
         xstra_inst(code, "int ad%d = 0, p%" PRId64 " = vstackp(ctx);\n", i->r1.i64, i->r1.i64);
         break;
+    case KIR_PUSHSYS:
+        xstra_inst(code, "{ push_var_sys(ctx, %s, ad%d, L%d); }\n", var_value(buf1, &(i->r1)), i->r1.callcnt, f->funcend);
+        break;
     case KIR_PUSHARG:
-        translate_pushvar(code, &(i->r1), f->funcend);
+        translate_pusharg(code, &(i->r1), f->funcend);
         break;
     case KIR_CALL:
         translate_call(code, f, i);

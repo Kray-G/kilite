@@ -342,6 +342,7 @@ vmobj *hashmap_copy_method(vmctx *ctx, vmobj *src)
 
 vmobj *array_create(vmobj *obj, int asz)
 {
+    if (asz < ARRAY_UNIT) asz = ARRAY_UNIT;
     obj->ary = (vmvar **)calloc(asz, sizeof(vmvar*));
     obj->asz = asz;
     obj->idxsz = 0;

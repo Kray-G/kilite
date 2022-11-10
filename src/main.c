@@ -111,7 +111,11 @@ int main(int ac, char **av)
         s = translate(ctx->program, opts.out_cfull ? TRANS_FULL : TRANS_SRC);
         printf("%s\n", s);
         if (opts.out_cfull) {
-            printf("void _putchar(char ch) { putchar(ch); }\nuint32_t Math_random_impl(void) { return 0; }\n\n");
+            printf("void _putchar(char ch) { putchar(ch); }\n");
+            printf("uint32_t Math_random_impl(void) { return 0; }\n");
+            printf("void *SystemTimer_init(void) { return NULL; }\n");
+            printf("void SystemTimer_restart_impl(void *p) {}\n");
+            printf("double SystemTimer_elapsed_impl(void *p) { return 0.0; }\n\n");
         }
     } else {
         s = translate(ctx->program, TRANS_FULL);

@@ -567,7 +567,10 @@ static kl_kir_inst *gen_call(kl_context *ctx, kl_symbol *sym, kl_kir_opr *r1, kl
     }
     kl_kir_opr r2 = {0};
     kl_kir_inst *r1i = NULL;
+    kl_kir_inst *r1l = NULL;
+    kl_kir_inst *pushobj = NULL;
 
+    int callcnt = sym->callcnt++;
     kl_expr *f = e->lhs;
     kl_symbol *fsym = (f->sym && f->sym->ref) ? f->sym->ref : f->sym;
     if (f->nodetype == TK_VAR && fsym && fsym->symtoken != TK_VAR) {
@@ -580,10 +583,17 @@ static kl_kir_inst *gen_call(kl_context *ctx, kl_symbol *sym, kl_kir_opr *r1, kl
         r2.typeid = f->typeid;
     } else {
         KL_KIR_CHECK_LITERAL(e->lhs, r2, r1i);
+        if (r1i) {
+            r1l = get_last(r1i);
+            if (r1l->opcode == KIR_APLY) {
+                r1l->next = new_inst_op1(ctx->program, e->line, e->pos, KIR_PUSHSYS, &(r1l->r2));
+                r1l = r1l->next;
+                r1l->r1.callcnt = callcnt;
+            }
+        }
     }
     r1->typeid = TK_TANY;
 
-    int callcnt = sym->callcnt++;
     r2.callcnt = callcnt;
     kl_kir_inst *r2i = gen_callargs(ctx, sym, e->rhs, &(r2.args), callcnt);
     kl_kir_inst *inst = new_inst_op2(ctx->program, e->line, e->pos, KIR_CALL, r1, &r2);
@@ -598,8 +608,7 @@ static kl_kir_inst *gen_call(kl_context *ctx, kl_symbol *sym, kl_kir_opr *r1, kl
     /* r1i: func */
     /* inst: call */
 
-    if (r1i) {
-        kl_kir_inst *r1l = get_last(r1i);
+    if (r1l) {
         r1l->next = inst;
         inst = r1i;
     }

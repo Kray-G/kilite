@@ -71,6 +71,14 @@ int strcmp(const char *s1, const char *s2);
 #define push_var_b(ctx, v, label) push_var_def(ctx, v, label, { px->t = VAR_BIG; px->bi = alcbgi_bigz(ctx, BzFromString((v), 10, BZ_UNTIL_END)); })
 #define push_var_d(ctx, v, label) push_var_def(ctx, v, label, { px->t = VAR_DBL; px->d = (v); })
 #define push_var_s(ctx, v, label) push_var_def(ctx, v, label, { px->t = VAR_STR; px->s = alcstr_str(ctx, v); })
+#define push_var_sys(ctx, v, fn, label) \
+    if (v->t == VAR_OBJ && v->o->is_sysobj) { \
+        if ((ctx)->vstksz <= (ctx)->vstkp) { printf("stack overflow\n"); /* TODO: stack overflow */ e = 1; goto label; } \
+        vmvar *px = &(((ctx)->vstk)[((ctx)->vstkp)++]); \
+        SHCOPY_VAR_TO(ctx, px, v); \
+        ++fn; \
+    } \
+/**/
 #define push_var_a(ctx, v, fn, label) \
     if ((v)->t == VAR_OBJ) { \
         int idxsz = (v)->o->idxsz; \
@@ -110,8 +118,10 @@ typedef enum vartype {
     VAR_BIG,
     VAR_DBL,
     VAR_STR,
-    VAR_FNC,
+    VAR_BIN,
     VAR_OBJ,
+    VAR_FNC,
+    VAR_VOIDP,
 } vartype;
 
 struct vmctx;
@@ -149,6 +159,7 @@ typedef struct vmobj {
     struct vmobj *chn;  /* The link in allocated object list */
 
     int32_t flags;
+    int32_t is_sysobj;  /* This is the mark for the system object and automatically passed to the function. */
     int32_t is_formatter;
     int64_t idxsz;
     int64_t asz;
@@ -171,6 +182,7 @@ typedef struct vmvar {
     vmbgi *bi;
     vmstr *s;
     vmobj *o;           /* The hashmap from string to object */
+    void *p;            /* almighty holder */
     struct vmfnc *f;
     struct vmvar *a;    /* an object */
 } vmvar;
@@ -319,6 +331,7 @@ INLINE vmobj *hashmap_remove(vmctx *ctx, vmobj *obj, const char *s);
 INLINE vmvar *hashmap_search(vmobj *obj, const char *s);
 INLINE vmobj *hashmap_copy(vmctx *ctx, vmobj *h);
 INLINE vmobj *hashmap_copy_method(vmctx *ctx, vmobj *src);
+INLINE vmobj *array_create(vmobj *obj, int asz);
 INLINE vmobj *array_set(vmctx *ctx, vmobj *obj, int64_t idx, vmvar *vs);
 INLINE vmobj *array_push(vmctx *ctx, vmobj *obj, vmvar *vs);
 

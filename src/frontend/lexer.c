@@ -283,7 +283,7 @@ static kl_lexer *lexer_new(void)
     l->tokline = 0;
     l->tokpos = 0;
     l->toklen = 1;
-    l->precode = "const undefined; extern System; extern Math;\n";
+    l->precode = "const undefined; extern System; extern SystemTimer; extern Math;\n";
     return l;
 }
 

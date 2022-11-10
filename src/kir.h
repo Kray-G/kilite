@@ -181,6 +181,7 @@ typedef enum kl_kir {
      *  -> restore vstackp
      */
     KIR_SVSTKP,     //  -                       ;   save the current stack pointer.
+    KIR_PUSHSYS,    //  <r>                     ;   push <r> as an argument when it's system object.
     KIR_PUSHARG,    //  <r>                     ;   push <r> as an argument.
     KIR_CALL,       //  <r1>, <r2>              ;   <r1>  <-  call <r2>
     KIR_CHKEXCEPT,  //  -                       ;   check exception and throw it if exists.

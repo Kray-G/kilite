@@ -3,6 +3,52 @@
 static void disp_expr(kl_expr *e, int indent);
 static void disp_stmt_list(kl_stmt *s, int indent);
 
+void escape_print(const char *s)
+{
+    while (*s) {
+        if (*s == '"' || *s == '\\') {
+            printf("%c", '\\');
+        }
+        switch (*s) {
+        case '\a':
+            printf("\\a");
+            s++;
+            break;
+        case '\b':
+            printf("\\b");
+            s++;
+            break;
+        case '\x1b':
+            printf("\\e");
+            s++;
+            break;
+        case '\f':
+            printf("\\f");
+            s++;
+            break;
+        case '\n':
+            printf("\\n");
+            s++;
+            break;
+        case '\r':
+            printf("\\r");
+            s++;
+            break;
+        case '\t':
+            printf("\\t");
+            s++;
+            break;
+        case '\v':
+            printf("\\v");
+            s++;
+            break;
+        default:
+            printf("%c", *s);
+            s++;
+        }
+    }
+}
+
 static void make_indent(int indent)
 {
     if (indent > 0)
@@ -86,7 +132,9 @@ static void disp_expr(kl_expr *e, int indent)
         if (indent > 0) printf("\n");
         break;
     case TK_VSTR:
-        printf("(string):\"%s\"", e->val.str);
+        printf("(string):\"");
+        escape_print(e->val.str);
+        printf("\"");
         if (indent > 0) printf("\n");
         break;
     case TK_VBIN:
