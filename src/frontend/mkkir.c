@@ -732,7 +732,7 @@ static kl_kir_inst *gen_if(kl_context *ctx, kl_symbol *sym, kl_stmt *s)
     next = new_inst_label(ctx->program, s->line, s->pos, l2, last, 0);
     KIR_ADD_NEXT(last, next);
     if (s->s2) {
-        next = gen_block(ctx, sym, s->s1);
+        next = gen_block(ctx, sym, s->s2);
         KIR_ADD_NEXT(last, next);
         KIR_MOVE_LAST(last);
     }
