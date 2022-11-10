@@ -6,14 +6,8 @@
 
 static const char *tpname[] = {
     "any",
-    "int8",
-    "int16",
-    "int32",
+    "undefined",
     "int64",
-    "uint8",
-    "uint16",
-    "uint32",
-    "uint64",
     "bigint",
     "real",
     "string",

@@ -146,9 +146,14 @@ static void hashmap_objprint_impl(vmobj *obj, int indent)
     }
 }
 
-void hashmap_objprint(vmobj *obj)
+void hashmap_objprint(vmctx *ctx, vmobj *obj)
 {
-    hashmap_objprint_impl(obj, -1);
+    if (obj->is_formatter) {
+        vmstr *s = format(ctx, obj);
+        printf("%s", s->s);
+    } else {
+        hashmap_objprint_impl(obj, -1);
+    }
 }
 
 void hashmap_print(vmobj *obj)
@@ -362,10 +367,25 @@ vmobj *array_set(vmctx *ctx, vmobj *obj, int64_t idx, vmvar *vs)
 {
     int asz = obj->asz;
     if (asz <= idx) {
-        array_extend(ctx, obj, idx + 1);
         obj->idxsz = idx + 1;
+        array_extend(ctx, obj, obj->idxsz);
     } else if (obj->idxsz <= idx) {
         obj->idxsz = idx + 1;
+    }
+
+    obj->ary[idx] = vs;
+    return obj;
+}
+
+vmobj *array_push(vmctx *ctx, vmobj *obj, vmvar *vs)
+{
+    int64_t idx = obj->idxsz;
+    int asz = obj->asz;
+    if (asz <= idx) {
+        obj->idxsz++;
+        array_extend(ctx, obj, obj->idxsz);
+    } else if (obj->idxsz <= idx) {
+        obj->idxsz++;
     }
 
     obj->ary[idx] = vs;

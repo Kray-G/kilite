@@ -1427,7 +1427,9 @@ static kl_stmt *parse_return(kl_context *ctx, kl_lexer *l)
 {
     DEBUG_PARSER_PHASE();
     kl_stmt *s = make_stmt(ctx, l, TK_RETURN);
-    s->e1 = parse_expression(ctx, l);
+    if (l->tok != TK_SEMICOLON) {
+        s->e1 = parse_expression(ctx, l);
+    }
     if (l->tok != TK_SEMICOLON) {
         parse_error(ctx, __LINE__, "Compile", l, "The ';' is missing.");
         return panic_mode_exprstmt(s, ';', ctx, l);

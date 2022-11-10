@@ -399,7 +399,9 @@ static void disp_stmt(kl_stmt *s, int indent)
         break;
     case TK_RETURN:
         printf("return\n");
-        disp_expr(s->e1, indent + 1);
+        if (s->e1) {
+            disp_expr(s->e1, indent + 1);
+        }
         break;
     case TK_EXTERN:
         printf("extern: ");

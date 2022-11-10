@@ -68,6 +68,19 @@ void disp_3op(const char *op, kl_kir_inst *i)
     printf("\n");
 }
 
+void disp_mov(const char *op, kl_kir_inst *i)
+{
+    printf(IDT OP, op);
+    disp_v(i, 1);
+    printf(", ");
+    if (i->r1.index < 0 && i->r2.index < 0) {
+        printf("undefined\n");
+    } else {
+        disp_v(i, 2);
+        printf("\n");
+    }
+}
+
 void disp_pusharg(kl_kir_inst *i)
 {
     printf(IDT OP, i->r1.has_dot3 ? "pusharga" : "pusharg");
@@ -151,7 +164,7 @@ void disp_inst(kl_kir_program *p, kl_kir_inst *i)
         break;
 
     case KIR_MOV:
-        disp_2op("mov", i);
+        disp_mov("mov", i);
         break;
     case KIR_MOVA:
         disp_2op("mova", i);

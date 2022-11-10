@@ -893,19 +893,19 @@ static void format_impl(vmctx *ctx, vmstr *r, vmobj *o, const char *fmt)
     }
 }
 
-vmstr *format(vmctx *ctx, vmvar *v)
+vmstr *format(vmctx *ctx, vmobj *o)
 {
-    if (v->t != VAR_OBJ) {
+    if (!o->is_formatter) {
         return NULL;
     }
 
     vmstr *r = alcstr_str(ctx, "");
-    vmvar *fmt = hashmap_search(v->o, "_format");
+    vmvar *fmt = hashmap_search(o, "_format");
     if (!fmt || fmt->t != VAR_STR) {
-        return NULL;
+        return r;
     }
 
-    format_impl(ctx, r, v->o, fmt->s->s);
+    format_impl(ctx, r, o, fmt->s->s);
     return r;
 }
 

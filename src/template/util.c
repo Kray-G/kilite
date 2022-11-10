@@ -44,7 +44,7 @@ int get_min5(int a0, int a1, int a2, int a3, int a4)
     return a0 < a1 ? get_min4(a0, a2, a3, a4) : get_min4(a1, a2, a3, a4);
 }
 
-void print_obj(vmvar *v)
+void print_obj(vmctx *ctx, vmvar *v)
 {
     switch (v->t) {
     case VAR_UNDEF:
@@ -66,7 +66,7 @@ void print_obj(vmvar *v)
         printf("%s", v->s->s);
         break;
     case VAR_OBJ:
-        hashmap_objprint(v->o);
+        hashmap_objprint(ctx, v->o);
         break;
     case VAR_FNC:
         printf("<function>");

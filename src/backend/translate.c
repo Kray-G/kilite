@@ -661,6 +661,11 @@ static void translate_mov(xstr *code, kl_kir_inst *i)
 {
     char buf1[256] = {0};
     var_value(buf1, &(i->r1));
+    if (i->r1.index < 0 && i->r2.index < 0) {
+        xstra_inst(code, "SET_UNDEF(%s);\n", buf1);
+        return;
+    }
+
     switch (i->r2.t) {
     case TK_VAR: {
         char buf2[256] = {0};
@@ -953,7 +958,7 @@ static void translate_inst(xstr *code, kl_kir_func *f, kl_kir_inst *i, func_cont
         translate_chkcnd(fctx, code, "DIV", "/", i);
         break;
     case KIR_MOD:
-        translate_chkcnd(fctx, code, "mod", "%", i);
+        translate_chkcnd(fctx, code, "MOD", "%", i);
         break;
 
     case KIR_EQEQ:

@@ -4,7 +4,7 @@ static int print(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     for (int i = 0; i < ac; ++i) {
         vmvar *an = local_var(ctx, i);
-        print_obj(an);
+        print_obj(ctx, an);
     }
 }
 
@@ -12,7 +12,7 @@ static int println(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     for (int i = 0; i < ac; ++i) {
         vmvar *an = local_var(ctx, i);
-        print_obj(an);
+        print_obj(ctx, an);
     }
     printf("\n");
 }

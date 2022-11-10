@@ -149,9 +149,10 @@ typedef struct vmobj {
     struct vmobj *chn;  /* The link in allocated object list */
 
     int32_t flags;
-    int32_t idxsz;
-    int32_t asz;
-    int32_t hsz;
+    int32_t is_formatter;
+    int64_t idxsz;
+    int64_t asz;
+    int64_t hsz;
     struct vmvar **ary; /* Array holder */
     struct vmvar *map;  /* Hashmap holder */
 } vmobj;
@@ -281,8 +282,8 @@ INLINE int get_min2(int a0, int a1);
 INLINE int get_min3(int a0, int a1, int a2);
 INLINE int get_min4(int a0, int a1, int a2, int a3);
 INLINE int get_min5(int a0, int a1, int a2, int a3, int a4);
-INLINE void print_obj(vmvar *v);
-INLINE vmstr *format(vmctx *ctx, vmvar *v);
+INLINE void print_obj(vmctx *ctx, vmvar *v);
+INLINE vmstr *format(vmctx *ctx, vmobj *v);
 
 INLINE void bi_initialize(void);
 INLINE void bi_finalize(void);
@@ -311,7 +312,7 @@ INLINE vmstr *str_ltrim(vmctx *ctx, vmstr *vs, const char *ch);
 INLINE vmstr *str_rtrim(vmctx *ctx, vmstr *vs, const char *ch);
 
 INLINE void hashmap_print(vmobj *obj);
-INLINE void hashmap_objprint(vmobj *obj);
+INLINE void hashmap_objprint(vmctx *ctx, vmobj *obj);
 INLINE vmobj *hashmap_create(vmobj *h, int sz);
 INLINE vmobj *hashmap_set(vmctx *ctx, vmobj *obj, const char *s, vmvar *v);
 INLINE vmobj *hashmap_remove(vmctx *ctx, vmobj *obj, const char *s);
@@ -319,6 +320,7 @@ INLINE vmvar *hashmap_search(vmobj *obj, const char *s);
 INLINE vmobj *hashmap_copy(vmctx *ctx, vmobj *h);
 INLINE vmobj *hashmap_copy_method(vmctx *ctx, vmobj *src);
 INLINE vmobj *array_set(vmctx *ctx, vmobj *obj, int64_t idx, vmvar *vs);
+INLINE vmobj *array_push(vmctx *ctx, vmobj *obj, vmvar *vs);
 
 INLINE int run_global(vmctx *ctx, vmfrm *lex, vmvar *r, int ac);
 
@@ -376,7 +378,7 @@ enum {
 
 #define MAKE_SUPER(ctx, dst, src) { vmobj *o = hashmap_copy_method(ctx, src->o); (dst)->t = VAR_OBJ; (dst)->o = o; }
 
-#define SET_UNDEF(dst, v) { (dst)->t = VAR_UNDEF;                                 }
+#define SET_UNDEF(dst)  { (dst)->t = VAR_UNDEF;                                   }
 #define SET_I64(dst, v) { (dst)->t = VAR_INT64; (dst)->i  = (v);                  }
 #define SET_DBL(dst, v) { (dst)->t = VAR_DBL;   (dst)->d  = (v);                  }
 #define SET_BIG(dst, v) { (dst)->t = VAR_BIG;   (dst)->bi = alcbgi_bigz(ctx, BzFromString((v), 10, BZ_UNTIL_END)); }
@@ -581,7 +583,7 @@ enum {
         break; \
     } \
     case VAR_STR: { \
-        OP_HASH_APPLY_OBJ(ctx, r, t1, (iv)->s) \
+        OP_HASH_APPLY_OBJ(ctx, r, v, (iv)->s->s) \
         break; \
     } \
     default: \
@@ -639,7 +641,7 @@ enum {
         break; \
     } \
     case VAR_STR: { \
-        OP_ARRAY_REFL_S(ctx, r, v, (iv)->s) \
+        OP_ARRAY_REFL_S(ctx, r, v, (iv)->s->s) \
         break; \
     } \
     default: \

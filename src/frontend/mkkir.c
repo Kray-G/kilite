@@ -688,15 +688,20 @@ static kl_kir_inst *gen_ret(kl_context *ctx, kl_symbol *sym, kl_stmt *s)
     kl_kir_inst *head = NULL;
     kl_kir_opr r1 = make_ret_var(ctx, sym);
 
-    KL_KIR_CHECK_LITERAL(s->e1, r1, head);
-    kl_kir_inst *last = get_last(head);
-    if (!head) {
-        kl_kir_opr r2 = make_ret_var(ctx, sym);
-        head = last = new_inst_op2(ctx->program, s->line, s->pos, KIR_MOV, &r2, &r1);
-    }
+    if (s->e1) {
+        KL_KIR_CHECK_LITERAL(s->e1, r1, head);
+        kl_kir_inst *last = get_last(head);
+        if (!head) {
+            kl_kir_opr r2 = make_ret_var(ctx, sym);
+            head = last = new_inst_op2(ctx->program, s->line, s->pos, KIR_MOV, &r2, &r1);
+        }
 
-    kl_kir_inst *next = new_inst_jump(ctx->program, s->line, s->pos, sym->funcend, last);
-    last->next = next;
+        kl_kir_inst *next = new_inst_jump(ctx->program, s->line, s->pos, sym->funcend, last);
+        last->next = next;
+    } else {
+        head = new_inst_op2(ctx->program, s->line, s->pos, KIR_MOV, &r1, &r1);  /* make undefined */
+        head->next = new_inst_jump(ctx->program, s->line, s->pos, sym->funcend, head);
+    }
 
     return head;
 }
