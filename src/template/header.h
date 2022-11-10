@@ -54,14 +54,14 @@ int strcmp(const char *s1, const char *s2);
 #define IS_MARKED(obj) (((obj)->flags & 0x01) == 0x01)
 #define IS_HELD(obj) (((obj)->flags & 0x02) == 0x02)
 
-#define push_frm(ctx, m) do { if ((ctx)->fstksz <= (ctx)->fstkp) { /* TODO: stack overflow */ } (((ctx)->fstk)[((ctx)->fstkp)++] = (m)); } while (0)
+#define push_frm(ctx, m) do { if ((ctx)->fstksz <= (ctx)->fstkp) { printf("stack overflow\n"); /* TODO: stack overflow */ } (((ctx)->fstk)[((ctx)->fstkp)++] = (m)); } while (0)
 #define pop_frm(ctx) (--((ctx)->fstkp))
 
-#define alloc_var(ctx, n) do { if ((ctx)->vstksz <= ((ctx)->vstkp + n)) { /* TODO: stack overflow */ } (((ctx)->vstkp) += (n)); } while (0)
+#define alloc_var(ctx, n) do { if ((ctx)->vstksz <= ((ctx)->vstkp + n)) { printf("stack overflow\n"); /* TODO: stack overflow */ } (((ctx)->vstkp) += (n)); } while (0)
 #define vstackp(ctx) ((ctx)->vstkp)
 #define push_var_def(ctx, v, label, pushcode) \
     do { \
-        if ((ctx)->vstksz <= (ctx)->vstkp) { /* TODO: stack overflow */ e = 1; goto label; } \
+        if ((ctx)->vstksz <= (ctx)->vstkp) { printf("stack overflow\n"); /* TODO: stack overflow */ e = 1; goto label; } \
         vmvar *px = &(((ctx)->vstk)[((ctx)->vstkp)++]); \
         pushcode \
     } while (0) \
@@ -75,7 +75,7 @@ int strcmp(const char *s1, const char *s2);
     if ((v)->t == VAR_OBJ) { \
         int idxsz = (v)->o->idxsz; \
         fn += idxsz - 1;\
-        if ((ctx)->vstksz <= ((ctx)->vstkp + idxsz)) { /* TODO: stack overflow */ e = 1; goto label; } \
+        if ((ctx)->vstksz <= ((ctx)->vstkp + idxsz)) { printf("stack overflow\n"); /* TODO: stack overflow */ e = 1; goto label; } \
         for (int i = idxsz - 1; i >= 0; --i) { \
             vmvar *px = &(((ctx)->vstk)[((ctx)->vstkp)++]); \
             vmvar *item = (v)->o->ary[i]; \
@@ -614,8 +614,8 @@ enum {
         t2 = (t1)->o->ary[ii]; \
     } \
     if (!t2) { \
-        t2 = alcvar_int64(ctx, 0, 0); \
-        (t1)->o = array_set(ctx, (t1)->o, ii, t2); \
+        t2 = alcvar_initial(ctx); \
+        array_set(ctx, (t1)->o, ii, t2); \
     } \
     (r)->t = VAR_OBJ; \
     (r)->a = t2; \
