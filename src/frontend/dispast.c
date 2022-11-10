@@ -108,6 +108,12 @@ static void disp_expr(kl_expr *e, int indent)
             print_object(e->lhs, indent + 1);
         }
         break;
+    case TK_DOT3:
+        printf("(...)\n");
+        if (e->lhs) {
+            disp_expr(e->lhs, indent + 1);
+        }
+        break;
 
     case TK_VAR:
         if (e->sym) {

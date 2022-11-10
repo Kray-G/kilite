@@ -668,6 +668,17 @@ static kl_expr *parse_expr_factor(kl_context *ctx, kl_lexer *l)
     // variable name
     // int, real, string, array, object, ...
     switch (l->tok) {
+    case TK_DOT3:
+        lexer_fetch(l);
+        if (l->tok == TK_NAME) {
+            e = parse_expr_varname(ctx, l, l->str, ctx->in_lvalue);
+            e->sym->is_dot3 = 1;
+            lexer_fetch(l);
+        } else {
+            e = parse_expr_factor(ctx, l);
+            e = make_conn_expr(ctx, l, TK_DOT3, e, NULL);
+        }
+        break;
     case TK_NAME:
         e = parse_expr_varname(ctx, l, l->str, ctx->in_lvalue);
         lexer_fetch(l);
@@ -713,7 +724,7 @@ static kl_expr *parse_expr_factor(kl_context *ctx, kl_lexer *l)
         e = parse_anonymous_function(ctx, l);
         break;
     default:
-        ;
+        parse_error(ctx, __LINE__, "Compile", l, "Found the unknown factor in an expression.");
     }
 
     return e;

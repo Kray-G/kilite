@@ -22,7 +22,7 @@ static void hashmap_objprint_impl(vmobj *obj, int indent)
 {
     int idt = indent >= 0;
     int lsz = obj->idxsz - 1;
-    if (lsz > 0) {
+    if (lsz >= 0) {
         printf("[");
         for (int i = 0; i <= lsz; ++i) {
             vmvar *v = obj->ary[i];
@@ -61,7 +61,7 @@ static void hashmap_objprint_impl(vmobj *obj, int indent)
                         printf("\n");
                         hashmap_print_indent(indent + 1);
                     }
-                    hashmap_objprint_impl(v->o, indent + 1);
+                    hashmap_objprint_impl(v->o, idt ? indent + 1 : -1);
                     if (i < lsz) {
                         printf(", ");
                     } else if (idt) {
@@ -75,7 +75,11 @@ static void hashmap_objprint_impl(vmobj *obj, int indent)
         printf("]");
     }
     int hsz = obj->hsz;
-    if (hsz > 0) {
+    if (hsz <= 0) {
+        if (lsz < 0) {
+            printf("{}");
+        }
+    } else {
         if (idt && lsz > 0) printf("\n");
         int count = 0;
         vmvar *map = obj->map;
@@ -93,7 +97,7 @@ static void hashmap_objprint_impl(vmobj *obj, int indent)
             if (IS_HASHITEM_EXIST(v)) {
                 ++c;
                 if (v->s && v->s->s) {
-                    hashmap_print_indent(indent + 1);
+                    hashmap_print_indent(idt ? indent + 1 : -1);
                     printf("\"%s\": ", v->s->s);
                     vmvar *va = v->a;
                     switch (va->t) {
@@ -118,7 +122,7 @@ static void hashmap_objprint_impl(vmobj *obj, int indent)
                         printf("func(%p)", va->f);
                         break;
                     case VAR_OBJ:
-                        hashmap_objprint_impl(va->o, indent + 1);
+                        hashmap_objprint_impl(va->o, idt ? indent + 1 : -1);
                         break;
                     }
                     if (idt) {

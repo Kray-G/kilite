@@ -191,6 +191,14 @@ static void add_func(kl_kir_program *prog, kl_kir_func *func)
         break; \
     case TK_VAR: \
         (rn) = make_var_index(ctx, (e)->sym->ref ? (e)->sym->ref->index : (e)->sym->index, (e)->sym->level, (e)->typeid); \
+        if ((e)->sym->is_dot3) { \
+            (rn).has_dot3 = 1;\
+        } \
+        break; \
+    case TK_DOT3: \
+        if ((rn).index == 0) (rn) = make_var(ctx, sym, TK_TANY); \
+        (rn).has_dot3 = 1;\
+        (rni) = gen_expr(ctx, sym, &(rn), e->lhs); \
         break; \
     case TK_FUNC: \
         kl_symbol *f = e->sym; \
@@ -209,6 +217,9 @@ static void add_func(kl_kir_program *prog, kl_kir_func *func)
     switch ((e)->nodetype) { \
     case TK_VAR: \
         (rn) = make_var_index(ctx, (e)->sym->ref ? (e)->sym->ref->index : (e)->sym->index, (e)->sym->level, (e)->typeid); \
+        if ((e)->sym->is_dot3) { \
+            (rn).has_dot3 = 1;\
+        } \
         break; \
     default: \
         if ((rn).index == 0) (rn) = make_var(ctx, sym, e->typeid); \
@@ -505,7 +516,7 @@ static kl_kir_inst *gen_op3_inst(kl_context *ctx, kl_symbol *sym, kl_kir op, kl_
     return inst;
 }
 
-static kl_kir_inst *gen_callargs(kl_context *ctx, kl_symbol *sym, kl_expr *e, int *args)
+static kl_kir_inst *gen_callargs(kl_context *ctx, kl_symbol *sym, kl_expr *e, int *args, int callcnt)
 {
     if (!e) {
         return NULL;
@@ -515,11 +526,11 @@ static kl_kir_inst *gen_callargs(kl_context *ctx, kl_symbol *sym, kl_expr *e, in
     kl_kir_inst *last = NULL;
     if (e->nodetype == TK_COMMA) {        
         if (e->rhs) {
-            head = gen_callargs(ctx, sym, e->rhs, args);
+            head = gen_callargs(ctx, sym, e->rhs, args, callcnt);
             last = get_last(head);
             if (last) {
                 if (e->lhs) {
-                    kl_kir_inst *next = gen_callargs(ctx, sym, e->lhs, args);
+                    kl_kir_inst *next = gen_callargs(ctx, sym, e->lhs, args, callcnt);
                     KIR_ADD_NEXT(last, next);
                 }
             }
@@ -528,6 +539,7 @@ static kl_kir_inst *gen_callargs(kl_context *ctx, kl_symbol *sym, kl_expr *e, in
         kl_kir_inst *r2i = NULL;
         kl_kir_opr r2 = {0};
         KL_KIR_CHECK_LITERAL(e, r2, r2i);
+        r2.callcnt = callcnt;
         if (r2i) {
             head = r2i;
             last = get_last(head);
@@ -571,11 +583,12 @@ static kl_kir_inst *gen_call(kl_context *ctx, kl_symbol *sym, kl_kir_opr *r1, kl
     }
     r1->typeid = TK_TANY;
 
-    kl_kir_inst *r2i = gen_callargs(ctx, sym, e->rhs, &(r2.args));
+    int callcnt = sym->callcnt++;
+    r2.callcnt = callcnt;
+    kl_kir_inst *r2i = gen_callargs(ctx, sym, e->rhs, &(r2.args), callcnt);
     kl_kir_inst *inst = new_inst_op2(ctx->program, e->line, e->pos, KIR_CALL, r1, &r2);
     kl_kir_inst *ilst = get_last(inst);
 
-    int callcnt = sym->callcnt++;
     kl_kir_opr rc = { .t = TK_VSINT, .i64 = callcnt, .typeid = TK_TSINT64 };
     ilst->next = new_inst_op1(ctx->program, e->line, e->pos, KIR_RSSTKP, &rc);
     ilst = ilst->next;

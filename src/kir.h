@@ -247,6 +247,10 @@ typedef struct kl_kir_opr {
     int args;                   //  The argument count when calling the function.
     int funcid;                 //  The function id to call.
     int recursive;              //  1 if the recursive call.
+    int has_dot3;               //  This operand has 3 dots, it means
+                                //      the variable should be an array of rest elements, or
+                                //      the variable has to be expanded to multiple aruguments for function call.
+    int callcnt;                //  The call count number to identify the call.
     int prevent;                //  Prevent an assignment to the variable.
     int64_t i64;
     double dbl;

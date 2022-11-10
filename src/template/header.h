@@ -71,6 +71,22 @@ int strcmp(const char *s1, const char *s2);
 #define push_var_b(ctx, v, label) push_var_def(ctx, v, label, { px->t = VAR_BIG; px->bi = alcbgi_bigz(ctx, BzFromString((v), 10, BZ_UNTIL_END)); })
 #define push_var_d(ctx, v, label) push_var_def(ctx, v, label, { px->t = VAR_DBL; px->d = (v); })
 #define push_var_s(ctx, v, label) push_var_def(ctx, v, label, { px->t = VAR_STR; px->s = alcstr_str(ctx, v); })
+#define push_var_a(ctx, v, fn, label) \
+    if ((v)->t == VAR_OBJ) { \
+        int idxsz = (v)->o->idxsz; \
+        fn += idxsz - 1;\
+        if ((ctx)->vstksz <= ((ctx)->vstkp + idxsz)) { /* TODO: stack overflow */ e = 1; goto label; } \
+        for (int i = idxsz - 1; i >= 0; --i) { \
+            vmvar *px = &(((ctx)->vstk)[((ctx)->vstkp)++]); \
+            vmvar *item = (v)->o->ary[i]; \
+            if (item) {\
+                SHCOPY_VAR_TO(ctx, px, item); \
+            } else { \
+                px->t = VAR_INT64; px->i = 0; \
+            } \
+        } \
+    }\
+/**/
 #define pop_var(ctx) (--((ctx)->vstkp))
 #define reduce_vstackp(ctx, n) (((ctx)->vstkp) -= (n))
 #define restore_vstackp(ctx, p) (((ctx)->vstkp) = (p))

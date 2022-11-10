@@ -514,7 +514,11 @@ static void translate_pushvar(xstr *code, kl_kir_opr *rn, int fend)
         xstraf(code, "\", L%d); }\n", fend);
         break;
     case TK_VAR:
-        xstra_inst(code, "{ push_var(ctx, %s, L%d); }\n", var_value(buf1, rn), fend);
+        if (rn->has_dot3) {
+            xstra_inst(code, "{ push_var_a(ctx, %s, ad%d, L%d); }\n", var_value(buf1, rn), rn->callcnt, fend);
+        } else {
+            xstra_inst(code, "{ push_var(ctx, %s, L%d); }\n", var_value(buf1, rn), fend);
+        }
         break;
     default:
         xstra_inst(code, "<ERROR>");
@@ -642,14 +646,14 @@ static void translate_call(xstr *code, kl_kir_func *f, kl_kir_inst *i)
             xstra_inst(code, "vmfnc *f%d = alcfnc(ctx, %s, frm, 0);\n", i->r2.funcid, i->r2.name);
         }
         if (i->r2.recursive) {
-            xstra_inst(code, "CALL(f%d, lex, %s, %d)\n", i->r2.funcid, buf1, i->r2.args);
+            xstra_inst(code, "CALL(f%d, lex, %s, %d + ad%d)\n", i->r2.funcid, buf1, i->r2.args, i->r2.callcnt);
         } else {
-            xstra_inst(code, "CALL(f%d, f%d->lex, %s, %d)\n", i->r2.funcid, i->r2.funcid, buf1, i->r2.args);
+            xstra_inst(code, "CALL(f%d, f%d->lex, %s, %d + ad%d)\n", i->r2.funcid, i->r2.funcid, buf1, i->r2.args, i->r2.callcnt);
         }
     } else {
         var_value(buf2, &(i->r2));
         xstra_inst(code, "CHECK_FUNC(%s, L%d);\n", buf2, f->funcend);
-        xstra_inst(code, "CALL(((%s)->f), ((%s)->f)->lex, %s, %d)\n", buf2, buf2, buf1, i->r2.args);
+        xstra_inst(code, "CALL(((%s)->f), ((%s)->f)->lex, %s, %d + ad%d)\n", buf2, buf2, buf1, i->r2.args, i->r2.callcnt);
     }
 }
 
@@ -733,9 +737,8 @@ static void set_last_args(xstr *code, kl_kir_func *f, int idx, int total)
 {
     xstra_inst(code, "SET_OBJ(n%d, alcobj(ctx));\n", idx);
     xstra_inst(code, "for (int i = 0, idx = %d; idx < ac; ++i, ++idx) {\n", idx);
-    xstra_inst(code, "    vmvar *a%d = local_var(ctx, idx+%d);\n", idx, total);
-    xstra_inst(code, "    vmvar *ac%d = copy_var(ctx, a%d, 0);\n", idx, idx);
-    xstra_inst(code, "    array_set(ctx, n%d->o, i, ac%d);\n", idx, idx);
+    xstra_inst(code, "    vmvar *aa = local_var(ctx, idx+%d);\n", total);
+    xstra_inst(code, "    array_set(ctx, n%d->o, i, copy_var(ctx, aa, 0));\n", idx);
     xstra_inst(code, "}\n");
 }
 
@@ -895,7 +898,7 @@ static void translate_inst(xstr *code, kl_kir_func *f, kl_kir_inst *i, func_cont
         break;
 
     case KIR_SVSTKP:
-        xstra_inst(code, "int p%" PRId64 " = vstackp(ctx);\n", i->r1.i64);
+        xstra_inst(code, "int ad%d = 0, p%" PRId64 " = vstackp(ctx);\n", i->r1.i64, i->r1.i64);
         break;
     case KIR_PUSHARG:
         translate_pushvar(code, &(i->r1), f->funcend);

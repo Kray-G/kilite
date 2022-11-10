@@ -68,9 +68,18 @@ void disp_3op(const char *op, kl_kir_inst *i)
     printf("\n");
 }
 
+void disp_pusharg(kl_kir_inst *i)
+{
+    printf(IDT OP, i->r1.has_dot3 ? "pusharga" : "pusharg");
+    printf("%d, ", i->r1.callcnt);
+    disp_v(i, 1);
+    printf("\n");
+}
+
 void disp_call(const char *op, kl_kir_inst *i)
 {
     printf(IDT OP, op);
+    printf("%d, ", i->r2.callcnt);
     disp_v(i, 1);
     printf(", ");
     disp_v(i, 2);
@@ -108,7 +117,7 @@ void disp_inst(kl_kir_program *p, kl_kir_inst *i)
         disp_1op("savestkp", i);
         break;
     case KIR_PUSHARG:
-        disp_1op("pusharg", i);
+        disp_pusharg(i);
         break;
     case KIR_CALL:
         disp_call("call", i);
