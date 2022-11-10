@@ -25,6 +25,7 @@ typedef struct kl_symbol {
     int is_native;                  //  The function with `native` keyword.
     int is_callable;                //  The callable symbol, which is like TK_FUNC, TK_CLASS, or something.
     int is_recursive;               //  This reference symbol could be recursive call. ref->is_callable should be 1.
+    int is_dot3;                    //  The variable is written with the 3 dots.
     int level;                      //  The level of lexical scope, which means a distance from the scope having the 'ref' symbol.
     int index;                      //  The index of this symbol.
     int count;                      //  Variable counter in this scope.

@@ -59,11 +59,18 @@ int strcmp(const char *s1, const char *s2);
 
 #define alloc_var(ctx, n) do { if ((ctx)->vstksz <= ((ctx)->vstkp + n)) { /* TODO: stack overflow */ } (((ctx)->vstkp) += (n)); } while (0)
 #define vstackp(ctx) ((ctx)->vstkp)
-#define push_var(ctx, v)   do { if ((ctx)->vstksz <= (ctx)->vstkp) { /* TODO: stack overflow */ } vmvar *px = &(((ctx)->vstk)[((ctx)->vstkp)++]); SHCOPY_VAR_TO(ctx, px, v); } while (0)
-#define push_var_i(ctx, v) do { if ((ctx)->vstksz <= (ctx)->vstkp) { /* TODO: stack overflow */ } vmvar *px = &(((ctx)->vstk)[((ctx)->vstkp)++]); px->t = VAR_INT64; px->i = (v); } while (0)
-#define push_var_b(ctx, v) do { if ((ctx)->vstksz <= (ctx)->vstkp) { /* TODO: stack overflow */ } vmvar *px = &(((ctx)->vstk)[((ctx)->vstkp)++]); px->t = VAR_BIG; px->bi = alcbgi_bigz(ctx, BzFromString((v), 10, BZ_UNTIL_END)); } while (0)
-#define push_var_d(ctx, v) do { if ((ctx)->vstksz <= (ctx)->vstkp) { /* TODO: stack overflow */ } vmvar *px = &(((ctx)->vstk)[((ctx)->vstkp)++]); px->t = VAR_DBL; px->d = (v); } while (0)
-#define push_var_s(ctx, v) do { if ((ctx)->vstksz <= (ctx)->vstkp) { /* TODO: stack overflow */ } vmvar *px = &(((ctx)->vstk)[((ctx)->vstkp)++]); px->t = VAR_STR; px->s = alcstr_str(ctx, v); } while (0)
+#define push_var_def(ctx, v, label, pushcode) \
+    do { \
+        if ((ctx)->vstksz <= (ctx)->vstkp) { /* TODO: stack overflow */ e = 1; goto label; } \
+        vmvar *px = &(((ctx)->vstk)[((ctx)->vstkp)++]); \
+        pushcode \
+    } while (0) \
+/**/
+#define push_var(ctx, v, label)   push_var_def(ctx, v, label, { SHCOPY_VAR_TO(ctx, px, v); })
+#define push_var_i(ctx, v, label) push_var_def(ctx, v, label, { px->t = VAR_INT64; px->i = (v); })
+#define push_var_b(ctx, v, label) push_var_def(ctx, v, label, { px->t = VAR_BIG; px->bi = alcbgi_bigz(ctx, BzFromString((v), 10, BZ_UNTIL_END)); })
+#define push_var_d(ctx, v, label) push_var_def(ctx, v, label, { px->t = VAR_DBL; px->d = (v); })
+#define push_var_s(ctx, v, label) push_var_def(ctx, v, label, { px->t = VAR_STR; px->s = alcstr_str(ctx, v); })
 #define pop_var(ctx) (--((ctx)->vstkp))
 #define reduce_vstackp(ctx, n) (((ctx)->vstkp) -= (n))
 #define restore_vstackp(ctx, p) (((ctx)->vstkp) = (p))
@@ -334,6 +341,15 @@ enum {
 
 /* Operator macros */
 
+/* call function */
+#define CALL(f1, lex, r, ac) { \
+    vmfnc *callee = ctx->callee; \
+    ctx->callee = (f1); \
+    e = ((vmfunc_t)((f1)->f))(ctx, lex, (r), (ac)); \
+    ctx->callee = callee; \
+} \
+/**/
+
 /* Check if it's a function, exception. */
 
 #define CHECK_FUNC(v, l) if ((v)->t != VAR_FNC) { e = 1; /* TODO: MethodMissing Exception */; goto l; }
@@ -420,8 +436,20 @@ enum {
 } \
 /**/
 
+#define SHMOVE_VAR_TO(ctx, dst, src) { \
+    SHCOPY_VAR_TO(ctx, dst, src) \
+    (src) = NULL; \
+} \
+/**/
+
+#define MOVE_VAR_TO(ctx, dst, src) { \
+    COPY_VAR_TO(ctx, dst, src) \
+    (src) = NULL; \
+} \
+/**/
+
 #define SET_ARGVAR(idx, alc) { \
-    if (ac > idx) { \
+    if (idx < ac) { \
         vmvar *a##idx = local_var(ctx, (idx + alc)); \
         SHCOPY_VAR_TO(ctx, n##idx, a##idx); \
     } else { \

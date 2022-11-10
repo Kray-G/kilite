@@ -320,7 +320,43 @@ static kl_kir_opr make_var_index(kl_context *ctx, int index, int level, tk_typei
     return r1;
 }
 
-static kl_kir_inst *gen_object_literal(kl_context *ctx, kl_symbol *sym, kl_kir_opr *r1, kl_expr *e)
+static kl_kir_inst *gen_array_literal(kl_context *ctx, kl_symbol *sym, kl_kir_opr *r1, kl_kir_opr *r2, kl_expr *e, int *idx)
+{
+    kl_kir_inst *head = NULL;
+    if (!e) {
+        ++(*idx);
+        return NULL;
+    }
+
+    switch (e->nodetype) {
+    case TK_COMMA:
+        head = gen_array_literal(ctx, sym, r1, r2, e->lhs, idx);
+        kl_kir_inst *last = get_last(head);
+        if (last) {
+            last->next = gen_array_literal(ctx, sym, r1, r2, e->rhs, idx);
+        } else {
+            head = gen_array_literal(ctx, sym, r1, r2, e->rhs, idx);
+        }
+        break;
+    default:
+        kl_kir_opr rs = {0};
+        KL_KIR_CHECK_LITERAL(e, rs, head);
+        kl_kir_opr r3 = make_lit_i64(ctx, *idx);
+        ++(*idx);
+        kl_kir_inst *inst = new_inst_op3(ctx->program, e->line, e->pos, KIR_IDXL, r2, r1, &r3);
+        if (!head) {
+            head = inst;
+        } else {
+            kl_kir_inst *last = get_last(head);
+            last->next = inst;
+        }
+        inst->next = new_inst_op2(ctx->program, e->line, e->pos, KIR_MOVA, r2, &rs);
+        break;
+    }
+    return head;
+}
+
+static kl_kir_inst *gen_object_literal(kl_context *ctx, kl_symbol *sym, kl_kir_opr *r1, kl_kir_opr *r2, kl_expr *e)
 {
     kl_kir_inst *head = NULL;
     switch (e->nodetype) {
@@ -328,22 +364,21 @@ static kl_kir_inst *gen_object_literal(kl_context *ctx, kl_symbol *sym, kl_kir_o
         /* e->lhs should be a string. */
         kl_kir_opr rs = {0};
         KL_KIR_CHECK_LITERAL(e->rhs, rs, head);
-        kl_kir_opr r2 = make_var(ctx, sym, TK_TANY);
         kl_kir_opr r3 = make_lit_str(ctx, e->lhs->val.str);
-        kl_kir_inst *inst = new_inst_op3(ctx->program, e->line, e->pos, KIR_APLYL, &r2, r1, &r3);
+        kl_kir_inst *inst = new_inst_op3(ctx->program, e->line, e->pos, KIR_APLYL, r2, r1, &r3);
         if (!head) {
             head = inst;
         } else {
             kl_kir_inst *last = get_last(head);
             last->next = inst;
         }
-        inst->next = new_inst_op2(ctx->program, e->line, e->pos, KIR_MOVA, &r2, &rs);
+        inst->next = new_inst_op2(ctx->program, e->line, e->pos, KIR_MOVA, r2, &rs);
         break;
     }
     case TK_COMMA:
-        head = gen_object_literal(ctx, sym, r1, e->lhs);
+        head = gen_object_literal(ctx, sym, r1, r2, e->lhs);
         kl_kir_inst *last = get_last(head);
-        last->next = gen_object_literal(ctx, sym, r1, e->rhs);
+        last->next = gen_object_literal(ctx, sym, r1, r2, e->rhs);
         break;
     }
     return head;
@@ -824,9 +859,21 @@ static kl_kir_inst *gen_expr(kl_context *ctx, kl_symbol *sym, kl_kir_opr *r1, kl
         head = new_inst_op2(ctx->program, e->line, e->pos, KIR_MOV, r1, &rs);
         break;
     }
+    case TK_VARY: {
+        head = new_inst_op1(ctx->program, e->line, e->pos, KIR_NEWOBJ, r1);
+        if (e->lhs) {
+            int idx = 0;
+            kl_kir_opr r2 = make_var(ctx, sym, TK_TANY);
+            head->next = gen_array_literal(ctx, sym, r1, &r2, e->lhs, &idx);
+        }
+        break;
+    }
     case TK_VOBJ: {
         head = new_inst_op1(ctx->program, e->line, e->pos, KIR_NEWOBJ, r1);
-        head->next = gen_object_literal(ctx, sym, r1, e->lhs);
+        if (e->lhs) {
+            kl_kir_opr r2 = make_var(ctx, sym, TK_TANY);
+            head->next = gen_object_literal(ctx, sym, r1, &r2, e->lhs);
+        }
         break;
     }
     case TK_VAR: {
@@ -1017,7 +1064,8 @@ static kl_kir_func *gen_function(kl_context *ctx, kl_symbol *sym, kl_stmt *s)
 
     func->funcname = sym->funcname ? sym->funcname : sym->name;
     func->funcid = sym->funcid;
-    func->arg_count = sym->argcount;
+    func->has_dot3 = sym->is_dot3;
+    func->argcount = sym->argcount;
     func->head->r1 = (kl_kir_opr){ .t = TK_VSINT, .i64 = sym->count, .typeid = TK_TSINT64 };
     func->head->r2 = (kl_kir_opr){ .t = TK_VSINT, .i64 = localvars, .typeid = TK_TSINT64 };
     func->head->r3 = (kl_kir_opr){ .t = TK_VSINT, .i64 = sym->argcount, .typeid = TK_TSINT64 };
@@ -1105,7 +1153,7 @@ static kl_kir_inst *gen_stmt(kl_context *ctx, kl_symbol *sym, kl_stmt *s)
         if (s->s1) {
             kl_symbol *f = s->sym;
             kl_kir_func *func = gen_function(ctx, f, s->s1);
-            if (1 <= func->arg_count && func->arg_count < 5) {
+            if (!func->has_dot3 && (1 <= func->argcount && func->argcount < 5)) {
                 if ((ctx->options & PARSER_OPT_DISABLE_PURE) == 0) {
                     func->is_pure = check_pure_function(ctx, s->s1);
                 }

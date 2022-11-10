@@ -620,8 +620,8 @@ static kl_expr *parse_lvalue_factor(kl_context *ctx, kl_lexer *l)
             if (l->tok != TK_RXBR) {
                 parse_error(ctx, __LINE__, "Compile", l, "The '}' is missing.");
             }
-            lexer_fetch(l);
         }
+        lexer_fetch(l);
         break;
     case TK_LLBR:
         lexer_fetch(l);
@@ -631,8 +631,8 @@ static kl_expr *parse_lvalue_factor(kl_context *ctx, kl_lexer *l)
             if (l->tok != TK_RLBR) {
                 parse_error(ctx, __LINE__, "Compile", l, "The ']' is missing.");
             }
-            lexer_fetch(l);
         }
+        lexer_fetch(l);
         break;
     case TK_LSBR:
         lexer_fetch(l);
@@ -1136,11 +1136,12 @@ static kl_stmt *parse_type_stmt(kl_context *ctx, kl_lexer *l, kl_stmt *s, kl_sym
     return s;
 }
 
-static kl_expr *parse_def_arglist(kl_context *ctx, kl_lexer *l)
+static kl_expr *parse_def_arglist(kl_context *ctx, kl_lexer *l, kl_symbol *func)
 {
     DEBUG_PARSER_PHASE();
     kl_expr *e = NULL;
     do {
+        int dot3 = 0;
         if (l->tok == TK_COMMA) {
             lexer_fetch(l);
         }
@@ -1148,10 +1149,17 @@ static kl_expr *parse_def_arglist(kl_context *ctx, kl_lexer *l)
             // No more arguments.
             break;
         }
+        if (l->tok == TK_DOT3) {
+            // This should be used only for the last argument.
+            dot3 = 1;
+            func->is_dot3 = 1;
+            lexer_fetch(l);
+        }
         if (l->tok == TK_NAME) {
             check_symbol(ctx, l, l->str);
             kl_expr *e1 = make_expr(ctx, l, TK_VAR);
             kl_symbol *sym = make_symbol(ctx, l, TK_VAR, 0);
+            sym->is_dot3 = dot3;
             sym->name = parse_const_str(ctx, l, l->str);
             e1->sym = sym;
             lexer_fetch(l);
@@ -1189,6 +1197,10 @@ static kl_expr *parse_def_arglist(kl_context *ctx, kl_lexer *l)
             } else {
                 parse_error(ctx, __LINE__, "Compile", l, "Invalid argument.");
             }
+        }
+        if (dot3 && l->tok != TK_RSBR) {
+printf("tok = %s\n", tokenname(l->tok));
+            parse_error(ctx, __LINE__, "Compile", l, "The 3 dots are being used at not the last argument.");
         }
     } while (l->tok == TK_COMMA);
     return e;
@@ -1450,7 +1462,7 @@ static kl_stmt *parse_class(kl_context *ctx, kl_lexer *l)
         lexer_fetch(l);
         int lvalue = ctx->in_lvalue;
         ctx->in_lvalue = 1;
-        s->e1 = sym->args = parse_def_arglist(ctx, l);
+        s->e1 = sym->args = parse_def_arglist(ctx, l, sym);
         sym->argcount = sym->idxmax;
         ctx->in_lvalue = lvalue;
         if (l->tok != TK_RSBR) {
@@ -1543,7 +1555,7 @@ static kl_expr *parse_block_function(kl_context *ctx, kl_lexer *l)
         }
         lexer_fetch(l);
         ctx->in_lvalue = 1;
-        e->e = sym->args = parse_def_arglist(ctx, l);
+        e->e = sym->args = parse_def_arglist(ctx, l, sym);
         sym->argcount = sym->idxmax;
         ctx->in_lvalue = 0;
         if (l->tok != TK_RSBR) {
@@ -1599,7 +1611,7 @@ static kl_expr *parse_anonymous_function(kl_context *ctx, kl_lexer *l)
     lexer_fetch(l);
     int lvalue = ctx->in_lvalue;
     ctx->in_lvalue = 1;
-    e->e = sym->args = parse_def_arglist(ctx, l);
+    e->e = sym->args = parse_def_arglist(ctx, l, sym);
     sym->argcount = sym->idxmax;
     ctx->in_lvalue = lvalue;
     if (l->tok != TK_RSBR) {
@@ -1665,7 +1677,7 @@ static kl_stmt *parse_function(kl_context *ctx, kl_lexer *l, tk_token funcscope)
     }
     lexer_fetch(l);
     ctx->in_lvalue = 1;
-    s->e1 = sym->args = parse_def_arglist(ctx, l);
+    s->e1 = sym->args = parse_def_arglist(ctx, l, sym);
     sym->argcount = sym->idxmax;
     ctx->in_lvalue = 0;
     if (l->tok != TK_RSBR) {

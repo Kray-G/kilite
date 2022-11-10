@@ -104,7 +104,9 @@ static void disp_expr(kl_expr *e, int indent)
         break;
     case TK_VOBJ:
         printf("(object)\n");
-        print_object(e->lhs, indent + 1);
+        if (e->lhs) {
+            print_object(e->lhs, indent + 1);
+        }
         break;
 
     case TK_VAR:
@@ -114,9 +116,9 @@ static void disp_expr(kl_expr *e, int indent)
             int index = sym->index;
             int level = sym->level;
             if (ref) {
-                printf("[$%d(%d)] %s:%s", index, level, sym->name, typeidname(e->typeid));
+                printf("[$%d(%d)] %s%s:%s", index, level, sym->is_dot3 ? "..." : "", sym->name, typeidname(e->typeid));
             } else {
-                printf("[$%d] %s:%s", index, sym->name, typeidname(e->typeid));
+                printf("[$%d] %s%s:%s", index, sym->is_dot3 ? "..." : "", sym->name, typeidname(e->typeid));
             }
             if (sym->typetree) {
                 printf(", ");

@@ -448,12 +448,17 @@ vmvar *copy_var(vmctx *ctx, vmvar *src, int hold)
         break;
     case VAR_STR:
         v = alcvar_pure(ctx, VAR_STR);
-        if (hold) HOLD(v);
         v->s = alcstr_str(ctx, src->s->s);
+        if (hold) HOLD(v);
         break;
     case VAR_FNC:
         v = alcvar_pure(ctx, VAR_FNC);
         v->f = src->f;
+        if (hold) HOLD(v);
+        break;
+    case VAR_OBJ:
+        v = alcvar_pure(ctx, VAR_OBJ);
+        v->o = src->o;
         if (hold) HOLD(v);
         break;
     default:
