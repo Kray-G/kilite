@@ -289,7 +289,7 @@ static kl_lexer *lexer_new(void)
     l->tokline = 0;
     l->tokpos = 0;
     l->toklen = 1;
-    l->precode = "extern System; extern Math;\n";
+    l->precode = "const undefined; extern System; extern Math;\n";
     return l;
 }
 
@@ -434,9 +434,6 @@ static inline int check_keyword(kl_lexer *l)
         if (strcmp(l->str, "finally") == 0) return TK_FINALLY;
         break;
     case 'i':
-        if (strcmp(l->str, "int8") == 0) return set_type(l, TK_TYPEID, TK_TSINT8);
-        if (strcmp(l->str, "int16") == 0) return set_type(l, TK_TYPEID, TK_TSINT16);
-        if (strcmp(l->str, "int32") == 0) return set_type(l, TK_TYPEID, TK_TSINT32);
         if (strcmp(l->str, "int64") == 0) return set_type(l, TK_TYPEID, TK_TSINT64);
         if (strcmp(l->str, "if") == 0) return TK_IF;
         if (strcmp(l->str, "in") == 0) return TK_IN;
@@ -473,12 +470,6 @@ static inline int check_keyword(kl_lexer *l)
     case 't':
         if (strcmp(l->str, "try") == 0) return TK_TRY;
         if (strcmp(l->str, "throw") == 0) return TK_THROW;
-        break;
-    case 'u':
-        if (strcmp(l->str, "uint8") == 0) return set_type(l, TK_TYPEID, TK_TUINT8);
-        if (strcmp(l->str, "uint16") == 0) return set_type(l, TK_TYPEID, TK_TUINT16);
-        if (strcmp(l->str, "uint32") == 0) return set_type(l, TK_TYPEID, TK_TUINT32);
-        if (strcmp(l->str, "uint64") == 0) return set_type(l, TK_TYPEID, TK_TUINT64);
         break;
     case 'v':
         if (strcmp(l->str, "var") == 0) return TK_LET;

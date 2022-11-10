@@ -21,6 +21,10 @@ int add_v_i(vmctx *ctx, vmvar *r, vmvar *v, int64_t i)
 {
     /* v's type should not be INT and BIGINT. */
     switch (v->t) {
+    case VAR_UNDEF:
+        r->t = VAR_INT64;
+        r->i = i;
+        break;
     case VAR_DBL:
         r->t = VAR_DBL;
         r->d = v->d + (double)i;
@@ -41,6 +45,10 @@ int add_i_v(vmctx *ctx, vmvar *r, int64_t i, vmvar *v)
 {
     /* v's type should not be INT and BIGINT. */
     switch (v->t) {
+    case VAR_UNDEF:
+        r->t = VAR_INT64;
+        r->i = i;
+        break;
     case VAR_DBL:
         r->t = VAR_DBL;
         r->d = (double)i + v->d;
@@ -61,8 +69,52 @@ int add_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
 {
     int e = 0;
     switch (v0->t) {
+    case VAR_UNDEF:
+        switch (v1->t) {
+        case VAR_INT64:
+            r->t = VAR_INT64;
+            r->i = v1->i;
+            break;
+        case VAR_DBL:
+            r->t = VAR_DBL;
+            r->d = v1->d;
+            break;
+        case VAR_STR:
+            r->t = VAR_STR;
+            r->s = alcstr_str(ctx, v1->s->s);
+            break;
+        case VAR_FNC:
+        case VAR_OBJ:
+            return throw_system_exception(ctx, EXCEPT_UNSUPPORTED_OPERATION);
+        }
+        break;
+    case VAR_INT64:
+        switch (v1->t) {
+        case VAR_UNDEF:
+            r->t = VAR_INT64;
+            r->i = v1->i;
+            break;
+        case VAR_DBL:
+            r->t = VAR_DBL;
+            r->d = (double)v0->i + v1->d;
+            break;
+        case VAR_STR:
+            r->t = VAR_STR;
+            r->s = alcstr_str(ctx, "");
+            str_append_i64(ctx, r->s, v0->i);
+            str_append_str(ctx, r->s, v1->s);
+            break;
+        case VAR_FNC:
+        case VAR_OBJ:
+            return throw_system_exception(ctx, EXCEPT_UNSUPPORTED_OPERATION);
+        }
+        break;
     case VAR_BIG:
         switch (v1->t) {
+        case VAR_UNDEF:
+            r->t = VAR_BIG;
+            r->bi = alcbgi_bigz(ctx, BzCopy(v0->bi->b));
+            break;
         case VAR_INT64:
             OP_ADD_B_I(ctx, r, v0, v1->i);
             break;
@@ -84,6 +136,10 @@ int add_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
         break;
     case VAR_DBL:
         switch (v1->t) {
+        case VAR_UNDEF:
+            r->t = VAR_DBL;
+            r->d = v0->d;
+            break;
         case VAR_INT64:
             OP_ADD_V_I(ctx, r, v0, v1->i);
             break;
@@ -107,6 +163,10 @@ int add_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
         break;
     case VAR_STR:
         switch (v1->t) {
+        case VAR_UNDEF:
+            r->t = VAR_STR;
+            r->s = str_dup(ctx, v0->s);
+            break;
         case VAR_INT64:
             OP_ADD_V_I(ctx, r, v0, v1->i);
             break;
@@ -147,6 +207,10 @@ int sub_v_i(vmctx *ctx, vmvar *r, vmvar *v, int64_t i)
 {
     /* v's type should not be INT and BIGINT. */
     switch (v->t) {
+    case VAR_UNDEF:
+        r->t = VAR_INT64;
+        r->d = - i;
+        break;
     case VAR_DBL:
         r->t = VAR_DBL;
         r->d = v->d - (double)i;
@@ -163,6 +227,10 @@ int sub_i_v(vmctx *ctx, vmvar *r, int64_t i, vmvar *v)
 {
     /* v's type should not be INT and BIGINT. */
     switch (v->t) {
+    case VAR_UNDEF:
+        r->t = VAR_INT64;
+        r->d = i;
+        break;
     case VAR_DBL:
         r->t = VAR_DBL;
         r->d = i - v->d;
@@ -179,8 +247,44 @@ int sub_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
 {
     int e = 0;
     switch (v0->t) {
+    case VAR_UNDEF:
+        switch (v1->t) {
+        case VAR_INT64:
+            r->t = VAR_INT64;
+            r->i = - v1->i;
+            break;
+        case VAR_DBL:
+            r->t = VAR_DBL;
+            r->d = - v1->d;
+            break;
+        case VAR_STR:
+        case VAR_FNC:
+        case VAR_OBJ:
+            return throw_system_exception(ctx, EXCEPT_UNSUPPORTED_OPERATION);
+        }
+        break;
+    case VAR_INT64:
+        switch (v1->t) {
+        case VAR_UNDEF:
+            r->t = VAR_INT64;
+            r->i = v1->i;
+            break;
+        case VAR_DBL:
+            r->t = VAR_DBL;
+            r->d = (double)v0->i - v1->d;
+            break;
+        case VAR_STR:
+        case VAR_FNC:
+        case VAR_OBJ:
+            return throw_system_exception(ctx, EXCEPT_UNSUPPORTED_OPERATION);
+        }
+        break;
     case VAR_BIG:
         switch (v1->t) {
+        case VAR_UNDEF:
+            r->t = VAR_BIG;
+            r->bi = alcbgi_bigz(ctx, BzNegate(v0->bi->b));
+            break;
         case VAR_INT64:
             OP_SUB_B_I(ctx, r, v0, v1->i);
             break;
@@ -196,6 +300,10 @@ int sub_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
         break;
     case VAR_DBL:
         switch (v1->t) {
+        case VAR_UNDEF:
+            r->t = VAR_DBL;
+            r->d = v0->d;
+            break;
         case VAR_INT64:
             OP_SUB_V_I(ctx, r, v0, v1->i);
             break;
@@ -215,6 +323,7 @@ int sub_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
         break;
     case VAR_STR:
         switch (v1->t) {
+        case VAR_UNDEF:
         case VAR_INT64:
         case VAR_BIG:
         case VAR_DBL:
@@ -237,6 +346,10 @@ int mul_v_i(vmctx *ctx, vmvar *r, vmvar *v, int64_t i)
 {
     /* v's type should not be INT and BIGINT. */
     switch (v->t) {
+    case VAR_UNDEF:
+        r->t = VAR_INT64;
+        r->i = 0;
+        break;
     case VAR_DBL:
         r->t = VAR_DBL;
         r->d = v->d * (double)i;
@@ -257,6 +370,10 @@ int mul_i_v(vmctx *ctx, vmvar *r, int64_t i, vmvar *v)
 {
     /* v's type should not be INT and BIGINT. */
     switch (v->t) {
+    case VAR_UNDEF:
+        r->t = VAR_INT64;
+        r->i = 0;
+        break;
     case VAR_DBL:
         r->t = VAR_DBL;
         r->d = (double)i * v->d;
@@ -277,8 +394,48 @@ int mul_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
 {
     int e = 0;
     switch (v0->t) {
+    case VAR_UNDEF:
+        switch (v1->t) {
+        case VAR_INT64:
+            r->t = VAR_INT64;
+            r->i = 0;
+            break;
+        case VAR_DBL:
+            r->t = VAR_DBL;
+            r->d = 0.0;
+            break;
+        case VAR_STR:
+        case VAR_FNC:
+        case VAR_OBJ:
+            return throw_system_exception(ctx, EXCEPT_UNSUPPORTED_OPERATION);
+        }
+        break;
+    case VAR_INT64:
+        switch (v1->t) {
+        case VAR_UNDEF:
+            r->t = VAR_INT64;
+            r->i = 0;
+            break;
+        case VAR_DBL:
+            r->t = VAR_DBL;
+            r->d = (double)v0->i * v1->d;
+            break;
+        case VAR_STR:
+            r->t = VAR_STR;
+            r->s = str_dup(ctx, v1->s);
+            str_make_ntimes(ctx, r->s, v0->i);
+            break;
+        case VAR_FNC:
+        case VAR_OBJ:
+            return throw_system_exception(ctx, EXCEPT_UNSUPPORTED_OPERATION);
+        }
+        break;
     case VAR_BIG:
         switch (v1->t) {
+        case VAR_UNDEF:
+            r->t = VAR_INT64;
+            r->i = 0;
+            break;
         case VAR_INT64:
             OP_MUL_B_I(ctx, r, v0, v1->i);
             break;
@@ -295,6 +452,10 @@ int mul_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
         break;
     case VAR_DBL:
         switch (v1->t) {
+        case VAR_UNDEF:
+            r->t = VAR_DBL;
+            r->d = 0.0;
+            break;
         case VAR_INT64:
             OP_MUL_V_I(ctx, r, v0, v1->i);
             break;
@@ -319,6 +480,10 @@ int mul_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
         break;
     case VAR_STR:
         switch (v1->t) {
+        case VAR_UNDEF:
+            r->t = VAR_STR;
+            r->s = alcstr_str(ctx, "");
+            break;
         case VAR_INT64:
             OP_MUL_V_I(ctx, r, v0, v1->i);
             break;
@@ -350,6 +515,8 @@ int div_v_i(vmctx *ctx, vmvar *r, vmvar *v, int64_t i)
 {
     /* v's type should not be INT and BIGINT. */
     switch (v->t) {
+    case VAR_UNDEF:
+        return throw_system_exception(ctx, EXCEPT_DIVIDE_BY_ZERO);
     case VAR_DBL:
         if (i == 0) {
             return throw_system_exception(ctx, EXCEPT_DIVIDE_BY_ZERO);
@@ -374,6 +541,10 @@ int div_i_v(vmctx *ctx, vmvar *r, int64_t i, vmvar *v)
 {
     /* v's type should not be INT and BIGINT. */
     switch (v->t) {
+    case VAR_UNDEF:
+        r->t = VAR_INT64;
+        r->i = 0;
+        break;
     case VAR_DBL:
         if (i == 0) {
             return throw_system_exception(ctx, EXCEPT_DIVIDE_BY_ZERO);
@@ -398,8 +569,48 @@ int div_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
 {
     int e = 0;
     switch (v0->t) {
+    case VAR_UNDEF:
+        switch (v1->t) {
+        case VAR_INT64:
+            r->t = VAR_INT64;
+            r->i = 0;
+            break;
+        case VAR_DBL:
+            r->t = VAR_DBL;
+            r->d = 0.0;
+            break;
+        case VAR_STR:
+            r->t = VAR_STR;
+            r->s = str_dup(ctx, v1->s);
+            break;
+        case VAR_FNC:
+        case VAR_OBJ:
+            return throw_system_exception(ctx, EXCEPT_UNSUPPORTED_OPERATION);
+        }
+        break;
+    case VAR_INT64:
+        switch (v1->t) {
+        case VAR_UNDEF:
+            return throw_system_exception(ctx, EXCEPT_DIVIDE_BY_ZERO);
+        case VAR_DBL:
+            r->t = VAR_DBL;
+            r->d = (double)v0->i / v1->d;
+            break;
+        case VAR_STR:
+            r->t = VAR_STR;
+            r->s = alcstr_str(ctx, "");
+            str_make_i64_path(ctx, v0->i, r->s);
+            str_make_path(ctx, r->s, v1->s);
+            break;
+        case VAR_FNC:
+        case VAR_OBJ:
+            return throw_system_exception(ctx, EXCEPT_UNSUPPORTED_OPERATION);
+        }
+        break;
     case VAR_BIG:
         switch (v1->t) {
+        case VAR_UNDEF:
+            return throw_system_exception(ctx, EXCEPT_DIVIDE_BY_ZERO);
         case VAR_INT64:
             OP_DIV_B_I(ctx, r, v0, v1->i);
             break;
@@ -418,6 +629,8 @@ int div_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
         break;
     case VAR_DBL:
         switch (v1->t) {
+        case VAR_UNDEF:
+            return throw_system_exception(ctx, EXCEPT_DIVIDE_BY_ZERO);
         case VAR_INT64:
             OP_DIV_V_I(ctx, r, v0, v1->i);
             break;
@@ -445,6 +658,10 @@ int div_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
         break;
     case VAR_STR:
         switch (v1->t) {
+        case VAR_UNDEF:
+            r->t = VAR_STR;
+            r->s = str_dup(ctx, v0->s);
+            break;
         case VAR_INT64:
             OP_DIV_V_I(ctx, r, v0, v1->i);
             break;

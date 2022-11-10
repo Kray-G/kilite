@@ -27,10 +27,14 @@ static void hashmap_objprint_impl(vmobj *obj, int indent)
         for (int i = 0; i <= lsz; ++i) {
             vmvar *v = obj->ary[i];
             if (!v) {
-                if (i < lsz) printf("0, ");
-                else         printf("0");
+                if (i < lsz) printf("undefined, ");
+                else         printf("undefined");
             } else {
                 switch (v->t) {
+                case VAR_UNDEF:
+                    printf("undefined");
+                    if (i < lsz) printf(", ");
+                    break;
                 case VAR_INT64:
                     printf("%lld", v->i);
                     if (i < lsz) printf(", ");

@@ -47,6 +47,9 @@ int get_min5(int a0, int a1, int a2, int a3, int a4)
 void print_obj(vmvar *v)
 {
     switch (v->t) {
+    case VAR_UNDEF:
+        printf("undefined");
+        break;
     case VAR_INT64:
         printf("%lld", v->i);
         break;

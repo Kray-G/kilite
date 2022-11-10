@@ -13,14 +13,8 @@
 typedef enum tk_typeid {
     // Types
     TK_TANY = 0,            //  <any type>
-    TK_TSINT8,              //  int8
-    TK_TSINT16,             //  int16
-    TK_TSINT32,             //  int32
+    TK_TUNDEF,              //  undefined
     TK_TSINT64,             //  int64
-    TK_TUINT8,              //  uint8
-    TK_TUINT16,             //  uint16
-    TK_TUINT32,             //  uint32
-    TK_TUINT64,             //  uint64
     TK_TBIGINT,             //  bigint
     TK_TDBL,                //  real
     TK_TSTR,                //  string

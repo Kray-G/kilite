@@ -162,7 +162,7 @@ static vmstr *alcstr_pure(vmctx *ctx)
 vmstr *alcstr_str(vmctx *ctx, const char *s)
 {
     vmstr *v = alcstr_pure(ctx);
-    int len = s ? strlen(s) : 0;
+    int len = s ? strlen(s) : -1;
     if (v->cap > 0) {
         if (len < v->cap) {
             strcpy(v->s, s);
@@ -173,7 +173,7 @@ vmstr *alcstr_str(vmctx *ctx, const char *s)
         free(v->s);
     }
 
-    if (len == 0) {
+    if (len < 0) {
         v->s = v->hd = (char *)calloc(STR_UNIT, sizeof(char));
         v->cap = STR_UNIT;
         v->len = 0;
@@ -358,9 +358,7 @@ vmvar *alcvar(vmctx *ctx, vartype t, int hold)
 
 vmvar *alcvar_initial(vmctx *ctx)
 {
-    vmvar *v = alcvar_pure(ctx, VAR_INT64);
-    v->i = 0;
-    return v;
+    return alcvar_pure(ctx, VAR_UNDEF);
 }
 
 vmvar *alcvar_obj(vmctx *ctx, vmobj *o)
@@ -431,6 +429,10 @@ vmvar *copy_var(vmctx *ctx, vmvar *src, int hold)
 {
     vmvar *v = NULL;
     switch (src->t) {
+    case VAR_UNDEF:
+        v = alcvar_pure(ctx, VAR_UNDEF);
+        if (hold) HOLD(v);
+        break;
     case VAR_INT64:
         v = alcvar_pure(ctx, VAR_INT64);
         v->i = src->i;

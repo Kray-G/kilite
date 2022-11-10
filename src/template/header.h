@@ -90,7 +90,7 @@ int strcmp(const char *s1, const char *s2);
 #define pop_var(ctx) (--((ctx)->vstkp))
 #define reduce_vstackp(ctx, n) (((ctx)->vstkp) -= (n))
 #define restore_vstackp(ctx, p) (((ctx)->vstkp) = (p))
-#define init_var(v) ((v)->t = VAR_INT64, (v)->i = 0)
+#define init_var(v) ((v)->t = VAR_UNDEF)
 #define local_var(ctx, n) (&(((ctx)->vstk)[(ctx)->vstkp - ((n) + 1)]))
 #define local_var_index(n) ((ctx)->vstkp - ((n) + 1))
 
@@ -105,7 +105,8 @@ int strcmp(const char *s1, const char *s2);
 
 #define IS_VMINT(x) ((x) <= VAR_BIG)
 typedef enum vartype {
-    VAR_INT64 = 0x00,
+    VAR_UNDEF = 0x00,
+    VAR_INT64,
     VAR_BIG,
     VAR_DBL,
     VAR_STR,
@@ -375,6 +376,7 @@ enum {
 
 #define MAKE_SUPER(ctx, dst, src) { vmobj *o = hashmap_copy_method(ctx, src->o); (dst)->t = VAR_OBJ; (dst)->o = o; }
 
+#define SET_UNDEF(dst, v) { (dst)->t = VAR_UNDEF;                                 }
 #define SET_I64(dst, v) { (dst)->t = VAR_INT64; (dst)->i  = (v);                  }
 #define SET_DBL(dst, v) { (dst)->t = VAR_DBL;   (dst)->d  = (v);                  }
 #define SET_BIG(dst, v) { (dst)->t = VAR_BIG;   (dst)->bi = alcbgi_bigz(ctx, BzFromString((v), 10, BZ_UNTIL_END)); }
@@ -384,6 +386,9 @@ enum {
 
 #define SHCOPY_VAR_TO(ctx, dst, src) { \
     switch ((src)->t) { \
+    case VAR_UNDEF: \
+        (dst)->t = VAR_UNDEF; \
+        break; \
     case VAR_INT64: \
         (dst)->t = VAR_INT64; \
         (dst)->i = (src)->i; \
@@ -419,6 +424,9 @@ enum {
 
 #define COPY_VAR_TO(ctx, dst, src) { \
     switch ((src)->t) { \
+    case VAR_UNDEF: \
+        (dst)->t = VAR_UNDEF; \
+        break; \
     case VAR_INT64: \
         (dst)->t = VAR_INT64; \
         (dst)->i = (src)->i; \

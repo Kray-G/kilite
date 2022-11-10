@@ -32,12 +32,6 @@ static void type_expr(kl_context *ctx, type_context *tc, kl_expr *e)
                 l->prototype = r->prototype;
             }
         }
-        if (l->typeid == r->typeid && (!tc->in_native || l->typeid > TK_TUINT64)) {
-            /* Even if it's an integer type, it's never promoted to the big integer in native. */
-            /* When it's an integer type, it could be promoted to the big integer. */
-            e->typeid = l->typeid;
-            e->prototype = l->prototype;
-        }
     }
     if (e->sym) {
         if (e->sym->ref) {
