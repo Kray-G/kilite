@@ -58,7 +58,7 @@ void mark_fnc(vmfnc *f)
     }
 }
 
-void mark_hsh(vmobj *h)
+void mark_obj(vmobj *h)
 {
     if (!h) {
         return;
@@ -73,6 +73,14 @@ void mark_hsh(vmobj *h)
             }
             if (v[i].a) {
                 mark_var(v[i].a);
+            }
+        }
+    }
+    vmvar **a = h->ary;
+    if (a) {
+        for (int i = 0; i < h->idxsz; ++i) {
+            if (a[i]) {
+                mark_var(a[i]);
             }
         }
     }
@@ -97,7 +105,7 @@ void mark_var(vmvar *v)
     }
     if (v->o) {
         if (v->t == VAR_OBJ) {
-            mark_hsh(v->o);
+            mark_obj(v->o);
         } else {
             v->o = NULL;
         }
@@ -164,7 +172,7 @@ void premark_all(vmctx *ctx)
     while (h) {
         vmobj *n = h->liv;
         if (IS_HELD(h)) {
-            mark_hsh(h);
+            mark_obj(h);
         }
         h = n;
     }
