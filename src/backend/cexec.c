@@ -73,6 +73,7 @@ double SystemTimer_elapsed_impl(void *p)
 #else
 #include <stdio.h>
 #include <time.h>
+#include <sys/time.h>
 FILE* gmathh = NULL;
 
 typedef struct timer_ {
@@ -108,7 +109,6 @@ void SystemTimer_restart_impl(void *p)
 {
     systemtimer_t *v = (systemtimer_t *)p;
     gettimeofday(&(v->s), NULL);
-    return 0;
 }
 
 double SystemTimer_elapsed_impl(void *p)
