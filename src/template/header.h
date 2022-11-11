@@ -337,7 +337,7 @@ INLINE vmobj *array_push(vmctx *ctx, vmobj *obj, vmvar *vs);
 
 INLINE int run_global(vmctx *ctx, vmfrm *lex, vmvar *r, int ac);
 
-INLINE int throw_system_exception(vmctx *ctx, int id);
+INLINE int throw_system_exception(int line, vmctx *ctx, int id);
 INLINE int throw_exception(vmctx *ctx, vmvar *e);
 
 INLINE int add_v_i(vmctx *ctx, vmvar *r, vmvar *v, int64_t i);
@@ -1137,7 +1137,7 @@ enum {
 
 #define OP_DIV_I_I(ctx, r, i0, i1) { \
     if (i1 < DBL_EPSILON) { \
-        e = throw_system_exception(ctx, EXCEPT_DIVIDE_BY_ZERO); \
+        e = throw_system_exception(__LINE__, ctx, EXCEPT_DIVIDE_BY_ZERO); \
     } \
     (r)->t = VAR_DBL; \
     (r)->d = ((double)(i0)) / (i1); \
@@ -1146,7 +1146,7 @@ enum {
 
 #define OP_DIV_B_I(ctx, r, v0, i1) { \
     if (i1 < DBL_EPSILON) { \
-        e = throw_system_exception(ctx, EXCEPT_DIVIDE_BY_ZERO); \
+        e = throw_system_exception(__LINE__, ctx, EXCEPT_DIVIDE_BY_ZERO); \
     } \
     (r)->t = VAR_DBL; \
     (r)->d = ((double)(BzToDouble((v0)->bi->b))) / (i1); \
@@ -1212,7 +1212,7 @@ enum {
 
 #define OP_MOD_I_I(ctx, r, i0, i1) { \
     if (i1 < DBL_EPSILON) { \
-        e = throw_system_exception(ctx, EXCEPT_DIVIDE_BY_ZERO); \
+        e = throw_system_exception(__LINE__, ctx, EXCEPT_DIVIDE_BY_ZERO); \
     } \
     (r)->t = VAR_INT64; \
     (r)->i = (i0) % (i1); \
@@ -1221,7 +1221,7 @@ enum {
 
 #define OP_MOD_B_I(ctx, r, v0, i1) { \
     if (i1 < DBL_EPSILON) { \
-        e = throw_system_exception(ctx, EXCEPT_DIVIDE_BY_ZERO); \
+        e = throw_system_exception(__LINE__, ctx, EXCEPT_DIVIDE_BY_ZERO); \
     } \
     BigZ rx; \
     BigZ b1 = BzFromInteger(i1); \
@@ -1384,7 +1384,7 @@ enum {
         (r)->t = VAR_INT64; \
         (r)->i = 1; \
     } else { \
-        /* TODO */ \
+        e = neq_v_i(ctx, r, v0, i1); \
     } \
 } \
 /**/
@@ -1396,7 +1396,7 @@ enum {
         (r)->t = VAR_INT64; \
         (r)->i = 1; \
     } else { \
-        /* TODO */ \
+        e = neq_i_v(ctx, r, i0, v1); \
     } \
 } \
 /**/
@@ -1414,10 +1414,10 @@ enum {
             (r)->t = VAR_INT64; \
             (r)->i = (c != BZ_EQ); \
         } else { \
-            /* TODO */ \
+            e = neq_v_v(ctx, r, v0, v1); \
         } \
     } else { \
-            /* TODO */ \
+        e = neq_v_v(ctx, r, v0, v1); \
     } \
 } \
 /**/
@@ -1454,7 +1454,7 @@ enum {
     } else if ((v0)->t == VAR_BIG) { \
         OP_LT_B_I(ctx, r, v0, i1) \
     } else { \
-        /* TODO */ \
+        e = lt_v_i(ctx, r, v0, i1); \
     } \
 } \
 /**/
@@ -1465,7 +1465,7 @@ enum {
     } else if ((v1)->t == VAR_BIG) { \
         OP_LT_I_B(ctx, r, i0, v1) \
     } else { \
-        /* TODO */ \
+        e = lt_i_v(ctx, r, i0, v1); \
     } \
 } \
 /**/
@@ -1483,10 +1483,10 @@ enum {
             (r)->t = VAR_INT64; \
             (r)->i = (c == BZ_LT); \
         } else { \
-            /* TODO */ \
+            e = lt_v_v(ctx, r, v0, v1); \
         } \
     } else { \
-            /* TODO */ \
+        e = lt_v_v(ctx, r, v0, v1); \
     } \
 } \
 /**/
@@ -1523,7 +1523,7 @@ enum {
     } else if ((v0)->t == VAR_BIG) { \
         OP_LE_B_I(ctx, r, v0, i1) \
     } else { \
-        /* TODO */ \
+        e = le_v_i(ctx, r, v0, i1); \
     } \
 } \
 /**/
@@ -1534,7 +1534,7 @@ enum {
     } else if ((v1)->t == VAR_BIG) { \
         OP_LE_I_B(ctx, r, i0, v1) \
     } else { \
-        /* TODO */ \
+        e = le_i_v(ctx, r, i0, v1); \
     } \
 } \
 /**/
@@ -1552,10 +1552,10 @@ enum {
             (r)->t = VAR_INT64; \
             (r)->i = (c != BZ_GT); \
         } else { \
-            /* TODO */ \
+            e = le_v_v(ctx, r, v0, v1); \
         } \
     } else { \
-            /* TODO */ \
+        e = le_v_v(ctx, r, v0, v1); \
     } \
 } \
 /**/
@@ -1610,7 +1610,7 @@ enum {
     } else if ((v0)->t == VAR_BIG) { \
         OP_LGE_B_I(ctx, r, v0, i1) \
     } else { \
-        /* TODO */ \
+        e = lge_v_i(ctx, r, v0, i1); \
     } \
 } \
 /**/
@@ -1621,7 +1621,7 @@ enum {
     } else if ((v1)->t == VAR_BIG) { \
         OP_LGE_I_B(ctx, r, i0, v1) \
     } else { \
-        /* TODO */ \
+        e = lge_i_v(ctx, r, i0, v1); \
     } \
 } \
 /**/
@@ -1639,10 +1639,10 @@ enum {
             (r)->t = VAR_INT64; \
             (r)->i = (c == BZ_EQ) ? 0 : ((c == BZ_LT) ? -1 : 1); \
         } else { \
-            /* TODO */ \
+            e = lge_v_v(ctx, r, v0, v1); \
         } \
     } else { \
-            /* TODO */ \
+        e = lge_v_v(ctx, r, v0, v1); \
     } \
 } \
 /**/

@@ -1,12 +1,13 @@
 #include "common.h"
 extern double fmod(double, double);
+extern double fabs(double);
 
 /* Make exception */
 
-int throw_system_exception(vmctx *ctx, int id)
+int throw_system_exception(int line, vmctx *ctx, int id)
 {
     /* TODO */
-    printf("System exception occurred\n");
+    printf("[%d] System exception occurred\n", line);
     return 1;
 }
 
@@ -37,7 +38,7 @@ int add_v_i(vmctx *ctx, vmvar *r, vmvar *v, int64_t i)
         break;
     case VAR_FNC:
     case VAR_OBJ:
-        return throw_system_exception(ctx, EXCEPT_UNSUPPORTED_OPERATION);
+        return throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION);
     }
     return 0;
 }
@@ -61,7 +62,7 @@ int add_i_v(vmctx *ctx, vmvar *r, int64_t i, vmvar *v)
         break;
     case VAR_FNC:
     case VAR_OBJ:
-        return throw_system_exception(ctx, EXCEPT_UNSUPPORTED_OPERATION);
+        return throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION);
     }
     return 0;
 }
@@ -86,7 +87,7 @@ int add_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
             break;
         case VAR_FNC:
         case VAR_OBJ:
-            return throw_system_exception(ctx, EXCEPT_UNSUPPORTED_OPERATION);
+            return throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION);
         }
         break;
     case VAR_INT64:
@@ -107,7 +108,7 @@ int add_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
             break;
         case VAR_FNC:
         case VAR_OBJ:
-            return throw_system_exception(ctx, EXCEPT_UNSUPPORTED_OPERATION);
+            return throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION);
         }
         break;
     case VAR_BIG:
@@ -132,7 +133,7 @@ int add_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
             break;
         case VAR_FNC:
         case VAR_OBJ:
-            return throw_system_exception(ctx, EXCEPT_UNSUPPORTED_OPERATION);
+            return throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION);
         }
         break;
     case VAR_DBL:
@@ -159,7 +160,7 @@ int add_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
             break;
         case VAR_FNC:
         case VAR_OBJ:
-            return throw_system_exception(ctx, EXCEPT_UNSUPPORTED_OPERATION);
+            return throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION);
         }
         break;
     case VAR_STR:
@@ -192,12 +193,12 @@ int add_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
         }
         case VAR_FNC:
         case VAR_OBJ:
-            return throw_system_exception(ctx, EXCEPT_UNSUPPORTED_OPERATION);
+            return throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION);
         }
         break;
     case VAR_FNC:
     case VAR_OBJ:
-        return throw_system_exception(ctx, EXCEPT_UNSUPPORTED_OPERATION);
+        return throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION);
     }
     return e;
 }
@@ -219,7 +220,7 @@ int sub_v_i(vmctx *ctx, vmvar *r, vmvar *v, int64_t i)
     case VAR_STR:
     case VAR_FNC:
     case VAR_OBJ:
-        return throw_system_exception(ctx, EXCEPT_UNSUPPORTED_OPERATION);
+        return throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION);
     }
     return 0;
 }
@@ -239,7 +240,7 @@ int sub_i_v(vmctx *ctx, vmvar *r, int64_t i, vmvar *v)
     case VAR_STR:
     case VAR_FNC:
     case VAR_OBJ:
-        return throw_system_exception(ctx, EXCEPT_UNSUPPORTED_OPERATION);
+        return throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION);
     }
     return 0;
 }
@@ -261,7 +262,7 @@ int sub_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
         case VAR_STR:
         case VAR_FNC:
         case VAR_OBJ:
-            return throw_system_exception(ctx, EXCEPT_UNSUPPORTED_OPERATION);
+            return throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION);
         }
         break;
     case VAR_INT64:
@@ -277,7 +278,7 @@ int sub_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
         case VAR_STR:
         case VAR_FNC:
         case VAR_OBJ:
-            return throw_system_exception(ctx, EXCEPT_UNSUPPORTED_OPERATION);
+            return throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION);
         }
         break;
     case VAR_BIG:
@@ -296,7 +297,7 @@ int sub_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
         case VAR_STR:
         case VAR_FNC:
         case VAR_OBJ:
-            return throw_system_exception(ctx, EXCEPT_UNSUPPORTED_OPERATION);
+            return throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION);
         }
         break;
     case VAR_DBL:
@@ -319,7 +320,7 @@ int sub_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
         case VAR_STR:
         case VAR_FNC:
         case VAR_OBJ:
-            return throw_system_exception(ctx, EXCEPT_UNSUPPORTED_OPERATION);
+            return throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION);
         }
         break;
     case VAR_STR:
@@ -331,12 +332,12 @@ int sub_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
         case VAR_STR:
         case VAR_FNC:
         case VAR_OBJ:
-            return throw_system_exception(ctx, EXCEPT_UNSUPPORTED_OPERATION);
+            return throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION);
         }
         break;
     case VAR_FNC:
     case VAR_OBJ:
-        return throw_system_exception(ctx, EXCEPT_UNSUPPORTED_OPERATION);
+        return throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION);
     }
     return e;
 }
@@ -362,7 +363,7 @@ int mul_v_i(vmctx *ctx, vmvar *r, vmvar *v, int64_t i)
         break;
     case VAR_FNC:
     case VAR_OBJ:
-        return throw_system_exception(ctx, EXCEPT_UNSUPPORTED_OPERATION);
+        return throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION);
     }
     return 0;
 }
@@ -386,7 +387,7 @@ int mul_i_v(vmctx *ctx, vmvar *r, int64_t i, vmvar *v)
         break;
     case VAR_FNC:
     case VAR_OBJ:
-        return throw_system_exception(ctx, EXCEPT_UNSUPPORTED_OPERATION);
+        return throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION);
     }
     return 0;
 }
@@ -408,7 +409,7 @@ int mul_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
         case VAR_STR:
         case VAR_FNC:
         case VAR_OBJ:
-            return throw_system_exception(ctx, EXCEPT_UNSUPPORTED_OPERATION);
+            return throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION);
         }
         break;
     case VAR_INT64:
@@ -428,7 +429,7 @@ int mul_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
             break;
         case VAR_FNC:
         case VAR_OBJ:
-            return throw_system_exception(ctx, EXCEPT_UNSUPPORTED_OPERATION);
+            return throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION);
         }
         break;
     case VAR_BIG:
@@ -448,7 +449,7 @@ int mul_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
             /* Unsupported because big int could be so big! */
         case VAR_FNC:
         case VAR_OBJ:
-            return throw_system_exception(ctx, EXCEPT_UNSUPPORTED_OPERATION);
+            return throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION);
         }
         break;
     case VAR_DBL:
@@ -476,7 +477,7 @@ int mul_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
             break;
         case VAR_FNC:
         case VAR_OBJ:
-            return throw_system_exception(ctx, EXCEPT_UNSUPPORTED_OPERATION);
+            return throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION);
         }
         break;
     case VAR_STR:
@@ -490,7 +491,7 @@ int mul_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
             break;
         case VAR_BIG:
             /* Unsupported because big int could be so big! */
-            return throw_system_exception(ctx, EXCEPT_UNSUPPORTED_OPERATION);
+            return throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION);
         case VAR_DBL:
             /* double value can be used as an int in some cases. */
             r->t = VAR_STR;
@@ -500,12 +501,12 @@ int mul_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
         case VAR_STR:
         case VAR_FNC:
         case VAR_OBJ:
-            return throw_system_exception(ctx, EXCEPT_UNSUPPORTED_OPERATION);
+            return throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION);
         }
         break;
     case VAR_FNC:
     case VAR_OBJ:
-        return throw_system_exception(ctx, EXCEPT_UNSUPPORTED_OPERATION);
+        return throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION);
     }
     return e;
 }
@@ -517,10 +518,10 @@ int div_v_i(vmctx *ctx, vmvar *r, vmvar *v, int64_t i)
     /* v's type should not be INT and BIGINT. */
     switch (v->t) {
     case VAR_UNDEF:
-        return throw_system_exception(ctx, EXCEPT_DIVIDE_BY_ZERO);
+        return throw_system_exception(__LINE__, ctx, EXCEPT_DIVIDE_BY_ZERO);
     case VAR_DBL:
         if (i == 0) {
-            return throw_system_exception(ctx, EXCEPT_DIVIDE_BY_ZERO);
+            return throw_system_exception(__LINE__, ctx, EXCEPT_DIVIDE_BY_ZERO);
         }
         r->t = VAR_DBL;
         r->d = v->d / (double)i;
@@ -533,7 +534,7 @@ int div_v_i(vmctx *ctx, vmvar *r, vmvar *v, int64_t i)
         break;
     case VAR_FNC:
     case VAR_OBJ:
-        return throw_system_exception(ctx, EXCEPT_UNSUPPORTED_OPERATION);
+        return throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION);
     }
     return 0;
 }
@@ -543,15 +544,13 @@ int div_i_v(vmctx *ctx, vmvar *r, int64_t i, vmvar *v)
     /* v's type should not be INT and BIGINT. */
     switch (v->t) {
     case VAR_UNDEF:
-        r->t = VAR_INT64;
-        r->i = 0;
-        break;
+        return throw_system_exception(__LINE__, ctx, EXCEPT_DIVIDE_BY_ZERO);
     case VAR_DBL:
-        if (i == 0) {
-            return throw_system_exception(ctx, EXCEPT_DIVIDE_BY_ZERO);
+        if (v->d < DBL_EPSILON) {
+            return throw_system_exception(__LINE__, ctx, EXCEPT_DIVIDE_BY_ZERO);
         }
         r->t = VAR_DBL;
-        r->d = v->d / (double)i;
+        r->d = (double)i / v->d;
         break;
     case VAR_STR:
         /* Supported the integer value as a path name. */
@@ -561,7 +560,7 @@ int div_i_v(vmctx *ctx, vmvar *r, int64_t i, vmvar *v)
         break;
     case VAR_FNC:
     case VAR_OBJ:
-        return throw_system_exception(ctx, EXCEPT_UNSUPPORTED_OPERATION);
+        return throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION);
     }
     return 0;
 }
@@ -586,13 +585,13 @@ int div_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
             break;
         case VAR_FNC:
         case VAR_OBJ:
-            return throw_system_exception(ctx, EXCEPT_UNSUPPORTED_OPERATION);
+            return throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION);
         }
         break;
     case VAR_INT64:
         switch (v1->t) {
         case VAR_UNDEF:
-            return throw_system_exception(ctx, EXCEPT_DIVIDE_BY_ZERO);
+            return throw_system_exception(__LINE__, ctx, EXCEPT_DIVIDE_BY_ZERO);
         case VAR_DBL:
             r->t = VAR_DBL;
             r->d = (double)v0->i / v1->d;
@@ -605,19 +604,19 @@ int div_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
             break;
         case VAR_FNC:
         case VAR_OBJ:
-            return throw_system_exception(ctx, EXCEPT_UNSUPPORTED_OPERATION);
+            return throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION);
         }
         break;
     case VAR_BIG:
         switch (v1->t) {
         case VAR_UNDEF:
-            return throw_system_exception(ctx, EXCEPT_DIVIDE_BY_ZERO);
+            return throw_system_exception(__LINE__, ctx, EXCEPT_DIVIDE_BY_ZERO);
         case VAR_INT64:
             OP_DIV_B_I(ctx, r, v0, v1->i);
             break;
         case VAR_DBL:
             if (v1->d < DBL_EPSILON) {
-                return throw_system_exception(ctx, EXCEPT_DIVIDE_BY_ZERO);
+                return throw_system_exception(__LINE__, ctx, EXCEPT_DIVIDE_BY_ZERO);
             }
             r->t = VAR_DBL;
             r->d = BzToDouble(v0->bi->b) / v1->d;
@@ -625,13 +624,13 @@ int div_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
         case VAR_STR:
         case VAR_FNC:
         case VAR_OBJ:
-            return throw_system_exception(ctx, EXCEPT_UNSUPPORTED_OPERATION);
+            return throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION);
         }
         break;
     case VAR_DBL:
         switch (v1->t) {
         case VAR_UNDEF:
-            return throw_system_exception(ctx, EXCEPT_DIVIDE_BY_ZERO);
+            return throw_system_exception(__LINE__, ctx, EXCEPT_DIVIDE_BY_ZERO);
         case VAR_INT64:
             OP_DIV_V_I(ctx, r, v0, v1->i);
             break;
@@ -641,7 +640,7 @@ int div_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
             break;
         case VAR_DBL:
             if (v1->d < DBL_EPSILON) {
-                return throw_system_exception(ctx, EXCEPT_DIVIDE_BY_ZERO);
+                return throw_system_exception(__LINE__, ctx, EXCEPT_DIVIDE_BY_ZERO);
             }
             r->t = VAR_DBL;
             r->d = v0->d / v1->d;
@@ -654,7 +653,7 @@ int div_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
             break;
         case VAR_FNC:
         case VAR_OBJ:
-            return throw_system_exception(ctx, EXCEPT_UNSUPPORTED_OPERATION);
+            return throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION);
         }
         break;
     case VAR_STR:
@@ -668,7 +667,7 @@ int div_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
             break;
         case VAR_BIG:
             /* Unsupported because big int could be so big! */
-            return throw_system_exception(ctx, EXCEPT_UNSUPPORTED_OPERATION);
+            return throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION);
         case VAR_DBL:
             /* double value can be used as an int in some cases. */
             r->t = VAR_STR;
@@ -684,14 +683,14 @@ int div_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
         }
         case VAR_FNC:
         case VAR_OBJ:
-            return throw_system_exception(ctx, EXCEPT_UNSUPPORTED_OPERATION);
+            return throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION);
         }
         break;
     case VAR_FNC:
     case VAR_OBJ:
-        return throw_system_exception(ctx, EXCEPT_UNSUPPORTED_OPERATION);
+        return throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION);
     }
-    return 0;
+    return e;
 }
 
 /* MOD */
@@ -717,7 +716,7 @@ int mod_v_i(vmctx *ctx, vmvar *r, vmvar *v, int64_t i)
         break;
     case VAR_FNC:
     case VAR_OBJ:
-        return throw_system_exception(ctx, EXCEPT_UNSUPPORTED_OPERATION);
+        return throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION);
     }
     return 0;
 }
@@ -737,7 +736,7 @@ int mod_i_v(vmctx *ctx, vmvar *r, int64_t i, vmvar *v)
     case VAR_STR:
     case VAR_FNC:
     case VAR_OBJ:
-        return throw_system_exception(ctx, EXCEPT_UNSUPPORTED_OPERATION);
+        return throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION);
     }
     return 0;
 }
@@ -759,13 +758,13 @@ int mod_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
         case VAR_STR:
         case VAR_FNC:
         case VAR_OBJ:
-            return throw_system_exception(ctx, EXCEPT_UNSUPPORTED_OPERATION);
+            return throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION);
         }
         break;
     case VAR_INT64:
         switch (v1->t) {
         case VAR_UNDEF:
-            return throw_system_exception(ctx, EXCEPT_DIVIDE_BY_ZERO);
+            return throw_system_exception(__LINE__, ctx, EXCEPT_DIVIDE_BY_ZERO);
         case VAR_DBL:
             r->t = VAR_DBL;
             r->d = fmod((double)v0->i, v1->d);
@@ -773,19 +772,19 @@ int mod_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
         case VAR_STR:
         case VAR_FNC:
         case VAR_OBJ:
-            return throw_system_exception(ctx, EXCEPT_UNSUPPORTED_OPERATION);
+            return throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION);
         }
         break;
     case VAR_BIG:
         switch (v1->t) {
         case VAR_UNDEF:
-            return throw_system_exception(ctx, EXCEPT_DIVIDE_BY_ZERO);
+            return throw_system_exception(__LINE__, ctx, EXCEPT_DIVIDE_BY_ZERO);
         case VAR_INT64:
             OP_MOD_B_I(ctx, r, v0, v1->i);
             break;
         case VAR_DBL:
             if (v1->d < DBL_EPSILON) {
-                return throw_system_exception(ctx, EXCEPT_DIVIDE_BY_ZERO);
+                return throw_system_exception(__LINE__, ctx, EXCEPT_DIVIDE_BY_ZERO);
             }
             r->t = VAR_DBL;
             r->d = fmod(BzToDouble(v0->bi->b), v1->d);
@@ -793,13 +792,13 @@ int mod_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
         case VAR_STR:
         case VAR_FNC:
         case VAR_OBJ:
-            return throw_system_exception(ctx, EXCEPT_UNSUPPORTED_OPERATION);
+            return throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION);
         }
         break;
     case VAR_DBL:
         switch (v1->t) {
         case VAR_UNDEF:
-            return throw_system_exception(ctx, EXCEPT_DIVIDE_BY_ZERO);
+            return throw_system_exception(__LINE__, ctx, EXCEPT_DIVIDE_BY_ZERO);
         case VAR_INT64:
             OP_MOD_V_I(ctx, r, v0, v1->i);
             break;
@@ -809,7 +808,7 @@ int mod_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
             break;
         case VAR_DBL:
             if (v1->d < DBL_EPSILON) {
-                return throw_system_exception(ctx, EXCEPT_DIVIDE_BY_ZERO);
+                return throw_system_exception(__LINE__, ctx, EXCEPT_DIVIDE_BY_ZERO);
             }
             r->t = VAR_DBL;
             r->d = fmod(v0->d, v1->d);
@@ -818,7 +817,7 @@ int mod_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
             break;
         case VAR_FNC:
         case VAR_OBJ:
-            return throw_system_exception(ctx, EXCEPT_UNSUPPORTED_OPERATION);
+            return throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION);
         }
         break;
     case VAR_STR:
@@ -836,36 +835,429 @@ int mod_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
             array_set(ctx, r->o, 0, v1);
             break;
         case VAR_FNC:
-            return throw_system_exception(ctx, EXCEPT_UNSUPPORTED_OPERATION);
+            return throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION);
         }
         break;
     case VAR_FNC:
         break;
     case VAR_OBJ:
         if (!v0->o->is_formatter) {
-            return throw_system_exception(ctx, EXCEPT_UNSUPPORTED_OPERATION);
+            return throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION);
         }
         r->t = VAR_OBJ;
         r->o = v0->o;
         array_push(ctx, r->o, v1);
         break;
     }
-    return 0;
+    return e;
 }
 
 /* EQEQ */
 
 int eqeq_v_i(vmctx *ctx, vmvar *r, vmvar *v, int64_t i)
 {
+    /* v's type should not be INT and BIGINT. */
+    switch (v->t) {
+    case VAR_UNDEF:
+        r->t = VAR_INT64;
+        r->i = (i == 0);
+        break;
+    case VAR_DBL:
+        r->t = VAR_INT64;
+        r->i = fabs(v->d) < DBL_EPSILON;
+        break;
+    default:
+        r->t = VAR_INT64;
+        r->i = 0;
+        break;
+    }
     return 0;
 }
 
 int eqeq_i_v(vmctx *ctx, vmvar *r, int64_t i, vmvar *v)
 {
-    return 0;
+    return eqeq_v_i(ctx, r, v, i);
 }
 
 int eqeq_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
 {
+    int e = 0;
+    switch (v0->t) {
+    case VAR_UNDEF:
+        switch (v1->t) {
+        case VAR_INT64:
+            r->t = VAR_INT64;
+            r->i = v1->i == 0;
+            break;
+        case VAR_DBL:
+            r->t = VAR_INT64;
+            r->i = fabs(v1->d) < DBL_EPSILON;
+            break;
+        default:
+            r->t = VAR_INT64;
+            r->i = 0;
+            break;
+        }
+        break;
+    case VAR_INT64:
+        switch (v1->t) {
+        case VAR_UNDEF:
+            r->t = VAR_INT64;
+            r->i = v0->i == 0;
+            break;
+        case VAR_DBL:
+            r->t = VAR_INT64;
+            r->i = fabs((double)v0->i - v1->d) < DBL_EPSILON;
+            break;
+        default:
+            r->t = VAR_INT64;
+            r->i = 0;
+            break;
+        }
+        break;
+    case VAR_BIG:
+        r->t = VAR_INT64;
+        r->i = 0;
+        break;
+    case VAR_DBL:
+        switch (v1->t) {
+        case VAR_UNDEF:
+            r->t = VAR_INT64;
+            r->i = v0->d < DBL_EPSILON;
+            break;
+        case VAR_INT64:
+            r->t = VAR_INT64;
+            r->i = fabs(v0->d - (double)v1->i) < DBL_EPSILON;
+            break;
+        case VAR_BIG:
+            r->t = VAR_INT64;
+            r->i = 0;
+            break;
+        case VAR_DBL:
+            r->i = fabs(v0->d - v1->d) < DBL_EPSILON;
+            break;
+        default:
+            return throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION);
+        }
+        break;
+    case VAR_STR:
+        switch (v1->t) {
+        case VAR_UNDEF:
+            r->t = VAR_INT64;
+            r->i = v0->s->len == 0;
+            break;
+        case VAR_INT64: {
+            char buf[32] = {0};
+            sprintf(buf, "%lld", v1->i);
+            r->t = VAR_INT64;
+            r->i = strcmp(v0->s->s, buf) == 0;
+            break;
+        }
+        case VAR_BIG: {
+            char *bs = BzToString(v1->bi->b, 10, 0);
+            r->t = VAR_INT64;
+            r->i = strcmp(v0->s->s, bs) == 0;
+            BzFreeString(bs);
+            break;
+        }
+        case VAR_DBL: {
+            char buf[32] = {0};
+            sprintf(buf, "%f", v1->d);
+            r->t = VAR_INT64;
+            r->i = strcmp(v0->s->s, buf) == 0;
+            break;
+        }
+        case VAR_STR:
+            r->t = VAR_INT64;
+            r->i = strcmp(v0->s->s, v1->s->s) == 0;
+            break;
+        case VAR_OBJ:
+        case VAR_FNC:
+            r->t = VAR_INT64;
+            r->i = 0;
+            break;
+        }
+        break;
+    case VAR_FNC:
+        r->t = VAR_INT64;
+        r->i = v1->t == VAR_FNC && v0->f->f == v1->f->f;
+        break;
+    case VAR_OBJ:
+        r->t = VAR_INT64;
+        r->i = v1->t == VAR_OBJ && v0->o == v1->o;
+        break;
+    }
+    return e;
+}
+
+/* NEQ */
+
+int neq_v_i(vmctx *ctx, vmvar *r, vmvar *v, int64_t i)
+{
+    int e = eqeq_v_i(ctx, r, v, i);
+    r->i = !(r->i);
+    return e;
+}
+
+int neq_i_v(vmctx *ctx, vmvar *r, int64_t i, vmvar *v)
+{
+    return neq_v_i(ctx, r, v, i);
+}
+
+int neq_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
+{
+    int e = eqeq_v_v(ctx, r, v0, v1);
+    r->i = !(r->i);
+    return e;
+}
+
+/* LT */
+
+int lt_v_i(vmctx *ctx, vmvar *r, vmvar *v, int64_t i)
+{
+    /* v's type should not be INT and BIGINT. */
+    switch (v->t) {
+    case VAR_UNDEF:
+        r->t = VAR_INT64;
+        r->i = 0 < i;
+        break;
+    case VAR_BIG:
+        r->t = VAR_INT64;
+        r->i = BzGetSign(v->bi->b) == BZ_MINUS;
+        break;
+    case VAR_DBL:
+        r->t = VAR_INT64;
+        r->i = v->d < (double)i;
+        break;
+    default:
+        return throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION);
+    }
     return 0;
+}
+
+int lt_i_v(vmctx *ctx, vmvar *r, int64_t i, vmvar *v)
+{
+    /* v's type should not be INT and BIGINT. */
+    switch (v->t) {
+    case VAR_UNDEF:
+        r->t = VAR_INT64;
+        r->i = i < 0;
+        break;
+    case VAR_BIG:
+        r->t = VAR_INT64;
+        r->i = BzGetSign(v->bi->b) == BZ_PLUS;
+        break;
+    case VAR_DBL:
+        r->t = VAR_INT64;
+        r->i = (double)i < v->d;
+        break;
+    default:
+        return throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION);
+    }
+    return 0;
+}
+
+int lt_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
+{
+    int e = 0;
+    switch (v0->t) {
+    case VAR_UNDEF:
+        switch (v1->t) {
+        case VAR_INT64:
+            r->t = VAR_INT64;
+            r->i = 0 < v1->i;
+            break;
+        case VAR_DBL:
+            r->t = VAR_INT64;
+            r->i = DBL_EPSILON <= fabs(v1->d);
+            break;
+        case VAR_BIG:
+            r->t = VAR_INT64;
+            r->i = BzGetSign(v1->bi->b) == BZ_PLUS;
+            break;
+        default:
+            return throw_system_exception(__LINE__, ctx, EXCEPT_DIVIDE_BY_ZERO);
+        }
+        break;
+    case VAR_INT64:
+        switch (v1->t) {
+        case VAR_UNDEF:
+            r->t = VAR_INT64;
+            r->i = v0->i < 0;
+            break;
+        case VAR_DBL:
+            r->t = VAR_INT64;
+            r->i = (double)v0->i < v1->d;
+            break;
+        case VAR_BIG:
+            r->t = VAR_INT64;
+            r->i = BzGetSign(v1->bi->b) == BZ_PLUS;
+            break;
+        default:
+            return throw_system_exception(__LINE__, ctx, EXCEPT_DIVIDE_BY_ZERO);
+        }
+        break;
+    case VAR_BIG:
+        switch (v1->t) {
+        case VAR_UNDEF:
+            r->t = VAR_INT64;
+            r->i = BzGetSign(v1->bi->b) == BZ_MINUS;
+            break;
+        case VAR_INT64:
+            r->t = VAR_INT64;
+            r->i = BzGetSign(v1->bi->b) == BZ_MINUS;
+            break;
+        case VAR_DBL:
+            r->t = VAR_INT64;
+            r->i = BzToDouble(v0->bi->b) < v1->d;
+            break;
+        case VAR_STR:
+        case VAR_FNC:
+        case VAR_OBJ:
+            return throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION);
+        }
+        break;
+    case VAR_DBL:
+        switch (v1->t) {
+        case VAR_UNDEF:
+            r->t = VAR_INT64;
+            r->i = v0->d < 0;
+            break;
+        case VAR_INT64:
+            r->t = VAR_INT64;
+            r->i = v0->d < (double)v1->i;
+            break;
+        case VAR_BIG:
+            r->t = VAR_INT64;
+            r->i = v0->d < BzToDouble(v1->bi->b);
+            break;
+        case VAR_DBL:
+            r->i = v0->d < v1->d;
+            break;
+        default:
+            return throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION);
+        }
+        break;
+    case VAR_STR:
+        switch (v1->t) {
+        case VAR_STR:
+            r->t = VAR_INT64;
+            r->i = strcmp(v0->s->s, v1->s->s) == -1;
+            break;
+        default:
+            return throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION);
+        }
+        break;
+    case VAR_FNC:
+    case VAR_OBJ:
+        return throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION);
+    }
+    return e;
+}
+
+/* LE */
+
+int le_v_i(vmctx *ctx, vmvar *r, vmvar *v, int64_t i)
+{
+    int e = lt_i_v(ctx, r, i, v);
+    r->i = !(r->i);
+    return e;
+}
+
+int le_i_v(vmctx *ctx, vmvar *r, int64_t i, vmvar *v)
+{
+    int e = lt_v_i(ctx, r, v, i);
+    r->i = !(r->i);
+    return e;
+}
+
+int le_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
+{
+    int e = lt_v_v(ctx, r, v1, v0);
+    r->i = !(r->i);
+    return e;
+}
+
+/* GT */
+
+int gt_v_i(vmctx *ctx, vmvar *r, vmvar *v, int64_t i)
+{
+    return lt_i_v(ctx, r, i, v);
+}
+
+int gt_i_v(vmctx *ctx, vmvar *r, int64_t i, vmvar *v)
+{
+    return lt_v_i(ctx, r, v, i);
+}
+
+int gt_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
+{
+    return lt_v_v(ctx, r, v1, v0);
+}
+
+/* GE */
+
+int ge_v_i(vmctx *ctx, vmvar *r, vmvar *v, int64_t i)
+{
+    return le_i_v(ctx, r, i, v);
+}
+
+int ge_i_v(vmctx *ctx, vmvar *r, int64_t i, vmvar *v)
+{
+    return le_v_i(ctx, r, v, i);
+}
+
+int ge_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
+{
+    return le_v_v(ctx, r, v1, v0);
+}
+
+/* LGE */
+
+int lge_v_i(vmctx *ctx, vmvar *r, vmvar *v, int64_t i)
+{
+    int e = eqeq_v_i(ctx, r, v, i);
+    if (r->i) {
+        r->i = 0;
+        return e;
+    }
+    e = lt_v_i(ctx, r, v, i);
+    if (r->i) {
+        r->i = -1;
+        return e;
+    }
+    r->i = 1;
+    return e;
+}
+
+int lge_i_v(vmctx *ctx, vmvar *r, int64_t i, vmvar *v)
+{
+    int e = eqeq_i_v(ctx, r, i, v);
+    if (r->i) {
+        r->i = 0;
+        return e;
+    }
+    e = lt_i_v(ctx, r, i, v);
+    if (r->i) {
+        r->i = -1;
+        return e;
+    }
+    r->i = 1;
+    return e;
+}
+
+int lge_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
+{
+    int e = eqeq_v_v(ctx, r, v0, v1);
+    if (r->i) {
+        r->i = 0;
+        return e;
+    }
+    e = lt_v_v(ctx, r, v0, v1);
+    if (r->i) {
+        r->i = -1;
+        return e;
+    }
+    r->i = 1;
+    return e;
 }
