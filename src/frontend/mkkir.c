@@ -760,7 +760,9 @@ static kl_kir_inst *gen_while(kl_context *ctx, kl_symbol *sym, kl_stmt *s, int d
     kl_kir_inst *last = NULL;
     kl_kir_inst *next = NULL;
 
-    if (dowhile) {
+    int infinite = s->e1 && s->e1->nodetype == TK_VSINT && s->e1->val.i64 != 0;
+
+    if (dowhile || infinite) {
         l2 = l1;
         head = last = new_inst_label(ctx->program, s->line, s->pos, l1, head, 0);
     } else {
@@ -781,19 +783,25 @@ static kl_kir_inst *gen_while(kl_context *ctx, kl_symbol *sym, kl_stmt *s, int d
         KIR_ADD_NEXT(last, next);
         KIR_MOVE_LAST(last);
     }
-    if (!dowhile) {
+    if (!dowhile && !infinite) {
         next = new_inst_label(ctx->program, s->line, s->pos, l2, last, 0);
         KIR_ADD_NEXT(last, next);
     }
 
-    kl_kir_opr r1 = make_var(ctx, sym, s->e1->typeid);
-    next = gen_expr(ctx, sym, &r1, s->e1);
-    KIR_ADD_NEXT(last, next);
-    KIR_MOVE_LAST(last);
-
-    next = new_inst_jumpift(ctx->program, s->line, s->pos, &r1, l1);
-    KIR_ADD_NEXT(last, next);
-    KIR_MOVE_LAST(last);
+    if (infinite) {
+        next = new_inst_jump(ctx->program, s->line, s->pos, l1, last);
+        KIR_ADD_NEXT(last, next);
+    } else {
+        int noloop = s->e1 && s->e1->nodetype == TK_VSINT && s->e1->val.i64 == 0;
+        if (!noloop) {
+            kl_kir_opr r1 = make_var(ctx, sym, s->e1->typeid);
+            next = gen_expr(ctx, sym, &r1, s->e1);
+            KIR_ADD_NEXT(last, next);
+            KIR_MOVE_LAST(last);
+            next = new_inst_jumpift(ctx->program, s->line, s->pos, &r1, l1);
+            KIR_ADD_NEXT(last, next);
+        }
+    }
 
     next = new_inst_label(ctx->program, s->line, s->pos, l3, last, 0);
     KIR_ADD_NEXT(last, next);
@@ -875,12 +883,21 @@ static kl_kir_inst *gen_for(kl_context *ctx, kl_symbol *sym, kl_stmt *s)
     KIR_ADD_NEXT(last, next);
 
     if (s->e2) {
-        kl_kir_opr r1 = make_var(ctx, sym, s->e2->typeid);
-        next = gen_expr(ctx, sym, &r1, s->e2);
-        KIR_ADD_NEXT(last, next);
-        KIR_MOVE_LAST(last);
-        next = new_inst_jumpift(ctx->program, s->line, s->pos, &r1, l1);
-        KIR_ADD_NEXT(last, next);
+        if (s->e2->nodetype == TK_VSINT) {
+            if (s->e2->val.i64 != 0) {
+                next = new_inst_jump(ctx->program, s->line, s->pos, l1, last);
+                KIR_ADD_NEXT(last, next);
+            } else {
+                /* do nothing because of no loop. */;
+            }
+        } else {
+            kl_kir_opr r1 = make_var(ctx, sym, s->e2->typeid);
+            next = gen_expr(ctx, sym, &r1, s->e2);
+            KIR_ADD_NEXT(last, next);
+            KIR_MOVE_LAST(last);
+            next = new_inst_jumpift(ctx->program, s->line, s->pos, &r1, l1);
+            KIR_ADD_NEXT(last, next);
+        }
     } else {
         next = new_inst_jump(ctx->program, s->line, s->pos, l1, last);
         KIR_ADD_NEXT(last, next);
