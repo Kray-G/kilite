@@ -1850,6 +1850,16 @@ static kl_stmt *parse_statement(kl_context *ctx, kl_lexer *l)
         lexer_fetch(l);
         r = parse_for(ctx, l);
         break;
+    case TK_CONTINUE:
+    case TK_BREAK:
+        r = make_stmt(ctx, l, tok);
+        lexer_fetch(l);
+        if (l->tok != TK_SEMICOLON) {
+            parse_error(ctx, __LINE__, "Compile", l, "The ';' is missing.");
+            return panic_mode_stmt(r, ';', ctx, l);
+        }
+        lexer_fetch(l);
+        break;
     case TK_RETURN:
         lexer_fetch(l);
         r = parse_return(ctx, l);
@@ -1876,7 +1886,7 @@ static kl_stmt *parse_statement(kl_context *ctx, kl_lexer *l)
             r->typeid = TK_TANY;
         }
         if (l->tok != TK_SEMICOLON) {
-            parse_error(ctx, __LINE__, "Compile", l, "The ':' is missing in key value.");
+            parse_error(ctx, __LINE__, "Compile", l, "The ';' is missing.");
             return panic_mode_stmt(r, ';', ctx, l);
         }
         lexer_fetch(l);

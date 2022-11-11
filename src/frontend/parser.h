@@ -115,6 +115,9 @@ typedef struct kl_context {
     int labelid;                    //  Current max value of label index.
     kl_kir_program *program;        //  KIR output program.
 
+    int blabel;                     //  The label to the destination of jumping by break.
+    int clabel;                     //  The label to the destination of jumping by continue.
+
     kl_symbol *symchn;              //  For memory allocation control.
     kl_expr *exprchn;               //  For memory allocation control.
     kl_stmt *stmtchn;               //  For memory allocation control.
