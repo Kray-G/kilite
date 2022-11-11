@@ -48,7 +48,7 @@ COND2:;
     OP_SUB_V_I(ctx, n1, n0, 2);
 
     p = vstackp(ctx);
-    push_var(ctx, n1);
+    push_var(ctx, n1, END);
     e = ((vmfunc_t)(f1->f))(ctx, f1->lex, n2, 1);
     restore_vstackp(ctx, p);
     if (e) goto END;
@@ -56,7 +56,7 @@ COND2:;
     OP_SUB_V_I(ctx, n1, n0, 1);
 
     p = vstackp(ctx);
-    push_var(ctx, n1);
+    push_var(ctx, n1, END);
     e = ((vmfunc_t)(f1->f))(ctx, f1->lex, n3, 1);
     restore_vstackp(ctx, p);
     if (e) goto END;
@@ -100,13 +100,13 @@ L4:;
     GC_CHECK(ctx);
     p = vstackp(ctx);
     OP_SUB_V_I(ctx, n2, n0, 2);
-    push_var(ctx, n2);
+    push_var(ctx, n2, L1);
     e = ((vmfunc_t)(f1->f))(ctx, lex, n1, 1);
     restore_vstackp(ctx, p);
     if (e) goto L1;
     p = vstackp(ctx);
     OP_SUB_V_I(ctx, n4, n0, 1);
-    push_var(ctx, n4);
+    push_var(ctx, n4, L1);
     e = ((vmfunc_t)(f1->f))(ctx, lex, n3, 1);
     restore_vstackp(ctx, p);
     if (e) goto L1;
@@ -202,7 +202,7 @@ L3:;
 L4:;
     int p0 = vstackp(ctx);
     OP_SUB_V_I(ctx, n2, n0, 1);
-    push_var(ctx, n2);
+    push_var(ctx, n2, L1);
     CHECK_EXCEPTION(L1);
     vmfnc *callee = ctx->callee;
     ctx->callee = f1;
@@ -222,7 +222,7 @@ int run_global(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     vmfrm *global = alcfrm(ctx, 16);
     push_frm(ctx, global);
 
-    int c = 38;
+    int e, c = 38;
 
     /* Pattern 1 */
     // {
@@ -232,7 +232,7 @@ int run_global(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     //     global->v[1] = alcvar_int64(ctx, c, 0);
 
     //     int p = vstackp(ctx);
-    //     push_var(ctx, global->v[1]);
+    //     push_var(ctx, global->v[1], END);
     //     ((vmfunc_t)(f1->f))(ctx, f1->lex, r, 1);
     //     restore_vstackp(ctx, p);
 
@@ -267,7 +267,7 @@ int run_global(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
         vmvar *n0 = alcvar_int64(ctx, 500, 1);
 
         vmvar *r = alcvar(ctx, VAR_INT64, 1);
-        push_var(ctx, n0);
+        push_var(ctx, n0, END);
         vmfnc *callee = ctx->callee;
         ctx->callee = f1;
         ((vmfunc_t)(f1->f))(ctx, f1->lex, r, 1);
@@ -280,5 +280,7 @@ int run_global(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 
         pbakvar(ctx, r);
     }
+
+END:
     pop_frm(ctx);
 }
