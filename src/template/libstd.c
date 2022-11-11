@@ -1,11 +1,16 @@
 #include "common.h"
 
+/* This is the prototype that the functions written here will need. */
+
+extern void *SystemTimer_init(void);
+extern void SystemTimer_restart_impl(void *p);
+extern double SystemTimer_elapsed_impl(void *p);
+
 /* System */
 
 static int print(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
-    /* Skip the 1st argument because it is the System object itself. */
-    for (int i = 1; i < ac; ++i) {
+    for (int i = 0; i < ac; ++i) {
         vmvar *an = local_var(ctx, i);
         print_obj(ctx, an);
     }
@@ -13,8 +18,7 @@ static int print(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 
 static int println(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
-    /* Skip the 1st argument because it is the System object itself. */
-    for (int i = 1; i < ac; ++i) {
+    for (int i = 0; i < ac; ++i) {
         vmvar *an = local_var(ctx, i);
         print_obj(ctx, an);
     }
@@ -27,15 +31,10 @@ int System(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     KL_SET_METHOD(o, print, print, 1)
     KL_SET_METHOD(o, println, println, 1)
     SET_OBJ(r, o);
-    o->is_sysobj = 1;
     return 0;
 }
 
 /* SystemTimer */
-
-extern void *SystemTimer_init(void);
-extern void SystemTimer_restart_impl(void *p);
-extern double SystemTimer_elapsed_impl(void *p);
 
 static int SystemTimer_elapsed(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
