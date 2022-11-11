@@ -5,6 +5,7 @@
 #include "lexer.h"
 
 #define HASHSIZE (23)
+#define PARSE_ERRORLIMIT (100)
 
 typedef struct kl_conststr {
     char *str;
@@ -101,6 +102,7 @@ typedef struct kl_stmt {
 
 typedef struct kl_context {
     int errors;                     //  Total error count.
+    int error_limit;                //  If the error count exceeds this value, stop parsing and exit the program.
     int options;                    //  Options for parser.
     int in_lvalue;                  //  Parsing l-value.
     kl_stmt *head;                  //  The head of object tree.

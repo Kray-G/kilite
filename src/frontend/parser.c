@@ -28,6 +28,11 @@ static int parse_error(kl_context *ctx, int sline, const char *phase, kl_lexer *
     va_start(ap, fmt);
     int r = error_print(phase, line, pos, len, fmt, ap);
     va_end(ap);
+
+    if (ctx->error_limit < ctx->errors) {
+        fprintf(stderr, "... Sorry, a lot of errors occurs, and the program stopped.\n");
+        exit(1);
+    }
     return r;
 }
 
@@ -80,7 +85,9 @@ static char *parse_const_funcidname(kl_context *ctx, kl_lexer *l, int id)
 
 kl_context *parser_new_context(void)
 {
-    return (kl_context *)calloc(1, sizeof(kl_context));
+    kl_context *ctx = (kl_context *)calloc(1, sizeof(kl_context));
+    ctx->error_limit = PARSE_ERRORLIMIT;
+    return ctx;
 }
 
 static inline int append_ns_prefix(char *buf, int pos)
@@ -1062,7 +1069,7 @@ static kl_expr *parse_type(kl_context *ctx, kl_lexer *l)
     kl_expr *e = NULL;
     if (l->tok != TK_LSBR) {
         parse_error(ctx, __LINE__, "Compile", l, "No type name after ':' in argument.");
-        return panic_mode_expr(e, ';', ctx, l);
+        return panic_mode_expr(make_expr(ctx, l, TK_TYPENODE), ';', ctx, l);
     }
     lexer_fetch(l);
     do {
