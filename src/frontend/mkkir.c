@@ -423,6 +423,42 @@ static kl_kir_inst *gen_incdec(kl_context *ctx, kl_symbol *sym, kl_kir op, kl_ki
     return inst;
 }
 
+static kl_kir_inst *gen_logical_and(kl_context *ctx, kl_symbol *sym, kl_kir_opr *r1, kl_expr *e, int l1)
+{
+    kl_kir_inst *head = NULL;
+    kl_kir_inst *r1l = NULL;
+    if (e->lhs->nodetype == TK_LAND) {
+        head = gen_logical_and(ctx, sym, r1, e->lhs, l1);
+    } else {
+        head = gen_expr(ctx, sym, r1, e->lhs);
+    }
+    r1l = get_last(head);
+
+    r1l->next = new_inst_jumpiff(ctx->program, e->line, e->pos, r1, l1);
+    kl_kir_inst *last = r1l->next;
+
+    last->next = gen_expr(ctx, sym, r1, e->rhs);
+    return head;
+}
+
+static kl_kir_inst *gen_logical_or(kl_context *ctx, kl_symbol *sym, kl_kir_opr *r1, kl_expr *e, int l1)
+{
+    kl_kir_inst *head = NULL;
+    kl_kir_inst *r1l = NULL;
+    if (e->lhs->nodetype == TK_LOR) {
+        head = gen_logical_or(ctx, sym, r1, e->lhs, l1);
+    } else {
+        head = gen_expr(ctx, sym, r1, e->lhs);
+    }
+    r1l = get_last(head);
+
+    r1l->next = new_inst_jumpift(ctx->program, e->line, e->pos, r1, l1);
+    kl_kir_inst *last = r1l->next;
+
+    last->next = gen_expr(ctx, sym, r1, e->rhs);
+    return head;
+}
+
 static kl_kir_inst *gen_apply(kl_context *ctx, kl_symbol *sym, kl_kir_opr *r1, kl_expr *e)
 {
     kl_expr *l = e->lhs;
@@ -1050,9 +1086,24 @@ static kl_kir_inst *gen_expr(kl_context *ctx, kl_symbol *sym, kl_kir_opr *r1, kl
     case TK_EXP:
     case TK_LSH:
     case TK_RSH:
-    case TK_LAND:
-    case TK_LOR:
         break;
+    case TK_LAND:
+        int l1 = get_next_label(ctx);
+        head = gen_logical_and(ctx, sym, r1, e, l1);
+        kl_kir_inst *last = get_last(head);
+        if (last) {
+            last->next = new_inst_label(ctx->program, e->line, e->pos, l1, last, 0);
+        }
+        break;
+    case TK_LOR: {
+        int l1 = get_next_label(ctx);
+        head = gen_logical_or(ctx, sym, r1, e, l1);
+        kl_kir_inst *last = get_last(head);
+        if (last) {
+            last->next = new_inst_label(ctx->program, e->line, e->pos, l1, last, 0);
+        }
+        break;
+    }
     case TK_IDX:
         head = gen_apply(ctx, sym, r1, e);
         break;
