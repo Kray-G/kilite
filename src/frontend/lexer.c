@@ -426,6 +426,10 @@ static inline int check_keyword(kl_lexer *l)
         if (strcmp(l->str, "for") == 0) return TK_FOR;
         if (strcmp(l->str, "fallthrough") == 0) return TK_FALLTHROUGH;
         if (strcmp(l->str, "finally") == 0) return TK_FINALLY;
+        if (strcmp(l->str, "false") == 0) {
+            l->i64 = 0;
+            return TK_VSINT;
+        }
         break;
     case 'i':
         if (strcmp(l->str, "int64") == 0) return set_type(l, TK_TYPEID, TK_TSINT64);
@@ -464,6 +468,10 @@ static inline int check_keyword(kl_lexer *l)
     case 't':
         if (strcmp(l->str, "try") == 0) return TK_TRY;
         if (strcmp(l->str, "throw") == 0) return TK_THROW;
+        if (strcmp(l->str, "true") == 0) {
+            l->i64 = 1;
+            return TK_VSINT;
+        }
         break;
     case 'v':
         if (strcmp(l->str, "var") == 0) return TK_LET;
@@ -961,6 +969,8 @@ static tk_token lexer_fetch_token(kl_lexer *l)
         }
         lexer_getch(l);
         return TK_RXBR;
+    case '#':
+        return TK_COMMENT1;
     case EOF:
         return TK_EOF;
     }
