@@ -983,8 +983,10 @@ L0:
         return l->tok;
     }
 
-    while (is_whitespace(l->ch)) {
-        lexer_getch(l); // skip a whitespace.
+    if (l->strstate == 9 || l->strstate == 0) {
+        while (is_whitespace(l->ch)) {
+            lexer_getch(l); // skip a whitespace.
+        }
     }
 
     l->tokline = l->line;
