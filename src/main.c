@@ -6,6 +6,15 @@
 #include "backend/dispkir.h"
 #include "backend/translate.h"
 
+#define PROGNAME "kilite"
+#define VER_MAJOR "0"
+#define VER_MINOR "0"
+#define VER_PATCH "1"
+
+#define OPT_ERROR_USAGE (1)
+#define OPT_PRINT_HELP (2)
+#define OPT_DISPLAY_VERSION (3)
+
 typedef struct kl_argopts {
     int out_bmir;
     int out_mir;
@@ -23,9 +32,35 @@ typedef struct kl_argopts {
     const char *file;
 } kl_argopts;
 
-void parse_long_options(int ac, char **av, int i, kl_argopts *opts)
+static void version(void)
 {
-    if (strcmp(av[i], "--ast") == 0) {
+    printf(PROGNAME " version %s.%s.%s\n", VER_MAJOR, VER_MINOR, VER_PATCH);
+}
+
+static void usage(void)
+{
+    printf("Usage: " PROGNAME " -[hvcxS]\n");
+    printf("Main options:\n");
+    printf("    -h              Display this help.\n");
+    printf("    -v, --version   Display the version number.\n");
+    printf("    -c              Output .bmir for library.\n");
+    printf("    -x              Execute the code and print the result.\n");
+    printf("    -S              Output .mir code.\n");
+    printf("    -S --ast        Output AST.\n");
+    printf("    -S --kir        Output low level compiled code.\n");
+    printf("    -S --csrc       Output the C code of the script code.\n");
+    printf("    -S --cfull      Output the full C code for the script code.\n");
+    printf("    --stdout        Change the distination of the output to stdout.\n");
+    printf("    --verbose       Show some infrmation when running.\n");
+    printf("    --disable-pure  Disable the code optimization for a pure function.\n");
+    printf("    --ext <ext>     Change the extension of the output file.\n");
+}
+
+static int parse_long_options(int ac, char **av, int i, kl_argopts *opts)
+{
+    if (strcmp(av[i], "--version") == 0) {
+        return OPT_DISPLAY_VERSION;
+    } else if (strcmp(av[i], "--ast") == 0) {
         opts->out_ast = 1;
     } else if (strcmp(av[i], "--kir") == 0) {
         opts->out_kir = 1;
@@ -39,37 +74,60 @@ void parse_long_options(int ac, char **av, int i, kl_argopts *opts)
         opts->disable_pure = 1;
     } else if (strcmp(av[i], "--verbose") == 0) {
         opts->verbose = 1;
-    } else if (strcmp(av[i], "--ext") == 0) {
-        if (++i < ac) {
+    } else if (strncmp(av[i], "--ext", 5) == 0) {
+        if (av[i][5] == '=') {
+            opts->ext = av[i] + 6;
+        } else if (++i < ac) {
             opts->ext = av[i];
         }
+    } else {
+        fprintf(stderr, "Error unknown option: %s\n", av[i]);
+        return OPT_ERROR_USAGE;
     }
+    return 0;
 }
 
-void parse_arg_options(int ac, char **av, kl_argopts *opts)
+static int parse_arg_options(int ac, char **av, kl_argopts *opts)
 {
+    if (ac < 1) {
+        return OPT_ERROR_USAGE;
+    }
+
+    int r;
     for (int i = 1; i < ac; ++i) {
         if (av[i][0] == '-') {
-            switch (av[i][1]) {
-            case '-':
+            if (av[i][1] == '-') {
                 switch (av[i][2]) {
                 case '\0':
                     opts->in_stdin = 1;
                     break;
                 default:
-                    parse_long_options(ac, av, i, opts);
+                    if ((r = parse_long_options(ac, av, i, opts)) != 0) {
+                        return r;
+                    }
                     break;
                 }
-                break;
-            case 'S':
-                opts->out_src = 1;
-                break;
-            case 'c':
-                opts->out_bmir = 1;
-                break;
-            case 'x':
-                opts->print_result = 1;
-                break;
+                continue;
+            }
+            for (int j = 1; av[i][j] > 0; ++j) {
+                switch (av[i][j]) {
+                case 'S':
+                    opts->out_src = 1;
+                    break;
+                case 'c':
+                    opts->out_bmir = 1;
+                    break;
+                case 'x':
+                    opts->print_result = 1;
+                    break;
+                case 'v':
+                    return OPT_DISPLAY_VERSION;
+                case 'h':
+                    return OPT_PRINT_HELP;
+                default:
+                    fprintf(stderr, "Error unknown option: -%c\n", av[i][j]);
+                    return OPT_ERROR_USAGE;
+                }
             }
         } else {
             opts->file = av[i];
@@ -78,6 +136,8 @@ void parse_arg_options(int ac, char **av, kl_argopts *opts)
     if (opts->out_src) {
         opts->out_mir = !(opts->out_ast || opts->out_kir || opts->out_csrc);
     }
+
+    return 0;
 }
 
 int main(int ac, char **av)
@@ -85,7 +145,17 @@ int main(int ac, char **av)
     int ri = 1;
     char *s = NULL;
     kl_argopts opts = {0};
-    parse_arg_options(ac, av, &opts);
+    switch (parse_arg_options(ac, av, &opts)) {
+    case OPT_ERROR_USAGE:
+        usage();
+        return 1;
+    case OPT_PRINT_HELP:
+        usage();
+        return 0;
+    case OPT_DISPLAY_VERSION:
+        version();
+        return 0;
+    }
 
     kl_lexer *l = lexer_new_file(opts.in_stdin ? NULL : opts.file);
     kl_context *ctx = parser_new_context();
