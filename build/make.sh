@@ -16,7 +16,7 @@ cd ..
 TEMPF=h.c
 
 # Create a header source code.
-gcc -O2 -o makecstr ../utils/makecstr.c
+gcc -O2 -o makecstr ../build/makecstr.c
 cat ../src/template/lib/bign.h > $TEMPF
 cat ../src/template/lib/bigz.h >> $TEMPF
 cat ../src/template/lib/printf.h >> $TEMPF
