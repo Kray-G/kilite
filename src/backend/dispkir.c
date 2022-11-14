@@ -245,8 +245,14 @@ void disp_inst(kl_kir_program *p, kl_kir_inst *i)
     case KIR_NEWOBJ:
         disp_1op("newobj", i);
         break;
+    case KIR_OBJCPY:
+        disp_2op("objcopy", i);
+        break;
     case KIR_MKSUPER:
         disp_2op("makesuper", i);
+        break;
+    case KIR_IDXFRM:
+        disp_3op("idxfrm", i);
         break;
     case KIR_IDX:
         disp_3op("idx", i);
@@ -259,6 +265,9 @@ void disp_inst(kl_kir_program *p, kl_kir_inst *i)
         break;
     case KIR_APLYL:
         disp_3op("applyl", i);
+        break;
+    case KIR_REMOVE:
+        disp_2op("remove", i);
         break;
 
     case KIR_TYPE:

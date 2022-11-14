@@ -334,6 +334,7 @@ INLINE vmobj *hashmap_copy_method(vmctx *ctx, vmobj *src);
 INLINE vmobj *array_create(vmobj *obj, int asz);
 INLINE vmobj *array_set(vmctx *ctx, vmobj *obj, int64_t idx, vmvar *vs);
 INLINE vmobj *array_push(vmctx *ctx, vmobj *obj, vmvar *vs);
+INLINE vmobj *object_copy(vmctx *ctx, vmobj *src);
 
 INLINE int run_global(vmctx *ctx, vmfrm *lex, vmvar *r, int ac);
 
@@ -487,6 +488,12 @@ enum {
 } \
 /**/
 
+#define OBJCOPY(ctx, dst, src) { \
+    (dst)->t = VAR_OBJ; \
+    (dst)->o = object_copy(ctx, (src)->o); \
+} \
+/**/
+
 #define SET_ARGVAR(idx, alc) { \
     if (idx < ac) { \
         vmvar *a##idx = local_var(ctx, (idx + alc)); \
@@ -523,14 +530,12 @@ enum {
     if ((t1)->o) { \
         vmvar *t2 = hashmap_search((t1)->o, str); \
         if (!t2) { \
-            (r)->t = VAR_INT64; \
-            (r)->i = 0; \
+            (r)->t = VAR_UNDEF; \
         } else { \
             COPY_VAR_TO(ctx, (r), t2); \
         } \
     } else { \
-        (r)->t = VAR_INT64; \
-        (r)->i = 0; \
+        (r)->t = VAR_UNDEF; \
     } \
 } \
 /**/
@@ -540,8 +545,7 @@ enum {
     if ((t1)->t == VAR_OBJ) { \
         OP_HASH_APPLY_OBJ(ctx, r, t1, str) \
     } else { \
-        (r)->t = VAR_INT64; \
-        (r)->i = 0; \
+        (r)->t = VAR_UNDEF; \
     } \
 } \
 /**/
@@ -569,16 +573,41 @@ enum {
 } \
 /**/
 
-#define OP_ARRAY_REF_I(ctx, r, v, idx) { \
-    int ii = idx; \
-    if (ii < 0) { \
-        do { ii += (v)->o->idxsz; } while (ii < 0); \
-    } \
-    if (0 <= ii && ii < (v)->o->asz && (v)->o->ary[ii]) { \
-        COPY_VAR_TO(ctx, r, (v)->o->ary[ii]); \
+#define OP_ARRAY_REF_IDXFRM(ctx, r, v, idx) { \
+    if ((v)->t == VAR_OBJ) { \
+        int ii = idx; \
+        if (ii < 0) { \
+            do { ii += (v)->o->idxsz; } while (ii < 0); \
+        } \
+        if (0 <= ii && ii < (v)->o->idxsz) { \
+            vmvar *na = alcvar_obj(ctx, alcobj(ctx)); \
+            int idxsz = (v)->o->idxsz; \
+            for (int i = ii; i < idxsz; ++i) { \
+                array_push(ctx, na->o, (v)->o->ary[i]); \
+            } \
+            SHCOPY_VAR_TO(ctx, r, na); \
+        } else { \
+            (r)->t = VAR_UNDEF; \
+        } \
     } else { \
-        (r)->t = VAR_INT64; \
-        (r)->i = 0; \
+        (r)->t = VAR_UNDEF; \
+    } \
+} \
+/**/
+
+#define OP_ARRAY_REF_I(ctx, r, v, idx) { \
+    if ((v)->t == VAR_OBJ) { \
+        int ii = idx; \
+        if (ii < 0) { \
+            do { ii += (v)->o->idxsz; } while (ii < 0); \
+        } \
+        if (0 <= ii && ii < (v)->o->idxsz && (v)->o->ary[ii]) { \
+            COPY_VAR_TO(ctx, r, (v)->o->ary[ii]); \
+        } else { \
+            (r)->t = VAR_UNDEF; \
+        } \
+    } else { \
+        (r)->t = VAR_UNDEF; \
     } \
 } \
 /**/

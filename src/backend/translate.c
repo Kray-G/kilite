@@ -547,6 +547,16 @@ static void translate_incdec(func_context *fctx, xstr *code, const char *op, con
     }
 }
 
+static void translate_idxfrm(func_context *fctx, xstr *code, kl_kir_inst *i)
+{
+    char buf1[256] = {0};
+    char buf2[256] = {0};
+    char buf3[256] = {0};
+    var_value(buf1, &(i->r1));
+    var_value(buf2, &(i->r2));
+    xstra_inst(code, "OP_ARRAY_REF_IDXFRM(ctx, %s, %s, %s);\n", buf1, buf2, int_value(buf3, &(i->r3)));
+}
+
 static void translate_idx(func_context *fctx, xstr *code, kl_kir_inst *i, int r3typeid, int lvalue)
 {
     char buf1[256] = {0};
@@ -1021,10 +1031,16 @@ static void translate_inst(xstr *code, kl_kir_func *f, kl_kir_inst *i, func_cont
     case KIR_NEWOBJ:
         xstra_inst(code, "SET_OBJ(%s, alcobj(ctx));\n", var_value(buf1, &(i->r1)));
         break;
+    case KIR_OBJCPY:
+        xstra_inst(code, "OBJCOPY(ctx, %s, %s);\n", var_value(buf1, &(i->r1)), var_value(buf2, &(i->r2)));
+        break;
     case KIR_MKSUPER:
         xstra_inst(code, "MAKE_SUPER(ctx, %s, %s);\n", var_value(buf1, &(i->r1)), var_value(buf2, &(i->r2)));
         break;
 
+    case KIR_IDXFRM:
+        translate_idxfrm(fctx, code, i);
+        break;
     case KIR_IDX:
         translate_idx(fctx, code, i, i->r3.typeid, 0);
         break;
@@ -1037,6 +1053,11 @@ static void translate_inst(xstr *code, kl_kir_func *f, kl_kir_inst *i, func_cont
         break;
     case KIR_APLYL:
         translate_idx(fctx, code, i, TK_TSTR, 1);
+        break;
+    case KIR_REMOVE:
+        xstra_inst(code, "hashmap_remove(ctx, (%s)->o, \"", var_value(buf1, &(i->r1)));
+        escape_str(code, i->r2.str);
+        xstraf(code, "\");\n");
         break;
 
     case KIR_TYPE:

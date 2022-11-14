@@ -526,7 +526,12 @@ static kl_expr *parse_expr_varname(kl_context *ctx, kl_lexer *l, const char *nam
 static kl_expr *parse_expr_keyvalue(kl_context *ctx, kl_lexer *l)
 {
     kl_expr *e = NULL;
-    while (l->tok == TK_NAME || l->tok == TK_VSTR) {
+    while (l->tok == TK_DOT3 || l->tok == TK_NAME || l->tok == TK_VSTR) {
+        int dot3 = 0;
+        if (l->tok == TK_DOT3) {
+            dot3 = 1;
+            lexer_fetch(l);
+        }
         tk_token tok = l->tok;
         const char *name = parse_const_str(ctx, l, l->str);
         kl_expr *e2 = make_expr(ctx, l, TK_VSTR);
@@ -543,6 +548,7 @@ static kl_expr *parse_expr_keyvalue(kl_context *ctx, kl_lexer *l)
                 return panic_mode_expr(e, ';', ctx, l);
             }
             kl_expr *e3 = parse_expr_varname(ctx, l, name, ctx->in_lvalue);
+            e3->sym->is_dot3 = dot3;
             e2 = make_bin_expr(ctx, l, TK_VKV, e2, e3);
             e = make_bin_expr(ctx, l, TK_COMMA, e, e2);
         }
@@ -1375,17 +1381,19 @@ static kl_expr *parse_decl_expr(kl_context *ctx, kl_lexer *l, int is_const)
     DEBUG_PARSER_PHASE();
     kl_expr *e1 = NULL;
 
-    if (l->tok != TK_NAME) {
-        parse_error(ctx, __LINE__, l, "The symbol name is needed in declaration");
-    }
-
-    while (l->tok == TK_NAME || l->tok == TK_LLBR || l->tok == TK_LXBR) {
+    while (l->tok == TK_DOT3 || l->tok == TK_NAME || l->tok == TK_LLBR || l->tok == TK_LXBR) {
         ctx->in_lvalue = 1;
         kl_expr *lhs = NULL;
+        int dot3 = 0;
+        if (l->tok == TK_DOT3) {
+            dot3 = 1;
+            lexer_fetch(l);
+        }
         if (l->tok == TK_NAME) {
             check_symbol(ctx, l, l->str);
             lhs = make_expr(ctx, l, TK_VAR);
             kl_symbol *sym = make_symbol(ctx, l, TK_VAR, 0);
+            sym->is_dot3 = 1;
             sym->is_const = is_const;
             sym->name = parse_const_str(ctx, l, l->str);
             lhs->sym = sym;
@@ -1404,10 +1412,12 @@ static kl_expr *parse_decl_expr(kl_context *ctx, kl_lexer *l, int is_const)
 
         if (l->tok == TK_EQ) {
             lexer_fetch(l);
-            lhs->sym->assigned = 1;
             kl_expr *rhs = parse_expr_assignment(ctx, l);
             lhs->typeid = rhs->typeid;
-            if (lhs->sym) lhs->sym->typeid = rhs->typeid;
+            if (lhs->sym) {
+                lhs->sym->assigned = 1;
+                lhs->sym->typeid = rhs->typeid;
+            }
             lhs = make_bin_expr(ctx, l, TK_EQ, lhs, rhs);
         }
 
@@ -1420,7 +1430,6 @@ static kl_expr *parse_decl_expr(kl_context *ctx, kl_lexer *l, int is_const)
             parse_error(ctx, __LINE__, l, "The symbol name is needed in declaration");
         }
     }
-
     return e1;
 }
 

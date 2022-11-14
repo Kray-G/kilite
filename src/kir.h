@@ -228,11 +228,14 @@ typedef enum kl_kir {
     KIR_MINUS,      //  <r1>, -<r2>             ;   <r1>  <-  -<r2>
 
     KIR_NEWOBJ,     //  <r1>                    ;   <r1>  <-  new obj
+    KIR_OBJCPY,     //  <r1>, <r2>              ;   <r1>  <-  <r2> as copy object.
     KIR_MKSUPER,    //  <r1>                    ;   <r1>  <-  `super` object
+    KIR_IDXFRM,     //  <r1>, <r2>, <idx>       ;   <r1>  <-  <r2>[idx..]
     KIR_IDX,        //  <r1>, <r2>, <idx>       ;   <r1>  <-  <r2>[<idx>]
     KIR_IDXL,       //  <r1>, <r2>, <idx>       ;   <r1>  <-  <r2>[<idx>]
     KIR_APLY,       //  <r1>, <r2>, <str>       ;   <r1>  <-  <r2>.<str>
     KIR_APLYL,      //  <r1>, <r2>, <str>       ;   <r1>  <-  &<r2>.<str>
+    KIR_REMOVE,     //  <r1>, <str>             ;   <r1>.remove(<str>)
 
     KIR_TYPE,       //  <r1>, <r2>, n           ;   <r1>  <-  true if <r2> type == n
 } kl_kir;

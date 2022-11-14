@@ -5,6 +5,7 @@
 #define KIR_MOVE_LAST(last) while (last->next) last = last->next
 
 static kl_kir_inst *gen_block(kl_context *ctx, kl_symbol *sym, kl_stmt *s);
+static kl_kir_inst *gen_assign_object(kl_context *ctx, kl_symbol *sym, kl_kir_opr *r1, kl_expr *e);
 static kl_kir_inst *gen_expr(kl_context *ctx, kl_symbol *sym, kl_kir_opr *r1, kl_expr *e);
 static kl_kir_inst *gen_stmt(kl_context *ctx, kl_symbol *sym, kl_stmt *s);
 static kl_kir_func *gen_function(kl_context *ctx, kl_symbol *sym, kl_stmt *s);
@@ -718,6 +719,151 @@ static kl_kir_inst *gen_call(kl_context *ctx, kl_symbol *sym, kl_kir_opr *r1, kl
     return head;
 }
 
+static kl_kir_inst *gen_array_lvalue(kl_context *ctx, kl_symbol *sym, kl_kir_opr *r2, kl_expr *e, int *idx)
+{
+    kl_kir_inst *head = NULL;
+    if (!e) {
+        ++(*idx);
+        return NULL;
+    }
+
+    kl_kir_opr rs = {0};
+    kl_kir_opr r3 = {0};
+    switch (e->nodetype) {
+    case TK_COMMA:
+        head = gen_array_lvalue(ctx, sym, r2, e->lhs, idx);
+        kl_kir_inst *last = get_last(head);
+        if (last) {
+            last->next = gen_array_lvalue(ctx, sym, r2, e->rhs, idx);
+        } else {
+            head = gen_array_lvalue(ctx, sym, r2, e->rhs, idx);
+        }
+        break;
+    case TK_VAR:
+        KL_KIR_CHECK_LITERAL(e, rs, head);
+        r3 = make_lit_i64(ctx, *idx);
+        ++(*idx);
+        kl_kir_inst *inst = new_inst_op3(ctx->program, e->line, e->pos, rs.has_dot3 ? KIR_IDXFRM : KIR_IDX, &rs, r2, &r3);
+        if (!head) {
+            head = inst;
+        } else {
+            kl_kir_inst *last = get_last(head);
+            last->next = inst;
+        }
+        break;
+    default:
+        rs = make_var(ctx, sym, TK_TANY);
+        r3 = make_lit_i64(ctx, *idx);
+        ++(*idx);
+        head = new_inst_op3(ctx->program, e->line, e->pos, KIR_IDX, &rs, r2, &r3);
+        head->next = gen_assign_object(ctx, sym, &rs, e);
+        break;
+    }
+    return head;
+}
+
+static int check_dot_symbol(kl_expr *e)
+{
+    int dot3 = 0;
+    switch (e->nodetype) {
+    case TK_VKV: {
+        kl_expr *l = e->rhs;
+        switch (l->nodetype) {
+        case TK_VAR:
+            if (l->sym && l->sym->is_dot3) {
+                dot3 = 1;
+            }
+            break;
+        case TK_DOT3:
+            dot3 = 1;
+            break;
+        }
+        break;
+    }
+    case TK_COMMA:
+        dot3 = check_dot_symbol(e->lhs);
+        if (!dot3) {
+            dot3 = check_dot_symbol(e->rhs);
+        }
+        break;
+    }
+    return dot3;
+}
+
+static kl_kir_inst *gen_object_lvalue(kl_context *ctx, kl_symbol *sym, kl_kir_opr *r1, kl_kir_opr *r2, kl_expr *e, int dot3)
+{
+    /* e->lhs should be a string. */
+    kl_kir_inst *head = NULL;
+    kl_kir_opr r3 = make_lit_str(ctx, e->lhs->val.str);
+    switch (e->nodetype) {
+    case TK_VKV: {
+        kl_kir_opr rs = {0};
+        kl_expr *r = e->rhs;
+        switch (r->nodetype) {
+        case TK_VAR:
+            rs = make_var_index(ctx, r->sym->ref ? r->sym->ref->index : r->sym->index, r->sym->level, r->typeid);
+            if (r->sym->is_dot3) {
+                rs.has_dot3 = 1;
+            }
+            kl_kir_inst *inst;
+            if (rs.has_dot3) {
+                inst = new_inst_op2(ctx->program, e->line, e->pos, KIR_MOV, &rs, r1);
+            } else {
+                inst = new_inst_op3(ctx->program, e->line, e->pos, KIR_APLY, &rs, r2, &r3);
+            }
+            if (!head) {
+                head = inst;
+            } else {
+                kl_kir_inst *last = get_last(head);
+                last->next = inst;
+            }
+            if (dot3 && !rs.has_dot3) {
+                inst->next = new_inst_op2(ctx->program, e->line, e->pos, KIR_REMOVE, r1, &r3);
+            }
+            break;
+        default:
+            rs = make_var(ctx, sym, TK_TANY);
+            head = new_inst_op3(ctx->program, r->line, r->pos, KIR_APLY, &rs, r2, &r3);
+            head->next = gen_assign_object(ctx, sym, &(rs), r);
+            break;
+        }
+        break;
+    }
+    case TK_COMMA:
+        head = gen_object_lvalue(ctx, sym, r1, r2, e->lhs, dot3);
+        kl_kir_inst *last = get_last(head);
+        last->next = gen_object_lvalue(ctx, sym, r1, r2, e->rhs, dot3);
+        break;
+    }
+    return head;
+}
+
+static kl_kir_inst *gen_assign_object(kl_context *ctx, kl_symbol *sym, kl_kir_opr *r1, kl_expr *e)
+{
+    kl_kir_inst *head = NULL;
+    switch (e->nodetype) {
+    case TK_VARY: {
+        int idx = 0;
+        head = gen_array_lvalue(ctx, sym, r1, e->lhs, &idx);
+        break;
+    }
+    case TK_VOBJ: {
+        int dot3 = check_dot_symbol(e->lhs);
+        if (dot3) {
+            kl_kir_opr rr = make_var(ctx, sym, TK_TANY);
+            head = new_inst_op2(ctx->program, e->line, e->pos, KIR_OBJCPY, &rr, r1);
+            head->next = gen_object_lvalue(ctx, sym, &rr, r1, e->lhs, dot3);
+        } else {
+            head = gen_object_lvalue(ctx, sym, r1, r1, e->lhs, dot3);
+        }
+        break;
+    }
+    default:
+        break;
+    }
+    return head;
+}
+
 static kl_kir_inst *gen_assign(kl_context *ctx, kl_symbol *sym, kl_kir_opr *r1, kl_expr *e)
 {
     kl_kir_opr r2 = {0};
@@ -762,7 +908,7 @@ static kl_kir_inst *gen_assign(kl_context *ctx, kl_symbol *sym, kl_kir_opr *r1, 
             last->next = r1i;
         }
     } else {
-        /* TODO: direct assignment for object or array. */
+        last->next = gen_assign_object(ctx, sym, &r2, l);
     }
 
     return head;

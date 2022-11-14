@@ -223,7 +223,7 @@ vmobj *hashmap_set(vmctx *ctx, vmobj *obj, const char *s, vmvar *vs)
 
 vmobj *hashmap_remove(vmctx *ctx, vmobj *obj, const char *s)
 {
-    if (!obj->map) {
+    if (!obj || !obj->map) {
         return obj;
     }
 
@@ -392,5 +392,19 @@ vmobj *array_push(vmctx *ctx, vmobj *obj, vmvar *vs)
     }
 
     obj->ary[idx] = vs;
+    return obj;
+}
+
+vmobj *object_copy(vmctx *ctx, vmobj *src)
+{
+    vmobj *obj = hashmap_copy(ctx, src);
+    int idxsz = src->idxsz;
+    int asz = obj->asz;
+    if (asz < idxsz) {
+        array_extend(ctx, obj, idxsz);
+    }
+    for (int i = 0; i < idxsz; ++i) {
+        obj->ary[i] = src->ary[i];
+    }
     return obj;
 }
