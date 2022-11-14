@@ -387,6 +387,22 @@ enum {
 
 #define CHECK_FUNC(v, l) if ((v)->t != VAR_FNC) { e = 1; /* TODO: MethodMissing Exception */; goto l; }
 #define CHECK_EXCEPTION(l) if (e) { goto l; }
+#define THROW_EXCEPTION(ctx, v, l) { \
+    ctx->except = v; \
+    e = 1; \
+    goto l; \
+} \
+/**/
+#define THROW_CURRENT(ctx, l) { \
+    e = 1; \
+    goto l; \
+} \
+/**/
+#define CATCH_EXCEPTION(ctx, v) { \
+    e = 0; \
+    SHCOPY_VAR_TO(ctx, v, ctx->except); \
+} \
+/**/
 
 /* Copy Variable */
 

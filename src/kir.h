@@ -162,6 +162,7 @@ typedef enum tk_token {
 
 typedef enum kl_kir {
     KIR_UNKNOWN = 0,
+    KIR_NOP,
     /*
      * The code for function frames.
      *  either KIR_MKFRM or KIR_LOCAL could be used, but those are exclusive.
@@ -191,6 +192,9 @@ typedef enum kl_kir {
      * Return from a function.
      */
     KIR_RET,        //  -                       ;   return from the function.
+    KIR_THROWE,     //  <r1>                    ;   throw <r1>.
+    KIR_THROW,      //  -                       ;   throw.
+    KIR_CATCH,      //  <r1>                    ;   <r1>  <- catch.
 
     /*
      * Conditional and unconditional Jump.
@@ -278,6 +282,7 @@ typedef struct kl_kir_inst {
     kl_kir opcode;
     const char *str;
     int labelid;
+    int catchid;
     int gcable;
     int line;
     int pos;

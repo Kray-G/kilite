@@ -445,6 +445,27 @@ static void disp_stmt(kl_stmt *s, int indent)
             disp_stmt_list(s->s1, indent + 1);
         }
         break;
+    case TK_TRY:
+        printf("try\n");
+        if (s->s1) {
+            disp_stmt(s->s1, indent + 1);
+        }
+        if (s->s2) {
+            make_indent(indent);
+            printf("catch");
+            if (s->e1) {
+                printf(" (");
+                disp_expr(s->e1, -1);
+            }
+            printf(")\n");
+            disp_stmt(s->s2, indent + 1);
+        }
+        if (s->s3) {
+            make_indent(indent);
+            printf("finally\n");
+            disp_stmt(s->s2, indent + 1);
+        }
+        break;
     case TK_RETURN:
         printf("return\n");
         if (s->e1) {

@@ -19,7 +19,7 @@ if ((ctx->options & PARSER_OPT_PHASE) == PARSER_OPT_PHASE) printf("[parser] %s\n
 
 static int parse_error(kl_context *ctx, int sline, kl_lexer *l, const char *fmt, ...)
 {
-    // fprintf(stderr, "%d: ", sline);
+    fprintf(stderr, "%d: ", sline);
     int line = l->tokline;
     int pos = l->tokpos;
     int len = l->toklen;
@@ -1376,6 +1376,41 @@ static kl_stmt *parse_for(kl_context *ctx, kl_lexer *l)
     return s;
 }
 
+static kl_stmt *parse_try(kl_context *ctx, kl_lexer *l)
+{
+    kl_stmt *s = make_stmt(ctx, l, TK_TRY);
+
+    /* try part */
+    s->s1 = parse_statement(ctx, l);
+
+    /* catch part */
+    if (l->tok == TK_CATCH) {
+        lexer_fetch(l);
+        if (l->tok == TK_LSBR) {
+            lexer_fetch(l);
+            if (l->tok != TK_NAME) {
+                parse_error(ctx, __LINE__, l, "The symbol name is missing in catch clause");
+            } else {
+                s->e1 = parse_expr_varname(ctx, l, l->str, 1);
+                lexer_fetch(l);
+            }
+            if (l->tok != TK_RSBR) {
+                parse_error(ctx, __LINE__, l, "The ')' is missing");
+            }
+            lexer_fetch(l);
+        }
+        s->s2 = parse_statement(ctx, l);
+    }
+
+    /* finally part */
+    if (l->tok == TK_FINALLY) {
+        lexer_fetch(l);
+        s->s3 = parse_statement(ctx, l);
+    }
+
+    return s;
+}
+
 static kl_expr *parse_decl_expr(kl_context *ctx, kl_lexer *l, int is_const)
 {
     DEBUG_PARSER_PHASE();
@@ -1446,10 +1481,10 @@ static kl_stmt *parse_declaration(kl_context *ctx, kl_lexer *l, int decltype)
     return s;
 }
 
-static kl_stmt *parse_return(kl_context *ctx, kl_lexer *l)
+static kl_stmt *parse_return_throw(kl_context *ctx, kl_lexer *l, int tok)
 {
     DEBUG_PARSER_PHASE();
-    kl_stmt *s = make_stmt(ctx, l, TK_RETURN);
+    kl_stmt *s = make_stmt(ctx, l, tok);
     if (l->tok != TK_SEMICOLON) {
         s->e1 = parse_expression(ctx, l);
     }
@@ -1866,6 +1901,10 @@ static kl_stmt *parse_statement(kl_context *ctx, kl_lexer *l)
         lexer_fetch(l);
         r = parse_for(ctx, l);
         break;
+    case TK_TRY:
+        lexer_fetch(l);
+        r = parse_try(ctx, l);
+        break;
     case TK_CONTINUE:
     case TK_BREAK:
         r = make_stmt(ctx, l, tok);
@@ -1877,8 +1916,9 @@ static kl_stmt *parse_statement(kl_context *ctx, kl_lexer *l)
         lexer_fetch(l);
         break;
     case TK_RETURN:
+    case TK_THROW:
         lexer_fetch(l);
-        r = parse_return(ctx, l);
+        r = parse_return_throw(ctx, l, tok);
         break;
     case TK_EXTERN:
         lexer_fetch(l);

@@ -664,8 +664,9 @@ static void translate_call(xstr *code, kl_kir_func *f, kl_kir_inst *i)
             xstra_inst(code, "CALL(f%d, f%d->lex, %s, %d + ad%d)\n", i->r2.funcid, i->r2.funcid, buf1, i->r2.args, i->r2.callcnt);
         }
     } else {
+        int tclabel = i->catchid > 0 ? i->catchid : f->funcend;
         var_value(buf2, &(i->r2));
-        xstra_inst(code, "CHECK_FUNC(%s, L%d);\n", buf2, f->funcend);
+        xstra_inst(code, "CHECK_FUNC(%s, L%d);\n", buf2, tclabel);
         xstra_inst(code, "CALL(((%s)->f), ((%s)->f)->lex, %s, %d + ad%d)\n", buf2, buf2, buf1, i->r2.args, i->r2.callcnt);
     }
 }
@@ -932,10 +933,11 @@ static void translate_inst(xstr *code, kl_kir_func *f, kl_kir_inst *i, func_cont
         xstra_inst(code, "int ad%d = 0, p%" PRId64 " = vstackp(ctx);\n", i->r1.i64, i->r1.i64);
         break;
     case KIR_PUSHSYS:
-        xstra_inst(code, "{ push_var_sys(ctx, %s, ad%d, L%d); }\n", var_value(buf1, &(i->r1)), i->r1.callcnt, f->funcend);
+        xstra_inst(code, "{ push_var_sys(ctx, %s, ad%d, L%d); }\n",
+            var_value(buf1, &(i->r1)), i->r1.callcnt, i->catchid > 0 ? i->catchid : f->funcend);
         break;
     case KIR_PUSHARG:
-        translate_pusharg(code, &(i->r1), f->funcend);
+        translate_pusharg(code, &(i->r1), i->catchid > 0 ? i->catchid : f->funcend);
         break;
     case KIR_CALL:
         translate_call(code, f, i);
@@ -949,6 +951,15 @@ static void translate_inst(xstr *code, kl_kir_func *f, kl_kir_inst *i, func_cont
 
     case KIR_RET:
         xstra_inst(code, "return e;\n");
+        break;
+    case KIR_THROWE:
+        xstra_inst(code, "THROW_EXCEPTION(ctx, %s, L%d);\n", var_value(buf1, &(i->r1)), i->labelid);
+        break;
+    case KIR_THROW:
+        xstra_inst(code, "THROW_CURRENT(ctx, L%d);\n", i->labelid);
+        break;
+    case KIR_CATCH:
+        xstra_inst(code, "CATCH_EXCEPTION(ctx, %s);\n", var_value(buf1, &(i->r1)));
         break;
 
     case KIR_JMPIFT:

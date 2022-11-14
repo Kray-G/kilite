@@ -119,6 +119,8 @@ typedef struct kl_context {
 
     int blabel;                     //  The label to the destination of jumping by break.
     int clabel;                     //  The label to the destination of jumping by continue.
+    int tclabel;                    //  The label to the destination of catch clause.
+    kl_stmt *fincode;               //  The statement list of finally clause.
 
     kl_symbol *symchn;              //  For memory allocation control.
     kl_expr *exprchn;               //  For memory allocation control.

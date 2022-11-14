@@ -160,6 +160,17 @@ void disp_inst(kl_kir_program *p, kl_kir_inst *i)
     case KIR_RET:
         printf(IDT OP "\n", "ret");
         break;
+    case KIR_THROWE:
+        printf(IDT OP, "throwe");
+        disp_v(i, 1);
+        printf(", L%d\n", i->labelid);
+        break;
+    case KIR_THROW:
+        printf(IDT OP "L%d\n", "throw", i->labelid);
+        break;
+    case KIR_CATCH:
+        disp_1op("catch", i);
+        break;
 
     case KIR_JMPIFT:
         printf(IDT OP, "jmpift");
