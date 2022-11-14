@@ -66,7 +66,7 @@ The source code for each language is shown below.
 
 #### Kinx/Kilite
 
-Kilite has supported `System.println` method as well.
+Kilite has already supported `System.println` method as well as Kinx.
 
     function fib(n) {
         if (n < 2) return n;
@@ -143,12 +143,13 @@ I will note the followings as I don't forget it.
     * [x] The `new` operator.
     * [ ] Module definition.
     * [ ] The `mixin` statement.
-  * [ ] Exception.
-    * [ ] throwing an exception.
-    * [ ] `try`, `catch`, and `finally`.
+  * [x] Exception.
+    * [x] throwing an exception.
+    * [x] `try`, `catch`, and `finally`.
 * [ ] Notes for a special specifications of the language.
   * [ ] The last argument of function call could be outside arguments list if it's a block.
-  * [ ] Object and array element's direct assignment.
+  * [x] Destructuring assignment.
+    * [ ] Pattern matching in assignment.
   * [ ] Coroutine with `yield`.
   * [ ] `case-when` expression.
   * [ ] Formatter object.
