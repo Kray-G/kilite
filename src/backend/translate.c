@@ -228,7 +228,7 @@ static const char *get_min(kl_kir_func *f, char *buf)
     return buf;
 }
 
-static void translate_op3_pure(func_context *fctx, xstr *code, kl_kir_func *f, const char *op, const char *sop, kl_kir_inst *i)
+static void translate_op3_pure(func_context *fctx, xstr *code, kl_kir_func *f, const char *op, kl_kir_inst *i)
 {
     kl_kir_opr *r1 = &(i->r1);
     kl_kir_opr *r2 = &(i->r2);
@@ -253,7 +253,7 @@ static void translate_op3_pure(func_context *fctx, xstr *code, kl_kir_func *f, c
 
 static void translate_chkcnd_pure(func_context *fctx, xstr *code, kl_kir_func *f, const char *op, const char *sop, kl_kir_inst *i)
 {
-    if (i->next && (i->next->opcode == KIR_JMPIFT || i->next->opcode == KIR_JMPIFF)) {
+    if (sop && i->next && (i->next->opcode == KIR_JMPIFT || i->next->opcode == KIR_JMPIFF)) {
         kl_kir_inst *n = i->next;
         if (i->r1.level == n->r1.level && i->r1.index == n->r1.index) {
             kl_kir_opr *r1 = &(i->r1);
@@ -271,7 +271,7 @@ static void translate_chkcnd_pure(func_context *fctx, xstr *code, kl_kir_func *f
             return;
         }
     }
-    translate_op3_pure(fctx, code, f, op, sop, i);
+    translate_op3_pure(fctx, code, f, op, i);
 }
 
 static void translate_incdec_pure(func_context *fctx, xstr *code, const char *sop, int is_postfix, kl_kir_inst *i)
@@ -383,7 +383,10 @@ static void translate_inst_pure(xstr *code, kl_kir_func *f, kl_kir_inst *i, func
     case KIR_DIV:
         break;
     case KIR_MOD:
-        translate_chkcnd_pure(fctx, code, f, "mod", "%", i);
+        translate_chkcnd_pure(fctx, code, f, "MOD", "%", i);
+        break;
+    case KIR_POW:
+        translate_chkcnd_pure(fctx, code, f, "POW", NULL, i);
         break;
 
     case KIR_EQEQ:
@@ -588,7 +591,7 @@ static void translate_op3(func_context *fctx, xstr *code, const char *op, const 
     char buf2[256] = {0};
     char buf3[256] = {0};
     var_value(buf1, r1);
-    if (r2->typeid == TK_TSINT64 && r3->typeid == TK_TSINT64) {
+    if (sop && r2->typeid == TK_TSINT64 && r3->typeid == TK_TSINT64) {
         int_value(buf2, r2);
         int_value(buf3, r3);
         xstra_inst(code, "SET_I64(%s, (%s) %s (%s));\n", buf1, buf2, sop, buf3);
@@ -613,7 +616,7 @@ static void translate_op3(func_context *fctx, xstr *code, const char *op, const 
 
 static void translate_chkcnd(func_context *fctx, xstr *code, const char *op, const char *sop, kl_kir_inst *i)
 {
-    if (i->next && (i->next->opcode == KIR_JMPIFT || i->next->opcode == KIR_JMPIFF)) {
+    if (sop && i->next && (i->next->opcode == KIR_JMPIFT || i->next->opcode == KIR_JMPIFF)) {
         kl_kir_inst *n = i->next;
         if (i->r1.level == n->r1.level && i->r1.index == n->r1.index) {
             kl_kir_opr *r1 = &(i->r1);
@@ -736,6 +739,19 @@ static void translate_mova(xstr *code, kl_kir_inst *i)
         break;
     }
     xstra_inst(code, "SHMOVE_VAR_TO(ctx, (%s), (%s)->a);\n", buf1, buf1);
+}
+
+static void translate_type(xstr *code, kl_kir_inst *i)
+{
+    char buf1[256] = {0};
+    char buf2[256] = {0};
+    var_value(buf1, &(i->r1));
+    var_value(buf2, &(i->r2));
+    if (i->r3.i64 == VAR_INT64) {
+        xstra_inst(code, "SET_I64((%s), (((%s)->t == VAR_INT64) || ((%s)->t == VAR_BIG)));\n", buf1, buf2, buf2);
+    } else {
+        xstra_inst(code, "SET_I64((%s), ((%s)->t == %d));\n", buf1, buf2, i->r3.i64);
+    }
 }
 
 static void set_last_args(xstr *code, kl_kir_func *f, int idx, int total)
@@ -963,6 +979,9 @@ static void translate_inst(xstr *code, kl_kir_func *f, kl_kir_inst *i, func_cont
     case KIR_MOD:
         translate_chkcnd(fctx, code, "MOD", "%", i);
         break;
+    case KIR_POW:
+        translate_chkcnd(fctx, code, "POW", NULL, i);
+        break;
 
     case KIR_EQEQ:
         translate_chkcnd(fctx, code, "EQEQ", "==", i);
@@ -1018,6 +1037,10 @@ static void translate_inst(xstr *code, kl_kir_func *f, kl_kir_inst *i, func_cont
         break;
     case KIR_APLYL:
         translate_idx(fctx, code, i, TK_TSTR, 1);
+        break;
+
+    case KIR_TYPE:
+        translate_type(code, i);
         break;
     }
 }

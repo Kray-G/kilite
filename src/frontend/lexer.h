@@ -17,6 +17,7 @@
  * Structure of lexical analyzer.
  */
 typedef struct kl_lexer {
+    const char *filename;
     FILE *f;
     char *s;
     char *p;
@@ -32,6 +33,7 @@ typedef struct kl_lexer {
     int strstate;           //  The state during parsing string.
     int lbrcount;           //  The '{' count during parsing string.
     int binmode;            //  If 1, it's parsing a binary.
+    int error_stdout;
     tk_token tok;           //  Current token.
     tk_token unfetch;       //  Buffer for unfetch.
     tk_typeid typeid;       //  Type ID

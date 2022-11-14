@@ -90,7 +90,7 @@ typedef enum tk_token {
     TK_ANDEQ,               //  * &=
     TK_OREQ,                //  * |=
     TK_XOREQ,               //  * ^=
-    TK_EXPEQ,               //  * **=
+    TK_POWEQ,               //  * **=
     TK_LSHEQ,               //  * <<=
     TK_RSHEQ,               //  * >>=
     TK_LANDEQ,              //  * &&=
@@ -115,7 +115,7 @@ typedef enum tk_token {
     TK_OR,                  //  * |
     TK_XOR,                 //  * ^
     TK_QES,                 //  * ?
-    TK_EXP,                 //  * **
+    TK_POW,                 //  * **
     TK_LSH,                 //  * <<
     TK_RSH,                 //  * >>
     TK_LAND,                //  * &&
@@ -211,6 +211,7 @@ typedef enum kl_kir {
     KIR_MUL,        //  <r1>, <r2>, <r3>        ;   <r1>  <-  <r2> * <r3>
     KIR_DIV,        //  <r1>, <r2>, <r3>        ;   <r1>  <-  <r2> / <r3>
     KIR_MOD,        //  <r1>, <r2>, <r3>        ;   <r1>  <-  <r2> % <r3>
+    KIR_POW,        //  <r1>, <r2>, <r3>        ;   <r1>  <-  <r2> ** <r3>
 
     KIR_EQEQ,       //  <r1>, <r2>, <r3>        ;   <r1>  <-  <r2> == <r3>
     KIR_NEQ,        //  <r1>, <r2>, <r3>        ;   <r1>  <-  <r2> != <r3>
@@ -233,7 +234,21 @@ typedef enum kl_kir {
     KIR_APLY,       //  <r1>, <r2>, <str>       ;   <r1>  <-  <r2>.<str>
     KIR_APLYL,      //  <r1>, <r2>, <str>       ;   <r1>  <-  &<r2>.<str>
 
+    KIR_TYPE,       //  <r1>, <r2>, n           ;   <r1>  <-  true if <r2> type == n
 } kl_kir;
+
+/* These should be the same as the one in the template/header.h */
+typedef enum vartype {
+    VAR_UNDEF = 0x00,
+    VAR_INT64,
+    VAR_BIG,
+    VAR_DBL,
+    VAR_STR,
+    VAR_BIN,
+    VAR_OBJ,
+    VAR_FNC,
+    VAR_VOIDP,
+} vartype;
 
 typedef struct kl_kir_opr {
     int t;                      //  The type of this value.

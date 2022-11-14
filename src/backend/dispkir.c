@@ -200,6 +200,9 @@ void disp_inst(kl_kir_program *p, kl_kir_inst *i)
     case KIR_MOD:
         disp_3op("mod", i);
         break;
+    case KIR_POW:
+        disp_3op("pow", i);
+        break;
 
     case KIR_EQEQ:
         disp_3op("eqeq", i);
@@ -256,6 +259,10 @@ void disp_inst(kl_kir_program *p, kl_kir_inst *i)
         break;
     case KIR_APLYL:
         disp_3op("applyl", i);
+        break;
+
+    case KIR_TYPE:
+        disp_3op("type", i);
         break;
     }
 }

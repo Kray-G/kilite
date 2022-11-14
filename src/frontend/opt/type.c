@@ -2,6 +2,7 @@
 
 typedef struct type_context {
     int errors;
+    int error_stdout;
     int in_native;
 } type_context;
 
@@ -10,7 +11,7 @@ static int type_error(type_context *tc, const char *phase, int line, int pos, in
     tc->errors++;
     va_list ap;
     va_start(ap, fmt);
-    int r = error_print(phase, line, pos, len, fmt, ap);
+    int r = error_print(tc->error_stdout, phase, line, pos, len, fmt, ap);
     va_end(ap);
     return r;
 }
@@ -82,7 +83,7 @@ static void type_program(kl_context *ctx, type_context *tc, kl_stmt *s)
 
 void update_ast_type(kl_context *ctx)
 {
-    type_context tc = { .in_native = 0 };
+    type_context tc = { .in_native = 0, .error_stdout = (ctx->options & PARSER_OPT_ERR_STDOUT) == PARSER_OPT_ERR_STDOUT };
     type_program(ctx, &tc, ctx->head);
 }
 
@@ -170,7 +171,7 @@ static int check_pure(tk_token tk)
     case TK_ANDEQ: /* 1 */
     case TK_OREQ: /* 1 */
     case TK_XOREQ: /* 1 */
-    case TK_EXPEQ: /* 1 */
+    case TK_POWEQ: /* 1 */
     case TK_LSHEQ: /* 1 */
     case TK_RSHEQ: /* 1 */
     case TK_LANDEQ: /* 1 */
@@ -203,7 +204,7 @@ static int check_pure(tk_token tk)
     case TK_OR: /* 1 */
     case TK_XOR: /* 1 */
     case TK_QES: /* 1 */
-    case TK_EXP: /* 1 */
+    case TK_POW: /* 1 */
     case TK_LSH: /* 1 */
     case TK_RSH: /* 1 */
     case TK_LAND: /* 1 */

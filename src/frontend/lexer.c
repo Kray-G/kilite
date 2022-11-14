@@ -247,12 +247,12 @@ static const char *tkname[] = {
     return tok1;\
     /**/
 
-static int lexer_error(const char *phase, kl_lexer *l, int line, int pos, int len, const char *fmt, ...)
+static int lexer_error(kl_lexer *l, int line, int pos, int len, const char *fmt, ...)
 {
     l->errors++;
     va_list ap;
     va_start(ap, fmt);
-    int r = error_print(phase, line, pos, len, fmt, ap);
+    int r = error_print(l->error_stdout, l->filename, line, pos, len, fmt, ap);
     va_end(ap);
     return r;
 }
@@ -415,6 +415,7 @@ static inline int check_keyword(kl_lexer *l)
     case 'd':
         if (strcmp(l->str, "default") == 0) return TK_DEFAULT;
         if (strcmp(l->str, "do") == 0) return TK_DO;
+        if (strcmp(l->str, "dbl") == 0) return set_type(l, TK_TYPEID, TK_TDBL);
         break;
     case 'e':
         if (strcmp(l->str, "else") == 0) return TK_ELSE;
@@ -661,7 +662,7 @@ static inline int append_unicode(char *buf, int i, int max, kl_lexer *l)
         lexer_getch(l);
         while (i < 16 && l->ch != '}' && l->ch != EOF) {
             if (!isxdigit(l->ch)) {
-                lexer_error("Compile", l, l->line, l->pos - 2, 5, "invalid code point");
+                lexer_error(l, l->line, l->pos - 2, 5, "invalid code point");
                 lexer_getch(l);
                 return i;
             }
@@ -672,26 +673,26 @@ static inline int append_unicode(char *buf, int i, int max, kl_lexer *l)
     } else {
         const int pos = 3, len = 6;
         if (!isxdigit(c1)) {
-            lexer_error("Compile", l, l->line, l->pos - (pos + 0), len, "invalid unicode number");
+            lexer_error(l, l->line, l->pos - (pos + 0), len, "invalid unicode number");
             lexer_getch(l);
             return i;
         }
         lexer_getch(l);
         c2 = l->ch;
         if (!isxdigit(c2)) {
-            lexer_error("Compile", l, l->line, l->pos - (pos + 1), len, "invalid unicode number");
+            lexer_error(l, l->line, l->pos - (pos + 1), len, "invalid unicode number");
             return i;
         }
         lexer_getch(l);
         c3 = l->ch;
         if (!isxdigit(c3)) {
-            lexer_error("Compile", l, l->line, l->pos - (pos + 3), len, "invalid unicode number");
+            lexer_error(l, l->line, l->pos - (pos + 3), len, "invalid unicode number");
             return i;
         }
         lexer_getch(l);
         c4 = l->ch;
         if (!isxdigit(c4)) {
-            lexer_error("Compile", l, l->line, l->pos - (pos + 4), len, "invalid unicode number");
+            lexer_error(l, l->line, l->pos - (pos + 4), len, "invalid unicode number");
             return i;
         }
         char b[] = { c1, c2, c3, c4, 0 };
@@ -700,36 +701,36 @@ static inline int append_unicode(char *buf, int i, int max, kl_lexer *l)
             const int pos = 7, len = 6;
             lexer_getch(l);
             if (l->ch != '\\') {
-                lexer_error("Compile", l, l->line, l->pos - (pos + 0), len + 0, "invalid surrogate pair number");
+                lexer_error(l, l->line, l->pos - (pos + 0), len + 0, "invalid surrogate pair number");
                 return i;
             }
             lexer_getch(l);
             if (l->ch != 'u') {
-                lexer_error("Compile", l, l->line, l->pos - (pos + 1), len + 1, "invalid surrogate pair number");
+                lexer_error(l, l->line, l->pos - (pos + 1), len + 1, "invalid surrogate pair number");
                 return i;
             }
             lexer_getch(l);
             c1 = l->ch;
             if (!isxdigit(c1)) {
-                lexer_error("Compile", l, l->line, l->pos - (pos + 2), len + 3, "invalid surrogate pair number");
+                lexer_error(l, l->line, l->pos - (pos + 2), len + 3, "invalid surrogate pair number");
                 return i;
             }
             lexer_getch(l);
             c2 = l->ch;
             if (!isxdigit(c2)) {
-                lexer_error("Compile", l, l->line, l->pos - (pos + 3), len + 4, "invalid surrogate pair number");
+                lexer_error(l, l->line, l->pos - (pos + 3), len + 4, "invalid surrogate pair number");
                 return i;
             }
             lexer_getch(l);
             c3 = l->ch;
             if (!isxdigit(c3)) {
-                lexer_error("Compile", l, l->line, l->pos - (pos + 4), len + 5, "invalid surrogate pair number");
+                lexer_error(l, l->line, l->pos - (pos + 4), len + 5, "invalid surrogate pair number");
                 return i;
             }
             lexer_getch(l);
             c4 = l->ch;
             if (!isxdigit(c4)) {
-                lexer_error("Compile", l, l->line, l->pos - (pos + 5), len + 6, "invalid surrogate pair number");
+                lexer_error(l, l->line, l->pos - (pos + 5), len + 6, "invalid surrogate pair number");
                 return i;
             }
             char b[] = { c1, c2, c3, c4, 0 };
@@ -774,14 +775,14 @@ static inline int translate_escape(kl_lexer *l)
         lexer_getch(l);
         c1 = l->ch;
         if (!isodigit(c1)) {
-            lexer_error("Compile", l, l->line, l->pos - 2, 3, "invalid octal number");
+            lexer_error(l, l->line, l->pos - 2, 3, "invalid octal number");
             lexer_getch(l);
             return 0;
         }
         lexer_getch(l);
         c2 = l->ch;
         if (!isodigit(c2)) {
-            lexer_error("Compile", l, l->line, l->pos - 3, 3, "invalid octal number");
+            lexer_error(l, l->line, l->pos - 3, 3, "invalid octal number");
             return 0;
         }
         char b[] = { '0', c1, c2, 0 };
@@ -792,14 +793,14 @@ static inline int translate_escape(kl_lexer *l)
         lexer_getch(l);
         c1 = l->ch;
         if (!isxdigit(c1)) {
-            lexer_error("Compile", l, l->line, l->pos - 2, 3, "invalid hexadecimal number");
+            lexer_error(l, l->line, l->pos - 2, 3, "invalid hexadecimal number");
             lexer_getch(l);
             return 0;
         }
         lexer_getch(l);
         c2 = l->ch;
         if (!isxdigit(c2)) {
-            lexer_error("Compile", l, l->line, l->pos - 3, 3, "invalid hexadecimal number");
+            lexer_error(l, l->line, l->pos - 3, 3, "invalid hexadecimal number");
             return 0;
         }
         char b[] = { c1, c2, 0 };
@@ -908,7 +909,7 @@ static tk_token lexer_fetch_token(kl_lexer *l)
     case '-':
         LEXER_CHECK_12_13_TOK('=', '-', TK_SUB, TK_SUBEQ, TK_DEC)
     case '*':
-        LEXER_CHECK_12_13_123_TOK('*', '=', TK_MUL, TK_EXP, TK_MULEQ, TK_EXPEQ)
+        LEXER_CHECK_12_13_123_TOK('*', '=', TK_MUL, TK_POW, TK_MULEQ, TK_POWEQ)
     case '/':
         LEXER_CHECK_12_13_14_TOK('=', '*', '/', TK_DIV, TK_DIVEQ, TK_COMMENTX, TK_COMMENT1)
     case '%':
@@ -975,6 +976,7 @@ static tk_token lexer_fetch_token(kl_lexer *l)
         return TK_EOF;
     }
 
+    lexer_getch(l);
     return TK_UNKNOWN;
 }
 

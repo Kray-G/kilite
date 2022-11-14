@@ -1294,6 +1294,81 @@ enum {
 } \
 /**/
 
+/* POW */
+
+#define OP_NPOW_I_I(e, n, r, ip0, ip1, label) { \
+    (r) = 1; \
+    for (int i = 0; i < ip1; ++i) { \
+        OP_NMUL_I_I(e, n, r, r, ip0, label); \
+    } \
+} \
+/**/
+
+#define OP_POW_I_I(ctx, r, ip0, ip1) { \
+    (r)->t = VAR_INT64; \
+    (r)->i = 1; \
+    for (int i = 0; i < ip1; ++i) { \
+        OP_MUL_V_I(ctx, (r), (r), (ip0)); \
+    } \
+} \
+/**/
+
+#define OP_POW_B_I(ctx, r, vp0, ip1) { \
+    BigZ rx = BzPow((vp0)->bi->b, ip1); \
+    (r)->t = VAR_BIG; \
+    (r)->bi = alcbgi_bigz(ctx, rx); \
+    bi_normalize(r); \
+} \
+/**/
+
+#define OP_POW_I_B(ctx, r, i0, v1) { \
+    e = throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION); \
+} \
+/**/
+
+#define OP_POW_V_I(ctx, r, vp0, ip1) { \
+    if ((vp0)->t == VAR_INT64) { \
+        int64_t ip0 = (vp0)->i; \
+        OP_POW_I_I(ctx, r, ip0, ip1) \
+    } else if ((vp0)->t == VAR_BIG) { \
+        OP_POW_B_I(ctx, r, vp0, ip1) \
+    } else { \
+        e = pow_v_i(ctx, r, vp0, ip1); \
+    } \
+} \
+/**/
+
+#define OP_POW_I_V(ctx, r, ip0, vp1) { \
+    if ((vp1)->t == VAR_INT64) { \
+        int64_t ip1 = (vp1)->i; \
+        OP_POW_I_I(ctx, r, ip0, ip1) \
+    } else if ((vp1)->t == VAR_BIG) { \
+        OP_POW_I_B(ctx, r, ip0, vp1) \
+    } else { \
+        e = pow_i_v(ctx, r, ip0, vp1); \
+    } \
+} \
+/**/
+
+#define OP_POW(ctx, r, vp0, vp1) { \
+    if ((vp0)->t == VAR_INT64) { \
+        int64_t ip0 = (vp0)->i; \
+        OP_POW_I_V(ctx, r, ip0, vp1) \
+    } else if ((vp0)->t == VAR_BIG) { \
+        if ((vp1)->t = VAR_INT64) { \
+            int64_t ip1 = (vp1)->i; \
+            OP_POW_B_I(ctx, r, vp0, ip1) \
+        } else if ((vp1)->t = VAR_BIG) { \
+            e = throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION); \
+        } else { \
+            e = pow_v_v(ctx, r, vp0, vp1); \
+        } \
+    } else { \
+        e = pow_v_v(ctx, r, vp0, vp1); \
+    } \
+} \
+/**/
+
 /* EQEQ */
 
 #define OP_EQEQ_I_I(ctx, r, i0, i1) { \

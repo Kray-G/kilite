@@ -26,6 +26,7 @@ typedef struct kl_argopts {
     int in_stdin;
     int out_src;
     int disable_pure;
+    int error_stdout;
     int print_result;
     int verbose;
     const char *ext;
@@ -53,6 +54,7 @@ static void usage(void)
     printf("    --stdout        Change the distination of the output to stdout.\n");
     printf("    --verbose       Show some infrmation when running.\n");
     printf("    --disable-pure  Disable the code optimization for a pure function.\n");
+    printf("    --error-stdout  Output error messages to stdout instead of stderr.\n");
     printf("    --ext <ext>     Change the extension of the output file.\n");
 }
 
@@ -72,6 +74,8 @@ static int parse_long_options(int ac, char **av, int i, kl_argopts *opts)
         opts->out_stdout = 1;
     } else if (strcmp(av[i], "--disable-pure") == 0) {
         opts->disable_pure = 1;
+    } else if (strcmp(av[i], "--error-stdout") == 0) {
+        opts->error_stdout = 1;
     } else if (strcmp(av[i], "--verbose") == 0) {
         opts->verbose = 1;
     } else if (strncmp(av[i], "--ext", 5) == 0) {
@@ -159,8 +163,13 @@ int main(int ac, char **av)
 
     kl_lexer *l = lexer_new_file(opts.in_stdin ? NULL : opts.file);
     kl_context *ctx = parser_new_context();
+    l->filename = ctx->filename = opts.file ? opts.file : "stdin";
     if (opts.disable_pure) {
         ctx->options |= PARSER_OPT_DISABLE_PURE;
+    }
+    if (opts.error_stdout) {
+        l->error_stdout = 1;
+        ctx->options |= PARSER_OPT_ERR_STDOUT;
     }
 
     int r = parse(ctx, l);

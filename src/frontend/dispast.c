@@ -231,7 +231,7 @@ static void disp_expr(kl_expr *e, int indent)
     case TK_ANDEQ:
     case TK_OREQ:
     case TK_XOREQ:
-    case TK_EXPEQ:
+    case TK_POWEQ:
     case TK_LSHEQ:
     case TK_RSHEQ:
     case TK_LANDEQ:
@@ -253,7 +253,7 @@ static void disp_expr(kl_expr *e, int indent)
     case TK_AND:
     case TK_OR:
     case TK_XOR:
-    case TK_EXP:
+    case TK_POW:
     case TK_LSH:
     case TK_RSH:
     case TK_LAND:

@@ -27,6 +27,7 @@ typedef struct kl_symbol {
     int is_callable;                //  The callable symbol, which is like TK_FUNC, TK_CLASS, or something.
     int is_recursive;               //  This reference symbol could be recursive call. ref->is_callable should be 1.
     int is_dot3;                    //  The variable is written with the 3 dots.
+    int assigned;                   //  The count of assignment to this variable.
     int level;                      //  The level of lexical scope, which means a distance from the scope having the 'ref' symbol.
     int index;                      //  The index of this symbol.
     int count;                      //  Variable counter in this scope.
@@ -101,6 +102,7 @@ typedef struct kl_stmt {
 } kl_stmt;
 
 typedef struct kl_context {
+    const char *filename;           //  The filename to be parsed.
     int errors;                     //  Total error count.
     int error_limit;                //  If the error count exceeds this value, stop parsing and exit the program.
     int options;                    //  Options for parser.
@@ -133,5 +135,6 @@ extern void free_context(kl_context *ctx);
 
 #define PARSER_OPT_PHASE        (0x01)
 #define PARSER_OPT_DISABLE_PURE (0x02)
+#define PARSER_OPT_ERR_STDOUT   (0x04)
 
 #endif /* KILITE_PARSER_H */

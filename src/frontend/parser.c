@@ -17,16 +17,16 @@ static kl_expr *parse_anonymous_function(kl_context *ctx, kl_lexer *l);
 if ((ctx->options & PARSER_OPT_PHASE) == PARSER_OPT_PHASE) printf("[parser] %s\n", __func__);\
 /**/
 
-static int parse_error(kl_context *ctx, int sline, const char *phase, kl_lexer *l, const char *fmt, ...)
+static int parse_error(kl_context *ctx, int sline, kl_lexer *l, const char *fmt, ...)
 {
-    fprintf(stderr, "%d: ", sline);
+    // fprintf(stderr, "%d: ", sline);
     int line = l->tokline;
     int pos = l->tokpos;
     int len = l->toklen;
     ctx->errors++;
     va_list ap;
     va_start(ap, fmt);
-    int r = error_print(phase, line, pos, len, fmt, ap);
+    int r = error_print((ctx->options & PARSER_OPT_ERR_STDOUT) == PARSER_OPT_ERR_STDOUT, ctx->filename, line, pos, len, fmt, ap);
     va_end(ap);
 
     if (ctx->error_limit < ctx->errors) {
@@ -114,7 +114,7 @@ static char *make_func_name(kl_context *ctx, kl_lexer *l, const char *str, int i
     int pos = 0;
     int len = strlen(str);
     if (pos + len > 1016) {
-        parse_error(ctx, __LINE__, "Compile", l, "Internal error with allocation failed.");
+        parse_error(ctx, __LINE__, l, "Internal error with allocation failed");
     } else {
         kl_nsstack *n = ctx->ns;
         strcpy(buf + pos, str);
@@ -130,7 +130,7 @@ static char *make_func_name(kl_context *ctx, kl_lexer *l, const char *str, int i
             buf[pos++] = '_';
             int len = strlen(n->name);
             if (pos + len + 3 > 1016) {
-                parse_error(ctx, __LINE__, "Compile", l, "Internal error with allocation failed.");
+                parse_error(ctx, __LINE__, l, "Internal error with allocation failed");
                 break;
             }
             strcpy(buf + pos, n->name);
@@ -279,7 +279,7 @@ static inline kl_symbol *make_ref_symbol(kl_context *ctx, kl_lexer *l, tk_token 
     }
 
     // l->toklen = strlen(name);
-    parse_error(ctx, __LINE__, "Compile", l, "The symbol(%s) not found.", name);
+    parse_error(ctx, __LINE__, l, "The symbol(%s) not found", name);
     return sym;
 }
 
@@ -496,7 +496,7 @@ static void check_symbol(kl_context *ctx, kl_lexer *l, const char *name)
 {
     kl_symbol *chk = search_symbol_in_scope(ctx, l, ctx->ns, name);
     if (chk) {
-        parse_error(ctx, __LINE__, "Compile", l, "The symbol(%s) was already declared in this scope.", chk->name);
+        parse_error(ctx, __LINE__, l, "The symbol(%s) was already declared in this scope", chk->name);
     }
 }
 
@@ -539,7 +539,7 @@ static kl_expr *parse_expr_keyvalue(kl_context *ctx, kl_lexer *l)
             e = make_bin_expr(ctx, l, TK_COMMA, e, e2);
         } else {
             if (tok != TK_NAME) {
-                parse_error(ctx, __LINE__, "Compile", l, "The ':' is missing in key value.");
+                parse_error(ctx, __LINE__, l, "The ':' is missing in key value");
                 return panic_mode_expr(e, ';', ctx, l);
             }
             kl_expr *e3 = parse_expr_varname(ctx, l, name, ctx->in_lvalue);
@@ -617,7 +617,7 @@ static kl_expr *parse_lvalue_factor(kl_context *ctx, kl_lexer *l)
         lexer_fetch(l);
         if (l->tok == TK_AND || l->tok == TK_DARROW) {
             if (ctx->in_lvalue) {
-                parse_error(ctx, __LINE__, "Compile", l, "The block function can't be the l-value.");
+                parse_error(ctx, __LINE__, l, "The block function can't be the l-value");
             }
             return parse_block_function(ctx, l);
         }
@@ -625,7 +625,7 @@ static kl_expr *parse_lvalue_factor(kl_context *ctx, kl_lexer *l)
         if (l->tok != TK_RXBR) {
             e->lhs = parse_expr_keyvalue(ctx, l);
             if (l->tok != TK_RXBR) {
-                parse_error(ctx, __LINE__, "Compile", l, "The '}' is missing.");
+                parse_error(ctx, __LINE__, l, "The '}' is missing");
             }
         }
         lexer_fetch(l);
@@ -636,7 +636,7 @@ static kl_expr *parse_lvalue_factor(kl_context *ctx, kl_lexer *l)
         if (l->tok != TK_RLBR) {
             e->lhs = parse_expr_arrayitem(ctx, l);
             if (l->tok != TK_RLBR) {
-                parse_error(ctx, __LINE__, "Compile", l, "The ']' is missing.");
+                parse_error(ctx, __LINE__, l, "The ']' is missing");
             }
         }
         lexer_fetch(l);
@@ -645,14 +645,14 @@ static kl_expr *parse_lvalue_factor(kl_context *ctx, kl_lexer *l)
         lexer_fetch(l);
         e = parse_expression(ctx, l);
         if (l->tok != TK_RSBR) {
-            parse_error(ctx, __LINE__, "Compile", l, "The ')' is missing.");
+            parse_error(ctx, __LINE__, l, "The ')' is missing");
         }
         lexer_fetch(l);
         while (l->tok == TK_LSBR && e->nodetype == TK_VSTR) {
             lexer_fetch(l);
             kl_expr *e2 = parse_expression(ctx, l);
             if (l->tok != TK_RSBR) {
-                parse_error(ctx, __LINE__, "Compile", l, "The ')' is missing.");
+                parse_error(ctx, __LINE__, l, "The ')' is missing");
             }
             e = make_bin_expr(ctx, l, TK_ADD, e, e2);
             lexer_fetch(l);
@@ -697,7 +697,7 @@ static kl_expr *parse_expr_factor(kl_context *ctx, kl_lexer *l)
         lexer_fetch(l);
         e->lhs = parse_expr_list(ctx, l, TK_BINEND);
         if (l->tok != TK_BINEND) {
-            parse_error(ctx, __LINE__, "Compile", l, "The '>' is missing.");
+            parse_error(ctx, __LINE__, l, "The '>' is missing");
         }
         l->binmode = 0;
         lexer_fetch(l);
@@ -731,7 +731,7 @@ static kl_expr *parse_expr_factor(kl_context *ctx, kl_lexer *l)
         e = parse_anonymous_function(ctx, l);
         break;
     default:
-        parse_error(ctx, __LINE__, "Compile", l, "Found the unknown factor in an expression.");
+        parse_error(ctx, __LINE__, l, "Found the unknown factor in an expression");
     }
 
     return e;
@@ -752,7 +752,7 @@ static kl_expr *parse_expr_list(kl_context *ctx, kl_lexer *l, int endch)
         if (l->tok == TK_COMMA) {
             lexer_fetch(l);
         } else if (l->tok == TK_SEMICOLON) {
-            parse_error(ctx, __LINE__, "Compile", l, "Unexpected ';' was found.");
+            parse_error(ctx, __LINE__, l, "Unexpected ';' was found");
             break;
         }
     }
@@ -782,7 +782,7 @@ static kl_expr *parse_expr_postfix(kl_context *ctx, kl_lexer *l)
             lhs = make_bin_expr(ctx, l, TK_CALL, lhs, rhs);
             lhs->typeid = tid;
             if (l->tok != TK_RSBR) {
-                parse_error(ctx, __LINE__, "Compile", l, "The ')' is missing.");
+                parse_error(ctx, __LINE__, l, "The ')' is missing");
                 return panic_mode_expr(lhs, ';', ctx, l);
             }
             lexer_fetch(l);
@@ -792,7 +792,7 @@ static kl_expr *parse_expr_postfix(kl_context *ctx, kl_lexer *l)
             kl_expr *rhs = parse_expression(ctx, l);
             lhs = make_bin_expr(ctx, l, TK_IDX, lhs, rhs);
             if (l->tok != TK_RLBR) {
-                parse_error(ctx, __LINE__, "Compile", l, "The ']' is missing.");
+                parse_error(ctx, __LINE__, l, "The ']' is missing");
                 return panic_mode_expr(lhs, ';', ctx, l);
             }
             lexer_fetch(l);
@@ -801,7 +801,7 @@ static kl_expr *parse_expr_postfix(kl_context *ctx, kl_lexer *l)
             lexer_fetch(l);
             const char *name = (l->tok == TK_TYPEID) ? typeidname(l->typeid) : l->str;
             if (!name || name[0] == 0) {
-                parse_error(ctx, __LINE__, "Compile", l, "Property name is needed.");
+                parse_error(ctx, __LINE__, l, "Property name is needed");
                 return panic_mode_expr(lhs, ';', ctx, l);
             }
             kl_expr *rhs = make_expr(ctx, l, TK_VSTR);
@@ -825,7 +825,7 @@ static kl_expr *parse_expr_prefix(kl_context *ctx, kl_lexer *l)
         lexer_fetch(l);
         lhs = parse_expr_postfix(ctx, l);
         if (lhs->nodetype != TK_CALL) {
-            parse_error(ctx, __LINE__, "Compile", l, "The operator new should be used with a function call.");
+            parse_error(ctx, __LINE__, l, "The operator new should be used with a function call");
             return panic_mode_expr(lhs, ';', ctx, l);
         }
         lhs->lhs = make_bin_expr(ctx, l, TK_DOT, lhs->lhs, make_str_expr(ctx, l, "create"));
@@ -870,7 +870,7 @@ static kl_expr *parse_expr_term(kl_context *ctx, kl_lexer *l)
     DEBUG_PARSER_PHASE();
     kl_expr *lhs = parse_expr_prefix(ctx, l);
     tk_token tok = l->tok;
-    while (tok == TK_MUL || tok == TK_DIV || tok == TK_MOD || tok == TK_EXP) {
+    while (tok == TK_MUL || tok == TK_DIV || tok == TK_MOD || tok == TK_POW) {
         lexer_fetch(l);
         kl_expr *rhs = parse_expr_prefix(ctx, l);
         lhs = make_bin_expr(ctx, l, tok, lhs, rhs);
@@ -1015,7 +1015,7 @@ static kl_expr *parse_expr_ternary(kl_context *ctx, kl_lexer *l)
         kl_expr *rhs = parse_expr_logical_or(ctx, l);
         lhs = make_bin_expr(ctx, l, tok, lhs, rhs);
         if (l->tok != TK_COLON) {
-            parse_error(ctx, __LINE__, "Compile", l, "The ':' is missing in ternary expression.");
+            parse_error(ctx, __LINE__, l, "The ':' is missing in ternary expression");
             return panic_mode_expr(lhs, ';', ctx, l);
         }
         lexer_fetch(l);
@@ -1032,6 +1032,13 @@ static kl_expr *parse_expr_assignment(kl_context *ctx, kl_lexer *l)
     if (TK_EQ <= tok && tok <= TK_LOREQ) {
         lexer_fetch(l);
         kl_expr *rhs = parse_expr_assignment(ctx, l);   // Right recursion.
+        if (lhs->nodetype == TK_VAR && lhs->sym) {
+            kl_symbol *v = lhs->sym->ref ? lhs->sym->ref : lhs->sym;
+            v->assigned++;
+            if (v->is_const && v->assigned > 1) {
+                parse_error(ctx, __LINE__, l, "Can not assign a value to the 'const' variable");
+            }
+        }
         lhs = make_bin_expr(ctx, l, tok, lhs, rhs);
     }
     return lhs;
@@ -1057,7 +1064,7 @@ static kl_stmt *parse_expression_stmt(kl_context *ctx, kl_lexer *l)
     kl_stmt *s = make_stmt(ctx, l, TK_EXPR);
     s->e1 = parse_expression(ctx, l);
     if (l->tok != TK_SEMICOLON) {
-        parse_error(ctx, __LINE__, "Compile", l, "The ';' is missing.");
+        parse_error(ctx, __LINE__, l, "The ';' is missing");
         return panic_mode_exprstmt(s, ';', ctx, l);
     }
     lexer_fetch(l);
@@ -1068,7 +1075,7 @@ static kl_expr *parse_type(kl_context *ctx, kl_lexer *l)
 {
     kl_expr *e = NULL;
     if (l->tok != TK_LSBR) {
-        parse_error(ctx, __LINE__, "Compile", l, "No type name after ':' in argument.");
+        parse_error(ctx, __LINE__, l, "No type name after ':' in argument");
         return panic_mode_expr(make_expr(ctx, l, TK_TYPENODE), ';', ctx, l);
     }
     lexer_fetch(l);
@@ -1196,7 +1203,7 @@ static kl_expr *parse_def_arglist(kl_context *ctx, kl_lexer *l, kl_symbol *func)
                 if (l->tok != TK_RXBR) {
                     e1->lhs = parse_expr_keyvalue(ctx, l);
                     if (l->tok != TK_RXBR) {
-                        parse_error(ctx, __LINE__, "Compile", l, "The '}' is missing.");
+                        parse_error(ctx, __LINE__, l, "The '}' is missing");
                     }
                     lexer_fetch(l);
                 }
@@ -1207,18 +1214,17 @@ static kl_expr *parse_def_arglist(kl_context *ctx, kl_lexer *l, kl_symbol *func)
                 if (l->tok != TK_RLBR) {
                     e1->lhs = parse_expr_arrayitem(ctx, l);
                     if (l->tok != TK_RLBR) {
-                        parse_error(ctx, __LINE__, "Compile", l, "The ']' is missing.");
+                        parse_error(ctx, __LINE__, l, "The ']' is missing");
                     }
                     lexer_fetch(l);
                 }
                 e = make_bin_expr(ctx, l, TK_COMMA, e, e1);
             } else {
-                parse_error(ctx, __LINE__, "Compile", l, "Invalid argument.");
+                parse_error(ctx, __LINE__, l, "Invalid argument");
             }
         }
         if (dot3 && l->tok != TK_RSBR) {
-printf("tok = %s\n", tokenname(l->tok));
-            parse_error(ctx, __LINE__, "Compile", l, "The 3 dots are being used at not the last argument.");
+            parse_error(ctx, __LINE__, l, "The 3 dots are being used at not the last argument");
         }
     } while (l->tok == TK_COMMA);
     return e;
@@ -1230,13 +1236,13 @@ static kl_stmt *parse_if(kl_context *ctx, kl_lexer *l)
     kl_stmt *s = make_stmt(ctx, l, TK_IF);
 
     if (l->tok != TK_LSBR) {
-        parse_error(ctx, __LINE__, "Compile", l, "The '(' is missing.");
+        parse_error(ctx, __LINE__, l, "The '(' is missing");
         return s;
     }
     lexer_fetch(l);
     s->e1 = parse_expression(ctx, l);
     if (l->tok != TK_RSBR) {
-        parse_error(ctx, __LINE__, "Compile", l, "The ')' is missing.");
+        parse_error(ctx, __LINE__, l, "The ')' is missing");
         return s;
     }
     lexer_fetch(l);
@@ -1259,13 +1265,13 @@ static kl_stmt *parse_while(kl_context *ctx, kl_lexer *l)
     kl_stmt *s = make_stmt(ctx, l, TK_WHILE);
 
     if (l->tok != TK_LSBR) {
-        parse_error(ctx, __LINE__, "Compile", l, "The '(' is missing.");
+        parse_error(ctx, __LINE__, l, "The '(' is missing");
         return s;
     }
     lexer_fetch(l);
     s->e1 = parse_expression(ctx, l);
     if (l->tok != TK_RSBR) {
-        parse_error(ctx, __LINE__, "Compile", l, "The ')' is missing.");
+        parse_error(ctx, __LINE__, l, "The ')' is missing");
         return s;
     }
     lexer_fetch(l);
@@ -1284,24 +1290,24 @@ static kl_stmt *parse_dowhile(kl_context *ctx, kl_lexer *l)
     s->s1 = parse_statement(ctx, l);
 
     if (l->tok != TK_WHILE) {
-        parse_error(ctx, __LINE__, "Compile", l, "'while' is missing at the end of 'do' block.");
+        parse_error(ctx, __LINE__, l, "'while' is missing at the end of 'do' block");
         return s;
     }
     lexer_fetch(l);
 
     if (l->tok != TK_LSBR) {
-        parse_error(ctx, __LINE__, "Compile", l, "The '(' is missing.");
+        parse_error(ctx, __LINE__, l, "The '(' is missing");
         return s;
     }
     lexer_fetch(l);
     s->e1 = parse_expression(ctx, l);
     if (l->tok != TK_RSBR) {
-        parse_error(ctx, __LINE__, "Compile", l, "The ')' is missing.");
+        parse_error(ctx, __LINE__, l, "The ')' is missing");
         return s;
     }
     lexer_fetch(l);
     if (l->tok != TK_SEMICOLON) {
-        parse_error(ctx, __LINE__, "Compile", l, "The ';' is missing.");
+        parse_error(ctx, __LINE__, l, "The ';' is missing");
         return panic_mode_exprstmt(s, ';', ctx, l);
     }
     lexer_fetch(l);
@@ -1315,7 +1321,7 @@ static kl_stmt *parse_for(kl_context *ctx, kl_lexer *l)
     kl_stmt *s = make_stmt(ctx, l, TK_FOR);
 
     if (l->tok != TK_LSBR) {
-        parse_error(ctx, __LINE__, "Compile", l, "The '(' is missing.");
+        parse_error(ctx, __LINE__, l, "The '(' is missing");
         return s;
     }
 
@@ -1353,7 +1359,7 @@ static kl_stmt *parse_for(kl_context *ctx, kl_lexer *l)
     }
 
     if (l->tok != TK_RSBR) {
-        parse_error(ctx, __LINE__, "Compile", l, "The ')' is missing.");
+        parse_error(ctx, __LINE__, l, "The ')' is missing");
     } else {
         /* then part */
         lexer_fetch(l);
@@ -1370,7 +1376,7 @@ static kl_expr *parse_decl_expr(kl_context *ctx, kl_lexer *l, int is_const)
     kl_expr *e1 = NULL;
 
     if (l->tok != TK_NAME) {
-        parse_error(ctx, __LINE__, "Compile", l, "The symbol name is needed in declaration.");
+        parse_error(ctx, __LINE__, l, "The symbol name is needed in declaration");
     }
 
     while (l->tok == TK_NAME || l->tok == TK_LLBR || l->tok == TK_LXBR) {
@@ -1398,6 +1404,7 @@ static kl_expr *parse_decl_expr(kl_context *ctx, kl_lexer *l, int is_const)
 
         if (l->tok == TK_EQ) {
             lexer_fetch(l);
+            lhs->sym->assigned = 1;
             kl_expr *rhs = parse_expr_assignment(ctx, l);
             lhs->typeid = rhs->typeid;
             if (lhs->sym) lhs->sym->typeid = rhs->typeid;
@@ -1410,7 +1417,7 @@ static kl_expr *parse_decl_expr(kl_context *ctx, kl_lexer *l, int is_const)
         }
         lexer_fetch(l);
         if (l->tok != TK_NAME) {
-            parse_error(ctx, __LINE__, "Compile", l, "The symbol name is needed in declaration.");
+            parse_error(ctx, __LINE__, l, "The symbol name is needed in declaration");
         }
     }
 
@@ -1423,7 +1430,7 @@ static kl_stmt *parse_declaration(kl_context *ctx, kl_lexer *l, int decltype)
 
     s->e1 = parse_decl_expr(ctx, l, decltype == TK_CONST);
     if (l->tok != TK_SEMICOLON) {
-        parse_error(ctx, __LINE__, "Compile", l, "The ';' is missing.");
+        parse_error(ctx, __LINE__, l, "The ';' is missing");
         return panic_mode_exprstmt(s, ';', ctx, l);
     }
     lexer_fetch(l);
@@ -1438,7 +1445,7 @@ static kl_stmt *parse_return(kl_context *ctx, kl_lexer *l)
         s->e1 = parse_expression(ctx, l);
     }
     if (l->tok != TK_SEMICOLON) {
-        parse_error(ctx, __LINE__, "Compile", l, "The ';' is missing.");
+        parse_error(ctx, __LINE__, l, "The ';' is missing");
         return panic_mode_exprstmt(s, ';', ctx, l);
     }
     lexer_fetch(l);
@@ -1465,7 +1472,7 @@ static kl_stmt *parse_class(kl_context *ctx, kl_lexer *l)
 
     /* The name is needed */
     if (l->tok != TK_NAME) {
-        parse_error(ctx, __LINE__, "Compile", l, "Class name is missing.");
+        parse_error(ctx, __LINE__, l, "Class name is missing");
         return s;
     }
     sym->name = parse_const_str(ctx, l, l->str);
@@ -1486,7 +1493,7 @@ static kl_stmt *parse_class(kl_context *ctx, kl_lexer *l)
         sym->argcount = sym->idxmax;
         ctx->in_lvalue = lvalue;
         if (l->tok != TK_RSBR) {
-            parse_error(ctx, __LINE__, "Compile", l, "The ')' is missing.");
+            parse_error(ctx, __LINE__, l, "The ')' is missing");
             return s;
         }
         lexer_fetch(l);
@@ -1496,7 +1503,7 @@ static kl_stmt *parse_class(kl_context *ctx, kl_lexer *l)
         lexer_fetch(l);
         // TODO: TK_DOT should be also accepted because it means the class in a namespace.
         if (l->tok != TK_NAME) {
-            parse_error(ctx, __LINE__, "Compile", l, "Base class name is missing.");
+            parse_error(ctx, __LINE__, l, "Base class name is missing");
             return s;
         }
         sym->basename = parse_const_str(ctx, l, l->str);
@@ -1521,7 +1528,7 @@ static kl_stmt *parse_class(kl_context *ctx, kl_lexer *l)
 
     /* Class body */
     if (l->tok != TK_LXBR) {
-        parse_error(ctx, __LINE__, "Compile", l, "The '{' is missing.");
+        parse_error(ctx, __LINE__, l, "The '{' is missing");
         return s;
     }
     lexer_fetch(l);
@@ -1531,7 +1538,7 @@ static kl_stmt *parse_class(kl_context *ctx, kl_lexer *l)
         connect_stmt(thisobj, body);
         s->s1 = sym->body = thisobj;
         if (l->tok != TK_RXBR) {
-            parse_error(ctx, __LINE__, "Compile", l, "The '}' is missing.");
+            parse_error(ctx, __LINE__, l, "The '}' is missing");
             return s;
         }
     }
@@ -1570,7 +1577,7 @@ static kl_expr *parse_block_function(kl_context *ctx, kl_lexer *l)
 
         /* Function arguments */
         if (l->tok != TK_LSBR) {
-            parse_error(ctx, __LINE__, "Compile", l, "The '(' is missing.");
+            parse_error(ctx, __LINE__, l, "The '(' is missing");
             return panic_mode_expr(e, '{', ctx, l);
         }
         lexer_fetch(l);
@@ -1579,7 +1586,7 @@ static kl_expr *parse_block_function(kl_context *ctx, kl_lexer *l)
         sym->argcount = sym->idxmax;
         ctx->in_lvalue = 0;
         if (l->tok != TK_RSBR) {
-            parse_error(ctx, __LINE__, "Compile", l, "The ')' is missing.");
+            parse_error(ctx, __LINE__, l, "The ')' is missing");
             return e;
         }
         lexer_fetch(l);
@@ -1594,7 +1601,7 @@ static kl_expr *parse_block_function(kl_context *ctx, kl_lexer *l)
     }
 
     if (l->tok != TK_RXBR) {
-        parse_error(ctx, __LINE__, "Compile", l, "The '}' is missing.");
+        parse_error(ctx, __LINE__, l, "The '}' is missing");
         return e;
     }
 
@@ -1625,7 +1632,7 @@ static kl_expr *parse_anonymous_function(kl_context *ctx, kl_lexer *l)
 
     /* Function arguments */
     if (l->tok != TK_LSBR) {
-        parse_error(ctx, __LINE__, "Compile", l, "The '(' is missing.");
+        parse_error(ctx, __LINE__, l, "The '(' is missing");
         return panic_mode_expr(e, '{', ctx, l);
     }
     lexer_fetch(l);
@@ -1635,21 +1642,21 @@ static kl_expr *parse_anonymous_function(kl_context *ctx, kl_lexer *l)
     sym->argcount = sym->idxmax;
     ctx->in_lvalue = lvalue;
     if (l->tok != TK_RSBR) {
-        parse_error(ctx, __LINE__, "Compile", l, "The ')' is missing.");
+        parse_error(ctx, __LINE__, l, "The ')' is missing");
         return e;
     }
 
     /* Function body */
     lexer_fetch(l);
     if (l->tok != TK_LXBR) {
-        parse_error(ctx, __LINE__, "Compile", l, "The '{' is missing.");
+        parse_error(ctx, __LINE__, l, "The '{' is missing");
         return e;
     }
     lexer_fetch(l);
     if (l->tok != TK_RXBR) {
         e->s = parse_statement_list(ctx, l);
         if (l->tok != TK_RXBR) {
-            parse_error(ctx, __LINE__, "Compile", l, "The '}' is missing.");
+            parse_error(ctx, __LINE__, l, "The '}' is missing");
             return e;
         }
     }
@@ -1692,7 +1699,7 @@ static kl_stmt *parse_function(kl_context *ctx, kl_lexer *l, tk_token funcscope)
 
     /* Function arguments */
     if (l->tok != TK_LSBR) {
-        parse_error(ctx, __LINE__, "Compile", l, "The '(' is missing.");
+        parse_error(ctx, __LINE__, l, "The '(' is missing");
         return panic_mode_stmt(s, '{', ctx, l);
     }
     lexer_fetch(l);
@@ -1701,7 +1708,7 @@ static kl_stmt *parse_function(kl_context *ctx, kl_lexer *l, tk_token funcscope)
     sym->argcount = sym->idxmax;
     ctx->in_lvalue = 0;
     if (l->tok != TK_RSBR) {
-        parse_error(ctx, __LINE__, "Compile", l, "The ')' is missing.");
+        parse_error(ctx, __LINE__, l, "The ')' is missing");
         return s;
     }
 
@@ -1715,14 +1722,14 @@ static kl_stmt *parse_function(kl_context *ctx, kl_lexer *l, tk_token funcscope)
 
     /* Function body */
     if (l->tok != TK_LXBR) {
-        parse_error(ctx, __LINE__, "Compile", l, "The '{' is missing.");
+        parse_error(ctx, __LINE__, l, "The '{' is missing");
         return s;
     }
     lexer_fetch(l);
     if (l->tok != TK_RXBR) {
         s->s1 = sym->body = parse_statement_list(ctx, l);
         if (l->tok != TK_RXBR) {
-            parse_error(ctx, __LINE__, "Compile", l, "The '}' is missing.");
+            parse_error(ctx, __LINE__, l, "The '}' is missing");
             return s;
         }
     }
@@ -1758,14 +1765,14 @@ static kl_stmt *parse_namespace(kl_context *ctx, kl_lexer *l)
 
     /* Namespace statement */
     if (l->tok != TK_LXBR) {
-        parse_error(ctx, __LINE__, "Compile", l, "The '{' is missing.");
+        parse_error(ctx, __LINE__, l, "The '{' is missing");
         return s;
     }
     lexer_fetch(l);
     if (l->tok != TK_RXBR) {
         sym->body = s->s1 = parse_statement_list(ctx, l);
         if (l->tok != TK_RXBR) {
-            parse_error(ctx, __LINE__, "Compile", l, "The '}' is missing.");
+            parse_error(ctx, __LINE__, l, "The '}' is missing");
             return s;
         }
     }
@@ -1787,7 +1794,7 @@ static kl_stmt *parse_block(kl_context *ctx, kl_lexer *l)
         push_nsstack(ctx, n);
         s->s1 = parse_statement_list(ctx, l);
         if (l->tok != TK_RXBR) {
-            parse_error(ctx, __LINE__, "Compile", l, "The '}' is missing.");
+            parse_error(ctx, __LINE__, l, "The '}' is missing");
             return s;
         }
         pop_nsstack(ctx);
@@ -1810,7 +1817,7 @@ static kl_stmt *parse_statement(kl_context *ctx, kl_lexer *l)
         lexer_fetch(l);
         r = parse_block(ctx, l);
         if (l->tok != TK_RXBR) {
-            parse_error(ctx, __LINE__, "Compile", l, "The '}' is missing.");
+            parse_error(ctx, __LINE__, l, "The '}' is missing");
         }
         lexer_fetch(l);
         break;
@@ -1855,7 +1862,7 @@ static kl_stmt *parse_statement(kl_context *ctx, kl_lexer *l)
         r = make_stmt(ctx, l, tok);
         lexer_fetch(l);
         if (l->tok != TK_SEMICOLON) {
-            parse_error(ctx, __LINE__, "Compile", l, "The ';' is missing.");
+            parse_error(ctx, __LINE__, l, "The ';' is missing");
             return panic_mode_stmt(r, ';', ctx, l);
         }
         lexer_fetch(l);
@@ -1867,7 +1874,7 @@ static kl_stmt *parse_statement(kl_context *ctx, kl_lexer *l)
     case TK_EXTERN:
         lexer_fetch(l);
         if (l->tok != TK_NAME) {
-            parse_error(ctx, __LINE__, "Compile", l, "Function name is needed after 'extern'.");
+            parse_error(ctx, __LINE__, l, "Function name is needed after 'extern'");
             return panic_mode_stmt(r, ';', ctx, l);
         }
         r = make_stmt(ctx, l, TK_EXTERN);
@@ -1877,7 +1884,7 @@ static kl_stmt *parse_statement(kl_context *ctx, kl_lexer *l)
         if (l->tok == TK_LSBR) {
             lexer_fetch(l);
             if (l->tok != TK_RSBR) {
-                parse_error(ctx, __LINE__, "Compile", l, "The ')' is missing in key value.");
+                parse_error(ctx, __LINE__, l, "The ')' is missing in key value");
                 return panic_mode_stmt(r, ';', ctx, l);
             }
             lexer_fetch(l);
@@ -1886,7 +1893,7 @@ static kl_stmt *parse_statement(kl_context *ctx, kl_lexer *l)
             r->typeid = TK_TANY;
         }
         if (l->tok != TK_SEMICOLON) {
-            parse_error(ctx, __LINE__, "Compile", l, "The ';' is missing.");
+            parse_error(ctx, __LINE__, l, "The ';' is missing");
             return panic_mode_stmt(r, ';', ctx, l);
         }
         lexer_fetch(l);
@@ -1936,7 +1943,6 @@ int parse(kl_context *ctx, kl_lexer *l)
     s->sym = sym;
 
     ctx->scope = ctx->global = sym;
-
 
     lexer_fetch(l);
     s->s1 = parse_statement_list(ctx, l);
