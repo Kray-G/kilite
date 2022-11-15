@@ -1086,11 +1086,36 @@ static kl_expr *parse_expression(kl_context *ctx, kl_lexer *l)
     return lhs;
 }
 
+static kl_stmt *parse_if_modifier(kl_context *ctx, kl_lexer *l)
+{
+    kl_stmt *s = make_stmt(ctx, l, TK_IF);
+
+    lexer_fetch(l);
+    if (l->tok != TK_LSBR) {
+        parse_error(ctx, __LINE__, l, "The '(' is missing");
+        return s;
+    }
+    lexer_fetch(l);
+    s->e1 = parse_expression(ctx, l);
+    if (l->tok != TK_RSBR) {
+        parse_error(ctx, __LINE__, l, "The ')' is missing");
+        return s;
+    }
+    lexer_fetch(l);
+
+    return s;
+}
+
 static kl_stmt *parse_expression_stmt(kl_context *ctx, kl_lexer *l)
 {
     DEBUG_PARSER_PHASE();
     kl_stmt *s = make_stmt(ctx, l, TK_EXPR);
     s->e1 = parse_expression(ctx, l);
+    if (l->tok == TK_IF) {
+        kl_stmt *m = parse_if_modifier(ctx, l);
+        m->s1 = s;
+        s = m;
+    }
     if (l->tok != TK_SEMICOLON) {
         parse_error(ctx, __LINE__, l, "The ';' is missing");
         return panic_mode_exprstmt(s, ';', ctx, l);
@@ -1508,8 +1533,13 @@ static kl_stmt *parse_return_throw(kl_context *ctx, kl_lexer *l, int tok)
 {
     DEBUG_PARSER_PHASE();
     kl_stmt *s = make_stmt(ctx, l, tok);
-    if (l->tok != TK_SEMICOLON) {
+    if (l->tok != TK_IF && l->tok != TK_SEMICOLON) {
         s->e1 = parse_expression(ctx, l);
+    }
+    if (l->tok == TK_IF) {
+        kl_stmt *m = parse_if_modifier(ctx, l);
+        m->s1 = s;
+        s = m;
     }
     if (l->tok != TK_SEMICOLON) {
         parse_error(ctx, __LINE__, l, "The ';' is missing");
