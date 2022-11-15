@@ -201,6 +201,9 @@ int main(int ac, char **av)
         l->error_stdout = 1;
         ctx->options |= PARSER_OPT_ERR_STDOUT;
     }
+    if (opts.error_limit > 0) {
+        ctx->error_limit = opts.error_limit;
+    }
 
     int r = parse(ctx, l);
     if (r > 0) {
@@ -213,9 +216,6 @@ int main(int ac, char **av)
     make_kir(ctx);
     if (opts.out_src && opts.out_kir) {
         disp_program(ctx->program);
-    }
-    if (opts.error_limit > 0) {
-        ctx->error_limit = opts.error_limit;
     }
     ctx->program->print_result = opts.print_result;
     ctx->program->verbose = opts.verbose;
