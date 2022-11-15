@@ -234,6 +234,14 @@ static void add_func(kl_kir_program *prog, kl_kir_func *func)
             (rn).has_dot3 = 1;\
         } \
         break; \
+    case TK_EQ: \
+        if ((e)->lhs->nodetype == TK_VAR) { \
+            kl_expr *lhs = (e)->lhs; \
+            (rn) = make_var_index(ctx, lhs->sym->ref ? lhs->sym->ref->index : lhs->sym->index, lhs->sym->level, lhs->typeid); \
+            (rni) = gen_expr(ctx, sym, &(rn), e); \
+            break; \
+        } \
+        /* fallthrough */ \
     default: \
         if ((rn).index == 0) (rn) = make_var(ctx, sym, e->typeid); \
         (rni) = gen_expr(ctx, sym, &(rn), e); \
@@ -927,15 +935,17 @@ static kl_kir_inst *gen_assign(kl_context *ctx, kl_symbol *sym, kl_kir_opr *r1, 
             last->r1.level = last->r2.level;
             last->r1.index = last->r2.index;
         } else {
-            kl_kir_opr rr = {0};
-            if (!r1 || r1->index < 0) {
-                rr = make_var_index(ctx, sym->index, l->sym->level, l->typeid);
-                r1 = &rr;
-            }
+            kl_kir_opr rr = make_var_index(ctx, sym->index, l->sym->level, l->typeid);
             if (!head) {
-                head = new_inst_op2(ctx->program, l->line, l->pos, KIR_MOV, r1, &r2);
+                head = last = new_inst_op2(ctx->program, l->line, l->pos, KIR_MOV, &rr, &r2);
             } else {
-                last->next = new_inst_op2(ctx->program, l->line, l->pos, KIR_MOV, r1, &r2);
+                last->next = new_inst_op2(ctx->program, l->line, l->pos, KIR_MOV, &rr, &r2);
+                last = last->next;
+            }
+            if (r1 && r1->index >= 0) {
+                if (r1->index != rr.index || r1->level != rr.level) {
+                    last->next = new_inst_op2(ctx->program, l->line, l->pos, KIR_MOV, r1, &rr);
+                }
             }
         }
     } else if (l->nodetype == TK_DOT || l->nodetype == TK_IDX) {
