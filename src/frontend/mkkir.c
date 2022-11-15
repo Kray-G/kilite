@@ -317,7 +317,7 @@ static kl_kir_opr make_lit_big(kl_context *ctx, const char *big)
     return r1;
 }
 
-static kl_kir_opr make_lit_dbl(kl_context *ctx, double dbl)
+static kl_kir_opr make_lit_dbl(kl_context *ctx, const char *dbl)
 {
     kl_kir_opr r1 = {
         .t = TK_VDBL,

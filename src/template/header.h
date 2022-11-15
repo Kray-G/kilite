@@ -16,8 +16,12 @@ extern BigZ i64minm1;
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#define xprintf printf
+#define xsprintf sprintf
 #else
 #define INLINE inline
+int xprintf(const char *, ...);
+int xsprintf(const char *, const char *, ...);
 int64_t strtoll(const char*, char**, int);
 void *malloc(size_t);
 void *calloc(size_t, size_t);
@@ -805,6 +809,9 @@ typedef struct vmctx {
     if ((t1)->t == VAR_INT64) { \
         (r)->t = VAR_INT64; \
         (r)->i = -((t1)->i); \
+    } else if ((t1)->t == VAR_DBL) { \
+        (r)->t = VAR_DBL; \
+        (r)->d = -((t1)->d); \
     } else { \
         /* TODO */ \
     } \
@@ -1797,6 +1804,7 @@ INLINE extern vmstr *str_append_ch(vmctx *ctx, vmstr *vs, const char ch);
 INLINE extern vmstr *str_append_cp(vmctx *ctx, vmstr *vs, const char *s);
 INLINE extern vmstr *str_append_str(vmctx *ctx, vmstr *vs, vmstr *s2);
 INLINE extern vmstr *str_append_fmt(vmctx *ctx, vmstr *vs, const char *fmt, ...);
+INLINE extern vmstr *str_append_fmt_dbl(vmctx *ctx, vmstr *vs, const char *fmt, double *d);
 INLINE extern vmstr *str_append_i64(vmctx *ctx, vmstr *vs, int64_t i);
 INLINE extern vmstr *str_append_dbl(vmctx *ctx, vmstr *vs, double d);
 INLINE extern vmstr *str_make_path(vmctx *ctx, vmstr *v0, vmstr *v1);

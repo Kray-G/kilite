@@ -745,7 +745,7 @@ static kl_expr *parse_expr_factor(kl_context *ctx, kl_lexer *l)
     case TK_VDBL:
         e = make_expr(ctx, l, TK_VDBL);
         e->typeid = TK_TDBL;
-        e->val.dbl = l->dbl;
+        e->val.dbl = parse_const_str(ctx, l, l->str);
         lexer_fetch(l);
         break;
     case TK_VBIGINT:
@@ -807,7 +807,7 @@ static kl_expr *parse_expr_postfix(kl_context *ctx, kl_lexer *l)
         return e;
     }
 
-    while (tok == TK_LSBR || tok == TK_LLBR || tok == TK_DOT) {
+    while (tok == TK_LSBR || tok == TK_LLBR || tok == TK_DOT || tok == TK_DOT2 || tok == TK_DOT3) {
         if (tok == TK_LSBR) {
             lexer_fetch(l);
             kl_expr *rhs = parse_expr_list(ctx, l, TK_RSBR);
@@ -844,6 +844,11 @@ static kl_expr *parse_expr_postfix(kl_context *ctx, kl_lexer *l)
             lhs = make_bin_expr(ctx, l, tok, lhs, rhs);
             lexer_fetch(l);
             tok = l->tok;
+        } else if (tok == TK_DOT2 || tok == TK_DOT3) {
+            lexer_fetch(l);
+            kl_expr *rhs = parse_expression(ctx, l);
+            lhs = make_bin_expr(ctx, l, tok == TK_DOT2 ? TK_RANGE2 : TK_RANGE3, lhs, rhs);
+            tok = l->tok;
         }
     }
 
@@ -874,7 +879,10 @@ static kl_expr *parse_expr_prefix(kl_context *ctx, kl_lexer *l)
             return lhs;
         }
         if (lhs->nodetype == TK_VDBL) {
-            lhs->val.dbl = -(lhs->val.dbl);
+            char buf[256] = {0};
+            buf[0] = '-';
+            strcpy(buf+1, lhs->val.dbl);
+            lhs->val.dbl = parse_const_str(ctx, l, buf);
             return lhs;
         }
         kl_expr *e = make_expr(ctx, l, TK_MINUS);
@@ -1903,6 +1911,12 @@ static kl_stmt *parse_block(kl_context *ctx, kl_lexer *l)
 static kl_stmt *parse_statement(kl_context *ctx, kl_lexer *l)
 {
     DEBUG_PARSER_PHASE();
+
+    while (l->tok == TK_SEMICOLON) {
+        /* Skip semicolons because it means no statement. */
+        lexer_fetch(l);
+    }
+
     /*
         namespace, func/function, class, module, let, const
         block

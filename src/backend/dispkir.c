@@ -19,7 +19,7 @@ extern void escape_print(const char *);
         printf("%s", i->r##n.str); \
         break; \
     case TK_VDBL: \
-        printf("%f", i->r##n.dbl); \
+        printf("%s", i->r##n.dbl); \
         break; \
     case TK_VSTR: \
         printf("\""); \

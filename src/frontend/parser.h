@@ -76,7 +76,7 @@ typedef struct kl_expr {
     union {
         int64_t i64;
         uint64_t u64;
-        double dbl;
+        const char *dbl;
         const char *str;
         const char *big;
     } val;

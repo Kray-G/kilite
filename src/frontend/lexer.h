@@ -42,7 +42,6 @@ typedef struct kl_lexer {
     uint32_t options;
 
     int64_t i64;
-    double dbl;
     char str[LEXER_STRBUF_SZ];
 } kl_lexer;
 
@@ -57,6 +56,5 @@ extern kl_lexer *lexer_new_file(const char *f);
 extern kl_lexer *lexer_new_string(const char *s);
 extern void lexer_free(kl_lexer *l);
 extern tk_token lexer_fetch(kl_lexer *l);
-extern void lexer_unfetch(kl_lexer *l, tk_token prev);
 
 #endif /* KILITE_LEXER_H */

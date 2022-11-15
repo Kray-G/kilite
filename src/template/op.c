@@ -1103,7 +1103,7 @@ int eqeq_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
             break;
         case VAR_INT64: {
             char buf[32] = {0};
-            sprintf(buf, "%lld", v1->i);
+            xsprintf(buf, "%lld", v1->i);
             r->t = VAR_INT64;
             r->i = strcmp(v0->s->s, buf) == 0;
             break;
@@ -1117,7 +1117,7 @@ int eqeq_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
         }
         case VAR_DBL: {
             char buf[32] = {0};
-            sprintf(buf, "%f", v1->d);
+            xsprintf(buf, "%.16f", v1->d);
             r->t = VAR_INT64;
             r->i = strcmp(v0->s->s, buf) == 0;
             break;

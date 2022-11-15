@@ -137,6 +137,8 @@ static const char *tkname[] = {
     "TK_TYPENODE",
     "TK_MKSUPER",
     "TK_BINEND",
+    "TK_RANGE2",
+    "TK_RANGE3",
     "TK_COMMENT1",
     "TK_COMMENTX",
 };
@@ -314,8 +316,18 @@ void lexer_free(kl_lexer *l)
     free(l);
 }
 
+static void lexer_ungetch(kl_lexer *l)
+{
+    l->unfetch = l->ch;
+}
+
 static inline void lexer_getch(kl_lexer *l)
 {
+    if (l->unfetch) {
+        l->ch = l->unfetch;
+        l->unfetch = 0;
+        return;
+    }
     if (l->precode && *(l->precode)) {
         l->ch = *(l->precode);
         (l->precode)++;
@@ -527,8 +539,6 @@ static inline int get_10fixnum(kl_lexer *l, char *buf, int i, int max)
 
 static inline int get_real(kl_lexer *l, char *buf, int i, int max)
 {
-    buf[i++] = '.';
-    lexer_getch(l);
     i = get_10fixnum(l, buf, i, max);
     if (i < max && (l->ch == 'e' || l->ch == 'E')) {
         buf[i++] = l->ch;
@@ -540,7 +550,7 @@ static inline int get_real(kl_lexer *l, char *buf, int i, int max)
         i = get_10fixnum(l, buf, i, max);
     }
     buf[i] = 0;
-    l->dbl = strtod(buf, NULL);
+    strcpy(l->str, buf);
     return TK_VDBL;
 }
 
@@ -589,7 +599,14 @@ static inline int get_number(kl_lexer *l)
         lexer_getch(l);
         if (l->ch == '.') {
             buf[0] = '0';
-            return get_real(l, buf, 1, TOKEN_BUFSIZE);
+            buf[1] = '.';
+            lexer_getch(l);
+            if (l->ch == '.') {
+                lexer_ungetch(l);
+                l->i64 = 0;
+                return TK_VSINT;
+            }
+            return get_real(l, buf, 2, TOKEN_BUFSIZE);
         }
         if (l->ch == 'x' || l->ch == 'X') {
             buf[0] = '0';
@@ -614,7 +631,14 @@ static inline int get_number(kl_lexer *l)
         return t;
     }
     if (l->ch == '.') {
-        return get_real(l, buf, i, TOKEN_BUFSIZE);
+        buf[i] = '.';
+        lexer_getch(l);
+        if (l->ch == '.') {
+            lexer_ungetch(l);
+            buf[i+1] = 0;
+            return generate_int_value(l, buf, 0);
+        }
+        return get_real(l, buf, i+1, TOKEN_BUFSIZE);
     }
     buf[i] = 0;
     return generate_int_value(l, buf, 0);
@@ -979,21 +1003,9 @@ static tk_token lexer_fetch_token(kl_lexer *l)
     return TK_UNKNOWN;
 }
 
-void lexer_unfetch(kl_lexer *l, tk_token prev)
-{
-    l->unfetch = l->tok;
-    l->tok = prev;
-}
-
 tk_token lexer_fetch(kl_lexer *l)
 {
 L0:
-    if (l->unfetch) {
-        l->tok = l->unfetch;
-        l->unfetch = 0;
-        return l->tok;
-    }
-
     if (l->strstate == 9 || l->strstate == 0) {
         while (is_whitespace(l->ch)) {
             lexer_getch(l); // skip a whitespace.
@@ -1011,7 +1023,7 @@ L0:
         } else if (l->tok == TK_VSINT) {
             fprintf(stderr, "kl_lexer: fetched(%s) with %" PRId64 "\n", tkname[l->tok], l->i64);
         } else if (l->tok == TK_VDBL) {
-            fprintf(stderr, "kl_lexer: fetched(%s) with %f\n", tkname[l->tok], l->dbl);
+            fprintf(stderr, "kl_lexer: fetched(%s) with %s\n", tkname[l->tok], l->str);
         } else {
             fprintf(stderr, "kl_lexer: fetched(%s)\n", tkname[l->tok]);
         }

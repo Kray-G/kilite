@@ -741,14 +741,16 @@ static void format_one(vmctx *ctx, vmstr *r, vmvar *v, int ch, int num, int prec
             } else {
                 sprintf(fmtbuf, "%%%s%s%d%c", KFMT_SIGN(sign), zero ? "0" : "", num, fmtdbl);
             }
-            str_append_fmt(ctx, r, fmtbuf, v->d);
+            /* Memo: double value is not correctly passed to the function with c2mir */
+            str_append_fmt_dbl(ctx, r, fmtbuf, &(v->d));
         } else {
             if (prec > 0) {
                 sprintf(fmtbuf, "%%.%d%c", prec, fmtdbl);
             } else {
                 sprintf(fmtbuf, "%%%c", fmtdbl);
             }
-            str_append_fmt(ctx, r, fmtbuf, v->d);
+            /* Memo: double value is not correctly passed to the function with c2mir */
+            str_append_fmt_dbl(ctx, r, fmtbuf, &(v->d));
         }
     } else if (v->t == VAR_STR) {
         const char *strp = v->s->s;

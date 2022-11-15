@@ -54,7 +54,7 @@ void print_obj(vmctx *ctx, vmvar *v)
         printf("%lld", v->i);
         break;
     case VAR_DBL:
-        printf("%f", v->d);
+        xprintf("%.16f", v->d);
         break;
     case VAR_BIG: {
         char *bs = BzToString(v->bi->b, 10, 0);

@@ -156,6 +156,8 @@ typedef enum tk_token {
     TK_TYPENODE,            //  The node will represent the type.
     TK_MKSUPER,             //  The mark of making `super` object.
     TK_BINEND,              //  The mark for the end of a binary literal.
+    TK_RANGE2,              //  The range object with dot2.
+    TK_RANGE3,              //  The range object with dot3.
     TK_COMMENT1,            //  1 line comment.
     TK_COMMENTX,            //  Multi lines comment.
 } tk_token;
@@ -271,7 +273,7 @@ typedef struct kl_kir_opr {
     int callcnt;                //  The call count number to identify the call.
     int prevent;                //  Prevent an assignment to the variable.
     int64_t i64;
-    double dbl;
+    const char *dbl;
     const char *str;
     tk_typeid typeid;           //  The value of the type.
     const char *typestr;        //  The type name as a string.

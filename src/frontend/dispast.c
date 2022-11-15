@@ -124,7 +124,7 @@ static void disp_expr(kl_expr *e, int indent)
         if (indent > 0) printf("\n");
         break;
     case TK_VDBL:
-        printf("(real):%f", e->val.dbl);
+        printf("(real):%s", e->val.dbl);
         if (indent > 0) printf("\n");
         break;
     case TK_VBIGINT:
@@ -261,6 +261,8 @@ static void disp_expr(kl_expr *e, int indent)
     case TK_IDX:
     case TK_DOT:
     case TK_COMMA:
+    case TK_RANGE2:
+    case TK_RANGE3:
         printf("op(%s): %s", tokenname(e->nodetype), typeidname(e->typeid));
         if (e->prototype) {
             printf(", %s", e->prototype);
