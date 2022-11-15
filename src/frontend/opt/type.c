@@ -308,6 +308,13 @@ int check_pure_function(kl_context *ctx, kl_stmt *stmt)
     while (s) {
         pure = check_pure(s->nodetype);
         if (!pure) return 0;
+        switch (s->nodetype) {
+        case TK_RETURN:
+            if (!s->e1) {
+                return 0;
+            }
+            break;
+        }
 
         if (s->s1) {
             pure = check_pure_function(ctx, s->s1);
