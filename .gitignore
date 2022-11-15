@@ -65,4 +65,9 @@ dkms.conf
 /src/backend/header.c
 /kilite.exe
 /*.klt
+/*.kl
+/*.rb
+/*.py
+/*.py3
+/*.lua
 /*.c
