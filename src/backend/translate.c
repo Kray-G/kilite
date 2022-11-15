@@ -356,8 +356,10 @@ static void translate_inst_pure(xstr *code, kl_kir_func *f, kl_kir_inst *i, func
         break;
 
     case KIR_JMPIFT:
+        xstra_inst(code, "if (%s) goto L%d;\n", var_value_pure(buf1, &(i->r1)), i->labelid);
         break;
     case KIR_JMPIFF:
+        xstra_inst(code, "if (!(%s)) goto L%d;\n", var_value_pure(buf1, &(i->r1)), i->labelid);
         break;
     case KIR_JMP:
         xstra_inst(code, "goto L%d;\n", i->labelid);
