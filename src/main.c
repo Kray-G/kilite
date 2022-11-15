@@ -27,6 +27,7 @@ typedef struct kl_argopts {
     int out_src;
     int disable_pure;
     int error_stdout;
+    int error_limit;
     int print_result;
     int verbose;
     const char *ext;
@@ -42,50 +43,77 @@ static void usage(void)
 {
     printf("Usage: " PROGNAME " -[hvcxS]\n");
     printf("Main options:\n");
-    printf("    -h              Display this help.\n");
-    printf("    -v, --version   Display the version number.\n");
-    printf("    -c              Output .bmir for library.\n");
-    printf("    -x              Execute the code and print the result.\n");
-    printf("    -S              Output .mir code.\n");
-    printf("    -S --ast        Output AST.\n");
-    printf("    -S --kir        Output low level compiled code.\n");
-    printf("    -S --csrc       Output the C code of the script code.\n");
-    printf("    -S --cfull      Output the full C code for the script code.\n");
-    printf("    --stdout        Change the distination of the output to stdout.\n");
-    printf("    --verbose       Show some infrmation when running.\n");
-    printf("    --disable-pure  Disable the code optimization for a pure function.\n");
-    printf("    --error-stdout  Output error messages to stdout instead of stderr.\n");
-    printf("    --ext <ext>     Change the extension of the output file.\n");
+    printf("    -h                  Display this help.\n");
+    printf("    -v, --version       Display the version number.\n");
+    printf("    -c                  Output .bmir for library.\n");
+    printf("    -x                  Execute the code and print the result.\n");
+    printf("    -S                  Output .mir code.\n");
+    printf("    -S --ast            Output AST.\n");
+    printf("    -S --kir            Output low level compiled code.\n");
+    printf("    -S --csrc           Output the C code of the script code.\n");
+    printf("    -S --cfull          Output the full C code for the script code.\n");
+    printf("    --stdout            Change the distination of the output to stdout.\n");
+    printf("    --verbose           Show some infrmation when running.\n");
+    printf("    --disable-pure      Disable the code optimization for a pure function.\n");
+    printf("    --ext <ext>         Change the extension of the output file.\n");
+    printf("    --error-stdout      Output error messages to stdout instead of stderr.\n");
+    printf("    --error-limit <n>   Change the limitation of errors. (default: 100)\n");
 }
 
-static int parse_long_options(int ac, char **av, int i, kl_argopts *opts)
+static int parse_long_options_with_iparam(int ac, char **av, int *i, const char *name, int *param)
 {
-    if (strcmp(av[i], "--version") == 0) {
-        return OPT_DISPLAY_VERSION;
-    } else if (strcmp(av[i], "--ast") == 0) {
-        opts->out_ast = 1;
-    } else if (strcmp(av[i], "--kir") == 0) {
-        opts->out_kir = 1;
-    } else if (strcmp(av[i], "--csrc") == 0) {
-        opts->out_csrc = 1;
-    } else if (strcmp(av[i], "--cfull") == 0) {
-        opts->out_cfull = 1;
-    } else if (strcmp(av[i], "--stdout") == 0) {
-        opts->out_stdout = 1;
-    } else if (strcmp(av[i], "--disable-pure") == 0) {
-        opts->disable_pure = 1;
-    } else if (strcmp(av[i], "--error-stdout") == 0) {
-        opts->error_stdout = 1;
-    } else if (strcmp(av[i], "--verbose") == 0) {
-        opts->verbose = 1;
-    } else if (strncmp(av[i], "--ext", 5) == 0) {
-        if (av[i][5] == '=') {
-            opts->ext = av[i] + 6;
-        } else if (++i < ac) {
-            opts->ext = av[i];
+    int len = strlen(name);
+    if (strncmp(av[*i], name, len) == 0) {
+        if (av[*i][len] == '=') {
+            (*param) = strtol(av[*i] + len + 1, NULL, 0);
+        } else if (++(*i) < ac) {
+            (*param) = strtol(av[*i], NULL, 0);
         }
+        return 1;
+    }
+    return 0;
+}
+
+static int parse_long_options_with_sparam(int ac, char **av, int *i, const char *name, const char **param)
+{
+    int len = strlen(name);
+    if (strncmp(av[*i], name, len) == 0) {
+        if (av[*i][len] == '=') {
+            (*param) = av[*i] + len + 1;
+        } else if (++(*i) < ac) {
+            (*param) = av[*i];
+        }
+        return 1;
+    }
+    return 0;
+}
+
+static int parse_long_options(int ac, char **av, int *i, kl_argopts *opts)
+{
+    if (strcmp(av[*i], "--version") == 0) {
+        return OPT_DISPLAY_VERSION;
+    } else if (strcmp(av[*i], "--verbose") == 0) {
+        opts->verbose = 1;
+    } else if (strcmp(av[*i], "--ast") == 0) {
+        opts->out_ast = 1;
+    } else if (strcmp(av[*i], "--kir") == 0) {
+        opts->out_kir = 1;
+    } else if (strcmp(av[*i], "--csrc") == 0) {
+        opts->out_csrc = 1;
+    } else if (strcmp(av[*i], "--cfull") == 0) {
+        opts->out_cfull = 1;
+    } else if (strcmp(av[*i], "--stdout") == 0) {
+        opts->out_stdout = 1;
+    } else if (strcmp(av[*i], "--disable-pure") == 0) {
+        opts->disable_pure = 1;
+    } else if (strcmp(av[*i], "--error-stdout") == 0) {
+        opts->error_stdout = 1;
+    } else if (parse_long_options_with_iparam(ac, av, i, "--error-limit", &(opts->error_limit))) {
+        return 0;
+    } else if (parse_long_options_with_sparam(ac, av, i, "--ext", &(opts->ext))) {
+        return 0;
     } else {
-        fprintf(stderr, "Error unknown option: %s\n", av[i]);
+        fprintf(stderr, "Error unknown option: %s\n", av[*i]);
         return OPT_ERROR_USAGE;
     }
     return 0;
@@ -106,7 +134,7 @@ static int parse_arg_options(int ac, char **av, kl_argopts *opts)
                     opts->in_stdin = 1;
                     break;
                 default:
-                    if ((r = parse_long_options(ac, av, i, opts)) != 0) {
+                    if ((r = parse_long_options(ac, av, &i, opts)) != 0) {
                         return r;
                     }
                     break;
@@ -185,6 +213,9 @@ int main(int ac, char **av)
     make_kir(ctx);
     if (opts.out_src && opts.out_kir) {
         disp_program(ctx->program);
+    }
+    if (opts.error_limit > 0) {
+        ctx->error_limit = opts.error_limit;
     }
     ctx->program->print_result = opts.print_result;
     ctx->program->verbose = opts.verbose;
