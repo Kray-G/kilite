@@ -88,7 +88,7 @@ void disp_mov(const char *op, kl_kir_inst *i)
 void disp_pushsys(kl_kir_inst *i)
 {
     printf(IDT OP, "pushsys");
-    printf("%d, ", i->r1.callcnt);
+    printf("*%d, ", i->r1.callcnt);
     disp_v(i, 1);
     printf("\n");
 }
@@ -96,7 +96,7 @@ void disp_pushsys(kl_kir_inst *i)
 void disp_pusharg(kl_kir_inst *i)
 {
     printf(IDT OP, i->r1.has_dot3 ? "pusharga" : "pusharg");
-    printf("%d, ", i->r1.callcnt);
+    printf("*%d, ", i->r1.callcnt);
     disp_v(i, 1);
     printf("\n");
 }
@@ -104,7 +104,7 @@ void disp_pusharg(kl_kir_inst *i)
 void disp_call(const char *op, kl_kir_inst *i)
 {
     printf(IDT OP, op);
-    printf("%d, ", i->r2.callcnt);
+    printf("*%d, ", i->r2.callcnt);
     disp_v(i, 1);
     printf(", ");
     disp_v(i, 2);
@@ -143,7 +143,8 @@ void disp_inst(kl_kir_program *p, kl_kir_inst *i)
         break;
 
     case KIR_SVSTKP:
-        disp_1op("savestkp", i);
+        printf(IDT OP, "savestkp");
+        printf("*%" PRId64 "\n", i->r1.i64);
         break;
     case KIR_PUSHSYS:
         disp_pushsys(i);
@@ -155,7 +156,8 @@ void disp_inst(kl_kir_program *p, kl_kir_inst *i)
         disp_call("call", i);
         break;
     case KIR_RSSTKP:
-        disp_1op("restorestkp", i);
+        printf(IDT OP, "restorestkp");
+        printf("*%" PRId64 "\n", i->r1.i64);
         break;
     case KIR_CHKEXCEPT:
         printf(IDT OP "L%d\n", "chkexcept", i->labelid);
