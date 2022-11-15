@@ -38,6 +38,32 @@ To meet the goal, I will try with followings.
     * Compiling separatedly, you can execute it all together later.
     * You can write the library by C language if you need, and use it as a .bmir as it is.
 
+## Usecases
+
+There are some usecases that I want to try.
+It would be roughly 4 patterns as below.
+
+1.  To run the script as it is on the fly.
+2.  To compile the script separatedly and to run the code with those precompiled codes.
+3.  To call the C code directly from the script function.
+4.  To call the script from the C code as well.
+
+### Running the Script
+
+This will work with the current version.
+
+    $ ./kilite file.kl
+
+### Compiling the Script Separatedly
+
+*Note that this is not implemented yet.*
+
+    $ ./kilite -c file1.kl
+    (file1.kc)
+    $ ./kilite -c file2.kl
+    (file2.kc)
+    $ ./kilite file1.kc file2.kc
+
 ## Benchmark
 
 Now, I did benchmark with some script languages because the current version of kilite can run the code if it's like a fibonacci.
@@ -145,11 +171,15 @@ I will note the followings as I don't forget it.
     * [ ] The `mixin` statement.
   * [x] Exception.
     * [x] throwing an exception.
+    * [x] Stack trace.
     * [x] `try`, `catch`, and `finally`.
+    * [x] MethodMissing for global scope.
+    * [ ] MethodMissing for class methods.
 * [ ] Notes for a special specifications of the language.
   * [ ] The last argument of function call could be outside arguments list if it's a block.
   * [x] Destructuring assignment.
-    * [ ] Pattern matching in assignment.
+    * [x] Pattern matching in assignment.
+    * [ ] Destructuring assignment in function arguments.
   * [ ] Coroutine with `yield`.
   * [ ] `case-when` expression.
   * [ ] Formatter object.
