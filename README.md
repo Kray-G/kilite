@@ -159,6 +159,7 @@ I will note the followings as I don't forget it.
     * [ ] `for-in` for Array.
     * [ ] `for-in` for Object.
     * [ ] `for-in` for Range.
+    * [x] `if` modifier.
     * [x] `break` and `continue`.
       * [ ] with label.
     * [x] Anonymous function in an expression.
