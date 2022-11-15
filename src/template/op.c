@@ -7,6 +7,7 @@ extern int RuntimeException(vmctx *ctx, vmfrm *lex, vmvar *r, int ac);
 extern int StackOverflowException(vmctx *ctx, vmfrm *lex, vmvar *r, int ac);
 extern int DivideByZeroException(vmctx *ctx, vmfrm *lex, vmvar *r, int ac);
 extern int UnsupportedOperationException(vmctx *ctx, vmfrm *lex, vmvar *r, int ac);
+extern int NoMatchingPatternException(vmctx *ctx, vmfrm *lex, vmvar *r, int ac);
 
 /* Make exception */
 
@@ -31,6 +32,9 @@ int throw_system_exception(int line, vmctx *ctx, int id)
         break;
     case EXCEPT_METHOD_MISSING:
         MethodMissingException(ctx, NULL, r, 0);
+        break;
+    case EXCEPT_NO_MATCHING_PATTERN:
+        NoMatchingPatternException(ctx, NULL, r, 0);
         break;
     default:
         RuntimeException_create(ctx, NULL, r, "SystemException", "Unknown exception");

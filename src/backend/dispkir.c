@@ -121,6 +121,10 @@ void disp_inst(kl_kir_program *p, kl_kir_inst *i)
     }
 
     switch (i->opcode) {
+    case KIR_NOP:
+        disp_0op("nop");
+        break;
+
     case KIR_EXTERN:
         disp_2op("extern", i);
         break;
@@ -279,6 +283,9 @@ void disp_inst(kl_kir_program *p, kl_kir_inst *i)
         break;
     case KIR_REMOVE:
         disp_2op("remove", i);
+        break;
+    case KIR_CHKMATCH:
+        disp_2op("chkmatch", i);
         break;
 
     case KIR_TYPE:

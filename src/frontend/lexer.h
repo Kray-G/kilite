@@ -34,8 +34,10 @@ typedef struct kl_lexer {
     int lbrcount;           //  The '{' count during parsing string.
     int binmode;            //  If 1, it's parsing a binary.
     int error_stdout;
+
     tk_token tok;           //  Current token.
     tk_token unfetch;       //  Buffer for unfetch.
+
     tk_typeid typeid;       //  Type ID
     uint32_t options;
 

@@ -316,42 +316,69 @@ typedef struct vmctx {
 
 /* Check if it's a function, exception. */
 
-#define CHECK_CALL(ctx, v, l, r, ac, func, file, line) { \
+#define CHECK_CALL(ctx, v, label, r, ac, func, file, line) { \
     if ((v)->t == VAR_FNC) { \
         CALL((v)->f, ((v)->f)->lex, r, ac) \
     } else { \
         if (ctx->methodmissing) { \
-             { push_var_s(ctx, "<global>", l, func, file, line); } \
+             { push_var_s(ctx, "<global>", label, func, file, line); } \
             CALL((ctx->methodmissing), (ctx->methodmissing)->lex, r, ac + 1) \
         } else { \
             e = throw_system_exception(__LINE__, ctx, EXCEPT_METHOD_MISSING); \
             exception_addtrace(ctx, ctx->except, func, file, line); \
-            goto l; \
+            goto label; \
         } \
     } \
 } \
 /**/
-#define CHECK_EXCEPTION(l, func, file, line) if (e) { \
+#define CHECK_EXCEPTION(label, func, file, line) if (e) { \
     exception_addtrace(ctx, ctx->except, func, file, line); \
-    goto l; \
+    goto label; \
 } \
 /**/
-#define THROW_EXCEPTION(ctx, v, l, func, file, line) { \
+#define THROW_EXCEPTION(ctx, v, label, func, file, line) { \
     SHCOPY_VAR_TO(ctx, ctx->except, v); \
     exception_addtrace(ctx, ctx->except, func, file, line); \
     e = 1; \
-    goto l; \
+    goto label; \
 } \
 /**/
-#define THROW_CURRENT(ctx, l, func, file, line) { \
+#define THROW_CURRENT(ctx, label, func, file, line) { \
     exception_addtrace(ctx, ctx->except, func, file, line); \
     e = 1; \
-    goto l; \
+    goto label; \
 } \
 /**/
 #define CATCH_EXCEPTION(ctx, v) { \
     e = 0; \
     SHCOPY_VAR_TO(ctx, v, ctx->except); \
+} \
+/**/
+
+#define CHKMATCH_I64(v, vi, label, func, file, line) { \
+    if ((v)->t != VAR_INT64 || (v)->i != (vi)) { \
+        e = throw_system_exception(__LINE__, ctx, EXCEPT_NO_MATCHING_PATTERN); \
+        exception_addtrace(ctx, ctx->except, func, file, line); \
+        goto label; \
+    } \
+} \
+/**/
+
+#define CHKMATCH_DBL(v, vd, label, func, file, line) { \
+    if ((v)->t != VAR_DBL || DBL_EPSILON <= ((v)->d - (vd))) { \
+        e = throw_system_exception(__LINE__, ctx, EXCEPT_NO_MATCHING_PATTERN); \
+        exception_addtrace(ctx, ctx->except, func, file, line); \
+        goto label; \
+    } \
+} \
+/**/
+
+#define CHKMATCH_STR(v, i, label, func, file, line) { \
+    if ((v)->t != VAR_STR || strcmp((v)->s->s, (vs)) != 0) { \
+        e = throw_system_exception(__LINE__, ctx, EXCEPT_NO_MATCHING_PATTERN); \
+        exception_addtrace(ctx, ctx->except, func, file, line); \
+        goto label; \
+    } \
 } \
 /**/
 

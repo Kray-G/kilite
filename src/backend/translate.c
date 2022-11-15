@@ -779,6 +779,28 @@ static void translate_type(xstr *code, kl_kir_inst *i)
     }
 }
 
+static void translate_chkmatch(xstr *code, kl_kir_inst *i)
+{
+    char buf1[256] = {0};
+    var_value(buf1, &(i->r1));
+    switch (i->r2.t) {
+    case TK_VSINT:
+        xstra_inst(code, "CHKMATCH_I64(%s, %" PRId64 ", L%d, \"%s\", \"%s\", %d);\n",
+            buf1, i->r2.i64, i->catchid, i->funcname, i->filename, i->line);
+        break;
+    case TK_VDBL:
+        xstra_inst(code, "CHKMATCH_DBL(%s, %f, L%d, \"%s\", \"%s\", %d);\n",
+            buf1, i->r2.dbl, i->catchid, i->funcname, i->filename, i->line);
+        break;
+    case TK_VSTR:
+        xstra_inst(code, "CHKMATCH_STR(%s, \"", buf1);
+        escape_str(code, i->r2.str);
+        xstraf(code, "\", L%d, \"%s\", \"%s\", %d);\n",
+            i->catchid, i->funcname, i->filename, i->line);
+        break;
+    }
+}
+
 static void set_last_args(xstr *code, kl_kir_func *f, int idx, int total)
 {
     xstra_inst(code, "SET_OBJ(n%d, alcobj(ctx));\n", idx);
@@ -921,8 +943,10 @@ static void translate_inst(xstr *code, kl_kir_func *f, kl_kir_inst *i, func_cont
         }
         if (fctx->total_vars > 0 && fctx->temp_count > 0) {
             xstra_inst(code, "const int allocated_local = %" PRId64 ";\n", fctx->temp_count);
-            xstra_inst(code, "alloc_var(ctx, %" PRId64 ", \"%s\", \"%s\", %d);\n", fctx->temp_count, i->funcname, i->filename, i->line);
-            xstra_inst(code, "CHECK_EXCEPTION(L%d, \"%s\", \"%s\", %d);\n", f->funcend, i->funcname, i->filename, i->line);
+            xstra_inst(code, "alloc_var(ctx, %" PRId64 ", L%d, \"%s\", \"%s\", %d);\n",
+                fctx->temp_count, f->funcend, i->funcname, i->filename, i->line);
+            xstra_inst(code, "CHECK_EXCEPTION(L%d, \"%s\", \"%s\", %d);\n",
+                f->funcend, i->funcname, i->filename, i->line);
             for (int idx = fctx->local_vars; idx < fctx->total_vars; ++idx) {
                 xstra_inst(code, "vmvar *n%d = local_var(ctx, %d);\n", idx, idx - fctx->local_vars);
             }
@@ -950,8 +974,7 @@ static void translate_inst(xstr *code, kl_kir_func *f, kl_kir_inst *i, func_cont
         break;
     case KIR_PUSHSYS:
         xstra_inst(code, "{ push_var_sys(ctx, %s, ad%d, L%d, \"%s\", \"%s\", %d); }\n",
-            var_value(buf1, &(i->r1)), i->r1.callcnt, i->catchid > 0 ? i->catchid : f->funcend,
-            i->funcname, i->filename, i->line);
+            var_value(buf1, &(i->r1)), i->r1.callcnt, i->catchid, i->funcname, i->filename, i->line);
         break;
     case KIR_PUSHARG:
         translate_pusharg(code, i, i->catchid > 0 ? i->catchid : f->funcend);
@@ -1086,6 +1109,9 @@ static void translate_inst(xstr *code, kl_kir_func *f, kl_kir_inst *i, func_cont
         xstra_inst(code, "hashmap_remove(ctx, (%s)->o, \"", var_value(buf1, &(i->r1)));
         escape_str(code, i->r2.str);
         xstraf(code, "\");\n");
+        break;
+    case KIR_CHKMATCH:
+        translate_chkmatch(code, i);
         break;
 
     case KIR_TYPE:

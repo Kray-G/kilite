@@ -265,6 +265,7 @@ static void set_file_func(kl_context *ctx, kl_symbol *sym, kl_kir_inst *i)
 {
     i->funcname = strcmp(sym->name, "run_global") == 0 ? "<main-block>" : sym->name;
     i->filename = ctx->filename;
+    i->catchid = ctx->tclabel;
 }
 
 static kl_kir_opr make_var(kl_context *ctx, kl_symbol *sym, tk_typeid tid)
@@ -661,13 +662,11 @@ static kl_kir_inst *gen_callargs(kl_context *ctx, kl_symbol *sym, kl_expr *e, in
         }
         if (!last) {
             head = new_inst_op1(ctx->program, e->line, e->pos, KIR_PUSHARG, &r2);
-            head->catchid = ctx->tclabel;
             set_file_func(ctx, sym, head);
         } else {
             KIR_MOVE_LAST(last);
             last->next = new_inst_op1(ctx->program, e->line, e->pos, KIR_PUSHARG, &r2);
             last = last->next;
-            last->catchid = ctx->tclabel;
             set_file_func(ctx, sym, last);
         }
         ++(*args);
@@ -716,7 +715,6 @@ static kl_kir_inst *gen_call(kl_context *ctx, kl_symbol *sym, kl_kir_opr *r1, kl
     kl_kir_inst *r2i = gen_callargs(ctx, sym, e->rhs, &(r2.args), callcnt);
     kl_kir_inst *inst = new_inst_op2(ctx->program, e->line, e->pos, KIR_CALL, r1, &r2);
     set_file_func(ctx, sym, inst);
-    inst->catchid = ctx->tclabel;
     kl_kir_inst *ilst = get_last(inst);
 
     kl_kir_opr rc = { .t = TK_VSINT, .i64 = callcnt, .typeid = TK_TSINT64 };
@@ -846,6 +844,30 @@ static kl_kir_inst *gen_object_lvalue(kl_context *ctx, kl_symbol *sym, kl_kir_op
                 inst->next = new_inst_op2(ctx->program, e->line, e->pos, KIR_REMOVE, r1, &r3);
             }
             break;
+        case TK_VSINT: {
+            kl_kir_opr rr = make_lit_i64(ctx, r->val.i64);
+            rs = make_var(ctx, sym, TK_TANY);
+            head = new_inst_op3(ctx->program, r->line, r->pos, KIR_APLY, &rs, r2, &r3);
+            head->next = new_inst_op2(ctx->program, r->line, r->pos, KIR_CHKMATCH, &rs, &rr);
+            set_file_func(ctx, sym, head->next);
+            break;
+        }
+        case TK_VDBL: {
+            kl_kir_opr rr = make_lit_dbl(ctx, r->val.dbl);
+            rs = make_var(ctx, sym, TK_TANY);
+            head = new_inst_op3(ctx->program, r->line, r->pos, KIR_APLY, &rs, r2, &r3);
+            head->next = new_inst_op2(ctx->program, r->line, r->pos, KIR_CHKMATCH, &rs, &rr);
+            set_file_func(ctx, sym, head->next);
+            break;
+        }
+        case TK_VSTR: {
+            kl_kir_opr rr = make_lit_str(ctx, r->val.str);
+            rs = make_var(ctx, sym, TK_TANY);
+            head = new_inst_op3(ctx->program, r->line, r->pos, KIR_APLY, &rs, r2, &r3);
+            head->next = new_inst_op2(ctx->program, r->line, r->pos, KIR_CHKMATCH, &rs, &rr);
+            set_file_func(ctx, sym, head->next);
+            break;
+        }
         default:
             rs = make_var(ctx, sym, TK_TANY);
             head = new_inst_op3(ctx->program, r->line, r->pos, KIR_APLY, &rs, r2, &r3);
@@ -933,6 +955,7 @@ static kl_kir_inst *gen_assign(kl_context *ctx, kl_symbol *sym, kl_kir_opr *r1, 
             last->next = r1i;
         }
     } else {
+        /* Destructuring assignment */
         last->next = gen_assign_object(ctx, sym, &r2, l);
     }
 
@@ -1514,10 +1537,10 @@ static kl_kir_func *gen_function(kl_context *ctx, kl_symbol *sym, kl_stmt *s)
     kl_kir_inst *last = NULL;
     kl_kir_func *func = new_func(ctx, sym->line, sym->pos, sym->name);
     func->has_frame = sym->has_func;
-    int tclabel = ctx->tclabel;
-    ctx->tclabel = -1;
     int localvars = sym->idxmax;
     func->funcend = sym->funcend = get_next_label(ctx);
+    int tclabel = ctx->tclabel;
+    ctx->tclabel = func->funcend;
     if (func->has_frame) {
         func->head = last = new_inst(ctx->program, sym->line, sym->pos, KIR_MKFRM);
     } else {

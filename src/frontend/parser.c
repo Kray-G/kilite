@@ -7,7 +7,7 @@
 static kl_expr *parse_expr_list(kl_context *ctx, kl_lexer *l, int endch);
 static kl_expr *parse_expr_assignment(kl_context *ctx, kl_lexer *l);
 static kl_expr *parse_expression(kl_context *ctx, kl_lexer *l);
-static kl_expr *parse_decl_expr(kl_context *ctx, kl_lexer *l, int is_const);
+static kl_expr *parse_decl_expr(kl_context *ctx, kl_lexer *l, int decltype);
 static kl_stmt *parse_statement(kl_context *ctx, kl_lexer *l);
 static kl_stmt *parse_statement_list(kl_context *ctx, kl_lexer *l);
 static kl_expr *parse_block_function(kl_context *ctx, kl_lexer *l);
@@ -19,7 +19,7 @@ if ((ctx->options & PARSER_OPT_PHASE) == PARSER_OPT_PHASE) printf("[parser] %s\n
 
 static int parse_error(kl_context *ctx, int sline, kl_lexer *l, const char *fmt, ...)
 {
-    fprintf(stderr, "%d: ", sline);
+    // fprintf(stderr, "%d: ", sline);
     int line = l->tokline;
     int pos = l->tokpos;
     int len = l->toklen;
@@ -30,7 +30,7 @@ static int parse_error(kl_context *ctx, int sline, kl_lexer *l, const char *fmt,
     va_end(ap);
 
     if (ctx->error_limit < ctx->errors) {
-        fprintf(stderr, "... Sorry, a lot of errors occurs, and the program stopped.\n");
+        fprintf(stderr, "... Sorry, a lot of errors occured, and the program stopped.\n");
         exit(1);
     }
     return r;
@@ -506,13 +506,35 @@ static void check_symbol(kl_context *ctx, kl_lexer *l, const char *name)
     }
 }
 
-static kl_expr *parse_expr_varname(kl_context *ctx, kl_lexer *l, const char *name, int lvalue)
+static void check_assigned(kl_context *ctx, kl_lexer *l, kl_expr *lhs)
+{
+    if (lhs->nodetype == TK_VAR && lhs->sym) {
+        kl_symbol *v = lhs->sym->ref ? lhs->sym->ref : lhs->sym;
+        v->assigned++;
+        if (v->is_const && v->assigned > 1) {
+            parse_error(ctx, __LINE__, l, "Can not assign a value to the 'const' variable");
+        }
+    } else if (lhs->nodetype != TK_DOT) {
+        if (lhs->lhs) {
+            check_assigned(ctx, l, lhs->lhs);
+        }
+        if (lhs->rhs) {
+            check_assigned(ctx, l, lhs->rhs);
+        }
+        if (lhs->xhs) {
+            check_assigned(ctx, l, lhs->xhs);
+        }
+    }
+}
+
+static kl_expr *parse_expr_varname(kl_context *ctx, kl_lexer *l, const char *name, int decltype)
 {
     kl_expr *e = make_expr(ctx, l, TK_VAR);
     kl_symbol *sym;
-    if (lvalue) {
+    if (decltype) {
         check_symbol(ctx, l, name);
         sym = make_symbol(ctx, l, TK_VAR, 0);
+        sym->is_const = decltype == TK_CONST;
     } else {
         sym = make_ref_symbol(ctx, l, TK_VAR, name);
     }
@@ -1044,13 +1066,7 @@ static kl_expr *parse_expr_assignment(kl_context *ctx, kl_lexer *l)
     if (TK_EQ <= tok && tok <= TK_LOREQ) {
         lexer_fetch(l);
         kl_expr *rhs = parse_expr_assignment(ctx, l);   // Right recursion.
-        if (lhs->nodetype == TK_VAR && lhs->sym) {
-            kl_symbol *v = lhs->sym->ref ? lhs->sym->ref : lhs->sym;
-            v->assigned++;
-            if (v->is_const && v->assigned > 1) {
-                parse_error(ctx, __LINE__, l, "Can not assign a value to the 'const' variable");
-            }
-        }
+        check_assigned(ctx, l, lhs);
         lhs = make_bin_expr(ctx, l, tok, lhs, rhs);
     }
     return lhs;
@@ -1344,7 +1360,7 @@ static kl_stmt *parse_for(kl_context *ctx, kl_lexer *l)
     if (l->tok != TK_SEMICOLON) {
         if (l->tok == TK_LET) {
             lexer_fetch(l);
-            s->e1 = parse_decl_expr(ctx, l, 0);
+            s->e1 = parse_decl_expr(ctx, l, TK_LET);
         } else {
             s->e1 = parse_expression(ctx, l);
         }
@@ -1397,7 +1413,7 @@ static kl_stmt *parse_try(kl_context *ctx, kl_lexer *l)
             if (l->tok != TK_NAME) {
                 parse_error(ctx, __LINE__, l, "The symbol name is missing in catch clause");
             } else {
-                s->e1 = parse_expr_varname(ctx, l, l->str, 1);
+                s->e1 = parse_expr_varname(ctx, l, l->str, TK_CONST);
                 lexer_fetch(l);
             }
             if (l->tok != TK_RSBR) {
@@ -1417,13 +1433,14 @@ static kl_stmt *parse_try(kl_context *ctx, kl_lexer *l)
     return s;
 }
 
-static kl_expr *parse_decl_expr(kl_context *ctx, kl_lexer *l, int is_const)
+static kl_expr *parse_decl_expr(kl_context *ctx, kl_lexer *l, int decltype)
 {
     DEBUG_PARSER_PHASE();
     kl_expr *e1 = NULL;
 
+    int is_const = (decltype == TK_CONST);
     while (l->tok == TK_DOT3 || l->tok == TK_NAME || l->tok == TK_LLBR || l->tok == TK_LXBR) {
-        ctx->in_lvalue = 1;
+        ctx->in_lvalue = decltype;
         kl_expr *lhs = NULL;
         int dot3 = 0;
         if (l->tok == TK_DOT3) {
@@ -1455,8 +1472,8 @@ static kl_expr *parse_decl_expr(kl_context *ctx, kl_lexer *l, int is_const)
             lexer_fetch(l);
             kl_expr *rhs = parse_expr_assignment(ctx, l);
             lhs->typeid = rhs->typeid;
+            check_assigned(ctx, l, lhs);
             if (lhs->sym) {
-                lhs->sym->assigned = 1;
                 lhs->sym->typeid = rhs->typeid;
             }
             lhs = make_bin_expr(ctx, l, TK_EQ, lhs, rhs);
@@ -1478,7 +1495,7 @@ static kl_stmt *parse_declaration(kl_context *ctx, kl_lexer *l, int decltype)
 {
     kl_stmt *s = make_stmt(ctx, l, decltype);
 
-    s->e1 = parse_decl_expr(ctx, l, decltype == TK_CONST);
+    s->e1 = parse_decl_expr(ctx, l, decltype);
     if (l->tok != TK_SEMICOLON) {
         parse_error(ctx, __LINE__, l, "The ';' is missing");
         return panic_mode_exprstmt(s, ';', ctx, l);
@@ -1538,7 +1555,7 @@ static kl_stmt *parse_class(kl_context *ctx, kl_lexer *l)
     if (l->tok == TK_LSBR) {
         lexer_fetch(l);
         int lvalue = ctx->in_lvalue;
-        ctx->in_lvalue = 1;
+        ctx->in_lvalue = TK_LET;
         s->e1 = sym->args = parse_def_arglist(ctx, l, sym);
         sym->argcount = sym->idxmax;
         ctx->in_lvalue = lvalue;
@@ -1567,11 +1584,11 @@ static kl_stmt *parse_class(kl_context *ctx, kl_lexer *l)
 
     /* Making `this` and `super`. */
     kl_stmt *thisobj = make_stmt(ctx, l, TK_EXPR);
-    thisobj->e1 = parse_expr_varname(ctx, l, "this", 1);
+    thisobj->e1 = parse_expr_varname(ctx, l, "this", TK_CONST);
     if (sym->base) {
         thisobj->e1 = make_bin_expr(ctx, l, TK_EQ, thisobj->e1, sym->base);
         kl_stmt *superobj = make_stmt(ctx, l, TK_MKSUPER);
-        superobj->e1 = parse_expr_varname(ctx, l, "super", 1);
+        superobj->e1 = parse_expr_varname(ctx, l, "super", TK_CONST);
         superobj->e2 = parse_expr_varname(ctx, l, "this", 0);
         thisobj->next = superobj;
     }
@@ -1631,7 +1648,7 @@ static kl_expr *parse_block_function(kl_context *ctx, kl_lexer *l)
             return panic_mode_expr(e, '{', ctx, l);
         }
         lexer_fetch(l);
-        ctx->in_lvalue = 1;
+        ctx->in_lvalue = TK_LET;
         e->e = sym->args = parse_def_arglist(ctx, l, sym);
         sym->argcount = sym->idxmax;
         ctx->in_lvalue = 0;
@@ -1687,7 +1704,7 @@ static kl_expr *parse_anonymous_function(kl_context *ctx, kl_lexer *l)
     }
     lexer_fetch(l);
     int lvalue = ctx->in_lvalue;
-    ctx->in_lvalue = 1;
+    ctx->in_lvalue = TK_LET;
     e->e = sym->args = parse_def_arglist(ctx, l, sym);
     sym->argcount = sym->idxmax;
     ctx->in_lvalue = lvalue;
@@ -1753,7 +1770,7 @@ static kl_stmt *parse_function(kl_context *ctx, kl_lexer *l, tk_token funcscope)
         return panic_mode_stmt(s, '{', ctx, l);
     }
     lexer_fetch(l);
-    ctx->in_lvalue = 1;
+    ctx->in_lvalue = TK_LET;
     s->e1 = sym->args = parse_def_arglist(ctx, l, sym);
     sym->argcount = sym->idxmax;
     ctx->in_lvalue = 0;
@@ -1934,7 +1951,7 @@ static kl_stmt *parse_statement(kl_context *ctx, kl_lexer *l)
         }
         r = make_stmt(ctx, l, TK_EXTERN);
         r->e1 = make_str_expr(ctx, l, l->str);
-        r->e2 = parse_expr_varname(ctx, l, l->str, 1);
+        r->e2 = parse_expr_varname(ctx, l, l->str, TK_CONST);
         lexer_fetch(l);
         if (l->tok == TK_LSBR) {
             lexer_fetch(l);
