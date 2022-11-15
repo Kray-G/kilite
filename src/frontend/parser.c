@@ -208,6 +208,11 @@ static inline kl_nsstack *make_nsstack(kl_context *ctx, kl_lexer *l, const char 
     return n;
 }
 
+static inline int is_global_namespace(kl_context *ctx)
+{
+    return ctx->ns->is_global;
+}
+
 static inline void push_nsstack(kl_context *ctx, kl_nsstack *n)
 {
     n->prev = ctx->ns;
@@ -289,6 +294,7 @@ static inline kl_symbol *make_symbol(kl_context *ctx, kl_lexer *l, tk_token tk, 
     sym->chn = ctx->symchn;
     ctx->symchn = sym;
     sym->symtoken = tk;
+    sym->filename = ctx->filename;
     sym->index = noindex ? 0 : (ctx->scope ? ctx->scope->idxmax++ : 0);
     sym->ref = NULL;
     sym->line = l->tokline;

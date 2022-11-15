@@ -32,7 +32,7 @@ static void alloc_fncs(vmctx *ctx, int n)
     }
 }
 
-vmfnc *alcfnc(vmctx *ctx, void *f, vmfrm *lex, int args)
+vmfnc *alcfnc(vmctx *ctx, void *f, vmfrm *lex, const char *name, int args)
 {
     if (ctx->alc.fnc.nxt == &(ctx->alc.fnc)) {
         alloc_fncs(ctx, ALC_UNIT);
@@ -43,6 +43,7 @@ vmfnc *alcfnc(vmctx *ctx, void *f, vmfrm *lex, int args)
     ctx->alc.fnc.nxt = v->nxt;
     v->nxt = NULL;
     v->prv = NULL;
+    v->name = name;
     v->liv = ctx->alc.fnc.liv;
     ctx->alc.fnc.liv = v;
     if (v->liv) {

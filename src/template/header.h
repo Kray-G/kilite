@@ -30,6 +30,18 @@ int strcmp(const char *s1, const char *s2);
 #endif
 #endif
 
+/* System Exceptions */
+enum {
+    EXCEPT_EXCEPTION = 0,
+    EXCEPT_RUNTIME_EXCEPTION,
+    EXCEPT_STACK_OVERFLOW,
+    EXCEPT_DIVIDE_BY_ZERO,
+    EXCEPT_UNSUPPORTED_OPERATION,
+    EXCEPT_METHOD_MISSING,
+    EXCEPT_NO_MATCHING_PATTERN,
+    EXCEPT_MAX,
+};
+
 #define FRM_STACK_SIZE (1024)
 #define VAR_STACK_SIZE (1024*16)
 #define ALC_UNIT (1024)
@@ -54,36 +66,64 @@ int strcmp(const char *s1, const char *s2);
 #define IS_MARKED(obj) (((obj)->flags & 0x01) == 0x01)
 #define IS_HELD(obj) (((obj)->flags & 0x02) == 0x02)
 
-#define push_frm(ctx, m) do { if ((ctx)->fstksz <= (ctx)->fstkp) { printf("stack overflow\n"); /* TODO: stack overflow */ } (((ctx)->fstk)[((ctx)->fstkp)++] = (m)); } while (0)
+#define push_frm(ctx, m, label, func, file, line) do { \
+    if ((ctx)->fstksz <= (ctx)->fstkp) { \
+        e = throw_system_exception(__LINE__, ctx, EXCEPT_STACK_OVERFLOW); \
+        exception_addtrace(ctx, ctx->except, func, file, line); \
+        goto label; \
+    } \
+    (((ctx)->fstk)[((ctx)->fstkp)++] = (m)); \
+} while (0)
+/**/
 #define pop_frm(ctx) (--((ctx)->fstkp))
 
-#define alloc_var(ctx, n) do { if ((ctx)->vstksz <= ((ctx)->vstkp + n)) { printf("stack overflow\n"); /* TODO: stack overflow */ } (((ctx)->vstkp) += (n)); } while (0)
+#define alloc_var(ctx, n, label, func, file, line) do { \
+    if ((ctx)->vstksz <= ((ctx)->vstkp + n)) { \
+        e = throw_system_exception(__LINE__, ctx, EXCEPT_STACK_OVERFLOW); \
+        exception_addtrace(ctx, ctx->except, func, file, line); \
+        goto label; \
+    } \
+    (((ctx)->vstkp) += (n)); \
+} while (0) \
+/**/
 #define vstackp(ctx) ((ctx)->vstkp)
-#define push_var_def(ctx, v, label, pushcode) \
+#define push_var_def(ctx, v, label, func, file, line, pushcode) \
     do { \
-        if ((ctx)->vstksz <= (ctx)->vstkp) { printf("stack overflow\n"); /* TODO: stack overflow */ e = 1; goto label; } \
+            if ((ctx)->vstksz <= (ctx)->vstkp) { \
+            e = throw_system_exception(__LINE__, ctx, EXCEPT_STACK_OVERFLOW); \
+            exception_addtrace(ctx, ctx->except, func, file, line); \
+            goto label; \
+        } \
         vmvar *px = &(((ctx)->vstk)[((ctx)->vstkp)++]); \
         pushcode \
     } while (0) \
 /**/
-#define push_var(ctx, v, label)   push_var_def(ctx, v, label, { SHCOPY_VAR_TO(ctx, px, v); })
-#define push_var_i(ctx, v, label) push_var_def(ctx, v, label, { px->t = VAR_INT64; px->i = (v); })
-#define push_var_b(ctx, v, label) push_var_def(ctx, v, label, { px->t = VAR_BIG; px->bi = alcbgi_bigz(ctx, BzFromString((v), 10, BZ_UNTIL_END)); })
-#define push_var_d(ctx, v, label) push_var_def(ctx, v, label, { px->t = VAR_DBL; px->d = (v); })
-#define push_var_s(ctx, v, label) push_var_def(ctx, v, label, { px->t = VAR_STR; px->s = alcstr_str(ctx, v); })
-#define push_var_sys(ctx, v, fn, label) \
+#define push_var(ctx, v, label, func, file, line)   push_var_def(ctx, v, label, func, file, line, { SHCOPY_VAR_TO(ctx, px, v); })
+#define push_var_i(ctx, v, label, func, file, line) push_var_def(ctx, v, label, func, file, line, { px->t = VAR_INT64; px->i = (v); })
+#define push_var_b(ctx, v, label, func, file, line) push_var_def(ctx, v, label, func, file, line, { px->t = VAR_BIG; px->bi = alcbgi_bigz(ctx, BzFromString((v), 10, BZ_UNTIL_END)); })
+#define push_var_d(ctx, v, label, func, file, line) push_var_def(ctx, v, label, func, file, line, { px->t = VAR_DBL; px->d = (v); })
+#define push_var_s(ctx, v, label, func, file, line) push_var_def(ctx, v, label, func, file, line, { px->t = VAR_STR; px->s = alcstr_str(ctx, v); })
+#define push_var_sys(ctx, v, fn, label, func, file, line) \
     if (v->t == VAR_OBJ && v->o->is_sysobj) { \
-        if ((ctx)->vstksz <= (ctx)->vstkp) { printf("stack overflow\n"); /* TODO: stack overflow */ e = 1; goto label; } \
+        if ((ctx)->vstksz <= (ctx)->vstkp) { \
+            e = throw_system_exception(__LINE__, ctx, EXCEPT_STACK_OVERFLOW); \
+            exception_addtrace(ctx, ctx->except, func, file, line); \
+            goto label; \
+        } \
         vmvar *px = &(((ctx)->vstk)[((ctx)->vstkp)++]); \
         SHCOPY_VAR_TO(ctx, px, v); \
         ++fn; \
     } \
 /**/
-#define push_var_a(ctx, v, fn, label) \
+#define push_var_a(ctx, v, fn, label, func, file, line) \
     if ((v)->t == VAR_OBJ) { \
         int idxsz = (v)->o->idxsz; \
         fn += idxsz - 1;\
-        if ((ctx)->vstksz <= ((ctx)->vstkp + idxsz)) { printf("stack overflow\n"); /* TODO: stack overflow */ e = 1; goto label; } \
+        if ((ctx)->vstksz <= ((ctx)->vstkp + idxsz)) { \
+            e = throw_system_exception(__LINE__, ctx, EXCEPT_STACK_OVERFLOW); \
+            exception_addtrace(ctx, ctx->except, func, file, line); \
+            goto label; \
+        } \
         for (int i = idxsz - 1; i >= 0; --i) { \
             vmvar *px = &(((ctx)->vstk)[((ctx)->vstkp)++]); \
             vmvar *item = (v)->o->ary[i]; \
@@ -103,9 +143,8 @@ int strcmp(const char *s1, const char *s2);
 #define local_var_index(n) ((ctx)->vstkp - ((n) + 1))
 
 #define KL_SET_METHOD(o, name, fname, args) \
-    hashmap_set(ctx, o, #name, alcvar_fnc(ctx, alcfnc(ctx, fname, NULL, args))); \
+    hashmap_set(ctx, o, #name, alcvar_fnc(ctx, alcfnc(ctx, fname, NULL, #name, args))); \
 /**/
-
 
 /***************************************************************************
  * VM Variable
@@ -197,6 +236,7 @@ typedef struct vmfnc {
     int32_t flags;
     int32_t args;
     int64_t n;          /* The minimum of n */
+    const char *name;   /* function name */
     void *f;            /* function pointer */
     struct vmfrm *frm;  /* the funtion frame holding arguments */
     struct vmfrm *lex;  /* the lexical frame bound with this function */
@@ -232,9 +272,10 @@ typedef struct vmctx {
     int fstkp;
     vmfrm **fstk;
 
-    int exceptl;    /* The line where the exception occurred. */
-    vmvar *except;  /* Current exception that was thrown. */
-    vmfnc *callee;
+    vmfnc *methodmissing;   /* Global methodMissing method. */
+    vmfnc *callee;          /* Callee function to manage a pure function. */
+    vmvar *except;          /* Current exception that was thrown. */
+    int exceptl;            /* The line where the exception occurred. */
 
     struct {
         vmvar var;
@@ -262,116 +303,6 @@ typedef struct vmctx {
     } fre;
 } vmctx;
 
-INLINE vmctx *initialize(void);
-INLINE void finalize(vmctx *ctx);
-INLINE void setup_context(vmctx *ctx);
-
-INLINE vmfnc *alcfnc(vmctx *ctx, void *f, vmfrm *lex, int args);
-INLINE void pbakfnc(vmctx *ctx, vmfnc *p);
-INLINE vmfrm *alcfrm(vmctx *ctx, int args);
-INLINE void pbakfrm(vmctx *ctx, vmfrm *p);
-INLINE vmstr *alcstr_str(vmctx *ctx, const char *s);
-INLINE void pbakstr(vmctx *ctx, vmstr *p);
-INLINE vmbgi *alcbgi_bigz(vmctx *ctx, BigZ bz);
-INLINE void pbakbgi(vmctx *ctx, vmbgi *p);
-INLINE vmobj *alcobj(vmctx *ctx);
-INLINE void pbakobj(vmctx *ctx, vmobj *p);
-INLINE vmvar *alcvar(vmctx *ctx, vartype t, int hold);
-INLINE vmvar *alcvar_initial(vmctx *ctx);
-INLINE vmvar *alcvar_obj(vmctx *ctx, vmobj *o);
-INLINE vmvar *alcvar_fnc(vmctx *ctx, vmfnc *f);
-INLINE vmvar *alcvar_int64(vmctx *ctx, int64_t i, int hold);
-INLINE vmvar *alcvar_str(vmctx *ctx, const char *s);
-INLINE vmvar *alcvar_bgistr(vmctx *ctx, const char *s, int radix);
-INLINE void pbakvar(vmctx *ctx, vmvar *p);
-INLINE vmvar *copy_var(vmctx *ctx, vmvar *src, int hold);
-INLINE void copy_var_to(vmctx *ctx, vmvar *dst, vmvar *src);
-
-INLINE void initialize_allocators(vmctx *ctx);
-INLINE void mark_and_sweep(vmctx *ctx);
-INLINE void count(vmctx *ctx);
-INLINE int get_min2(int a0, int a1);
-INLINE int get_min3(int a0, int a1, int a2);
-INLINE int get_min4(int a0, int a1, int a2, int a3);
-INLINE int get_min5(int a0, int a1, int a2, int a3, int a4);
-INLINE void print_obj(vmctx *ctx, vmvar *v);
-INLINE vmstr *format(vmctx *ctx, vmobj *v);
-
-INLINE void bi_initialize(void);
-INLINE void bi_finalize(void);
-INLINE vmbgi *bi_copy(vmctx *ctx, vmbgi *src);
-INLINE void bi_print(vmbgi *b);
-INLINE void bi_str(char *buf, int max, vmbgi *b);
-
-INLINE void print_escape_str(vmstr *vs);
-INLINE vmstr *str_dup(vmctx *ctx, vmstr *vs);
-INLINE vmstr *str_from_i64(vmctx *ctx, int64_t i);
-INLINE vmstr *str_from_dbl(vmctx *ctx, double d);
-INLINE vmstr *str_make_double(vmctx *ctx, vmstr *vs);
-INLINE vmstr *str_make_ntimes(vmctx *ctx, vmstr *vs, int n);
-INLINE vmstr *str_append(vmctx *ctx, vmstr *vs, const char *s, int len);
-INLINE vmstr *str_append_ch(vmctx *ctx, vmstr *vs, const char ch);
-INLINE vmstr *str_append_cp(vmctx *ctx, vmstr *vs, const char *s);
-INLINE vmstr *str_append_str(vmctx *ctx, vmstr *vs, vmstr *s2);
-INLINE vmstr *str_append_fmt(vmctx *ctx, vmstr *vs, const char *fmt, ...);
-INLINE vmstr *str_append_i64(vmctx *ctx, vmstr *vs, int64_t i);
-INLINE vmstr *str_append_dbl(vmctx *ctx, vmstr *vs, double d);
-INLINE vmstr *str_make_path(vmctx *ctx, vmstr *v0, vmstr *v1);
-INLINE vmstr *str_make_path_i64(vmctx *ctx, vmstr *v0, int64_t i);
-INLINE vmstr *str_make_i64_path(vmctx *ctx, int64_t i, vmstr *v0);
-INLINE vmstr *str_trim(vmctx *ctx, vmstr *vs, const char *ch);
-INLINE vmstr *str_ltrim(vmctx *ctx, vmstr *vs, const char *ch);
-INLINE vmstr *str_rtrim(vmctx *ctx, vmstr *vs, const char *ch);
-
-INLINE void hashmap_print(vmobj *obj);
-INLINE void hashmap_objprint(vmctx *ctx, vmobj *obj);
-INLINE vmobj *hashmap_create(vmobj *h, int sz);
-INLINE vmobj *hashmap_set(vmctx *ctx, vmobj *obj, const char *s, vmvar *v);
-INLINE vmobj *hashmap_remove(vmctx *ctx, vmobj *obj, const char *s);
-INLINE vmvar *hashmap_search(vmobj *obj, const char *s);
-INLINE vmobj *hashmap_copy(vmctx *ctx, vmobj *h);
-INLINE vmobj *hashmap_copy_method(vmctx *ctx, vmobj *src);
-INLINE vmobj *array_create(vmobj *obj, int asz);
-INLINE vmobj *array_set(vmctx *ctx, vmobj *obj, int64_t idx, vmvar *vs);
-INLINE vmobj *array_push(vmctx *ctx, vmobj *obj, vmvar *vs);
-INLINE vmobj *object_copy(vmctx *ctx, vmobj *src);
-
-INLINE int run_global(vmctx *ctx, vmfrm *lex, vmvar *r, int ac);
-
-INLINE int throw_system_exception(int line, vmctx *ctx, int id);
-INLINE int throw_exception(vmctx *ctx, vmvar *e);
-
-INLINE int add_v_i(vmctx *ctx, vmvar *r, vmvar *v, int64_t i);
-INLINE int add_i_v(vmctx *ctx, vmvar *r, int64_t i, vmvar *v);
-INLINE int add_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1);
-
-INLINE int sub_v_i(vmctx *ctx, vmvar *r, vmvar *v, int64_t i);
-INLINE int sub_i_v(vmctx *ctx, vmvar *r, int64_t i, vmvar *v);
-INLINE int sub_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1);
-
-INLINE int mul_v_i(vmctx *ctx, vmvar *r, vmvar *v, int64_t i);
-INLINE int mul_i_v(vmctx *ctx, vmvar *, int64_t ir, vmvar *v);
-INLINE int mul_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1);
-
-INLINE int div_v_i(vmctx *ctx, vmvar *r, vmvar *v, int64_t i);
-INLINE int div_i_v(vmctx *ctx, vmvar *r, int64_t i, vmvar *v);
-INLINE int div_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1);
-
-INLINE int mod_v_i(vmctx *ctx, vmvar *r, vmvar *v, int64_t i);
-INLINE int mod_i_v(vmctx *ctx, vmvar *r, int64_t i, vmvar *v);
-INLINE int mod_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1);
-
-INLINE int eqeq_v_i(vmctx *ctx, vmvar *r, vmvar *v, int64_t i);
-INLINE int eqeq_i_v(vmctx *ctx, vmvar *r, int64_t i, vmvar *v);
-INLINE int eqeq_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1);
-
-
-/* System Exceptions */
-enum {
-    EXCEPT_DIVIDE_BY_ZERO = 1,
-    EXCEPT_UNSUPPORTED_OPERATION = 1,
-};
-
 /* Operator macros */
 
 /* call function */
@@ -385,15 +316,35 @@ enum {
 
 /* Check if it's a function, exception. */
 
-#define CHECK_FUNC(v, l) if ((v)->t != VAR_FNC) { e = 1; /* TODO: MethodMissing Exception */; goto l; }
-#define CHECK_EXCEPTION(l) if (e) { goto l; }
-#define THROW_EXCEPTION(ctx, v, l) { \
-    ctx->except = v; \
+#define CHECK_CALL(ctx, v, l, r, ac, func, file, line) { \
+    if ((v)->t == VAR_FNC) { \
+        CALL((v)->f, ((v)->f)->lex, r, ac) \
+    } else { \
+        if (ctx->methodmissing) { \
+             { push_var_s(ctx, "<global>", l, func, file, line); } \
+            CALL((ctx->methodmissing), (ctx->methodmissing)->lex, r, ac + 1) \
+        } else { \
+            e = throw_system_exception(__LINE__, ctx, EXCEPT_METHOD_MISSING); \
+            exception_addtrace(ctx, ctx->except, func, file, line); \
+            goto l; \
+        } \
+    } \
+} \
+/**/
+#define CHECK_EXCEPTION(l, func, file, line) if (e) { \
+    exception_addtrace(ctx, ctx->except, func, file, line); \
+    goto l; \
+} \
+/**/
+#define THROW_EXCEPTION(ctx, v, l, func, file, line) { \
+    SHCOPY_VAR_TO(ctx, ctx->except, v); \
+    exception_addtrace(ctx, ctx->except, func, file, line); \
     e = 1; \
     goto l; \
 } \
 /**/
-#define THROW_CURRENT(ctx, l) { \
+#define THROW_CURRENT(ctx, l, func, file, line) { \
+    exception_addtrace(ctx, ctx->except, func, file, line); \
     e = 1; \
     goto l; \
 } \
@@ -1766,5 +1717,122 @@ enum {
     } \
 } \
 /**/
+
+INLINE extern vmctx *initialize(void);
+INLINE extern void finalize(vmctx *ctx);
+INLINE extern void setup_context(vmctx *ctx);
+
+INLINE extern vmfnc *alcfnc(vmctx *ctx, void *f, vmfrm *lex, const char *name, int args);
+INLINE extern void pbakfnc(vmctx *ctx, vmfnc *p);
+INLINE extern vmfrm *alcfrm(vmctx *ctx, int args);
+INLINE extern void pbakfrm(vmctx *ctx, vmfrm *p);
+INLINE extern vmstr *alcstr_str(vmctx *ctx, const char *s);
+INLINE extern void pbakstr(vmctx *ctx, vmstr *p);
+INLINE extern vmbgi *alcbgi_bigz(vmctx *ctx, BigZ bz);
+INLINE extern void pbakbgi(vmctx *ctx, vmbgi *p);
+INLINE extern vmobj *alcobj(vmctx *ctx);
+INLINE extern void pbakobj(vmctx *ctx, vmobj *p);
+INLINE extern vmvar *alcvar(vmctx *ctx, vartype t, int hold);
+INLINE extern vmvar *alcvar_initial(vmctx *ctx);
+INLINE extern vmvar *alcvar_obj(vmctx *ctx, vmobj *o);
+INLINE extern vmvar *alcvar_fnc(vmctx *ctx, vmfnc *f);
+INLINE extern vmvar *alcvar_int64(vmctx *ctx, int64_t i, int hold);
+INLINE extern vmvar *alcvar_str(vmctx *ctx, const char *s);
+INLINE extern vmvar *alcvar_bgistr(vmctx *ctx, const char *s, int radix);
+INLINE extern void pbakvar(vmctx *ctx, vmvar *p);
+INLINE extern vmvar *copy_var(vmctx *ctx, vmvar *src, int hold);
+INLINE extern void copy_var_to(vmctx *ctx, vmvar *dst, vmvar *src);
+
+INLINE extern void initialize_allocators(vmctx *ctx);
+INLINE extern void mark_and_sweep(vmctx *ctx);
+INLINE extern void count(vmctx *ctx);
+INLINE extern int get_min2(int a0, int a1);
+INLINE extern int get_min3(int a0, int a1, int a2);
+INLINE extern int get_min4(int a0, int a1, int a2, int a3);
+INLINE extern int get_min5(int a0, int a1, int a2, int a3, int a4);
+INLINE extern void print_obj(vmctx *ctx, vmvar *v);
+INLINE extern vmstr *format(vmctx *ctx, vmobj *v);
+
+INLINE extern void bi_initialize(void);
+INLINE extern void bi_finalize(void);
+INLINE extern vmbgi *bi_copy(vmctx *ctx, vmbgi *src);
+INLINE extern void bi_print(vmbgi *b);
+INLINE extern void bi_str(char *buf, int max, vmbgi *b);
+
+INLINE extern void print_escape_str(vmstr *vs);
+INLINE extern vmstr *str_dup(vmctx *ctx, vmstr *vs);
+INLINE extern vmstr *str_from_i64(vmctx *ctx, int64_t i);
+INLINE extern vmstr *str_from_dbl(vmctx *ctx, double d);
+INLINE extern vmstr *str_make_double(vmctx *ctx, vmstr *vs);
+INLINE extern vmstr *str_make_ntimes(vmctx *ctx, vmstr *vs, int n);
+INLINE extern vmstr *str_append(vmctx *ctx, vmstr *vs, const char *s, int len);
+INLINE extern vmstr *str_append_ch(vmctx *ctx, vmstr *vs, const char ch);
+INLINE extern vmstr *str_append_cp(vmctx *ctx, vmstr *vs, const char *s);
+INLINE extern vmstr *str_append_str(vmctx *ctx, vmstr *vs, vmstr *s2);
+INLINE extern vmstr *str_append_fmt(vmctx *ctx, vmstr *vs, const char *fmt, ...);
+INLINE extern vmstr *str_append_i64(vmctx *ctx, vmstr *vs, int64_t i);
+INLINE extern vmstr *str_append_dbl(vmctx *ctx, vmstr *vs, double d);
+INLINE extern vmstr *str_make_path(vmctx *ctx, vmstr *v0, vmstr *v1);
+INLINE extern vmstr *str_make_path_i64(vmctx *ctx, vmstr *v0, int64_t i);
+INLINE extern vmstr *str_make_i64_path(vmctx *ctx, int64_t i, vmstr *v0);
+INLINE extern vmstr *str_trim(vmctx *ctx, vmstr *vs, const char *ch);
+INLINE extern vmstr *str_ltrim(vmctx *ctx, vmstr *vs, const char *ch);
+INLINE extern vmstr *str_rtrim(vmctx *ctx, vmstr *vs, const char *ch);
+
+INLINE extern void hashmap_print(vmobj *obj);
+INLINE extern void hashmap_objprint(vmctx *ctx, vmobj *obj);
+INLINE extern vmobj *hashmap_create(vmobj *h, int sz);
+INLINE extern vmobj *hashmap_set(vmctx *ctx, vmobj *obj, const char *s, vmvar *v);
+INLINE extern vmobj *hashmap_remove(vmctx *ctx, vmobj *obj, const char *s);
+INLINE extern vmvar *hashmap_search(vmobj *obj, const char *s);
+INLINE extern vmobj *hashmap_copy(vmctx *ctx, vmobj *h);
+INLINE extern vmobj *hashmap_copy_method(vmctx *ctx, vmobj *src);
+INLINE extern vmobj *array_create(vmobj *obj, int asz);
+INLINE extern vmobj *array_set(vmctx *ctx, vmobj *obj, int64_t idx, vmvar *vs);
+INLINE extern vmobj *array_push(vmctx *ctx, vmobj *obj, vmvar *vs);
+INLINE extern vmobj *object_copy(vmctx *ctx, vmobj *src);
+
+INLINE extern int run_global(vmctx *ctx, vmfrm *lex, vmvar *r, int ac);
+INLINE extern int throw_system_exception(int line, vmctx *ctx, int id);
+INLINE extern int exception_addtrace(vmctx *ctx, vmvar *e, const char *funcname, const char *filename, int linenum);
+INLINE extern int exception_printtrace(vmctx *ctx, vmvar *e);
+INLINE extern int exception_uncaught(vmctx *ctx, vmvar *e);
+
+INLINE extern int add_v_i(vmctx *ctx, vmvar *r, vmvar *v, int64_t i);
+INLINE extern int add_i_v(vmctx *ctx, vmvar *r, int64_t i, vmvar *v);
+INLINE extern int add_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1);
+INLINE extern int sub_v_i(vmctx *ctx, vmvar *r, vmvar *v, int64_t i);
+INLINE extern int sub_i_v(vmctx *ctx, vmvar *r, int64_t i, vmvar *v);
+INLINE extern int sub_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1);
+INLINE extern int mul_v_i(vmctx *ctx, vmvar *r, vmvar *v, int64_t i);
+INLINE extern int mul_i_v(vmctx *ctx, vmvar *, int64_t ir, vmvar *v);
+INLINE extern int mul_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1);
+INLINE extern int div_v_i(vmctx *ctx, vmvar *r, vmvar *v, int64_t i);
+INLINE extern int div_i_v(vmctx *ctx, vmvar *r, int64_t i, vmvar *v);
+INLINE extern int div_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1);
+INLINE extern int mod_v_i(vmctx *ctx, vmvar *r, vmvar *v, int64_t i);
+INLINE extern int mod_i_v(vmctx *ctx, vmvar *r, int64_t i, vmvar *v);
+INLINE extern int mod_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1);
+INLINE extern int eqeq_v_i(vmctx *ctx, vmvar *r, vmvar *v, int64_t i);
+INLINE extern int eqeq_i_v(vmctx *ctx, vmvar *r, int64_t i, vmvar *v);
+INLINE extern int eqeq_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1);
+INLINE extern int neq_v_i(vmctx *ctx, vmvar *r, vmvar *v, int64_t i);
+INLINE extern int neq_i_v(vmctx *ctx, vmvar *r, int64_t i, vmvar *v);
+INLINE extern int neq_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1);
+INLINE extern int lt_v_i(vmctx *ctx, vmvar *r, vmvar *v, int64_t i);
+INLINE extern int lt_i_v(vmctx *ctx, vmvar *r, int64_t i, vmvar *v);
+INLINE extern int lt_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1);
+INLINE extern int le_v_i(vmctx *ctx, vmvar *r, vmvar *v, int64_t i);
+INLINE extern int le_i_v(vmctx *ctx, vmvar *r, int64_t i, vmvar *v);
+INLINE extern int le_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1);
+INLINE extern int gt_v_i(vmctx *ctx, vmvar *r, vmvar *v, int64_t i);
+INLINE extern int gt_i_v(vmctx *ctx, vmvar *r, int64_t i, vmvar *v);
+INLINE extern int gt_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1);
+INLINE extern int ge_v_i(vmctx *ctx, vmvar *r, vmvar *v, int64_t i);
+INLINE extern int ge_i_v(vmctx *ctx, vmvar *r, int64_t i, vmvar *v);
+INLINE extern int ge_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1);
+INLINE extern int lge_v_i(vmctx *ctx, vmvar *r, vmvar *v, int64_t i);
+INLINE extern int lge_i_v(vmctx *ctx, vmvar *r, int64_t i, vmvar *v);
+INLINE extern int lge_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1);
 
 #endif /* KILITE_TEMPLATE_HEADER_H */

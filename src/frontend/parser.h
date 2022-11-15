@@ -17,6 +17,7 @@ struct kl_expr;
 struct kl_stmt;
 
 typedef struct kl_symbol {
+    const char *filename;           //  The filename this symbol was defined.
     const char *name;               //  Symbol's name like a function name, a class name, a variable name, or somthing.
     const char *funcname;           //  The name with a namespace when it's a function.
     const char *basename;           //  The name of the base class.

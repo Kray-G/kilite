@@ -211,6 +211,9 @@ void premark_all(vmctx *ctx)
 void mark_all(vmctx *ctx)
 {
     premark_all(ctx);
+    mark_var(ctx->except);
+    mark_fnc(ctx->methodmissing);
+
     int fstkp = ctx->fstkp;
     vmfrm **m = ctx->fstk;
     while (fstkp--) {

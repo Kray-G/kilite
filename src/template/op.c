@@ -2,19 +2,42 @@
 extern double fmod(double, double);
 extern double pow(double, double);
 extern double fabs(double);
+extern int RuntimeException_create(vmctx *ctx, vmfrm *lex, vmvar *r, const char *name, const char *msg);
+extern int RuntimeException(vmctx *ctx, vmfrm *lex, vmvar *r, int ac);
+extern int StackOverflowException(vmctx *ctx, vmfrm *lex, vmvar *r, int ac);
+extern int DivideByZeroException(vmctx *ctx, vmfrm *lex, vmvar *r, int ac);
+extern int UnsupportedOperationException(vmctx *ctx, vmfrm *lex, vmvar *r, int ac);
 
 /* Make exception */
 
 int throw_system_exception(int line, vmctx *ctx, int id)
 {
-    /* TODO */
-    printf("[%d] System exception occurred\n", line);
-    return 1;
-}
+    vmvar *r = alcvar_initial(ctx);
+    switch (id) {
+    case EXCEPT_EXCEPTION:
+        RuntimeException_create(ctx, NULL, r, "SystemException", "Unknown exception");
+        break;
+    case EXCEPT_RUNTIME_EXCEPTION:
+        RuntimeException_create(ctx, NULL, r, "RuntimeException", "Unknown exception");
+        break;
+    case EXCEPT_STACK_OVERFLOW:
+        StackOverflowException(ctx, NULL, r, 0);
+        break;
+    case EXCEPT_DIVIDE_BY_ZERO:
+        DivideByZeroException(ctx, NULL, r, 0);
+        break;
+    case EXCEPT_UNSUPPORTED_OPERATION:
+        UnsupportedOperationException(ctx, NULL, r, 0);
+        break;
+    case EXCEPT_METHOD_MISSING:
+        MethodMissingException(ctx, NULL, r, 0);
+        break;
+    default:
+        RuntimeException_create(ctx, NULL, r, "SystemException", "Unknown exception");
+        break;
+    }
 
-int throw_exception(vmctx *ctx, vmvar *e)
-{
-    /* TODO */
+    ctx->except = r;
     return 1;
 }
 

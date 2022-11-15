@@ -101,7 +101,7 @@ KL_DEF_MATH_FUNCTION(floor)
 KL_DEF_MATH_FUNCTION2(fmod)
 
 #define KL_SET_MATHMETHOD(o, name, args) \
-    hashmap_set(ctx, o, #name, alcvar_fnc(ctx, alcfnc(ctx, Math_##name, NULL, args))); \
+    hashmap_set(ctx, o, #name, alcvar_fnc(ctx, alcfnc(ctx, Math_##name, NULL, #name, args))); \
 /**/
 
 int Math(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)

@@ -498,29 +498,36 @@ static const char *int_value(char *buf, kl_kir_opr *rn)  /* buf should have at l
     return buf;
 }
 
-static void translate_pusharg(xstr *code, kl_kir_opr *rn, int fend)
+static void translate_pusharg(xstr *code, kl_kir_inst *i, int catchid)
 {
+    kl_kir_opr *rn = &(i->r1);
     char buf1[256] = {0};
     switch (rn->t) {
     case TK_VSINT:
-        xstra_inst(code, "{ push_var_i(ctx, %" PRId64 ", L%d); }\n", rn->i64, fend);
+        xstra_inst(code, "{ push_var_i(ctx, %" PRId64 ", L%d, \"%s\", \"%s\", %d); }\n",
+            rn->i64, catchid, i->funcname, i->filename, i->line);
         break;
     case TK_VBIGINT:
-        xstra_inst(code, "{ push_var_b(ctx, \"%s\", L%d); }\n", rn->str, fend);
+        xstra_inst(code, "{ push_var_b(ctx, \"%s\", L%d, \"%s\", \"%s\", %d); }\n",
+            rn->str, catchid, i->funcname, i->filename, i->line);
         break;
     case TK_VDBL:
-        xstra_inst(code, "{ push_var_d(ctx, %f, L%d); }\n", rn->dbl, fend);
+        xstra_inst(code, "{ push_var_d(ctx, %f, L%d, \"%s\", \"%s\", %d); }\n",
+            rn->dbl, catchid, i->funcname, i->filename, i->line);
         break;
     case TK_VSTR:
         xstra_inst(code, "{ push_var_s(ctx, \"");
         escape_str(code, rn->str);
-        xstraf(code, "\", L%d); }\n", fend);
+        xstraf(code, "\", L%d, \"%s\", \"%s\", %d); }\n",
+            catchid, i->funcname, i->filename, i->line);
         break;
     case TK_VAR:
         if (rn->has_dot3) {
-            xstra_inst(code, "{ push_var_a(ctx, %s, ad%d, L%d); }\n", var_value(buf1, rn), rn->callcnt, fend);
+            xstra_inst(code, "{ push_var_a(ctx, %s, ad%d, L%d, \"%s\", \"%s\", %d); }\n",
+                var_value(buf1, rn), rn->callcnt, catchid, i->funcname, i->filename, i->line);
         } else {
-            xstra_inst(code, "{ push_var(ctx, %s, L%d); }\n", var_value(buf1, rn), fend);
+            xstra_inst(code, "{ push_var(ctx, %s, L%d, \"%s\", \"%s\", %d); }\n",
+                var_value(buf1, rn), catchid, i->funcname, i->filename, i->line);
         }
         break;
     default:
@@ -656,7 +663,7 @@ static void translate_call(xstr *code, kl_kir_func *f, kl_kir_inst *i)
     if (i->r2.funcid > 0) {
         if (i->r2.t == TK_FUNC) {
             /* This means a direct call of an anonymous function. */
-            xstra_inst(code, "vmfnc *f%d = alcfnc(ctx, %s, frm, 0);\n", i->r2.funcid, i->r2.name);
+            xstra_inst(code, "vmfnc *f%d = alcfnc(ctx, %s, frm, \"%s\", 0);\n", i->r2.funcid, i->r2.name, i->r2.str);
         }
         if (i->r2.recursive) {
             xstra_inst(code, "CALL(f%d, lex, %s, %d + ad%d)\n", i->r2.funcid, buf1, i->r2.args, i->r2.callcnt);
@@ -666,8 +673,9 @@ static void translate_call(xstr *code, kl_kir_func *f, kl_kir_inst *i)
     } else {
         int tclabel = i->catchid > 0 ? i->catchid : f->funcend;
         var_value(buf2, &(i->r2));
-        xstra_inst(code, "CHECK_FUNC(%s, L%d);\n", buf2, tclabel);
-        xstra_inst(code, "CALL(((%s)->f), ((%s)->f)->lex, %s, %d + ad%d)\n", buf2, buf2, buf1, i->r2.args, i->r2.callcnt);
+        xstra_inst(code, "CHECK_CALL(ctx, %s, L%d, %s, %d + ad%d, \"%s\", \"%s\", %d);\n",
+            buf2, tclabel, buf1, i->r2.args, i->r2.callcnt,
+            i->funcname, i->filename, i->line);
     }
 }
 
@@ -707,8 +715,11 @@ static void translate_mov(xstr *code, kl_kir_inst *i)
         xstrs(code, "\");\n");
         break;
     case TK_FUNC:
-        xstra_inst(code, "vmfnc *f%d = alcfnc(ctx, %s, frm, 0);\n", i->r2.funcid, i->r2.name);
+        xstra_inst(code, "vmfnc *f%d = alcfnc(ctx, %s, frm, \"%s\", 0);\n", i->r2.funcid, i->r2.name, i->r2.str);
         xstra_inst(code, "SET_FNC(%s, f%d);\n", buf1, i->r2.funcid);
+        if (strcmp(i->r2.name, "methodMissing") == 0) {
+            xstra_inst(code, "ctx->methodmissing = f%d;\n", i->r2.funcid);
+        }
         break;
     default:
         break;
@@ -743,8 +754,11 @@ static void translate_mova(xstr *code, kl_kir_inst *i)
         xstrs(code, "\");\n");
         break;
     case TK_FUNC:
-        xstra_inst(code, "vmfnc *f%d = alcfnc(ctx, %s, frm, 0);\n", i->r2.funcid, i->r2.name);
+        xstra_inst(code, "vmfnc *f%d = alcfnc(ctx, %s, frm, \"%s\", 0);\n", i->r2.funcid, i->r2.name, i->r2.str);
         xstra_inst(code, "SET_FNC((%s)->a, f%d);\n", buf1, i->r2.funcid);
+        if (strcmp(i->r2.name, "methodMissing") == 0) {
+            xstra_inst(code, "ctx->methodmissing = f%d;\n", i->r2.funcid);
+        }
         break;
     default:
         break;
@@ -850,13 +864,13 @@ static void translate_inst(xstr *code, kl_kir_func *f, kl_kir_inst *i, func_cont
         if (i->r1.typeid == TK_TFUNC) {
             xstra_inst(code, "{\n");
             xstra_inst(code, "    int %s(vmctx *ctx, vmfrm *lex, vmvar *r, int ac);\n", i->r2.str);
-            xstra_inst(code, "    vmfnc *f = alcfnc(ctx, %s, frm, 0);\n", i->r2.str);
+            xstra_inst(code, "    vmfnc *f = alcfnc(ctx, %s, frm, \"%s\", 0);\n", i->r2.str, i->r2.str);
             xstra_inst(code, "    SET_FNC(%s, f);\n", var_value(buf1, &(i->r1)), i->r2.str);
             xstra_inst(code, "}\n");
         } else {
             xstra_inst(code, "{\n", i->r2.str);
             xstra_inst(code, "    int %s(vmctx *ctx, vmfrm *lex, vmvar *r, int ac);\n", i->r2.str);
-            xstra_inst(code, "    vmfnc *f = alcfnc(ctx, %s, frm, 0);\n", i->r2.str);
+            xstra_inst(code, "    vmfnc *f = alcfnc(ctx, %s, frm, \"%s\", 0);\n", i->r2.str, i->r2.str);
             xstra_inst(code, "    e = ((vmfunc_t)(f->f))(ctx, lex, %s, 0);\n", var_value(buf1, &(i->r1)));
             xstra_inst(code, "}\n");
         }
@@ -868,8 +882,10 @@ static void translate_inst(xstr *code, kl_kir_func *f, kl_kir_inst *i, func_cont
         fctx->argcount = i->r3.i64;
         if (fctx->total_vars > 0) {
             xstra_inst(code, "const int allocated_local = %" PRId64 ";\n", fctx->total_vars);
-            xstra_inst(code, "alloc_var(ctx, %" PRId64 ");\n", fctx->total_vars);
-            xstra_inst(code, "CHECK_EXCEPTION(L%d);\n", f->funcend);
+            xstra_inst(code, "alloc_var(ctx, %" PRId64 ", L%d, \"%s\", \"%s\", %d);\n",
+                fctx->total_vars, f->funcend, i->funcname, i->filename, i->line);
+            xstra_inst(code, "CHECK_EXCEPTION(L%d, \"%s\", \"%s\", %d);\n",
+                f->funcend, i->funcname, i->filename, i->line);
         }
         for (int idx = 0; idx < fctx->total_vars; ++idx) {
             xstra_inst(code, "vmvar *n%d = local_var(ctx, %d);\n", idx, idx);
@@ -899,14 +915,14 @@ static void translate_inst(xstr *code, kl_kir_func *f, kl_kir_inst *i, func_cont
         fctx->argcount = i->r3.i64;
         fctx->temp_count = fctx->total_vars - fctx->local_vars;
         xstra_inst(code, "vmfrm *frm = alcfrm(ctx, %" PRId64 ");\n", fctx->local_vars);
-        xstra_inst(code, "push_frm(ctx, frm);\n");
+        xstra_inst(code, "push_frm(ctx, frm, L%d, \"%s\", \"%s\", %d);\n", f->funcend, i->funcname, i->filename, i->line);
         for (int idx = 0; idx < fctx->local_vars; ++idx) {
             xstra_inst(code, "vmvar *n%d = frm->v[%d] = alcvar_initial(ctx);\n", idx, idx);
         }
         if (fctx->total_vars > 0 && fctx->temp_count > 0) {
             xstra_inst(code, "const int allocated_local = %" PRId64 ";\n", fctx->temp_count);
-            xstra_inst(code, "alloc_var(ctx, %" PRId64 ");\n", fctx->temp_count);
-            xstra_inst(code, "CHECK_EXCEPTION(L%d);\n", f->funcend);
+            xstra_inst(code, "alloc_var(ctx, %" PRId64 ", \"%s\", \"%s\", %d);\n", fctx->temp_count, i->funcname, i->filename, i->line);
+            xstra_inst(code, "CHECK_EXCEPTION(L%d, \"%s\", \"%s\", %d);\n", f->funcend, i->funcname, i->filename, i->line);
             for (int idx = fctx->local_vars; idx < fctx->total_vars; ++idx) {
                 xstra_inst(code, "vmvar *n%d = local_var(ctx, %d);\n", idx, idx - fctx->local_vars);
             }
@@ -933,11 +949,12 @@ static void translate_inst(xstr *code, kl_kir_func *f, kl_kir_inst *i, func_cont
         xstra_inst(code, "int ad%d = 0, p%" PRId64 " = vstackp(ctx);\n", i->r1.i64, i->r1.i64);
         break;
     case KIR_PUSHSYS:
-        xstra_inst(code, "{ push_var_sys(ctx, %s, ad%d, L%d); }\n",
-            var_value(buf1, &(i->r1)), i->r1.callcnt, i->catchid > 0 ? i->catchid : f->funcend);
+        xstra_inst(code, "{ push_var_sys(ctx, %s, ad%d, L%d, \"%s\", \"%s\", %d); }\n",
+            var_value(buf1, &(i->r1)), i->r1.callcnt, i->catchid > 0 ? i->catchid : f->funcend,
+            i->funcname, i->filename, i->line);
         break;
     case KIR_PUSHARG:
-        translate_pusharg(code, &(i->r1), i->catchid > 0 ? i->catchid : f->funcend);
+        translate_pusharg(code, i, i->catchid > 0 ? i->catchid : f->funcend);
         break;
     case KIR_CALL:
         translate_call(code, f, i);
@@ -946,17 +963,17 @@ static void translate_inst(xstr *code, kl_kir_func *f, kl_kir_inst *i, func_cont
         xstra_inst(code, "restore_vstackp(ctx, p%" PRId64 ");\n", i->r1.i64);
         break;
     case KIR_CHKEXCEPT:
-        xstra_inst(code, "CHECK_EXCEPTION(L%d);\n", i->labelid);
+        xstra_inst(code, "CHECK_EXCEPTION(L%d, \"%s\", \"%s\", %d);\n", i->labelid, i->funcname, i->filename, i->line);
         break;
 
     case KIR_RET:
         xstra_inst(code, "return e;\n");
         break;
     case KIR_THROWE:
-        xstra_inst(code, "THROW_EXCEPTION(ctx, %s, L%d);\n", var_value(buf1, &(i->r1)), i->labelid);
+        xstra_inst(code, "THROW_EXCEPTION(ctx, %s, L%d, \"%s\", \"%s\", %d);\n", var_value(buf1, &(i->r1)), i->labelid, i->funcname, i->filename, i->line);
         break;
     case KIR_THROW:
-        xstra_inst(code, "THROW_CURRENT(ctx, L%d);\n", i->labelid);
+        xstra_inst(code, "THROW_CURRENT(ctx, L%d, \"%s\", \"%s\", %d);\n", i->labelid, i->funcname, i->filename, i->line);
         break;
     case KIR_CATCH:
         xstra_inst(code, "CATCH_EXCEPTION(ctx, %s);\n", var_value(buf1, &(i->r1)));
