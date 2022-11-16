@@ -76,6 +76,13 @@ static char *parse_const_str(kl_context *ctx, kl_lexer *l, const char *str)
     return const_str(ctx, "Compile", l->tokline, l->tokpos, l->toklen, str);
 }
 
+static char *parse_const_varidname(kl_context *ctx, kl_lexer *l, int id)
+{
+    char str[32] = {0};
+    sprintf(str, "v%d", id);
+    return const_str(ctx, "Compile", l->tokline, l->tokpos, l->toklen, str);
+}
+
 static char *parse_const_funcidname(kl_context *ctx, kl_lexer *l, int id)
 {
     char str[32] = {0};
@@ -1250,6 +1257,7 @@ static kl_stmt *parse_type_stmt(kl_context *ctx, kl_lexer *l, kl_stmt *s, kl_sym
 static kl_expr *parse_def_arglist(kl_context *ctx, kl_lexer *l, kl_symbol *func)
 {
     DEBUG_PARSER_PHASE();
+    int varid = 0;
     kl_expr *e = NULL;
     do {
         int dot3 = 0;
@@ -1284,7 +1292,14 @@ static kl_expr *parse_def_arglist(kl_context *ctx, kl_lexer *l, kl_symbol *func)
             e = make_bin_expr(ctx, l, TK_COMMA, e, e1);
         } else {
             if (l->tok == TK_LXBR || l->tok == TK_LLBR) {
-                kl_expr *e1 = parse_lvalue_factor(ctx, l);
+                kl_expr *e1 = make_expr(ctx, l, TK_VAR);
+                kl_symbol *sym = make_symbol(ctx, l, TK_VAR, 0);
+                sym->name = parse_const_varidname(ctx, l, varid++);
+                e1->sym = sym;
+                kl_expr *es = parse_lvalue_factor(ctx, l);
+                kl_stmt *as = make_stmt(ctx, l, TK_LET);
+                as->e1 = make_bin_expr(ctx, l, TK_EQ, es, parse_expr_varname(ctx, l, sym->name, 0));
+                e1->s = as;
                 e = make_bin_expr(ctx, l, TK_COMMA, e, e1);
             } else {
                 parse_error(ctx, __LINE__, l, "Invalid argument");

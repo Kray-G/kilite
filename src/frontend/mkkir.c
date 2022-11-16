@@ -46,7 +46,7 @@ static kl_kir_inst *new_inst_nop(kl_kir_program *p, int line, int pos)
 static kl_kir_inst *new_inst_label(kl_kir_program *p, int line, int pos, int labelid, kl_kir_inst *last, int gcable)
 {
     if (last &&
-            ((last->opcode == KIR_JMP || last->opcode == KIR_JMPIFT || last->opcode == KIR_JMPIFF || last->opcode == KIR_CHKEXCEPT) &&
+            ((last->opcode == KIR_JMP || last->opcode == KIR_JMPIFT || last->opcode == KIR_JMPIFF) &&
             last->labelid == labelid)) {
         last->disabled = 1;
     }
@@ -92,7 +92,7 @@ static kl_kir_inst *new_inst_jump(kl_kir_program *p, int line, int pos, int labe
     if (last && (last->opcode == KIR_RET || last->opcode == KIR_JMP)) {
         return NULL;
     }
-    if (last && ((last->opcode == KIR_JMPIFT || last->opcode == KIR_JMPIFF || last->opcode == KIR_CHKEXCEPT) && last->labelid == labelid)) {
+    if (last && ((last->opcode == KIR_JMPIFT || last->opcode == KIR_JMPIFF) && last->labelid == labelid)) {
         last->disabled = 1;
     }
     kl_kir_inst *inst = (kl_kir_inst *)calloc(1, sizeof(kl_kir_inst));
@@ -961,7 +961,11 @@ static kl_kir_inst *gen_assign(kl_context *ctx, kl_symbol *sym, kl_kir_opr *r1, 
         }
     } else {
         /* Destructuring assignment */
-        last->next = gen_assign_object(ctx, sym, &r2, l);
+        if (!head) {
+            head = gen_assign_object(ctx, sym, &r2, l);
+        } else {
+            last->next = gen_assign_object(ctx, sym, &r2, l);
+        }
     }
 
     return head;
@@ -1576,6 +1580,48 @@ static kl_kir_inst *gen_block(kl_context *ctx, kl_symbol *sym, kl_stmt *s)
     return head;
 }
 
+static kl_kir_inst *gen_args(kl_context *ctx, kl_symbol *sym, kl_expr *e)
+{
+    kl_kir_inst *head = NULL;
+    if (e->nodetype == TK_COMMA) {
+        head = gen_args(ctx, sym, e->lhs);
+        if (!head) {
+            head = gen_args(ctx, sym, e->rhs);
+        } else {
+            kl_kir_inst *last = get_last(head);
+            last->next = gen_args(ctx, sym, e->rhs);
+        }
+    } else {
+        if (e->s) {
+            head = gen_stmt(ctx, sym, e->s);
+        }
+    }
+    return head;
+}
+
+static kl_kir_inst *gen_setargs(kl_context *ctx, kl_symbol *sym, kl_expr *e, int *idx)
+{
+    kl_kir_inst *head = NULL;
+    if (e->nodetype == TK_COMMA) {
+        head = gen_setargs(ctx, sym, e->lhs, idx);
+        if (!head) {
+            head = gen_setargs(ctx, sym, e->rhs, idx);
+        } else {
+            kl_kir_inst *last = get_last(head);
+            last->next = gen_setargs(ctx, sym, e->rhs, idx);
+        }
+    } else {
+        if (e->sym) {
+            int index = e->sym->index;
+            kl_kir_opr rn = make_lit_i64(ctx, index);
+            kl_kir_opr ri = make_lit_i64(ctx, *idx);
+            head = new_inst_op2(ctx->program, e->line, e->pos, e->sym->is_dot3 ? KIR_SETARGL : KIR_SETARG, &rn, &ri);
+        }
+        ++*idx;
+    }
+    return head;
+}
+
 static kl_kir_func *gen_function(kl_context *ctx, kl_symbol *sym, kl_stmt *s, kl_symbol *initer)
 {
     kl_kir_inst *last = NULL;
@@ -1591,6 +1637,22 @@ static kl_kir_func *gen_function(kl_context *ctx, kl_symbol *sym, kl_stmt *s, kl
         func->head = last = new_inst(ctx->program, sym->line, sym->pos, KIR_ALOCAL);
     }
     set_file_func(ctx, sym, last);
+
+    if (sym->args) {
+        int idx = 0;
+        kl_kir_inst *setargs = gen_setargs(ctx, sym, sym->args, &idx);
+        if (setargs) {
+            last->next = setargs;
+            last = get_last(last);
+        }
+        kl_kir_inst *args = gen_args(ctx, sym, sym->args);
+        if (args) {
+            last->next = args;
+            last = get_last(last);
+        }
+    }
+    last->next = new_inst(ctx->program, sym->line, sym->pos, KIR_PURE);
+    last = last->next;
 
     kl_stmt *sh = s;
     while (sh) {

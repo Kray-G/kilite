@@ -40,7 +40,11 @@ int exception_printtrace(vmctx *ctx, vmvar *e)
         vmvar *file = hashmap_search(trace->o, "_file");
         vmvar *line = hashmap_search(trace->o, "_line");
         if (func && func->t == VAR_STR && file && file->t == VAR_STR && line && line->t == VAR_INT64) {
-            printf("        at %s(%s:%lld)\n", func->s->s, file->s->s, line->i);
+            if (func->s->s[0] == '<') {
+                printf("        at %s(%s:%lld)\n", func->s->s, file->s->s, line->i);
+            } else {
+                printf("        at function %s(%s:%lld)\n", func->s->s, file->s->s, line->i);
+            }
         }
     }
 

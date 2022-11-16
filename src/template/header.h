@@ -522,12 +522,12 @@ typedef struct vmctx {
 } \
 /**/
 
-#define SET_ARGVAR(idx, alc) { \
+#define SET_ARGVAR(vn, idx, alc) { \
     if (idx < ac) { \
-        vmvar *a##idx = local_var(ctx, (idx + alc)); \
-        SHCOPY_VAR_TO(ctx, n##idx, a##idx); \
+        vmvar *aa = local_var(ctx, (idx + alc)); \
+        SHCOPY_VAR_TO(ctx, n##vn, aa); \
     } else { \
-        init_var(n##idx); \
+        init_var(n##vn); \
     } \
 } \
 /**/
@@ -866,7 +866,7 @@ typedef struct vmctx {
 } \
 /**/
 
-#define OP_ADD_I_I(ctx, r, i0, i1) { \
+#define OP_ADD_I_I(ctx, r, i0, i1, label, func, file, line) { \
     if ((i0) >= 0) { \
         if (((i1) <= 0) || ((i0) <= (INT64_MAX - (i1)))) { \
             (r)->t = VAR_INT64; \
@@ -895,7 +895,7 @@ typedef struct vmctx {
 } \
 /**/
 
-#define OP_ADD_B_I(ctx, r, v0, i1) { \
+#define OP_ADD_B_I(ctx, r, v0, i1, label, func, file, line) { \
     BigZ bi = BzFromInteger(i1); \
     (r)->t = VAR_BIG; \
     (r)->bi = alcbgi_bigz(ctx, BzAdd((v0)->bi->b, bi)); \
@@ -904,7 +904,7 @@ typedef struct vmctx {
 } \
 /**/
 
-#define OP_ADD_I_B(ctx, r, i0, v1) { \
+#define OP_ADD_I_B(ctx, r, i0, v1, label, func, file, line) { \
     BigZ bi = BzFromInteger(i0); \
     (r)->t = VAR_BIG; \
     (r)->bi = alcbgi_bigz(ctx, BzAdd(bi, (v1)->bi->b)); \
@@ -913,47 +913,63 @@ typedef struct vmctx {
 } \
 /**/
 
-#define OP_ADD_V_I(ctx, r, v0, i1) { \
+#define OP_ADD_V_I(ctx, r, v0, i1, label, func, file, line) { \
     if ((v0)->t == VAR_INT64) { \
         int64_t i0 = (v0)->i; \
-        OP_ADD_I_I(ctx, r, i0, i1) \
+        OP_ADD_I_I(ctx, r, i0, i1, label, func, file, line) \
     } else if ((v0)->t == VAR_BIG) { \
-        OP_ADD_B_I(ctx, r, v0, i1) \
+        OP_ADD_B_I(ctx, r, v0, i1, label, func, file, line) \
     } else { \
         e = add_v_i(ctx, r, v0, i1); \
+        if (e) { \
+            exception_addtrace(ctx, ctx->except, func, file, line); \
+            goto label; \
+        } \
     } \
 } \
 /**/
 
-#define OP_ADD_I_V(ctx, r, i0, v1) { \
+#define OP_ADD_I_V(ctx, r, i0, v1, label, func, file, line) { \
     if ((v1)->t == VAR_INT64) { \
         int64_t i1 = (v1)->i; \
-        OP_ADD_I_I(ctx, r, i0, i1) \
+        OP_ADD_I_I(ctx, r, i0, i1, label, func, file, line) \
     } else if ((v1)->t == VAR_BIG) { \
-        OP_ADD_I_B(ctx, r, i0, v1) \
+        OP_ADD_I_B(ctx, r, i0, v1, label, func, file, line) \
     } else { \
         e = add_i_v(ctx, r, i0, v1); \
+        if (e) { \
+            exception_addtrace(ctx, ctx->except, func, file, line); \
+            goto label; \
+        } \
     } \
 } \
 /**/
 
-#define OP_ADD(ctx, r, v0, v1) { \
+#define OP_ADD(ctx, r, v0, v1, label, func, file, line) { \
     if ((v0)->t == VAR_INT64) { \
         int64_t i0 = (v0)->i; \
-        OP_ADD_I_V(ctx, r, i0, v1) \
+        OP_ADD_I_V(ctx, r, i0, v1, label, func, file, line) \
     } else if ((v0)->t == VAR_BIG) { \
         if ((v1)->t = VAR_INT64) { \
             int64_t i1 = (v1)->i; \
-            OP_ADD_B_I(ctx, r, v0, i1) \
+            OP_ADD_B_I(ctx, r, v0, i1, label, func, file, line) \
         } else if ((v1)->t = VAR_BIG) { \
             (r)->t = VAR_BIG; \
             (r)->bi = alcbgi_bigz(ctx, BzAdd((v0)->bi->b, (v1)->bi->b)); \
             bi_normalize(r); \
         } else { \
             e = add_v_v(ctx, r, v0, v1); \
+            if (e) { \
+                exception_addtrace(ctx, ctx->except, func, file, line); \
+                goto label; \
+            } \
         } \
     } else { \
         e = add_v_v(ctx, r, v0, v1); \
+        if (e) { \
+            exception_addtrace(ctx, ctx->except, func, file, line); \
+            goto label; \
+        } \
     } \
 } \
 /**/
@@ -976,7 +992,7 @@ typedef struct vmctx {
 } \
 /**/
 
-#define OP_SUB_I_I(ctx, r, i0, i1) { \
+#define OP_SUB_I_I(ctx, r, i0, i1, label, func, file, line) { \
     if ((i0) >= 0) { \
         if (((i1) >= 0) || ((i0) <= (INT64_MAX + (i1)))) { \
             (r)->t = VAR_INT64; \
@@ -1005,7 +1021,7 @@ typedef struct vmctx {
 } \
 /**/
 
-#define OP_SUB_B_I(ctx, r, v0, i1) { \
+#define OP_SUB_B_I(ctx, r, v0, i1, label, func, file, line) { \
     BigZ bi = BzFromInteger(i1); \
     (r)->t = VAR_BIG; \
     (r)->bi = alcbgi_bigz(ctx, BzSubtract((v0)->bi->b, bi)); \
@@ -1014,7 +1030,7 @@ typedef struct vmctx {
 } \
 /**/
 
-#define OP_SUB_I_B(ctx, r, i0, v1) { \
+#define OP_SUB_I_B(ctx, r, i0, v1, label, func, file, line) { \
     BigZ bi = BzFromInteger(i0); \
     (r)->t = VAR_BIG; \
     (r)->bi = alcbgi_bigz(ctx, BzSubtract(bi, (v1)->bi->b)); \
@@ -1023,46 +1039,62 @@ typedef struct vmctx {
 } \
 /**/
 
-#define OP_SUB_V_I(ctx, r, v0, i1) { \
+#define OP_SUB_V_I(ctx, r, v0, i1, label, func, file, line) { \
     if ((v0)->t == VAR_INT64) { \
         int64_t i0 = (v0)->i; \
-        OP_SUB_I_I(ctx, r, i0, i1) \
+        OP_SUB_I_I(ctx, r, i0, i1, label, func, file, line) \
     } else if ((v0)->t == VAR_BIG) { \
-        OP_SUB_B_I(ctx, r, v0, i1) \
+        OP_SUB_B_I(ctx, r, v0, i1, label, func, file, line) \
     } else { \
         e = sub_v_i(ctx, r, v0, i1); \
+        if (e) { \
+            exception_addtrace(ctx, ctx->except, func, file, line); \
+            goto label; \
+        } \
     } \
 } \
 /**/
 
-#define OP_SUB_I_V(ctx, r, i0, v1) { \
+#define OP_SUB_I_V(ctx, r, i0, v1, label, func, file, line) { \
     if ((v1)->t == VAR_INT64) { \
         int64_t i1 = (v1)->i; \
-        OP_SUB_I_I(ctx, r, i0, i1) \
+        OP_SUB_I_I(ctx, r, i0, i1, label, func, file, line) \
     } else if ((v1)->t == VAR_BIG) { \
-        OP_SUB_I_B(ctx, r, i0, v1) \
+        OP_SUB_I_B(ctx, r, i0, v1, label, func, file, line) \
     } else { \
         e = sub_i_v(ctx, r, i0, v1); \
+        if (e) { \
+            exception_addtrace(ctx, ctx->except, func, file, line); \
+            goto label; \
+        } \
     } \
 } \
 /**/
 
-#define OP_SUB(ctx, r, v0, v1) { \
+#define OP_SUB(ctx, r, v0, v1, label, func, file, line) { \
     if ((v0)->t == VAR_INT64) { \
         int64_t i0 = (v0)->i; \
-        OP_SUB_I_V(ctx, r, i0, v1) \
+        OP_SUB_I_V(ctx, r, i0, v1, label, func, file, line) \
     } else if ((v0)->t == VAR_BIG) { \
         if ((v1)->t = VAR_INT64) { \
             int64_t i1 = (v1)->i; \
-            OP_SUB_B_I(ctx, r, v0, i1) \
+            OP_SUB_B_I(ctx, r, v0, i1, label, func, file, line) \
         } else if ((v1)->t = VAR_BIG) { \
             (r)->t = VAR_BIG; \
             (r)->bi = alcbgi_bigz(ctx, BzSubtract((v0)->bi->b, (v1)->bi->b)); \
         } else { \
             e = sub_v_v(ctx, r, v0, v1); \
+            if (e) { \
+                exception_addtrace(ctx, ctx->except, func, file, line); \
+                goto label; \
+            } \
         } \
     } else { \
         e = sub_v_v(ctx, r, v0, v1); \
+        if (e) { \
+            exception_addtrace(ctx, ctx->except, func, file, line); \
+            goto label; \
+        } \
     } \
 } \
 /**/
@@ -1093,7 +1125,7 @@ typedef struct vmctx {
 } \
 /**/
 
-#define OP_MUL_I_I(ctx, r, i0, i1) { \
+#define OP_MUL_I_I(ctx, r, i0, i1, label, func, file, line) { \
     if ((i0) == 0 || (i1) == 0) { \
         (r)->t = VAR_INT64; \
         (r)->i = 0; \
@@ -1131,7 +1163,7 @@ typedef struct vmctx {
 } \
 /**/
 
-#define OP_MUL_B_I(ctx, r, v0, i1) { \
+#define OP_MUL_B_I(ctx, r, v0, i1, label, func, file, line) { \
     BigZ bi = BzFromInteger(i1); \
     (r)->t = VAR_BIG; \
     (r)->bi = alcbgi_bigz(ctx, BzMultiply((v0)->bi->b, bi)); \
@@ -1140,7 +1172,7 @@ typedef struct vmctx {
 } \
 /**/
 
-#define OP_MUL_I_B(ctx, r, i0, v1) { \
+#define OP_MUL_I_B(ctx, r, i0, v1, label, func, file, line) { \
     BigZ bi = BzFromInteger(i0); \
     (r)->t = VAR_BIG; \
     (r)->bi = alcbgi_bigz(ctx, BzMultiply(bi, (v1)->bi->b)); \
@@ -1149,116 +1181,152 @@ typedef struct vmctx {
 } \
 /**/
 
-#define OP_MUL_V_I(ctx, r, v0, i1) { \
+#define OP_MUL_V_I(ctx, r, v0, i1, label, func, file, line) { \
     if ((v0)->t == VAR_INT64) { \
         int64_t i0 = (v0)->i; \
-        OP_MUL_I_I(ctx, r, i0, i1) \
+        OP_MUL_I_I(ctx, r, i0, i1, label, func, file, line) \
     } else if ((v0)->t == VAR_BIG) { \
-        OP_MUL_B_I(ctx, r, v0, i1) \
+        OP_MUL_B_I(ctx, r, v0, i1, label, func, file, line) \
     } else { \
         e = mul_v_i(ctx, r, v0, i1); \
+        if (e) { \
+            exception_addtrace(ctx, ctx->except, func, file, line); \
+            goto label; \
+        } \
     } \
 } \
 /**/
 
-#define OP_MUL_I_V(ctx, r, i0, v1) { \
+#define OP_MUL_I_V(ctx, r, i0, v1, label, func, file, line) { \
     if ((v1)->t == VAR_INT64) { \
         int64_t i1 = (v1)->i; \
-        OP_MUL_I_I(ctx, r, i0, i1) \
+        OP_MUL_I_I(ctx, r, i0, i1, label, func, file, line) \
     } else if ((v1)->t == VAR_BIG) { \
-        OP_MUL_I_B(ctx, r, i0, v1) \
+        OP_MUL_I_B(ctx, r, i0, v1, label, func, file, line) \
     } else { \
         e = mul_i_v(ctx, r, i0, v1); \
+        if (e) { \
+            exception_addtrace(ctx, ctx->except, func, file, line); \
+            goto label; \
+        } \
     } \
 } \
 /**/
 
-#define OP_MUL(ctx, r, v0, v1) { \
+#define OP_MUL(ctx, r, v0, v1, label, func, file, line) { \
     if ((v0)->t == VAR_INT64) { \
         int64_t i0 = (v0)->i; \
-        OP_MUL_I_V(ctx, r, i0, v1) \
+        OP_MUL_I_V(ctx, r, i0, v1, label, func, file, line) \
     } else if ((v0)->t == VAR_BIG) { \
         if ((v1)->t = VAR_INT64) { \
             int64_t i1 = (v1)->i; \
-            OP_MUL_B_I(ctx, r, v0, i1) \
+            OP_MUL_B_I(ctx, r, v0, i1, label, func, file, line) \
         } else if ((v1)->t = VAR_BIG) { \
             (r)->t = VAR_BIG; \
             (r)->bi = alcbgi_bigz(ctx, BzMultiply((v0)->bi->b, (v1)->bi->b)); \
         } else { \
             e = mul_v_v(ctx, r, v0, v1); \
+            if (e) { \
+                exception_addtrace(ctx, ctx->except, func, file, line); \
+                goto label; \
+            } \
         } \
     } else { \
         e = mul_v_v(ctx, r, v0, v1); \
+        if (e) { \
+            exception_addtrace(ctx, ctx->except, func, file, line); \
+            goto label; \
+        } \
     } \
 } \
 /**/
 
 /* DIV */
 
-#define OP_DIV_I_I(ctx, r, i0, i1) { \
-    if (i1 < DBL_EPSILON) { \
+#define OP_DIV_I_I(ctx, r, i0, i1, label, func, file, line) { \
+    if (i1 == 0) { \
         e = throw_system_exception(__LINE__, ctx, EXCEPT_DIVIDE_BY_ZERO); \
+        exception_addtrace(ctx, ctx->except, func, file, line); \
+        goto label; \
     } \
     (r)->t = VAR_DBL; \
     (r)->d = ((double)(i0)) / (i1); \
 } \
 /**/
 
-#define OP_DIV_B_I(ctx, r, v0, i1) { \
-    if (i1 < DBL_EPSILON) { \
+#define OP_DIV_B_I(ctx, r, v0, i1, label, func, file, line) { \
+    if (i1 == 0) { \
         e = throw_system_exception(__LINE__, ctx, EXCEPT_DIVIDE_BY_ZERO); \
+        exception_addtrace(ctx, ctx->except, func, file, line); \
+        goto label; \
     } \
     (r)->t = VAR_DBL; \
     (r)->d = ((double)(BzToDouble((v0)->bi->b))) / (i1); \
 } \
 /**/
 
-#define OP_DIV_I_B(ctx, r, i0, v1) { \
+#define OP_DIV_I_B(ctx, r, i0, v1, label, func, file, line) { \
     (r)->t = VAR_DBL; \
     (r)->d = ((double)(i0)) / (BzToDouble((v1)->bi->b)); \
 } \
 /**/
 
-#define OP_DIV_V_I(ctx, r, v0, i1) { \
+#define OP_DIV_V_I(ctx, r, v0, i1, label, func, file, line) { \
     if ((v0)->t == VAR_INT64) { \
         int64_t i0 = (v0)->i; \
-        OP_DIV_I_I(ctx, r, i0, i1) \
+        OP_DIV_I_I(ctx, r, i0, i1, label, func, file, line) \
     } else if ((v0)->t == VAR_BIG) { \
-        OP_DIV_B_I(ctx, r, v0, i1) \
+        OP_DIV_B_I(ctx, r, v0, i1, label, func, file, line) \
     } else { \
         e = div_v_i(ctx, r, v0, i1); \
+        if (e) { \
+            exception_addtrace(ctx, ctx->except, func, file, line); \
+            goto label; \
+        } \
     } \
 } \
 /**/
 
-#define OP_DIV_I_V(ctx, r, i0, v1) { \
+#define OP_DIV_I_V(ctx, r, i0, v1, label, func, file, line) { \
     if ((v1)->t == VAR_INT64) { \
         int64_t i1 = (v1)->i; \
-        OP_DIV_I_I(ctx, r, i0, i1) \
+        OP_DIV_I_I(ctx, r, i0, i1, label, func, file, line) \
     } else if ((v1)->t == VAR_BIG) { \
-        OP_DIV_I_B(ctx, r, i0, v1) \
+        OP_DIV_I_B(ctx, r, i0, v1, label, func, file, line) \
     } else { \
         e = div_i_v(ctx, r, i0, v1); \
+        if (e) { \
+            exception_addtrace(ctx, ctx->except, func, file, line); \
+            goto label; \
+        } \
     } \
 } \
 /**/
 
-#define OP_DIV(ctx, r, v0, v1) { \
+#define OP_DIV(ctx, r, v0, v1, label, func, file, line) { \
     if ((v0)->t == VAR_INT64) { \
         int64_t i0 = (v0)->i; \
-        OP_DIV_I_V(ctx, r, i0, v1) \
+        OP_DIV_I_V(ctx, r, i0, v1, label, func, file, line) \
     } else if ((v0)->t == VAR_BIG) { \
         if ((v1)->t = VAR_INT64) { \
             int64_t i1 = (v1)->i; \
-            OP_DIV_B_I(ctx, r, v0, i1) \
+            OP_DIV_B_I(ctx, r, v0, i1, label, func, file, line) \
         } else if ((v1)->t = VAR_BIG) { \
             (r)->t = VAR_DBL; \
             (r)->d = ((double)(BzToDouble((v0)->bi->b))) / (BzToDouble((v1)->bi->b)); \
         } else { \
             e = div_v_v(ctx, r, v0, v1); \
+            if (e) { \
+                exception_addtrace(ctx, ctx->except, func, file, line); \
+                goto label; \
+            } \
         } \
     } else { \
         e = div_v_v(ctx, r, v0, v1); \
+        if (e) { \
+            exception_addtrace(ctx, ctx->except, func, file, line); \
+            goto label; \
+        } \
     } \
 } \
 /**/
@@ -1270,18 +1338,22 @@ typedef struct vmctx {
 } \
 /**/
 
-#define OP_MOD_I_I(ctx, r, i0, i1) { \
+#define OP_MOD_I_I(ctx, r, i0, i1, label, func, file, line) { \
     if (i1 < DBL_EPSILON) { \
         e = throw_system_exception(__LINE__, ctx, EXCEPT_DIVIDE_BY_ZERO); \
+        exception_addtrace(ctx, ctx->except, func, file, line); \
+        goto label; \
     } \
     (r)->t = VAR_INT64; \
     (r)->i = (i0) % (i1); \
 } \
 /**/
 
-#define OP_MOD_B_I(ctx, r, v0, i1) { \
+#define OP_MOD_B_I(ctx, r, v0, i1, label, func, file, line) { \
     if (i1 < DBL_EPSILON) { \
         e = throw_system_exception(__LINE__, ctx, EXCEPT_DIVIDE_BY_ZERO); \
+        exception_addtrace(ctx, ctx->except, func, file, line); \
+        goto label; \
     } \
     BigZ rx; \
     BigZ b1 = BzFromInteger(i1); \
@@ -1294,7 +1366,7 @@ typedef struct vmctx {
 } \
 /**/
 
-#define OP_MOD_I_B(ctx, r, i0, v1) { \
+#define OP_MOD_I_B(ctx, r, i0, v1, label, func, file, line) { \
     BigZ rx; \
     BigZ b0 = BzFromInteger(i0); \
     BigZ q = BzDivide(b0, (v1)->bi->b, &rx); \
@@ -1306,38 +1378,46 @@ typedef struct vmctx {
 } \
 /**/
 
-#define OP_MOD_V_I(ctx, r, v0, i1) { \
+#define OP_MOD_V_I(ctx, r, v0, i1, label, func, file, line) { \
     if ((v0)->t == VAR_INT64) { \
         int64_t i0 = (v0)->i; \
-        OP_MOD_I_I(ctx, r, i0, i1) \
+        OP_MOD_I_I(ctx, r, i0, i1, label, func, file, line) \
     } else if ((v0)->t == VAR_BIG) { \
-        OP_MOD_B_I(ctx, r, v0, i1) \
+        OP_MOD_B_I(ctx, r, v0, i1, label, func, file, line) \
     } else { \
         e = mod_v_i(ctx, r, v0, i1); \
+        if (e) { \
+            exception_addtrace(ctx, ctx->except, func, file, line); \
+            goto label; \
+        } \
     } \
 } \
 /**/
 
-#define OP_MOD_I_V(ctx, r, i0, v1) { \
+#define OP_MOD_I_V(ctx, r, i0, v1, label, func, file, line) { \
     if ((v1)->t == VAR_INT64) { \
         int64_t i1 = (v1)->i; \
-        OP_MOD_I_I(ctx, r, i0, i1) \
+        OP_MOD_I_I(ctx, r, i0, i1, label, func, file, line) \
     } else if ((v1)->t == VAR_BIG) { \
-        OP_MOD_I_B(ctx, r, i0, v1) \
+        OP_MOD_I_B(ctx, r, i0, v1, label, func, file, line) \
     } else { \
         e = mod_i_v(ctx, r, i0, v1); \
+        if (e) { \
+            exception_addtrace(ctx, ctx->except, func, file, line); \
+            goto label; \
+        } \
     } \
 } \
 /**/
 
-#define OP_MOD(ctx, r, v0, v1) { \
+#define OP_MOD(ctx, r, v0, v1, label, func, file, line) { \
     if ((v0)->t == VAR_INT64) { \
         int64_t i0 = (v0)->i; \
-        OP_MOD_I_V(ctx, r, i0, v1) \
+        OP_MOD_I_V(ctx, r, i0, v1, label, func, file, line) \
     } else if ((v0)->t == VAR_BIG) { \
         if ((v1)->t = VAR_INT64) { \
             int64_t i1 = (v1)->i; \
-            OP_MOD_B_I(ctx, r, v0, i1) \
+            OP_MOD_B_I(ctx, r, v0, i1, label, func, file, line) \
         } else if ((v1)->t = VAR_BIG) { \
             BigZ rx; \
             BigZ q = BzDivide((v0)->bi->b, (v1)->bi->b, &rx); \
@@ -1347,9 +1427,17 @@ typedef struct vmctx {
             bi_normalize(r); \
         } else { \
             e = mod_v_v(ctx, r, v0, v1); \
+            if (e) { \
+                exception_addtrace(ctx, ctx->except, func, file, line); \
+                goto label; \
+            } \
         } \
     } else { \
         e = mod_v_v(ctx, r, v0, v1); \
+        if (e) { \
+            exception_addtrace(ctx, ctx->except, func, file, line); \
+            goto label; \
+        } \
     } \
 } \
 /**/
@@ -1364,16 +1452,16 @@ typedef struct vmctx {
 } \
 /**/
 
-#define OP_POW_I_I(ctx, r, ip0, ip1) { \
+#define OP_POW_I_I(ctx, r, ip0, ip1, label, func, file, line) { \
     (r)->t = VAR_INT64; \
     (r)->i = 1; \
     for (int i = 0; i < ip1; ++i) { \
-        OP_MUL_V_I(ctx, (r), (r), (ip0)); \
+        OP_MUL_V_I(ctx, (r), (r), (ip0), label, func, file, line); \
     } \
 } \
 /**/
 
-#define OP_POW_B_I(ctx, r, vp0, ip1) { \
+#define OP_POW_B_I(ctx, r, vp0, ip1, label, func, file, line) { \
     BigZ rx = BzPow((vp0)->bi->b, ip1); \
     (r)->t = VAR_BIG; \
     (r)->bi = alcbgi_bigz(ctx, rx); \
@@ -1381,165 +1469,209 @@ typedef struct vmctx {
 } \
 /**/
 
-#define OP_POW_I_B(ctx, r, i0, v1) { \
+#define OP_POW_I_B(ctx, r, i0, v1, label, func, file, line) { \
     e = throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION); \
+    exception_addtrace(ctx, ctx->except, func, file, line); \
+    goto label; \
 } \
 /**/
 
-#define OP_POW_V_I(ctx, r, vp0, ip1) { \
+#define OP_POW_V_I(ctx, r, vp0, ip1, label, func, file, line) { \
     if ((vp0)->t == VAR_INT64) { \
         int64_t ip0 = (vp0)->i; \
-        OP_POW_I_I(ctx, r, ip0, ip1) \
+        OP_POW_I_I(ctx, r, ip0, ip1, label, func, file, line) \
     } else if ((vp0)->t == VAR_BIG) { \
-        OP_POW_B_I(ctx, r, vp0, ip1) \
+        OP_POW_B_I(ctx, r, vp0, ip1, label, func, file, line) \
     } else { \
         e = pow_v_i(ctx, r, vp0, ip1); \
+        if (e) { \
+            exception_addtrace(ctx, ctx->except, func, file, line); \
+            goto label; \
+        } \
     } \
 } \
 /**/
 
-#define OP_POW_I_V(ctx, r, ip0, vp1) { \
+#define OP_POW_I_V(ctx, r, ip0, vp1, label, func, file, line) { \
     if ((vp1)->t == VAR_INT64) { \
         int64_t ip1 = (vp1)->i; \
-        OP_POW_I_I(ctx, r, ip0, ip1) \
+        OP_POW_I_I(ctx, r, ip0, ip1, label, func, file, line) \
     } else if ((vp1)->t == VAR_BIG) { \
-        OP_POW_I_B(ctx, r, ip0, vp1) \
+        OP_POW_I_B(ctx, r, ip0, vp1, label, func, file, line) \
     } else { \
         e = pow_i_v(ctx, r, ip0, vp1); \
+        if (e) { \
+            exception_addtrace(ctx, ctx->except, func, file, line); \
+            goto label; \
+        } \
     } \
 } \
 /**/
 
-#define OP_POW(ctx, r, vp0, vp1) { \
+#define OP_POW(ctx, r, vp0, vp1, label, func, file, line) { \
     if ((vp0)->t == VAR_INT64) { \
         int64_t ip0 = (vp0)->i; \
-        OP_POW_I_V(ctx, r, ip0, vp1) \
+        OP_POW_I_V(ctx, r, ip0, vp1, label, func, file, line) \
     } else if ((vp0)->t == VAR_BIG) { \
         if ((vp1)->t = VAR_INT64) { \
             int64_t ip1 = (vp1)->i; \
-            OP_POW_B_I(ctx, r, vp0, ip1) \
+            OP_POW_B_I(ctx, r, vp0, ip1, label, func, file, line) \
         } else if ((vp1)->t = VAR_BIG) { \
             e = throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION); \
+            exception_addtrace(ctx, ctx->except, func, file, line); \
+            goto label; \
         } else { \
             e = pow_v_v(ctx, r, vp0, vp1); \
+            if (e) { \
+                exception_addtrace(ctx, ctx->except, func, file, line); \
+                goto label; \
+            } \
         } \
     } else { \
         e = pow_v_v(ctx, r, vp0, vp1); \
+        if (e) { \
+            exception_addtrace(ctx, ctx->except, func, file, line); \
+            goto label; \
+        } \
     } \
 } \
 /**/
 
 /* EQEQ */
 
-#define OP_EQEQ_I_I(ctx, r, i0, i1) { \
+#define OP_EQEQ_I_I(ctx, r, i0, i1, label, func, file, line) { \
     (r)->t = VAR_INT64; \
     (r)->i = (i0) == (i1); \
 } \
 /**/
 
-#define OP_EQEQ_B_I(ctx, r, v0, i1) { \
+#define OP_EQEQ_B_I(ctx, r, v0, i1, label, func, file, line) { \
     (r)->t = VAR_INT64; \
     (r)->i = 0; \
 } \
 /**/
 
-#define OP_EQEQ_I_B(ctx, r, i0, v1) { \
+#define OP_EQEQ_I_B(ctx, r, i0, v1, label, func, file, line) { \
     (r)->t = VAR_INT64; \
     (r)->i = 0; \
 } \
 /**/
 
-#define OP_EQEQ_V_I(ctx, r, v0, i1) { \
+#define OP_EQEQ_V_I(ctx, r, v0, i1, label, func, file, line) { \
     if ((v0)->t == VAR_INT64) { \
-        OP_EQEQ_I_I(ctx, r, (v0)->i, i1) \
+        OP_EQEQ_I_I(ctx, r, (v0)->i, i1, label, func, file, line) \
     } else if ((v0)->t == VAR_BIG) { \
-        OP_EQEQ_B_I(ctx, r, v0, i1) \
+        OP_EQEQ_B_I(ctx, r, v0, i1, label, func, file, line) \
     } else { \
         e = eqeq_v_i(ctx, r, v0, i1); \
+        if (e) { \
+            exception_addtrace(ctx, ctx->except, func, file, line); \
+            goto label; \
+        } \
     } \
 } \
 /**/
 
-#define OP_EQEQ_I_V(ctx, r, i0, v1) { \
+#define OP_EQEQ_I_V(ctx, r, i0, v1, label, func, file, line) { \
     if ((v1)->t == VAR_INT64) { \
-        OP_EQEQ_I_I(ctx, r, i0, (v1)->i) \
+        OP_EQEQ_I_I(ctx, r, i0, (v1)->i, label, func, file, line) \
     } else if ((v1)->t == VAR_BIG) { \
-        OP_EQEQ_I_B(ctx, r, i0, v1) \
+        OP_EQEQ_I_B(ctx, r, i0, v1, label, func, file, line) \
     } else { \
         e = eqeq_i_v(ctx, r, i0, v1); \
+        if (e) { \
+            exception_addtrace(ctx, ctx->except, func, file, line); \
+            goto label; \
+        } \
     } \
 } \
 /**/
 
-#define OP_EQEQ(ctx, r, v0, v1) { \
+#define OP_EQEQ(ctx, r, v0, v1, label, func, file, line) { \
     if ((v0)->t == VAR_INT64) { \
         int64_t i0 = (v0)->i; \
-        OP_EQEQ_I_V(ctx, r, i0, v1) \
+        OP_EQEQ_I_V(ctx, r, i0, v1, label, func, file, line) \
     } else if ((v0)->t == VAR_BIG) { \
         if ((v1)->t = VAR_INT64) { \
             int64_t i1 = (v1)->i; \
-            OP_EQEQ_B_I(ctx, r, v0, i1) \
+            OP_EQEQ_B_I(ctx, r, v0, i1, label, func, file, line) \
         } else if ((v1)->t = VAR_BIG) { \
             BzCmp c = BzCompare((v0)->bi->b, (v1)->bi->b); \
             (r)->t = VAR_INT64; \
             (r)->i = (c == BZ_EQ); \
         } else { \
             e = eqeq_v_v(ctx, r, v0, v1); \
+            if (e) { \
+                exception_addtrace(ctx, ctx->except, func, file, line); \
+                goto label; \
+            } \
         } \
     } else { \
         e = eqeq_v_v(ctx, r, v0, v1); \
+        if (e) { \
+            exception_addtrace(ctx, ctx->except, func, file, line); \
+            goto label; \
+        } \
     } \
 } \
 /**/
 
 /* NEQ */
 
-#define OP_NEQ_I_I(ctx, r, i0, i1) { \
+#define OP_NEQ_I_I(ctx, r, i0, i1, label, func, file, line) { \
     (r)->t = VAR_INT64; \
     (r)->i = (i0) != (i1); \
 } \
 /**/
 
-#define OP_NEQ_B_I(ctx, r, v0, i1) { \
+#define OP_NEQ_B_I(ctx, r, v0, i1, label, func, file, line) { \
     (r)->t = VAR_INT64; \
     (r)->i = 1; \
 } \
 /**/
 
-#define OP_NEQ_I_B(ctx, r, i0, v1) { \
+#define OP_NEQ_I_B(ctx, r, i0, v1, label, func, file, line) { \
     (r)->t = VAR_INT64; \
     (r)->i = 1; \
 } \
 /**/
 
-#define OP_NEQ_V_I(ctx, r, v0, i1) { \
+#define OP_NEQ_V_I(ctx, r, v0, i1, label, func, file, line) { \
     if ((v0)->t == VAR_INT64) { \
-        OP_NEQ_I_I(ctx, r, (v0)->i, i1) \
+        OP_NEQ_I_I(ctx, r, (v0)->i, i1, label, func, file, line) \
     } else if ((v0)->t == VAR_BIG) { \
         (r)->t = VAR_INT64; \
         (r)->i = 1; \
     } else { \
         e = neq_v_i(ctx, r, v0, i1); \
+        if (e) { \
+            exception_addtrace(ctx, ctx->except, func, file, line); \
+            goto label; \
+        } \
     } \
 } \
 /**/
 
-#define OP_NEQ_I_V(ctx, r, i0, v1) { \
+#define OP_NEQ_I_V(ctx, r, i0, v1, label, func, file, line) { \
     if ((v1)->t == VAR_INT64) { \
-        OP_NEQ_I_I(ctx, r, i0, (v1)->i) \
+        OP_NEQ_I_I(ctx, r, i0, (v1)->i, label, func, file, line) \
     } else if ((v1)->t == VAR_BIG) { \
         (r)->t = VAR_INT64; \
         (r)->i = 1; \
     } else { \
         e = neq_i_v(ctx, r, i0, v1); \
+        if (e) { \
+            exception_addtrace(ctx, ctx->except, func, file, line); \
+            goto label; \
+        } \
     } \
 } \
 /**/
 
-#define OP_NEQ(ctx, r, v0, v1) { \
+#define OP_NEQ(ctx, r, v0, v1, label, func, file, line) { \
     if ((v0)->t == VAR_INT64) { \
         int64_t i0 = (v0)->i; \
-        OP_NEQ_I_V(ctx, r, i0, v1) \
+        OP_NEQ_I_V(ctx, r, i0, v1, label, func, file, line) \
     } else if ((v0)->t == VAR_BIG) { \
         if ((v1)->t = VAR_INT64) { \
             (r)->t = VAR_INT64; \
@@ -1550,22 +1682,30 @@ typedef struct vmctx {
             (r)->i = (c != BZ_EQ); \
         } else { \
             e = neq_v_v(ctx, r, v0, v1); \
+            if (e) { \
+                exception_addtrace(ctx, ctx->except, func, file, line); \
+                goto label; \
+            } \
         } \
     } else { \
         e = neq_v_v(ctx, r, v0, v1); \
+        if (e) { \
+            exception_addtrace(ctx, ctx->except, func, file, line); \
+            goto label; \
+        } \
     } \
 } \
 /**/
 
 /* LT */
 
-#define OP_LT_I_I(ctx, r, i0, i1) { \
+#define OP_LT_I_I(ctx, r, i0, i1, label, func, file, line) { \
     (r)->t = VAR_INT64; \
     (r)->i = (i0) < (i1); \
 } \
 /**/
 
-#define OP_LT_B_I(ctx, r, v0, i1) { \
+#define OP_LT_B_I(ctx, r, v0, i1, label, func, file, line) { \
     BigZ b1 = BzFromInteger(i1); \
     BzCmp c = BzCompare((v0)->bi->b, b1); \
     BzFree(b1); \
@@ -1574,7 +1714,7 @@ typedef struct vmctx {
 } \
 /**/
 
-#define OP_LT_I_B(ctx, r, i0, v1) { \
+#define OP_LT_I_B(ctx, r, i0, v1, label, func, file, line) { \
     BigZ b0 = BzFromInteger(i0); \
     BzCmp c = BzCompare(b0, (v1)->bi->b); \
     BzFree(b0); \
@@ -1583,58 +1723,74 @@ typedef struct vmctx {
 } \
 /**/
 
-#define OP_LT_V_I(ctx, r, v0, i1) { \
+#define OP_LT_V_I(ctx, r, v0, i1, label, func, file, line) { \
     if ((v0)->t == VAR_INT64) { \
-        OP_LT_I_I(ctx, r, (v0)->i, i1) \
+        OP_LT_I_I(ctx, r, (v0)->i, i1, label, func, file, line) \
     } else if ((v0)->t == VAR_BIG) { \
-        OP_LT_B_I(ctx, r, v0, i1) \
+        OP_LT_B_I(ctx, r, v0, i1, label, func, file, line) \
     } else { \
         e = lt_v_i(ctx, r, v0, i1); \
+        if (e) { \
+            exception_addtrace(ctx, ctx->except, func, file, line); \
+            goto label; \
+        } \
     } \
 } \
 /**/
 
-#define OP_LT_I_V(ctx, r, i0, v1) { \
+#define OP_LT_I_V(ctx, r, i0, v1, label, func, file, line) { \
     if ((v1)->t == VAR_INT64) { \
-        OP_LT_I_I(ctx, r, i0, (v1)->i) \
+        OP_LT_I_I(ctx, r, i0, (v1)->i, label, func, file, line) \
     } else if ((v1)->t == VAR_BIG) { \
-        OP_LT_I_B(ctx, r, i0, v1) \
+        OP_LT_I_B(ctx, r, i0, v1, label, func, file, line) \
     } else { \
         e = lt_i_v(ctx, r, i0, v1); \
+        if (e) { \
+            exception_addtrace(ctx, ctx->except, func, file, line); \
+            goto label; \
+        } \
     } \
 } \
 /**/
 
-#define OP_LT(ctx, r, v0, v1) { \
+#define OP_LT(ctx, r, v0, v1, label, func, file, line) { \
     if ((v0)->t == VAR_INT64) { \
         int64_t i0 = (v0)->i; \
-        OP_LT_I_V(ctx, r, i0, v1) \
+        OP_LT_I_V(ctx, r, i0, v1, label, func, file, line) \
     } else if ((v0)->t == VAR_BIG) { \
         if ((v1)->t = VAR_INT64) { \
             int64_t i1 = (v1)->i; \
-            OP_LT_B_I(ctx, r, v0, i1) \
+            OP_LT_B_I(ctx, r, v0, i1, label, func, file, line) \
         } else if ((v1)->t = VAR_BIG) { \
             BzCmp c = BzCompare((v0)->bi->b, (v1)->bi->b); \
             (r)->t = VAR_INT64; \
             (r)->i = (c == BZ_LT); \
         } else { \
             e = lt_v_v(ctx, r, v0, v1); \
+            if (e) { \
+                exception_addtrace(ctx, ctx->except, func, file, line); \
+                goto label; \
+            } \
         } \
     } else { \
         e = lt_v_v(ctx, r, v0, v1); \
+        if (e) { \
+            exception_addtrace(ctx, ctx->except, func, file, line); \
+            goto label; \
+        } \
     } \
 } \
 /**/
 
 /* LE */
 
-#define OP_LE_I_I(ctx, r, i0, i1) { \
+#define OP_LE_I_I(ctx, r, i0, i1, label, func, file, line) { \
     (r)->t = VAR_INT64; \
     (r)->i = (i0) <= (i1); \
 } \
 /**/
 
-#define OP_LE_B_I(ctx, r, v0, i1) { \
+#define OP_LE_B_I(ctx, r, v0, i1, label, func, file, line) { \
     BigZ b1 = BzFromInteger(i1); \
     BzCmp c = BzCompare((v0)->bi->b, b1); \
     BzFree(b1); \
@@ -1643,7 +1799,7 @@ typedef struct vmctx {
 } \
 /**/
 
-#define OP_LE_I_B(ctx, r, i0, v1) { \
+#define OP_LE_I_B(ctx, r, i0, v1, label, func, file, line) { \
     BigZ b0 = BzFromInteger(i0); \
     BzCmp c = BzCompare(b0, (v1)->bi->b); \
     BzFree(b0); \
@@ -1652,76 +1808,92 @@ typedef struct vmctx {
 } \
 /**/
 
-#define OP_LE_V_I(ctx, r, v0, i1) { \
+#define OP_LE_V_I(ctx, r, v0, i1, label, func, file, line) { \
     if ((v0)->t == VAR_INT64) { \
-        OP_LE_I_I(ctx, r, (v0)->i, i1) \
+        OP_LE_I_I(ctx, r, (v0)->i, i1, label, func, file, line) \
     } else if ((v0)->t == VAR_BIG) { \
-        OP_LE_B_I(ctx, r, v0, i1) \
+        OP_LE_B_I(ctx, r, v0, i1, label, func, file, line) \
     } else { \
         e = le_v_i(ctx, r, v0, i1); \
+        if (e) { \
+            exception_addtrace(ctx, ctx->except, func, file, line); \
+            goto label; \
+        } \
     } \
 } \
 /**/
 
-#define OP_LE_I_V(ctx, r, i0, v1) { \
+#define OP_LE_I_V(ctx, r, i0, v1, label, func, file, line) { \
     if ((v1)->t == VAR_INT64) { \
-        OP_LE_I_I(ctx, r, i0, (v1)->i) \
+        OP_LE_I_I(ctx, r, i0, (v1)->i, label, func, file, line) \
     } else if ((v1)->t == VAR_BIG) { \
-        OP_LE_I_B(ctx, r, i0, v1) \
+        OP_LE_I_B(ctx, r, i0, v1, label, func, file, line) \
     } else { \
         e = le_i_v(ctx, r, i0, v1); \
+        if (e) { \
+            exception_addtrace(ctx, ctx->except, func, file, line); \
+            goto label; \
+        } \
     } \
 } \
 /**/
 
-#define OP_LE(ctx, r, v0, v1) { \
+#define OP_LE(ctx, r, v0, v1, label, func, file, line) { \
     if ((v0)->t == VAR_INT64) { \
         int64_t i0 = (v0)->i; \
-        OP_LE_I_V(ctx, r, i0, v1) \
+        OP_LE_I_V(ctx, r, i0, v1, label, func, file, line) \
     } else if ((v0)->t == VAR_BIG) { \
         if ((v1)->t = VAR_INT64) { \
             int64_t i1 = (v1)->i; \
-            OP_LE_B_I(ctx, r, v0, i1) \
+            OP_LE_B_I(ctx, r, v0, i1, label, func, file, line) \
         } else if ((v1)->t = VAR_BIG) { \
             BzCmp c = BzCompare((v0)->bi->b, (v1)->bi->b); \
             (r)->t = VAR_INT64; \
             (r)->i = (c != BZ_GT); \
         } else { \
             e = le_v_v(ctx, r, v0, v1); \
+            if (e) { \
+                exception_addtrace(ctx, ctx->except, func, file, line); \
+                goto label; \
+            } \
         } \
     } else { \
         e = le_v_v(ctx, r, v0, v1); \
+        if (e) { \
+            exception_addtrace(ctx, ctx->except, func, file, line); \
+            goto label; \
+        } \
     } \
 } \
 /**/
 
 /* GT */
 
-#define OP_GT_I_I(ctx, r, i0, i1) { OP_LT_I_I(ctx, r, i1, i0) }
-#define OP_GT_B_I(ctx, r, v0, i1) { OP_LT_I_B(ctx, r, i1, v0) }
-#define OP_GT_I_B(ctx, r, i0, v1) { OP_LT_B_I(ctx, r, v1, i0) }
-#define OP_GT_V_I(ctx, r, v0, i1) { OP_LT_I_V(ctx, r, i1, v0) }
-#define OP_GT_I_V(ctx, r, i0, v1) { OP_LT_V_I(ctx, r, v1, i0) }
-#define OP_GT(ctx, r, v0, v1) { OP_LT(ctx, r, v1, v0) }
+#define OP_GT_I_I(ctx, r, i0, i1, label, func, file, line) { OP_LT_I_I(ctx, r, i1, i0, label, func, file, line) }
+#define OP_GT_B_I(ctx, r, v0, i1, label, func, file, line) { OP_LT_I_B(ctx, r, i1, v0, label, func, file, line) }
+#define OP_GT_I_B(ctx, r, i0, v1, label, func, file, line) { OP_LT_B_I(ctx, r, v1, i0, label, func, file, line) }
+#define OP_GT_V_I(ctx, r, v0, i1, label, func, file, line) { OP_LT_I_V(ctx, r, i1, v0, label, func, file, line) }
+#define OP_GT_I_V(ctx, r, i0, v1, label, func, file, line) { OP_LT_V_I(ctx, r, v1, i0, label, func, file, line) }
+#define OP_GT(ctx, r, v0, v1, label, func, file, line) { OP_LT(ctx, r, v1, v0, label, func, file, line) }
 
 /* GE */
 
-#define OP_GE_I_I(ctx, r, i0, i1) { OP_LE_I_I(ctx, r, i1, i0) }
-#define OP_GE_B_I(ctx, r, v0, i1) { OP_LE_I_B(ctx, r, i1, v0) }
-#define OP_GE_I_B(ctx, r, i0, v1) { OP_LE_B_I(ctx, r, v1, i0) }
-#define OP_GE_V_I(ctx, r, v0, i1) { OP_LE_I_V(ctx, r, i1, v0) }
-#define OP_GE_I_V(ctx, r, i0, v1) { OP_LE_V_I(ctx, r, v1, i0) }
-#define OP_GE(ctx, r, v0, v1) { OP_LE(ctx, r, v1, v0) }
+#define OP_GE_I_I(ctx, r, i0, i1, label, func, file, line) { OP_LE_I_I(ctx, r, i1, i0, label, func, file, line) }
+#define OP_GE_B_I(ctx, r, v0, i1, label, func, file, line) { OP_LE_I_B(ctx, r, i1, v0, label, func, file, line) }
+#define OP_GE_I_B(ctx, r, i0, v1, label, func, file, line) { OP_LE_B_I(ctx, r, v1, i0, label, func, file, line) }
+#define OP_GE_V_I(ctx, r, v0, i1, label, func, file, line) { OP_LE_I_V(ctx, r, i1, v0, label, func, file, line) }
+#define OP_GE_I_V(ctx, r, i0, v1, label, func, file, line) { OP_LE_V_I(ctx, r, v1, i0, label, func, file, line) }
+#define OP_GE(ctx, r, v0, v1, label, func, file, line) { OP_LE(ctx, r, v1, v0, label, func, file, line) }
 
 /* LGE */
 
-#define OP_LGE_I_I(ctx, r, i0, i1) { \
+#define OP_LGE_I_I(ctx, r, i0, i1, label, func, file, line) { \
     (r)->t = VAR_INT64; \
     (r)->i = (i0) == (i1) ? 0 : ((i0) < (i1) ? -1 : 1); \
 } \
 /**/
 
-#define OP_LGE_B_I(ctx, r, v0, i1) { \
+#define OP_LGE_B_I(ctx, r, v0, i1, label, func, file, line) { \
     BigZ b1 = BzFromInteger(i1); \
     BzCmp c = BzCompare((v0)->bi->b, b1); \
     BzFree(b1); \
@@ -1730,7 +1902,7 @@ typedef struct vmctx {
 } \
 /**/
 
-#define OP_LGE_I_B(ctx, r, i0, v1) { \
+#define OP_LGE_I_B(ctx, r, i0, v1, label, func, file, line) { \
     BigZ b0 = BzFromInteger(i0); \
     BzCmp c = BzCompare(b0, (v1)->bi->b); \
     BzFree(b0); \
@@ -1739,45 +1911,61 @@ typedef struct vmctx {
 } \
 /**/
 
-#define OP_LGE_V_I(ctx, r, v0, i1) { \
+#define OP_LGE_V_I(ctx, r, v0, i1, label, func, file, line) { \
     if ((v0)->t == VAR_INT64) { \
-        OP_LGE_I_I(ctx, r, (v0)->i, i1) \
+        OP_LGE_I_I(ctx, r, (v0)->i, i1, label, func, file, line) \
     } else if ((v0)->t == VAR_BIG) { \
-        OP_LGE_B_I(ctx, r, v0, i1) \
+        OP_LGE_B_I(ctx, r, v0, i1, label, func, file, line) \
     } else { \
         e = lge_v_i(ctx, r, v0, i1); \
+        if (e) { \
+            exception_addtrace(ctx, ctx->except, func, file, line); \
+            goto label; \
+        } \
     } \
 } \
 /**/
 
-#define OP_LGE_I_V(ctx, r, i0, v1) { \
+#define OP_LGE_I_V(ctx, r, i0, v1, label, func, file, line) { \
     if ((v1)->t == VAR_INT64) { \
-        OP_LGE_I_I(ctx, r, i0, (v1)->i) \
+        OP_LGE_I_I(ctx, r, i0, (v1)->i, label, func, file, line) \
     } else if ((v1)->t == VAR_BIG) { \
-        OP_LGE_I_B(ctx, r, i0, v1) \
+        OP_LGE_I_B(ctx, r, i0, v1, label, func, file, line) \
     } else { \
         e = lge_i_v(ctx, r, i0, v1); \
+        if (e) { \
+            exception_addtrace(ctx, ctx->except, func, file, line); \
+            goto label; \
+        } \
     } \
 } \
 /**/
 
-#define OP_LGE(ctx, r, v0, v1) { \
+#define OP_LGE(ctx, r, v0, v1, label, func, file, line) { \
     if ((v0)->t == VAR_INT64) { \
         int64_t i0 = (v0)->i; \
-        OP_LGE_I_V(ctx, r, i0, v1) \
+        OP_LGE_I_V(ctx, r, i0, v1, label, func, file, line) \
     } else if ((v0)->t == VAR_BIG) { \
         if ((v1)->t = VAR_INT64) { \
             int64_t i1 = (v1)->i; \
-            OP_LGE_B_I(ctx, r, v0, i1) \
+            OP_LGE_B_I(ctx, r, v0, i1, label, func, file, line) \
         } else if ((v1)->t = VAR_BIG) { \
             BzCmp c = BzCompare((v0)->bi->b, (v1)->bi->b); \
             (r)->t = VAR_INT64; \
             (r)->i = (c == BZ_EQ) ? 0 : ((c == BZ_LT) ? -1 : 1); \
         } else { \
             e = lge_v_v(ctx, r, v0, v1); \
+            if (e) { \
+                exception_addtrace(ctx, ctx->except, func, file, line); \
+                goto label; \
+            } \
         } \
     } else { \
         e = lge_v_v(ctx, r, v0, v1); \
+        if (e) { \
+            exception_addtrace(ctx, ctx->except, func, file, line); \
+            goto label; \
+        } \
     } \
 } \
 /**/

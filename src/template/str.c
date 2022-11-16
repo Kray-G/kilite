@@ -116,7 +116,7 @@ vmstr *str_append_ch(vmctx *ctx, vmstr *vs, const char ch)
 vmstr *str_append_dbl(vmctx *ctx, vmstr *vs, double d)
 {
     char buf[256] = {0};
-    xsprintf(buf, "%.16f", d);
+    xsprintf(buf, "%.16g", d);
     return str_append_impl(ctx, vs, buf, strlen(buf));
 }
 

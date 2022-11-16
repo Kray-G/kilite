@@ -141,6 +141,12 @@ void disp_inst(kl_kir_program *p, kl_kir_inst *i)
     case KIR_POPFRM:
         disp_0op("popfrm");
         break;
+    case KIR_SETARG:
+        disp_2op("setarg", i);
+        break;
+    case KIR_SETARGL:
+        disp_2op("setargl", i);
+        break;
 
     case KIR_SVSTKP:
         printf(IDT OP, "savestkp");

@@ -103,9 +103,6 @@ int add_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
             r->t = VAR_BIG;
             r->bi = alcbgi_bigz(ctx, BzCopy(v0->bi->b));
             break;
-        case VAR_INT64:
-            OP_ADD_B_I(ctx, r, v0, v1->i);
-            break;
         case VAR_DBL:
             r->t = VAR_DBL;
             r->d = BzToDouble(v0->bi->b) + v1->d;
@@ -129,7 +126,8 @@ int add_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
             r->d = v0->d;
             break;
         case VAR_INT64:
-            OP_ADD_V_I(ctx, r, v0, v1->i);
+            r->t = VAR_DBL;
+            r->d = v0->d + (double)v1->i;
             break;
         case VAR_BIG:
             r->t = VAR_DBL;
@@ -156,7 +154,9 @@ int add_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
             r->s = str_dup(ctx, v0->s);
             break;
         case VAR_INT64:
-            OP_ADD_V_I(ctx, r, v0, v1->i);
+            r->t = VAR_STR;
+            r->s = str_dup(ctx, v0->s);
+            str_append_i64(ctx, r->s, v1->i);
             break;
         case VAR_BIG:
             r->t = VAR_STR;
@@ -168,7 +168,7 @@ int add_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
         case VAR_DBL:
             r->t = VAR_STR;
             r->s = str_dup(ctx, v0->s);
-            str_append_i64(ctx, r->s, v1->d);
+            str_append_dbl(ctx, r->s, v1->d);
             break;
         case VAR_STR: {
             vmstr *s = str_dup(ctx, v0->s);
@@ -273,9 +273,6 @@ int sub_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
             r->t = VAR_BIG;
             r->bi = alcbgi_bigz(ctx, BzNegate(v0->bi->b));
             break;
-        case VAR_INT64:
-            OP_SUB_B_I(ctx, r, v0, v1->i);
-            break;
         case VAR_DBL:
             r->t = VAR_DBL;
             r->d = BzToDouble(v0->bi->b) - v1->d;
@@ -293,7 +290,8 @@ int sub_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
             r->d = v0->d;
             break;
         case VAR_INT64:
-            OP_SUB_V_I(ctx, r, v0, v1->i);
+            r->t = VAR_DBL;
+            r->d = v0->d - (double)v1->i;
             break;
         case VAR_BIG:
             r->t = VAR_DBL;
@@ -424,9 +422,6 @@ int mul_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
             r->t = VAR_INT64;
             r->i = 0;
             break;
-        case VAR_INT64:
-            OP_MUL_B_I(ctx, r, v0, v1->i);
-            break;
         case VAR_DBL:
             r->t = VAR_DBL;
             r->d = BzToDouble(v0->bi->b) * v1->d;
@@ -445,7 +440,8 @@ int mul_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
             r->d = 0.0;
             break;
         case VAR_INT64:
-            OP_MUL_V_I(ctx, r, v0, v1->i);
+            r->t = VAR_DBL;
+            r->d = v0->d * (double)v1->i;
             break;
         case VAR_BIG:
             r->t = VAR_DBL;
@@ -473,7 +469,9 @@ int mul_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
             r->s = alcstr_str(ctx, "");
             break;
         case VAR_INT64:
-            OP_MUL_V_I(ctx, r, v0, v1->i);
+            r->t = VAR_STR;
+            r->s = str_dup(ctx, v0->s);
+            str_make_ntimes(ctx, r->s, v1->i);
             break;
         case VAR_BIG:
             /* Unsupported because big int could be so big! */
@@ -597,9 +595,6 @@ int div_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
         switch (v1->t) {
         case VAR_UNDEF:
             return throw_system_exception(__LINE__, ctx, EXCEPT_DIVIDE_BY_ZERO);
-        case VAR_INT64:
-            OP_DIV_B_I(ctx, r, v0, v1->i);
-            break;
         case VAR_DBL:
             if (v1->d < DBL_EPSILON) {
                 return throw_system_exception(__LINE__, ctx, EXCEPT_DIVIDE_BY_ZERO);
@@ -618,7 +613,11 @@ int div_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
         case VAR_UNDEF:
             return throw_system_exception(__LINE__, ctx, EXCEPT_DIVIDE_BY_ZERO);
         case VAR_INT64:
-            OP_DIV_V_I(ctx, r, v0, v1->i);
+            if (v1->i == 0) {
+                return throw_system_exception(__LINE__, ctx, EXCEPT_DIVIDE_BY_ZERO);
+            }
+            r->t = VAR_DBL;
+            r->d = v0->d / (double)v1->i;
             break;
         case VAR_BIG:
             r->t = VAR_DBL;
@@ -649,7 +648,9 @@ int div_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
             r->s = str_dup(ctx, v0->s);
             break;
         case VAR_INT64:
-            OP_DIV_V_I(ctx, r, v0, v1->i);
+            r->t = VAR_STR;
+            r->s = str_dup(ctx, v0->s);
+            str_make_path_i64(ctx, r->s, v1->i);
             break;
         case VAR_BIG:
             /* Unsupported because big int could be so big! */
@@ -766,9 +767,6 @@ int mod_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
         switch (v1->t) {
         case VAR_UNDEF:
             return throw_system_exception(__LINE__, ctx, EXCEPT_DIVIDE_BY_ZERO);
-        case VAR_INT64:
-            OP_MOD_B_I(ctx, r, v0, v1->i);
-            break;
         case VAR_DBL:
             if (v1->d < DBL_EPSILON) {
                 return throw_system_exception(__LINE__, ctx, EXCEPT_DIVIDE_BY_ZERO);
@@ -787,7 +785,11 @@ int mod_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
         case VAR_UNDEF:
             return throw_system_exception(__LINE__, ctx, EXCEPT_DIVIDE_BY_ZERO);
         case VAR_INT64:
-            OP_MOD_V_I(ctx, r, v0, v1->i);
+            if (v1->i == 0) {
+                return throw_system_exception(__LINE__, ctx, EXCEPT_DIVIDE_BY_ZERO);
+            }
+            r->t = VAR_DBL;
+            r->d = fmod(v0->d, (double)v1->i);
             break;
         case VAR_BIG:
             r->t = VAR_DBL;
@@ -922,9 +924,6 @@ int pow_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
             r->t = VAR_INT64;
             r->i = 1;
             break;
-        case VAR_INT64:
-            OP_POW_B_I(ctx, r, v0, v1->i);
-            break;
         case VAR_DBL:
             r->t = VAR_DBL;
             r->d = pow(BzToDouble(v0->bi->b), v1->d);
@@ -941,7 +940,8 @@ int pow_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
             r->t = VAR_INT64;
             r->i = 1;
         case VAR_INT64:
-            OP_POW_V_I(ctx, r, v0, v1->i);
+            r->t = VAR_DBL;
+            r->d = pow(v0->d, (double)v1->i);
             break;
         case VAR_BIG:
             r->t = VAR_DBL;
@@ -1075,7 +1075,7 @@ int eqeq_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
         }
         case VAR_DBL: {
             char buf[32] = {0};
-            xsprintf(buf, "%.16f", v1->d);
+            xsprintf(buf, "%.16g", v1->d);
             r->t = VAR_INT64;
             r->i = strcmp(v0->s->s, buf) == 0;
             break;

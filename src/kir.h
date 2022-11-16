@@ -175,6 +175,9 @@ typedef enum kl_kir {
     KIR_RLOCAL,     //  -                       ;   reduce the stack to make the size back.
     KIR_MKFRM,      //  <n>                     ;   create a frame of this function with <n> local vars, and push it.
     KIR_POPFRM,     //  -                       ;   pop the frame. this is needed only when the frame has been created.
+    KIR_SETARG,     //  <n>, <idx>              ;   The argument <idx> will be set to the vriable <n>.
+    KIR_SETARGL,    //  <n>, <idx>              ;   The arguments from <idx> will be set to the vriable <n>.
+    KIR_PURE,       //  -                       ;   Output a pure function code if possible.
 
     /*
      * Function call, which should work like this.
