@@ -43,6 +43,8 @@ enum {
     EXCEPT_UNSUPPORTED_OPERATION,
     EXCEPT_METHOD_MISSING,
     EXCEPT_NO_MATCHING_PATTERN,
+    EXCEPT_TOO_FEW_ARGUMENTS,
+    EXCEPT_TYPE_MISMATCH,
     EXCEPT_MAX,
 };
 
@@ -145,6 +147,32 @@ enum {
 #define init_var(v) ((v)->t = VAR_UNDEF)
 #define local_var(ctx, n) (&(((ctx)->vstk)[(ctx)->vstkp - ((n) + 1)]))
 #define local_var_index(n) ((ctx)->vstkp - ((n) + 1))
+
+#define KL_CAST_TO_I64(ctx, v) { \
+    if ((v)->t == VAR_UNDEF) { \
+        (v)->t = VAR_INT64; \
+        (v)->i = 0; \
+    } else if ((v)->t == VAR_DBL) { \
+        (v)->t = VAR_INT64; \
+        (v)->i = (int64_t)((v)->d); \
+    } else if ((v)->t != VAR_INT64) { \
+        return throw_system_exception(__LINE__, ctx, EXCEPT_TYPE_MISMATCH); \
+    } \
+} \
+/**/
+
+#define KL_CAST_TO_DBL(ctx, v) { \
+    if ((v)->t == VAR_UNDEF) { \
+        (v)->t = VAR_DBL; \
+        (v)->d = 0.0; \
+    } else if ((v)->t == VAR_INT64) { \
+        (v)->t = VAR_DBL; \
+        (v)->d = (double)((v)->i); \
+    } else if ((v)->t != VAR_DBL) { \
+        return throw_system_exception(__LINE__, ctx, EXCEPT_TYPE_MISMATCH); \
+    } \
+} \
+/**/
 
 #define KL_SET_METHOD(o, name, fname, args) \
     hashmap_set(ctx, o, #name, alcvar_fnc(ctx, alcfnc(ctx, fname, NULL, #name, args))); \

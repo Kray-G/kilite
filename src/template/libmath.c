@@ -1,27 +1,5 @@
 #include "common.h"
 
-#define KL_CAST_TO_I64(v) { \
-    if ((v)->t == VAR_DBL) { \
-        (v)->t = VAR_INT64; \
-        (v)->i = (int64_t)((v)->d); \
-    } else if ((v)->t != VAR_INT64) { \
-        /* TODO: type mismatch exception */ \
-        return 1; \
-    } \
-} \
-/**/
-
-#define KL_CAST_TO_DBL(v) { \
-    if ((v)->t == VAR_INT64) { \
-        (v)->t = VAR_DBL; \
-        (v)->d = (double)((v)->i); \
-    } else if ((v)->t != VAR_DBL) { \
-        /* TODO: type mismatch exception */ \
-        return 1; \
-    } \
-} \
-/**/
-
 #define KL_DEF_MATH_FUNCTION(name) \
 extern double name(double x); \
 int Math_##name(vmctx *ctx, vmfrm *lex, vmvar *r, int ac) \
@@ -31,7 +9,7 @@ int Math_##name(vmctx *ctx, vmfrm *lex, vmvar *r, int ac) \
         return 1; \
     } \
     vmvar *v = local_var(ctx, 0); \
-    KL_CAST_TO_DBL(v) \
+    KL_CAST_TO_DBL(ctx, v) \
     SET_DBL((r), name(v->d)); \
     return 0; \
 } \
@@ -46,9 +24,9 @@ int Math_##name(vmctx *ctx, vmfrm *lex, vmvar *r, int ac) \
         return 1; \
     } \
     vmvar *v1 = local_var(ctx, 0); \
-    KL_CAST_TO_DBL(v1) \
+    KL_CAST_TO_DBL(ctx, v1) \
     vmvar *v2 = local_var(ctx, 1); \
-    KL_CAST_TO_DBL(v2) \
+    KL_CAST_TO_DBL(ctx, v2) \
     SET_DBL((r), name(v1->d, v2->d)); \
     return 0; \
 } \
@@ -63,9 +41,9 @@ int Math_##name(vmctx *ctx, vmfrm *lex, vmvar *r, int ac) \
         return 1; \
     } \
     vmvar *v1 = local_var(ctx, 0); \
-    KL_CAST_TO_DBL(v1) \
+    KL_CAST_TO_DBL(ctx, v1) \
     vmvar *v2 = local_var(ctx, 1); \
-    KL_CAST_TO_I64(v2) \
+    KL_CAST_TO_I64(ctx, v2) \
     SET_DBL((r), name(v1->d, (int)(v2->i))); \
     return 0; \
 } \

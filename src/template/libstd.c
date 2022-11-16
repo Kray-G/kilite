@@ -6,78 +6,6 @@ extern void *SystemTimer_init(void);
 extern void SystemTimer_restart_impl(void *p);
 extern double SystemTimer_elapsed_impl(void *p);
 
-/* System */
-
-static int print(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
-{
-    for (int i = 0; i < ac; ++i) {
-        vmvar *an = local_var(ctx, i);
-        print_obj(ctx, an);
-    }
-}
-
-static int println(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
-{
-    for (int i = 0; i < ac; ++i) {
-        vmvar *an = local_var(ctx, i);
-        print_obj(ctx, an);
-    }
-    printf("\n");
-}
-
-int System(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
-{
-    vmobj *o = alcobj(ctx);
-    KL_SET_METHOD(o, print, print, 1)
-    KL_SET_METHOD(o, println, println, 1)
-    SET_OBJ(r, o);
-    return 0;
-}
-
-/* SystemTimer */
-
-static int SystemTimer_elapsed(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
-{
-    vmvar *a0 = local_var(ctx, 0);
-    if (a0->t == VAR_OBJ && 0 < a0->o->idxsz && a0->o->ary[0]->t == VAR_VOIDP) {
-        r->t = VAR_DBL;
-        r->d = SystemTimer_elapsed_impl(a0->o->ary[0]->p);
-    }
-    return 0;
-}
-
-static int SystemTimer_restart(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
-{
-    vmvar *a0 = local_var(ctx, 0);
-    if (a0->t == VAR_OBJ && 0 < a0->o->idxsz && a0->o->ary[0]->t == VAR_VOIDP) {
-        r->t = VAR_INT64;
-        r->i = 0;
-        SystemTimer_restart_impl(a0->o->ary[0]->p);
-    }
-    return 0;
-}
-
-int SystemTimer_create(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
-{
-    vmobj *o = alcobj(ctx);
-    vmvar *timer = alcvar(ctx, VAR_VOIDP, 0);
-    timer->p = SystemTimer_init();
-    array_set(ctx, o, 0, timer);
-    KL_SET_METHOD(o, elapsed, SystemTimer_elapsed, 1)
-    KL_SET_METHOD(o, restart, SystemTimer_restart, 1)
-    SET_OBJ(r, o);
-    o->is_sysobj = 1;
-    return 0;
-}
-
-int SystemTimer(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
-{
-    vmobj *o = alcobj(ctx);
-    KL_SET_METHOD(o, create, SystemTimer_create, 0)
-    SET_OBJ(r, o);
-    return 0;
-}
-
 /* Exceptions */
 
 int exception_addtrace(vmctx *ctx, vmvar *e, const char *funcname, const char *filename, int linenum)
@@ -242,5 +170,131 @@ int MethodMissingException(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 int NoMatchingPatternException(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     RuntimeException_create(ctx, lex, r, "NoMatchingPatternException", "Pattern not matched");
+    return 0;
+}
+
+int TooFewArgumentsException(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    RuntimeException_create(ctx, lex, r, "TooFewArgumentsException", "Too few arguments");
+    return 0;
+}
+
+int TypeMismatchException(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    RuntimeException_create(ctx, lex, r, "TypeMismatchException", "Type mismatch");
+    return 0;
+}
+
+/* Make exception */
+
+int throw_system_exception(int line, vmctx *ctx, int id)
+{
+    vmvar *r = alcvar_initial(ctx);
+    switch (id) {
+    case EXCEPT_EXCEPTION:
+        RuntimeException_create(ctx, NULL, r, "SystemException", "Unknown exception");
+        break;
+    case EXCEPT_RUNTIME_EXCEPTION:
+        RuntimeException_create(ctx, NULL, r, "RuntimeException", "Unknown exception");
+        break;
+    case EXCEPT_STACK_OVERFLOW:
+        StackOverflowException(ctx, NULL, r, 0);
+        break;
+    case EXCEPT_DIVIDE_BY_ZERO:
+        DivideByZeroException(ctx, NULL, r, 0);
+        break;
+    case EXCEPT_UNSUPPORTED_OPERATION:
+        UnsupportedOperationException(ctx, NULL, r, 0);
+        break;
+    case EXCEPT_METHOD_MISSING:
+        MethodMissingException(ctx, NULL, r, 0);
+        break;
+    case EXCEPT_NO_MATCHING_PATTERN:
+        NoMatchingPatternException(ctx, NULL, r, 0);
+        break;
+    case EXCEPT_TOO_FEW_ARGUMENTS:
+        TooFewArgumentsException(ctx, NULL, r, 0);
+        break;
+    case EXCEPT_TYPE_MISMATCH:
+        TypeMismatchException(ctx, NULL, r, 0);
+        break;
+    default:
+        RuntimeException_create(ctx, NULL, r, "SystemException", "Unknown exception");
+        break;
+    }
+
+    ctx->except = r;
+    return 1;
+}
+
+/* System */
+
+static int print(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    for (int i = 0; i < ac; ++i) {
+        vmvar *an = local_var(ctx, i);
+        print_obj(ctx, an);
+    }
+}
+
+static int println(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    for (int i = 0; i < ac; ++i) {
+        vmvar *an = local_var(ctx, i);
+        print_obj(ctx, an);
+    }
+    printf("\n");
+}
+
+int System(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    vmobj *o = alcobj(ctx);
+    KL_SET_METHOD(o, print, print, 1)
+    KL_SET_METHOD(o, println, println, 1)
+    SET_OBJ(r, o);
+    return 0;
+}
+
+/* SystemTimer */
+
+static int SystemTimer_elapsed(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    vmvar *a0 = local_var(ctx, 0);
+    if (a0->t == VAR_OBJ && 0 < a0->o->idxsz && a0->o->ary[0]->t == VAR_VOIDP) {
+        r->t = VAR_DBL;
+        r->d = SystemTimer_elapsed_impl(a0->o->ary[0]->p);
+    }
+    return 0;
+}
+
+static int SystemTimer_restart(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    vmvar *a0 = local_var(ctx, 0);
+    if (a0->t == VAR_OBJ && 0 < a0->o->idxsz && a0->o->ary[0]->t == VAR_VOIDP) {
+        r->t = VAR_INT64;
+        r->i = 0;
+        SystemTimer_restart_impl(a0->o->ary[0]->p);
+    }
+    return 0;
+}
+
+int SystemTimer_create(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    vmobj *o = alcobj(ctx);
+    vmvar *timer = alcvar(ctx, VAR_VOIDP, 0);
+    timer->p = SystemTimer_init();
+    array_set(ctx, o, 0, timer);
+    KL_SET_METHOD(o, elapsed, SystemTimer_elapsed, 1)
+    KL_SET_METHOD(o, restart, SystemTimer_restart, 1)
+    SET_OBJ(r, o);
+    o->is_sysobj = 1;
+    return 0;
+}
+
+int SystemTimer(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    vmobj *o = alcobj(ctx);
+    KL_SET_METHOD(o, create, SystemTimer_create, 0)
+    SET_OBJ(r, o);
     return 0;
 }
