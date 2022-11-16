@@ -1484,7 +1484,7 @@ static kl_expr *parse_decl_expr(kl_context *ctx, kl_lexer *l, int decltype)
             check_symbol(ctx, l, l->str);
             lhs = make_expr(ctx, l, TK_VAR);
             kl_symbol *sym = make_symbol(ctx, l, TK_VAR, 0);
-            sym->is_dot3 = 1;
+            sym->is_dot3 = dot3;
             sym->is_const = is_const;
             sym->name = parse_const_str(ctx, l, l->str);
             lhs->sym = sym;
