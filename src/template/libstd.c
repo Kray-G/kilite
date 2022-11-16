@@ -94,7 +94,7 @@ static int Exception_what(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     vmvar *e = local_var(ctx, 0);
 
     // e->t should be always VAR_OBJ.
-    vmvar *what = hashmap_search(e->o, "_type");
+    vmvar *what = hashmap_search(e->o, "_what");
     if (what) {
         COPY_VAR_TO(ctx, r, what);
     } else {
