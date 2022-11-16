@@ -376,7 +376,9 @@ typedef struct vmctx {
 } \
 /**/
 #define THROW_CURRENT(ctx, label, func, file, line) { \
-    exception_addtrace(ctx, ctx->except, func, file, line); \
+    if (line > 0) { \
+        exception_addtrace(ctx, ctx->except, func, file, line); \
+    } \
     e = 1; \
     goto label; \
 } \
