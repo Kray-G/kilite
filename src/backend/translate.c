@@ -943,7 +943,7 @@ static void translate_inst(xstr *code, kl_kir_func *f, kl_kir_inst *i, func_cont
         fctx->local_vars = i->r2.i64;   // including arguments.
         fctx->argcount = i->r3.i64;
         fctx->temp_count = fctx->total_vars - fctx->local_vars;
-        xstra_inst(code, "vmfrm *frm = alcfrm(ctx, %" PRId64 ");\n", fctx->local_vars);
+        xstra_inst(code, "vmfrm *frm = alcfrm(ctx, lex, %" PRId64 ");\n", fctx->local_vars);
         xstra_inst(code, "push_frm(ctx, frm, L%d, \"%s\", \"%s\", %d);\n", f->funcend, i->funcname, escape(&(fctx->str), i->filename), i->line);
         for (int idx = 0; idx < fctx->local_vars; ++idx) {
             xstra_inst(code, "vmvar *n%d = frm->v[%d] = alcvar_initial(ctx);\n", idx, idx);

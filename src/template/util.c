@@ -24,6 +24,14 @@ void count(vmctx *ctx)
     count_var(ctx);
 }
 
+vmfrm *get_lex(vmfrm* lex, int c)
+{
+    while (--c > 0) {
+        lex = lex->lex;
+    }
+    return lex;
+}
+
 int get_min2(int a0, int a1)
 {
     return a0 < a1 ? a0 : a1;

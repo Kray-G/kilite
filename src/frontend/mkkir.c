@@ -8,7 +8,7 @@ static kl_kir_inst *gen_block(kl_context *ctx, kl_symbol *sym, kl_stmt *s);
 static kl_kir_inst *gen_assign_object(kl_context *ctx, kl_symbol *sym, kl_kir_opr *r1, kl_expr *e);
 static kl_kir_inst *gen_expr(kl_context *ctx, kl_symbol *sym, kl_kir_opr *r1, kl_expr *e);
 static kl_kir_inst *gen_stmt(kl_context *ctx, kl_symbol *sym, kl_stmt *s);
-static kl_kir_func *gen_function(kl_context *ctx, kl_symbol *sym, kl_stmt *s);
+static kl_kir_func *gen_function(kl_context *ctx, kl_symbol *sym, kl_stmt *s, kl_symbol *initer);
 
 static char *mkkir_const_str(kl_context *ctx, const char *str)
 {
@@ -215,7 +215,7 @@ static void add_func(kl_kir_program *prog, kl_kir_func *func)
         break; \
     case TK_FUNC: \
         kl_symbol *f = e->sym; \
-        kl_kir_func *func = gen_function(ctx, f, (e)->s); \
+        kl_kir_func *func = gen_function(ctx, f, (e)->s, NULL); \
         add_func(ctx->program, func); \
         (rn) = make_lit_func(ctx, (e)->sym); \
         break; \
@@ -1359,7 +1359,7 @@ static kl_kir_inst *gen_expr(kl_context *ctx, kl_symbol *sym, kl_kir_opr *r1, kl
     case TK_FUNC:
         if (e->s) {
             kl_symbol *f = e->sym;
-            kl_kir_func *func = gen_function(ctx, f, e->s);
+            kl_kir_func *func = gen_function(ctx, f, e->s, NULL);
             add_func(ctx->program, func);
             kl_kir_opr r2 = make_lit_func(ctx, f);
             head = new_inst_op2(ctx->program, e->line, e->pos, KIR_MOV, r1, &r2);
@@ -1542,7 +1542,7 @@ static kl_kir_inst *gen_block(kl_context *ctx, kl_symbol *sym, kl_stmt *s)
     return head;
 }
 
-static kl_kir_func *gen_function(kl_context *ctx, kl_symbol *sym, kl_stmt *s)
+static kl_kir_func *gen_function(kl_context *ctx, kl_symbol *sym, kl_stmt *s, kl_symbol *initer)
 {
     kl_kir_inst *last = NULL;
     kl_kir_func *func = new_func(ctx, sym->line, sym->pos, sym->name);
@@ -1558,14 +1558,29 @@ static kl_kir_func *gen_function(kl_context *ctx, kl_symbol *sym, kl_stmt *s)
     }
     set_file_func(ctx, sym, last);
 
-    while (s) {
-        kl_kir_inst *next = gen_stmt(ctx, sym, s);
+    kl_stmt *sh = s;
+    while (sh) {
+        if (initer && sh->nodetype == TK_RETURN) {
+            int callcnt = sym->callcnt++;
+            kl_kir_opr rc = { .t = TK_VSINT, .i64 = callcnt, .typeid = TK_TSINT64 };
+            kl_kir_opr rr = make_ret_var(ctx, sym);
+            kl_kir_opr r1 = make_var_index(ctx, initer->index, initer->level, TK_TFUNC);
+            r1.callcnt = callcnt;
+            last->next = new_inst_op1(ctx->program, s->line, s->pos, KIR_SVSTKP, &rc);
+            last = last->next;
+            last->next = new_inst_op2(ctx->program, s->line, s->pos, KIR_CALL, &rr, &r1);
+            last = last->next;
+            set_file_func(ctx, sym, last);
+            last->next = new_inst_op1(ctx->program, s->line, s->pos, KIR_RSSTKP, &rc);
+            last = last->next;
+        }
+        kl_kir_inst *next = gen_stmt(ctx, sym, sh);
         if (next) {
             last->next = next;
             last = next;
             KIR_MOVE_LAST(last);
         }
-        s = s->next;
+        sh = sh->next;
     }
 
     func->funcname = sym->funcname ? sym->funcname : sym->name;
@@ -1594,7 +1609,7 @@ static kl_kir_func *gen_function(kl_context *ctx, kl_symbol *sym, kl_stmt *s)
 
 static kl_kir_func *gen_class(kl_context *ctx, kl_symbol *sym, kl_stmt *s)
 {
-    return gen_function(ctx, sym, s);
+    return gen_function(ctx, sym, s, sym->initer);
 }
 
 static kl_kir_func *gen_namespace(kl_context *ctx, kl_symbol *sym, kl_stmt *s)
@@ -1637,6 +1652,47 @@ static kl_kir_func *gen_namespace(kl_context *ctx, kl_symbol *sym, kl_stmt *s)
     return func;
 }
 
+static kl_kir_inst *gen_mixin(kl_context *ctx, kl_symbol *sym, kl_expr *e, kl_kir_opr *rx)
+{
+    kl_kir_inst *head = NULL;
+    if (e->nodetype == TK_COMMA) {
+        head = gen_mixin(ctx, sym, e->lhs, rx);
+        if (!head) {
+            head = gen_mixin(ctx, sym, e->rhs, rx);
+        } else {
+            kl_kir_inst *last = get_last(head);
+            last->next = gen_mixin(ctx, sym, e->rhs, rx);
+        }
+    } else {
+        kl_kir_opr rm = make_var_index(ctx, e->sym->ref ? e->sym->ref->index : e->sym->index, e->sym->level, e->typeid);
+        kl_kir_opr rs = make_lit_str(ctx, "extend");
+        kl_kir_opr rr = make_ret_var(ctx, sym);
+        kl_kir_inst *last;
+        head = last = new_inst_op3(ctx->program, e->line, e->pos, KIR_APLY, rx, &rm, &rs);
+
+        int callcnt = sym->callcnt++;
+        kl_kir_opr rc = { .t = TK_VSINT, .i64 = callcnt, .typeid = TK_TSINT64 };
+        last->next = new_inst_op1(ctx->program, e->line, e->pos, KIR_SVSTKP, &rc);
+        last = last->next;
+
+        kl_kir_opr rt = make_var_index(ctx, sym->thisobj->index, sym->thisobj->level, TK_TANY);
+        last->next = new_inst_op1(ctx->program, e->line, e->pos, KIR_PUSHARG, &rt);
+        last = last->next;
+        set_file_func(ctx, sym, last);
+
+        rx->callcnt = callcnt;
+        rx->args = 1;
+        last->next = new_inst_op2(ctx->program, e->line, e->pos, KIR_CALL, &rr, rx);
+        last = last->next;
+        set_file_func(ctx, sym, last);
+        last->next = new_inst_op1(ctx->program, e->line, e->pos, KIR_RSSTKP, &rc);
+        last = last->next;
+        last->next = new_inst_chkexcept(ctx->program, e->line, e->pos, sym->funcend);
+        set_file_func(ctx, sym, last->next);
+    }
+    return head;
+}
+
 static kl_kir_inst *gen_stmt(kl_context *ctx, kl_symbol *sym, kl_stmt *s)
 {
     kl_kir_inst *head = NULL;
@@ -1657,10 +1713,17 @@ static kl_kir_inst *gen_stmt(kl_context *ctx, kl_symbol *sym, kl_stmt *s)
         }
         break;
 
+    case TK_MIXIN:
+        if (s->e1) {
+            kl_kir_opr rr = make_var(ctx, sym, TK_TANY);
+            head = gen_mixin(ctx, sym, s->e1, &rr);
+        }
+        break;
+
     case TK_FUNC:
         if (s->s1) {
             kl_symbol *f = s->sym;
-            kl_kir_func *func = gen_function(ctx, f, s->s1);
+            kl_kir_func *func = gen_function(ctx, f, s->s1, NULL);
             if (!func->has_dot3 && (1 <= func->argcount && func->argcount < 5)) {
                 if ((ctx->options & PARSER_OPT_DISABLE_PURE) == 0) {
                     func->is_pure = check_pure_function(ctx, s->s1);
@@ -1681,6 +1744,20 @@ static kl_kir_inst *gen_stmt(kl_context *ctx, kl_symbol *sym, kl_stmt *s)
             add_func(ctx->program, func);
             kl_kir_opr r1 = make_var_index(ctx, f->ref ? f->ref->index : f->index, f->level, TK_TFUNC);
             kl_kir_opr r2 = make_lit_str(ctx, "create");
+            head = new_inst_op3(ctx->program, s->line, s->pos, KIR_APLYL, &rr, &r1, &r2);
+            kl_kir_opr r3 = make_lit_func(ctx, s->sym);
+            head->next = new_inst_op2(ctx->program, s->line, s->pos, KIR_MOVA, &rr, &r3);
+        }
+        break;
+
+    case TK_MODULE:
+        if (s->s1) {
+            kl_kir_opr rr = make_var(ctx, sym, TK_TANY);
+            kl_symbol *f = s->sym;
+            kl_kir_func *func = gen_class(ctx, f, s->s1);
+            add_func(ctx->program, func);
+            kl_kir_opr r1 = make_var_index(ctx, f->ref ? f->ref->index : f->index, f->level, TK_TFUNC);
+            kl_kir_opr r2 = make_lit_str(ctx, "extend");
             head = new_inst_op3(ctx->program, s->line, s->pos, KIR_APLYL, &rr, &r1, &r2);
             kl_kir_opr r3 = make_lit_func(ctx, s->sym);
             head->next = new_inst_op2(ctx->program, s->line, s->pos, KIR_MOVA, &rr, &r3);

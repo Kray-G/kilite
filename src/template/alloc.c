@@ -86,7 +86,7 @@ static void alloc_frms(vmctx *ctx, int n)
     }
 }
 
-vmfrm *alcfrm(vmctx *ctx, int args)
+vmfrm *alcfrm(vmctx *ctx, vmfrm *lex, int args)
 {
     if (ctx->alc.frm.nxt == &(ctx->alc.frm)) {
         alloc_frms(ctx, ALC_UNIT_FRM);
@@ -103,6 +103,7 @@ vmfrm *alcfrm(vmctx *ctx, int args)
         v->liv->prv = v;
     }
 
+    v->lex = lex;
     if (args > 0) {
         setfrmvars(v, args);
     }

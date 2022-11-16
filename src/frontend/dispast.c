@@ -328,6 +328,12 @@ static void disp_stmt(kl_stmt *s, int indent)
             disp_stmt_list(s->s1, indent + 1);
         }
         break;
+    case TK_MIXIN:
+        printf("mixin\n");
+        if (s->e1) {
+            disp_expr(s->e1, indent + 1);
+        }
+        break;
     case TK_FUNC:
         if (s->sym) {
             printf("def[$%d] ", s->sym->index);
@@ -370,7 +376,21 @@ static void disp_stmt(kl_stmt *s, int indent)
             }
             if (s->s1) {
                 disp_stmt_list(s->s1, indent + 1);
-
+            }
+        }
+        break;
+    case TK_MODULE:
+        if (s->sym) {
+            printf("def module %s, method(%d)\n", s->sym->name, method_count(s->sym));
+            if (s->e1) {
+                make_indent(indent);
+                printf("(\n");
+                disp_expr(s->e1, indent + 1);
+                make_indent(indent);
+                printf(")\n");
+            }
+            if (s->s1) {
+                disp_stmt_list(s->s1, indent + 1);
             }
         }
         break;

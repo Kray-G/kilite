@@ -1786,7 +1786,7 @@ INLINE extern void setup_context(vmctx *ctx);
 
 INLINE extern vmfnc *alcfnc(vmctx *ctx, void *f, vmfrm *lex, const char *name, int args);
 INLINE extern void pbakfnc(vmctx *ctx, vmfnc *p);
-INLINE extern vmfrm *alcfrm(vmctx *ctx, int args);
+INLINE extern vmfrm *alcfrm(vmctx *ctx, vmfrm *lex, int args);
 INLINE extern void pbakfrm(vmctx *ctx, vmfrm *p);
 INLINE extern vmstr *alcstr_str(vmctx *ctx, const char *s);
 INLINE extern void pbakstr(vmctx *ctx, vmstr *p);
@@ -1808,6 +1808,7 @@ INLINE extern void copy_var_to(vmctx *ctx, vmvar *dst, vmvar *src);
 INLINE extern void initialize_allocators(vmctx *ctx);
 INLINE extern void mark_and_sweep(vmctx *ctx);
 INLINE extern void count(vmctx *ctx);
+INLINE extern vmfrm *get_lex(vmfrm* lex, int c);
 INLINE extern int get_min2(int a0, int a1);
 INLINE extern int get_min3(int a0, int a1, int a2);
 INLINE extern int get_min4(int a0, int a1, int a2, int a3);
