@@ -23,6 +23,7 @@ typedef struct kl_symbol {
     const char *basename;           //  The name of the base class.
     const char *prototype;          //  The function prototype of this function.
     int has_func;                   //  If 1, this symbol's scope has an internal function. If 0, this func doesn't need a frame.
+    int has_yield;                  //  If 1, this symbol's scope has `yield` statement.
     int is_const;                   //  If true, the symbole can't be modfied.
     int is_native;                  //  The function with `native` keyword.
     int is_callable;                //  The callable symbol, which is like TK_FUNC, TK_CLASS, or something.

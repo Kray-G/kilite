@@ -494,6 +494,18 @@ static void disp_stmt(kl_stmt *s, int indent)
             disp_expr(s->e1, indent + 1);
         }
         break;
+    case TK_THROW:
+        printf("throw\n");
+        if (s->e1) {
+            disp_expr(s->e1, indent + 1);
+        }
+        break;
+    case TK_YIELD:
+        printf("yield\n");
+        if (s->e1) {
+            disp_expr(s->e1, indent + 1);
+        }
+        break;
     case TK_EXTERN:
         printf("extern: ");
         disp_expr(s->e2, -1);

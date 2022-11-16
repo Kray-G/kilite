@@ -327,6 +327,22 @@ static inline kl_expr *make_expr(kl_context *ctx, kl_lexer *l, tk_token tk)
     return e;
 }
 
+static inline kl_expr *make_i64_expr(kl_context *ctx, kl_lexer *l, int64_t i64)
+{
+    kl_expr *e = make_expr(ctx, l, TK_VSINT);
+    e->typeid = TK_TSINT64;
+    e->val.i64 = i64;
+    return e;
+}
+
+static inline kl_expr *make_dbl_expr(kl_context *ctx, kl_lexer *l, const char *dbl)
+{
+    kl_expr *e = make_expr(ctx, l, TK_VDBL);
+    e->typeid = TK_TDBL;
+    e->val.dbl = parse_const_str(ctx, l, dbl);
+    return e;
+}
+
 static inline kl_expr *make_str_expr(kl_context *ctx, kl_lexer *l, const char *str)
 {
     kl_expr *e = make_expr(ctx, l, TK_VSTR);
@@ -750,15 +766,11 @@ static kl_expr *parse_expr_factor(kl_context *ctx, kl_lexer *l)
         lexer_fetch(l);
         break;
     case TK_VSINT:
-        e = make_expr(ctx, l, TK_VSINT);
-        e->typeid = TK_TSINT64;
-        e->val.i64 = l->i64;
+        e = make_i64_expr(ctx, l, l->i64);
         lexer_fetch(l);
         break;
     case TK_VDBL:
-        e = make_expr(ctx, l, TK_VDBL);
-        e->typeid = TK_TDBL;
-        e->val.dbl = parse_const_str(ctx, l, l->str);
+        e = make_dbl_expr(ctx, l, l->str);
         lexer_fetch(l);
         break;
     case TK_VBIGINT:
@@ -768,9 +780,7 @@ static kl_expr *parse_expr_factor(kl_context *ctx, kl_lexer *l)
         lexer_fetch(l);
         break;
     case TK_VSTR:
-        e = make_expr(ctx, l, TK_VSTR);
-        e->typeid = TK_TSTR;
-        e->val.str = parse_const_str(ctx, l, l->str);
+        e = make_str_expr(ctx, l, l->str);
         lexer_fetch(l);
         break;
     case TK_FUNC:
@@ -807,10 +817,11 @@ static kl_expr *parse_expr_list(kl_context *ctx, kl_lexer *l, int endch)
     return lhs;
 }
 
-static kl_expr *parse_expr_postfix(kl_context *ctx, kl_lexer *l)
+static kl_expr *parse_expr_postfix(kl_context *ctx, kl_lexer *l, int is_new)
 {
     DEBUG_PARSER_PHASE();
-    kl_expr *lhs = parse_expr_factor(ctx, l);
+    kl_expr *lhs;
+    lhs = parse_expr_factor(ctx, l);
     tk_token tok = l->tok;
     if (tok == TK_INC || tok == TK_DEC) {
         kl_expr *e = make_expr(ctx, l, tok == TK_INC ? TK_INCP : TK_DECP);
@@ -834,6 +845,10 @@ static kl_expr *parse_expr_postfix(kl_context *ctx, kl_lexer *l)
             }
             lexer_fetch(l);
             tok = l->tok;
+            if (is_new && lhs->nodetype == TK_CALL) {
+                lhs->lhs = make_bin_expr(ctx, l, TK_DOT, lhs->lhs, make_str_expr(ctx, l, "create"));
+                is_new = 0; /* `new` operator will take effect to only the first call operation. */
+            }
         } else if (tok == TK_LLBR) {
             lexer_fetch(l);
             kl_expr *rhs = parse_expression(ctx, l);
@@ -875,18 +890,13 @@ static kl_expr *parse_expr_prefix(kl_context *ctx, kl_lexer *l)
     tk_token tok = l->tok;
     if (tok == TK_NEW) {
         lexer_fetch(l);
-        lhs = parse_expr_postfix(ctx, l);
-        if (lhs->nodetype != TK_CALL) {
-            parse_error(ctx, __LINE__, l, "The operator new should be used with a function call");
-            return panic_mode_expr(lhs, ';', ctx, l);
-        }
-        lhs->lhs = make_bin_expr(ctx, l, TK_DOT, lhs->lhs, make_str_expr(ctx, l, "create"));
+        lhs = parse_expr_postfix(ctx, l, 1);
         return lhs;
     }
 
     if (tok == TK_SUB) {
         lexer_fetch(l);
-        lhs = parse_expr_postfix(ctx, l);
+        lhs = parse_expr_postfix(ctx, l, 0);
         if (lhs->nodetype == TK_VSINT) {
             lhs->val.i64 = -(lhs->val.i64);
             return lhs;
@@ -906,18 +916,18 @@ static kl_expr *parse_expr_prefix(kl_context *ctx, kl_lexer *l)
     if (tok == TK_INC || tok == TK_DEC) {
         lhs = make_expr(ctx, l, tok);
         lexer_fetch(l);
-        lhs->lhs = parse_expr_postfix(ctx, l);
+        lhs->lhs = parse_expr_postfix(ctx, l, 0);
         lhs->typeid = lhs->lhs->typeid;
         return lhs;
     }
 
     while (tok == TK_BNOT || tok == TK_NOT || tok == TK_ADD || tok == TK_SUB) {
         lexer_fetch(l);
-        kl_expr *lhs = parse_expr_postfix(ctx, l);
+        kl_expr *lhs = parse_expr_postfix(ctx, l, 0);
         lhs = make_bin_expr(ctx, l, tok, lhs, NULL);
         tok = l->tok;
     }
-    return lhs ? lhs : parse_expr_postfix(ctx, l);
+    return lhs ? lhs : parse_expr_postfix(ctx, l, 0);
 }
 
 static kl_expr *parse_expr_term(kl_context *ctx, kl_lexer *l)
@@ -1550,10 +1560,14 @@ static kl_stmt *parse_declaration(kl_context *ctx, kl_lexer *l, int decltype)
     return s;
 }
 
-static kl_stmt *parse_return_throw(kl_context *ctx, kl_lexer *l, int tok)
+static kl_stmt *parse_return_throw_yield(kl_context *ctx, kl_lexer *l, int tok)
 {
     DEBUG_PARSER_PHASE();
     kl_stmt *s = make_stmt(ctx, l, tok);
+    if (tok == TK_YIELD) {
+        ctx->scope->has_yield = 1;
+    }
+
     if (l->tok != TK_IF && l->tok != TK_SEMICOLON) {
         s->e1 = parse_expression(ctx, l);
     }
@@ -1572,6 +1586,7 @@ static kl_stmt *parse_return_throw(kl_context *ctx, kl_lexer *l, int tok)
 
 static kl_stmt *parse_mixin(kl_context *ctx, kl_lexer *l)
 {
+    DEBUG_PARSER_PHASE();
     kl_stmt *s = make_stmt(ctx, l, TK_MIXIN);
     kl_expr *e = NULL;
     do {
@@ -1591,6 +1606,59 @@ static kl_stmt *parse_mixin(kl_context *ctx, kl_lexer *l)
         lexer_fetch(l);
     } while (l->tok == TK_COMMA);
     s->e1 = e;
+    return s;
+}
+
+static kl_stmt *make_instanceof(kl_context *ctx, kl_lexer *l, const char *cname, int has_base)
+{
+    kl_stmt *s = make_stmt(ctx, l, TK_FUNC);
+    kl_symbol *sym = make_symbol(ctx, l, TK_PUBLIC, 0);
+    s->sym = sym;
+    sym->funcid = ++ctx->funcid;
+    sym->is_callable = 1;
+
+    /* The name is not needed for function */
+    sym->name = parse_const_str(ctx, l, "instanceOf");
+    sym->funcname = make_func_name(ctx, l, "instanceOf", 0);
+    add_sym2method(ctx->scope, sym);
+
+    /* Push the scope */
+    kl_nsstack *n = make_nsstack(ctx, l, sym->name ? sym->name : "anonymous func", TK_FUNC);
+    push_nsstack(ctx, n);
+    ctx->scope->has_func = 1;
+    sym->scope = ctx->scope;
+    ctx->scope = sym;
+
+    ctx->in_lvalue = TK_LET;
+    s->e1 = sym->args = parse_expr_varname(ctx, l, "c", TK_CONST);
+    sym->argcount = 1;
+    ctx->in_lvalue = 0;
+    sym->typeid = TK_TFUNC;
+
+    /* Function body */
+    kl_stmt *s1 = make_stmt(ctx, l, TK_IF);
+    kl_expr* lhs = make_bin_expr(ctx, l, TK_DOT, parse_expr_varname(ctx, l, "c", 0), make_str_expr(ctx, l, "_id"));
+    kl_expr* rhs = make_bin_expr(ctx, l, TK_DOT, parse_expr_varname(ctx, l, cname, 0), make_str_expr(ctx, l, "_id"));
+    s1->e1 = make_bin_expr(ctx, l, TK_EQEQ, lhs, rhs);
+    s1->s1 = make_stmt(ctx, l, TK_RETURN);
+    s1->s1->e1 = make_i64_expr(ctx, l, 1);
+    kl_stmt *s2 = make_stmt(ctx, l, TK_RETURN);
+    if (has_base) {
+        lhs = make_bin_expr(ctx, l, TK_DOT, parse_expr_varname(ctx, l, "super", 0), make_str_expr(ctx, l, "instanceOf"));
+        rhs = parse_expr_varname(ctx, l, "c", 0);
+        s2->e1 = make_bin_expr(ctx, l, TK_CALL, lhs, rhs);
+    } else {
+        s2->e1 = make_i64_expr(ctx, l, 0);
+    }
+    connect_stmt(s1, s2);
+    s->s1 = s1;
+
+    sym->prototype = create_prototype(ctx, l, sym);
+    ctx->scope = sym->scope;
+    pop_nsstack(ctx);
+
+    kl_stmt *addm = add_method2class(ctx, l, sym, TK_PUBLIC);
+    connect_stmt(s, addm);
     return s;
 }
 
@@ -1656,12 +1724,18 @@ static kl_stmt *parse_class(kl_context *ctx, kl_lexer *l)
     kl_expr *thisexpr = parse_expr_varname(ctx, l, "this", TK_CONST);
     thisobj->e1 = thisexpr;
     sym->thisobj = thisexpr->sym;
+    kl_stmt *thisid = make_stmt(ctx, l, TK_LET);
+    thisid->e1 = make_bin_expr(ctx, l, TK_EQ,
+        make_bin_expr(ctx, l, TK_DOT, parse_expr_varname(ctx, l, "this", 0), make_str_expr(ctx, l, "_id")),
+        make_i64_expr(ctx, l, sym->funcid)
+    );
+    thisobj->next = thisid;
     if (sym->base) {
         thisobj->e1 = make_bin_expr(ctx, l, TK_EQ, thisobj->e1, sym->base);
         kl_stmt *superobj = make_stmt(ctx, l, TK_MKSUPER);
         superobj->e1 = parse_expr_varname(ctx, l, "super", TK_CONST);
         superobj->e2 = parse_expr_varname(ctx, l, "this", 0);
-        thisobj->next = superobj;
+        thisid->next = superobj;
     }
 
     /* Class body */
@@ -1680,15 +1754,28 @@ static kl_stmt *parse_class(kl_context *ctx, kl_lexer *l)
         }
     }
 
+    /* instanceof */
+    kl_stmt *instof = make_instanceof(ctx, l, sym->name, sym->base ? 1 : 0);
+    connect_stmt(thisobj, instof);
+
     /* return this */
     kl_stmt *retthis = make_stmt(ctx, l, TK_RETURN);
     retthis->e1 = parse_expr_varname(ctx, l, "this", 0);
-    connect_stmt(thisobj, retthis);
+    connect_stmt(instof, retthis);
 
     ctx->scope = sym->scope;
     pop_nsstack(ctx);
     lexer_fetch(l);
-    return s;
+
+    /* set a class id  */
+    kl_stmt *classobj = make_stmt(ctx, l, TK_LET);
+    classobj->e1 = make_bin_expr(ctx, l, TK_EQ,
+        make_bin_expr(ctx, l, TK_DOT, parse_expr_varname(ctx, l, sym->name, 0), make_str_expr(ctx, l, "_id")),
+        make_i64_expr(ctx, l, sym->funcid)
+    );
+    connect_stmt(classobj, s);
+
+    return classobj;
 }
 
 static kl_stmt *parse_module(kl_context *ctx, kl_lexer *l)
@@ -2075,10 +2162,11 @@ static kl_stmt *parse_statement(kl_context *ctx, kl_lexer *l)
         }
         lexer_fetch(l);
         break;
+    case TK_YIELD:
     case TK_RETURN:
     case TK_THROW:
         lexer_fetch(l);
-        r = parse_return_throw(ctx, l, tok);
+        r = parse_return_throw_yield(ctx, l, tok);
         break;
     case TK_EXTERN:
         lexer_fetch(l);
