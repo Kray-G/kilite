@@ -20,7 +20,7 @@ typedef struct kl_argopts {
     int out_mir;
     int out_kir;
     int out_csrc;
-    int out_cfull;
+    int out_cdebug;
     int out_ast;
     int out_stdout;
     int in_stdin;
@@ -51,7 +51,7 @@ static void usage(void)
     printf("    -S --ast            Output AST.\n");
     printf("    -S --kir            Output low level compiled code.\n");
     printf("    -S --csrc           Output the C code of the script code.\n");
-    printf("    -S --cfull          Output the full C code for the script code.\n");
+    printf("    -S --cdebug         Output the full C code to debug the script code.\n");
     printf("    --stdout            Change the distination of the output to stdout.\n");
     printf("    --verbose           Show some infrmation when running.\n");
     printf("    --disable-pure      Disable the code optimization for a pure function.\n");
@@ -100,8 +100,8 @@ static int parse_long_options(int ac, char **av, int *i, kl_argopts *opts)
         opts->out_kir = 1;
     } else if (strcmp(av[*i], "--csrc") == 0) {
         opts->out_csrc = 1;
-    } else if (strcmp(av[*i], "--cfull") == 0) {
-        opts->out_cfull = 1;
+    } else if (strcmp(av[*i], "--cdebug") == 0) {
+        opts->out_cdebug = 1;
     } else if (strcmp(av[*i], "--stdout") == 0) {
         opts->out_stdout = 1;
     } else if (strcmp(av[*i], "--disable-pure") == 0) {
@@ -221,18 +221,20 @@ int main(int ac, char **av)
     }
     ctx->program->print_result = opts.print_result;
     ctx->program->verbose = opts.verbose;
-    if (opts.out_src && (opts.out_csrc || opts.out_cfull)) {
-        s = translate(ctx->program, opts.out_cfull ? TRANS_FULL : TRANS_SRC);
+    if (opts.out_src && (opts.out_csrc || opts.out_cdebug)) {
+        s = translate(ctx->program, opts.out_cdebug ? TRANS_DEBUG : TRANS_SRC);
         printf("%s\n", s);
-        if (opts.out_cfull) {
+        if (opts.out_cdebug) {
             printf("void _putchar(char ch) { putchar(ch); }\n");
             printf("uint32_t Math_random_impl(void) { return 0; }\n");
             printf("void *SystemTimer_init(void) { return NULL; }\n");
             printf("void SystemTimer_restart_impl(void *p) {}\n");
-            printf("double SystemTimer_elapsed_impl(void *p) { return 0.0; }\n\n");
+            printf("double SystemTimer_elapsed_impl(void *p) { return 0.0; }\n");
+            printf("int xprintf(const char *fmt, ...) { va_list ap; va_start(ap, fmt); vprintf(fmt, ap); va_end(ap); }\n");
+            printf("int xsprintf(char *buf, const char *fmt, ...) { va_list ap; va_start(ap, fmt); vsprintf(buf, fmt, ap); va_end(ap); }\n\n");
         }
     } else {
-        s = translate(ctx->program, TRANS_FULL);
+        s = translate(ctx->program, TRANS_DEBUG);
     }
     if (opts.out_mir || opts.out_bmir) {
         ri = output(opts.file, s, opts.out_bmir, opts.out_stdout ? NULL : (opts.out_mir ? ".mir" : ".bmir"));

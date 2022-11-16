@@ -641,6 +641,8 @@ static void translate_op3(func_context *fctx, xstr *code, const char *op, const 
                 xstra_inst(code, "OP_%s(ctx, %s, %s, %s);\n", op, buf1, buf2, buf3);
             }
         }
+        xstra_inst(code, "CHECK_EXCEPTION(L%d, \"%s\", \"%s\", %d);\n",
+            i->catchid, i->funcname, escape(&(fctx->str), i->filename), i->line);
     }
 }
 
@@ -1033,19 +1035,19 @@ static void translate_inst(xstr *code, kl_kir_func *f, kl_kir_inst *i, func_cont
         break;
 
     case KIR_ADD:
-        translate_chkcnd(fctx, code, "ADD", "+", i);
+        translate_chkcnd(fctx, code, "ADD", NULL, i);
         break;
     case KIR_SUB:
-        translate_chkcnd(fctx, code, "SUB", "-", i);
+        translate_chkcnd(fctx, code, "SUB", NULL, i);
         break;
     case KIR_MUL:
-        translate_chkcnd(fctx, code, "MUL", "*", i);
+        translate_chkcnd(fctx, code, "MUL", NULL, i);
         break;
     case KIR_DIV:
-        translate_chkcnd(fctx, code, "DIV", "/", i);
+        translate_chkcnd(fctx, code, "DIV", NULL, i);
         break;
     case KIR_MOD:
-        translate_chkcnd(fctx, code, "MOD", "%", i);
+        translate_chkcnd(fctx, code, "MOD", NULL, i);
         break;
     case KIR_POW:
         translate_chkcnd(fctx, code, "POW", NULL, i);
@@ -1071,16 +1073,16 @@ static void translate_inst(xstr *code, kl_kir_func *f, kl_kir_inst *i, func_cont
         break;
 
     case KIR_INC:
-        translate_incdec(fctx, code, "INC", "++", i);
+        translate_incdec(fctx, code, "INC", NULL, i);
         break;
     case KIR_INCP:
-        translate_incdec(fctx, code, "INCP", "++", i);
+        translate_incdec(fctx, code, "INCP", NULL, i);
         break;
     case KIR_DEC:
-        translate_incdec(fctx, code, "DEC", "--", i);
+        translate_incdec(fctx, code, "DEC", NULL, i);
         break;
     case KIR_DECP:
-        translate_incdec(fctx, code, "DECP", "--", i);
+        translate_incdec(fctx, code, "DECP", NULL, i);
         break;
     case KIR_MINUS:
         xstra_inst(code, "OP_UMINUS(ctx, %s, %s);\n", var_value(buf1, &(i->r1)), var_value(buf2, &(i->r2)));
@@ -1170,7 +1172,7 @@ char *translate(kl_kir_program *p, int mode)
         .s = (char *)calloc(cap, sizeof(char)),
     };
 
-    if (mode == TRANS_FULL) {
+    if (mode == TRANS_DEBUG) {
         xstraf(&str, "#define USE_INT64\n");
         xstra(&str, header, len);
     }
@@ -1180,7 +1182,7 @@ char *translate(kl_kir_program *p, int mode)
         f = f->next;
     }
 
-    if (mode == TRANS_FULL) {
+    if (mode == TRANS_DEBUG) {
         xstraf(&str, "void setup_context(vmctx *ctx)\n{\n");
         xstra_inst(&str, "ctx->print_result = %d;\n", p->print_result);
         xstra_inst(&str, "ctx->verbose = %d;\n", p->verbose);

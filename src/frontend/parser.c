@@ -125,6 +125,8 @@ static char *make_func_name(kl_context *ctx, kl_lexer *l, const char *str, tk_to
         parse_error(ctx, __LINE__, l, "Internal error with allocation failed");
     } else {
         kl_nsstack *n = ctx->ns;
+        strcpy(buf + pos, "kl_");
+        pos += 3;
         strcpy(buf + pos, str);
         pos += len;
         switch (type) {
@@ -1281,27 +1283,8 @@ static kl_expr *parse_def_arglist(kl_context *ctx, kl_lexer *l, kl_symbol *func)
             }
             e = make_bin_expr(ctx, l, TK_COMMA, e, e1);
         } else {
-            if (l->tok == TK_LXBR) {
-                lexer_fetch(l);
-                kl_expr *e1 = make_expr(ctx, l, TK_VOBJ);
-                if (l->tok != TK_RXBR) {
-                    e1->lhs = parse_expr_keyvalue(ctx, l);
-                    if (l->tok != TK_RXBR) {
-                        parse_error(ctx, __LINE__, l, "The '}' is missing");
-                    }
-                    lexer_fetch(l);
-                }
-                e = make_bin_expr(ctx, l, TK_COMMA, e, e1);
-            } else if (l->tok == TK_LLBR) {
-                lexer_fetch(l);
-                kl_expr *e1 = make_expr(ctx, l, TK_VARY);
-                if (l->tok != TK_RLBR) {
-                    e1->lhs = parse_expr_arrayitem(ctx, l);
-                    if (l->tok != TK_RLBR) {
-                        parse_error(ctx, __LINE__, l, "The ']' is missing");
-                    }
-                    lexer_fetch(l);
-                }
+            if (l->tok == TK_LXBR || l->tok == TK_LLBR) {
+                kl_expr *e1 = parse_lvalue_factor(ctx, l);
                 e = make_bin_expr(ctx, l, TK_COMMA, e, e1);
             } else {
                 parse_error(ctx, __LINE__, l, "Invalid argument");
