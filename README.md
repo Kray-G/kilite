@@ -167,7 +167,7 @@ I will note the followings as I don't forget it.
     * [ ] `for-in` for Range.
     * [x] `if` modifier.
     * [x] `break` and `continue`.
-      * [ ] with label.
+      * [x] with label.
     * [x] Anonymous function in an expression.
     * [x] Easy print method.
   * [ ] Namespaces, classes, modules, functions, inheritance, and mix-in mechanism.
@@ -189,10 +189,10 @@ I will note the followings as I don't forget it.
   * [ ] The last argument of function call could be outside arguments list if it's a block.
   * [x] Destructuring assignment.
     * [x] Pattern matching in assignment.
-    * [ ] Destructuring assignment in function arguments.
+    * [x] Destructuring assignment in function arguments.
   * [ ] Coroutine with `yield`.
   * [ ] `case-when` expression.
-  * [ ] Formatter object.
+  * [x] Formatter object.
 * [ ] Libraries support.
   * [ ] Useful Libraries like Zip, Xml, PDF, or something.
 
