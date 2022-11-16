@@ -212,10 +212,12 @@ int main(int ac, char **av)
     update_ast_type(ctx);
     if (opts.out_src && opts.out_ast) {
         disp_ast(ctx);
+        goto END;
     }
     make_kir(ctx);
     if (opts.out_src && opts.out_kir) {
         disp_program(ctx->program);
+        goto END;
     }
     ctx->program->print_result = opts.print_result;
     ctx->program->verbose = opts.verbose;
