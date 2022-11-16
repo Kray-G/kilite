@@ -316,16 +316,17 @@ void lexer_free(kl_lexer *l)
     free(l);
 }
 
-static void lexer_ungetch(kl_lexer *l)
+static void lexer_ungetch(kl_lexer *l, int ch)
 {
-    l->unfetch = l->ch;
+    l->ungetch = l->ch;
+    l->ch = ch;
 }
 
 static inline void lexer_getch(kl_lexer *l)
 {
-    if (l->unfetch) {
-        l->ch = l->unfetch;
-        l->unfetch = 0;
+    if (l->ungetch) {
+        l->ch = l->ungetch;
+        l->ungetch = 0;
         return;
     }
     if (l->precode && *(l->precode)) {
@@ -601,8 +602,8 @@ static inline int get_number(kl_lexer *l)
             buf[0] = '0';
             buf[1] = '.';
             lexer_getch(l);
-            if (l->ch == '.') {
-                lexer_ungetch(l);
+            if (!is_10num_char(l->ch)) {
+                lexer_ungetch(l, '.');
                 l->i64 = 0;
                 return TK_VSINT;
             }
@@ -633,8 +634,8 @@ static inline int get_number(kl_lexer *l)
     if (l->ch == '.') {
         buf[i] = '.';
         lexer_getch(l);
-        if (l->ch == '.') {
-            lexer_ungetch(l);
+        if (!is_10num_char(l->ch)) {
+            lexer_ungetch(l, '.');
             buf[i+1] = 0;
             return generate_int_value(l, buf, 0);
         }

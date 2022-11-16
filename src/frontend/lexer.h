@@ -36,7 +36,7 @@ typedef struct kl_lexer {
     int error_stdout;
 
     tk_token tok;           //  Current token.
-    tk_token unfetch;       //  Buffer for unfetch.
+    tk_token ungetch;       //  Buffer for ungetch.
 
     tk_typeid typeid;       //  Type ID
     uint32_t options;
