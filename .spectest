@@ -1,0 +1,4 @@
+{
+    "root": "docs/spec",
+    "interpreter": "kilite --error-stdout --error-limit=5"
+}
