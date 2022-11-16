@@ -488,6 +488,26 @@ static void disp_stmt(kl_stmt *s, int indent)
             disp_stmt(s->s2, indent + 1);
         }
         break;
+    case TK_LABEL:
+        printf("label: %s\n", s->sym->name);
+        if (s->s1) {
+            disp_stmt(s->s1, indent + 1);
+        }
+        break;
+    case TK_BREAK:
+        if (s->sym) {
+            printf("break: %s\n", s->sym->name);
+        } else {
+            printf("break\n");
+        }
+        break;
+    case TK_CONTINUE:
+        if (s->sym) {
+            printf("continue: %s\n", s->sym->name);
+        } else {
+            printf("continue\n");
+        }
+        break;
     case TK_RETURN:
         printf("return\n");
         if (s->e1) {
@@ -535,6 +555,7 @@ static void disp_stmt(kl_stmt *s, int indent)
         make_indent(indent + 1);
         printf("[method copy] super <- this\n");
         break;
+
     default:
         printf("[MISSING]: %s\n", tokenname(s->nodetype));
         break;

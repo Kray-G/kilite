@@ -128,6 +128,7 @@ typedef enum tk_token {
     // Punctuations
     TK_COMMA,               //  ,
     TK_COLON,               //  :
+    TK_DCOLON,              //  ::
     TK_SEMICOLON,           //  ;
     TK_DOT,                 //  .
     TK_DOT2,                //  ..
@@ -146,6 +147,7 @@ typedef enum tk_token {
     TK_NAME,                //  <name>
 
     // For extra keywords in parsing.
+    TK_LABEL,               //  The label statement.
     TK_BLOCK,               //  For block.
     TK_CONNECT,             //  For connected expressions.
     TK_VAR,                 //  For variable.

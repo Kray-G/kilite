@@ -111,6 +111,7 @@ static const char *tkname[] = {
 
     "TK_COMMA",
     "TK_COLON",
+    "TK_DCOLON",
     "TK_SEMICOLON",
     "TK_DOT",
     "TK_DOT2",
@@ -127,6 +128,7 @@ static const char *tkname[] = {
     "TK_TYPEID",
     "TK_NAME",
 
+    "TK_LABEL",
     "TK_BLOCK",
     "TK_CONNECT",
     "TK_VAR",
@@ -963,8 +965,7 @@ static tk_token lexer_fetch_token(kl_lexer *l)
         lexer_getch(l);
         return TK_COMMA;
     case ':':
-        lexer_getch(l);
-        return TK_COLON;
+        LEXER_CHECK_12_TOK(':', TK_COLON, TK_DCOLON)
     case ';':
         lexer_getch(l);
         return TK_SEMICOLON;
@@ -1061,5 +1062,6 @@ L0:
         l->binmode = 0;
         l->tok = TK_BINEND;
     }
+
     return l->tok;
 }

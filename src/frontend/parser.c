@@ -279,16 +279,17 @@ static inline kl_symbol *search_symbol_in_scope(kl_context *ctx, kl_lexer *l, kl
 static inline kl_symbol *make_ref_symbol(kl_context *ctx, kl_lexer *l, tk_token tk, const char *name)
 {
     int level = 0;
-    kl_symbol *sym = (kl_symbol *)calloc(1, sizeof(kl_symbol));
-    sym->chn = ctx->symchn;
-    ctx->symchn = sym;
-    sym->symtoken = tk;
-    sym->line = l->tokline;
-    sym->pos = l->tokpos;
+    kl_symbol *sym = NULL;
     kl_nsstack *ns = ctx->ns;
     while (ns) {
         kl_symbol *ref = search_symbol_in_scope(ctx, l, ns, name);
         if (ref) {
+            sym = (kl_symbol *)calloc(1, sizeof(kl_symbol));
+            sym->chn = ctx->symchn;
+            ctx->symchn = sym;
+            sym->symtoken = tk;
+            sym->line = l->tokline;
+            sym->pos = l->tokpos;
             sym->ref = ref;
             sym->index = ref->index;
             sym->level = level;
@@ -305,8 +306,6 @@ static inline kl_symbol *make_ref_symbol(kl_context *ctx, kl_lexer *l, tk_token 
         ns = ns->prev;
     }
 
-    // l->toklen = strlen(name);
-    parse_error(ctx, __LINE__, l, "The symbol(%s) not found", name);
     return sym;
 }
 
@@ -575,6 +574,9 @@ static kl_expr *parse_expr_varname(kl_context *ctx, kl_lexer *l, const char *nam
         sym->is_const = decltype == TK_CONST;
     } else {
         sym = make_ref_symbol(ctx, l, TK_VAR, name);
+        if (!sym) {
+            sym = make_symbol(ctx, l, TK_VAR, 0);
+        }
     }
     sym->name = parse_const_str(ctx, l, name);
     e->sym = sym;
@@ -1156,6 +1158,18 @@ static kl_stmt *parse_expression_stmt(kl_context *ctx, kl_lexer *l)
         m->s1 = s;
         s = m;
     }
+    if (l->tok == TK_COLON) {
+        s->nodetype = TK_LABEL;
+        if (s->e1->nodetype != TK_VAR) {
+            parse_error(ctx, __LINE__, l, "Invalid label name");
+            return panic_mode_exprstmt(s, ';', ctx, l);
+        }
+        ctx->scope->idxmax--;   // cancelled the index.
+        s->sym = s->e1->sym;
+        lexer_fetch(l);
+        return s;
+    }
+
     if (l->tok != TK_SEMICOLON) {
         parse_error(ctx, __LINE__, l, "The ';' is missing");
         return panic_mode_exprstmt(s, ';', ctx, l);
@@ -2154,6 +2168,15 @@ static kl_stmt *parse_statement(kl_context *ctx, kl_lexer *l)
     case TK_BREAK:
         r = make_stmt(ctx, l, tok);
         lexer_fetch(l);
+        if (l->tok == TK_NAME) {
+            kl_symbol *sym = make_ref_symbol(ctx, l, TK_VAR, l->str);
+            if (!sym) {
+                parse_error(ctx, __LINE__, l, "Label(%s) not found", l->str);
+                return panic_mode_stmt(r, ';', ctx, l);
+            }
+            r->sym = sym->ref ? sym->ref : sym;
+            lexer_fetch(l);
+        }
         if (l->tok != TK_SEMICOLON) {
             parse_error(ctx, __LINE__, l, "The ';' is missing");
             return panic_mode_stmt(r, ';', ctx, l);
@@ -2218,7 +2241,12 @@ static kl_stmt *parse_statement_list(kl_context *ctx, kl_lexer *l)
         if (!s1) {
             head = s2;
         }
-        s1 = connect_stmt(s1, s2);
+        if (s1 && s1->nodetype == TK_LABEL && !s1->s1) {
+            s1->s1 = s2;
+            s1->s1->sym = s1->sym;
+        } else {
+            s1 = connect_stmt(s1, s2);
+        }
         if (s2 == NULL || l->tok == TK_RXBR) {
             break;
         }
