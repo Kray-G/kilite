@@ -154,6 +154,12 @@ I will note the followings as I don't forget it.
     * [x] Array operations.
     * [x] Object operations.
     * [ ] Range operations.
+      * [ ] Fiber class.
+      * [ ] Enumerator module.
+      * [ ] Range class.
+      * [ ] Range index for String, Binary, Array, and Range.
+      * [ ] Range at the case value.
+      * [ ] Range in `for-in`.
     * [ ] Support a `switch-case` statement.
     * [x] Support the loop like `for`, `while`, and `do-while`.
     * [ ] `for-in` for Array.
@@ -167,9 +173,12 @@ I will note the followings as I don't forget it.
   * [ ] Namespaces, classes, modules, functions, inheritance, and mix-in mechanism.
     * [ ] Namespace works.
     * [x] Class definition.
+      * [x] Call `initialize` method when creating the instance if the method exists.
+      * [x] Support the `instanceOf` method.
     * [x] The `new` operator.
-    * [ ] Module definition.
-    * [ ] The `mixin` statement.
+    * [x] Module definition.
+    * [x] The `mixin` statement.
+    * [x] `@` is the same as the shorten word of `this.`.
   * [x] Exception.
     * [x] throwing an exception.
     * [x] Stack trace.
