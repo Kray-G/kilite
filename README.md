@@ -154,7 +154,9 @@ I will note the followings as I don't forget it.
     * [x] Array operations.
     * [x] Object operations.
     * [ ] Range operations.
-      * [ ] Fiber class.
+      * [x] Fiber class.
+        * [x] Coroutine with `yield`.
+        * [ ] Return value from `yield`.
       * [ ] Enumerator module.
       * [ ] Range class.
       * [ ] Range index for String, Binary, Array, and Range.
@@ -190,7 +192,6 @@ I will note the followings as I don't forget it.
   * [x] Destructuring assignment.
     * [x] Pattern matching in assignment.
     * [x] Destructuring assignment in function arguments.
-  * [ ] Coroutine with `yield`.
   * [ ] `case-when` expression.
   * [x] Formatter object.
 * [ ] Libraries support.
