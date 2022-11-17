@@ -1059,17 +1059,9 @@ static void translate_inst(xstr *code, kl_kir_func *f, kl_kir_inst *i, func_cont
     switch (i->opcode) {
     case KIR_EXTERN:
         if (i->r1.typeid == TK_TFUNC) {
-            xstra_inst(code, "{\n");
-            xstra_inst(code, "    int %s(vmctx *ctx, vmfrm *lex, vmvar *r, int ac);\n", i->r2.str);
-            xstra_inst(code, "    vmfnc *f = alcfnc(ctx, %s, frm, \"%s\", 0);\n", i->r2.str, i->r2.str);
-            xstra_inst(code, "    SET_FNC(%s, f);\n", var_value(buf1, &(i->r1)), i->r2.str);
-            xstra_inst(code, "}\n");
+            xstra_inst(code, "EXTERN_FUNC(%s, %s)\n", i->r2.str, var_value(buf1, &(i->r1)));
         } else {
-            xstra_inst(code, "{\n", i->r2.str);
-            xstra_inst(code, "    int %s(vmctx *ctx, vmfrm *lex, vmvar *r, int ac);\n", i->r2.str);
-            xstra_inst(code, "    vmfnc *f = alcfnc(ctx, %s, frm, \"%s\", 0);\n", i->r2.str, i->r2.str);
-            xstra_inst(code, "    e = ((vmfunc_t)(f->f))(ctx, lex, %s, 0);\n", var_value(buf1, &(i->r1)));
-            xstra_inst(code, "}\n");
+            xstra_inst(code, "EXTERN_OBJECT(%s, %s)\n", i->r2.str, var_value(buf1, &(i->r1)));
         }
         break;
 

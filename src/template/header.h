@@ -354,6 +354,20 @@ typedef struct vmctx {
 
 /* Operator macros */
 
+#define EXTERN_FUNC(name, vn) { \
+    int name(vmctx *ctx, vmfrm *lex, vmvar *r, int ac); \
+    vmfnc *f = alcfnc(ctx, name, frm, #name, 0); \
+    SET_FNC(vn, f); \
+} \
+/**/
+
+#define EXTERN_OBJECT(name, vn) { \
+    int name(vmctx *ctx, vmfrm *lex, vmvar *r, int ac); \
+    vmfnc *f = alcfnc(ctx, name, frm, #name, 0); \
+    e = ((vmfunc_t)(f->f))(ctx, lex, vn, 0); \
+} \
+/**/
+
 /* call function */
 #define CALL(f1, lex, r, ac) { \
     vmfnc *callee = ctx->callee; \
