@@ -202,8 +202,9 @@ typedef enum kl_kir {
     KIR_THROWE,     //  <r1>                    ;   throw <r1>.
     KIR_THROW,      //  -                       ;   throw.
     KIR_CATCH,      //  <r1>                    ;   <r1>  <- catch.
-    KIR_YIELD,      //  <n>                     ;   yield with the number <n>.
     KIR_YIELDC,     //  ...                     ;   transfer yield condition if it's yield.
+    KIR_YIELD,      //  <n>                     ;   yield with the number <n>.
+    KIR_RESUME,     //  <r1>                    ;   <r1> <- resume.
 
     /*
      * Conditional and unconditional Jump.

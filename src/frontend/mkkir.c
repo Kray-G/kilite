@@ -1108,23 +1108,6 @@ static kl_kir_inst *gen_throw(kl_context *ctx, kl_symbol *sym, kl_stmt *s)
     return head;
 }
 
-static kl_kir_inst *gen_yield(kl_context *ctx, kl_symbol *sym, kl_stmt *s)
-{
-    kl_kir_inst *head = NULL;
-    if (s->e1) {
-        kl_kir_opr r1 = make_ret_var(ctx, sym);
-        head = gen_expr(ctx, sym, &r1, s->e1);
-    }
-    kl_kir_inst *inst = new_inst(ctx->program, s->line, s->pos, KIR_YIELD);
-    inst->labelid = s->yield;
-    if (!head) {
-        head = inst;
-    } else {
-        get_last(head)->next = inst;
-    }
-    return head;
-}
-
 static kl_kir_inst *gen_if(kl_context *ctx, kl_symbol *sym, kl_stmt *s)
 {
     kl_kir_inst *head = NULL;
@@ -1410,6 +1393,36 @@ static kl_kir_inst *gen_label(kl_context *ctx, kl_symbol *sym, kl_stmt *s)
     return head;
 }
 
+static kl_kir_inst *gen_yield(kl_context *ctx, kl_symbol *sym, kl_expr *e)
+{
+    kl_kir_inst *head = NULL;
+    kl_kir_inst *last = NULL;
+    if (e->rhs) {
+        kl_kir_opr r1 = make_ret_var(ctx, sym);
+        head = gen_expr(ctx, sym, &r1, e->rhs);
+    }
+    kl_kir_inst *inst = new_inst(ctx->program, e->line, e->pos, KIR_YIELD);
+    inst->labelid = e->yield;
+    if (!head) {
+        head = last = inst;
+    } else {
+        last = get_last(head);
+        last->next = inst;
+        last = inst;
+    }
+    if (e->lhs) {
+        kl_expr *r = e->lhs->rhs;
+        kl_kir_opr rs = make_var_index(ctx, r->sym->index, 0, r->typeid);
+        inst = new_inst_op1(ctx->program, e->line, e->pos, KIR_RESUME, &rs);
+        set_file_func(ctx, sym, inst);
+        last->next = inst;
+        last = inst;
+        kl_kir_opr r1 = make_ret_var(ctx, sym);
+        last->next = gen_assign(ctx, sym, &r1, e->lhs);
+    }
+    return head;
+}
+
 static kl_kir_inst *gen_expr(kl_context *ctx, kl_symbol *sym, kl_kir_opr *r1, kl_expr *e)
 {
     kl_kir_inst *head = NULL;
@@ -1611,6 +1624,10 @@ static kl_kir_inst *gen_expr(kl_context *ctx, kl_symbol *sym, kl_kir_opr *r1, kl
         break;
     case TK_DECP:
         head = gen_incdec(ctx, sym, KIR_DECP, r1, e);
+        break;
+
+    case TK_YIELD:
+        head = gen_yield(ctx, sym, e);
         break;
 
     case TK_MINUS: {
@@ -1998,9 +2015,6 @@ static kl_kir_inst *gen_stmt(kl_context *ctx, kl_symbol *sym, kl_stmt *s)
         break;
     case TK_THROW:
         head = gen_throw(ctx, sym, s);
-        break;
-    case TK_YIELD:
-        head = gen_yield(ctx, sym, s);
         break;
     case TK_EXTERN: {
         kl_expr *e2 = s->e2;

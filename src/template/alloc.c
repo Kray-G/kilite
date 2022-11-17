@@ -291,6 +291,7 @@ vmobj *alcobj(vmctx *ctx)
         v->liv->prv = v;
     }
 
+    v->idxsz = 0;
     ctx->fre.obj--;
     return v;
 }

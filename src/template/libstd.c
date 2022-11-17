@@ -336,10 +336,15 @@ static int Fiber_resume(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     f1->created = 0;
 
     int p = vstackp(ctx);
+    vmobj *o = alcobj(ctx);
     for (int i = 1; i < ac; ++i) {
         vmvar *a = local_var(ctx, i);
-        push_var(ctx, a, L0, "<libstd>", "libstd.c", __LINE__);
+        array_push(ctx, o, a);
     }
+    for (int i = ac - 2; i >= 0; --i) {
+        push_var(ctx, o->ary[i], L0, "<libstd>", "libstd.c", __LINE__);
+    }
+    pbakobj(ctx, o);
     vmfnc *callee = ctx->callee;
     ctx->callee = f1;
     e = ((vmfunc_t)(f1->f))(ctx, f1->lex, r, ac - 1);

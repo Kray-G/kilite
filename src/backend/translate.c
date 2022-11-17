@@ -712,6 +712,12 @@ static void translate_yield(func_context *fctx, xstr *code, kl_kir_func *f, kl_k
     xstra_inst(code, "ctx->callee->yield = 0;\n");
 }
 
+static void translate_resume(func_context *fctx, xstr *code, kl_kir_func *f, kl_kir_inst *i)
+{
+    xstra_inst(code, "RESUME(ctx, n%d, ac, allocated_local, L%d, \"%s\", \"%s\", %d);\n",
+        i->r1.index, f->funcend, i->funcname, escape(&(fctx->str), i->filename), i->line);
+}
+
 static void translate_yield_check(func_context *fctx, xstr *code, kl_kir_func *f, kl_kir_inst *i)
 {
     char buf1[256] = {0};
@@ -1143,6 +1149,9 @@ static void translate_inst(xstr *code, kl_kir_func *f, kl_kir_inst *i, func_cont
         break;
     case KIR_YIELD:
         translate_yield(fctx, code, f, i);
+        break;
+    case KIR_RESUME:
+        translate_resume(fctx, code, f, i);
         break;
 
     case KIR_JMPIFT:

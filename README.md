@@ -156,7 +156,7 @@ I will note the followings as I don't forget it.
     * [ ] Range operations.
       * [x] Fiber class.
         * [x] Coroutine with `yield`.
-        * [ ] Return value from `yield`.
+        * [x] Return value from `yield`.
       * [ ] Enumerator module.
       * [ ] Range class.
       * [ ] Range index for String, Binary, Array, and Range.
@@ -187,6 +187,11 @@ I will note the followings as I don't forget it.
     * [x] `try`, `catch`, and `finally`.
     * [x] MethodMissing for global scope.
     * [ ] MethodMissing for class methods.
+  * [ ] Special object.
+    * [ ] Integer
+    * [ ] String
+    * [ ] Binary
+    * [ ] Array/Object
 * [ ] Notes for a special specifications of the language.
   * [ ] The last argument of function call could be outside arguments list if it's a block.
   * [x] Destructuring assignment.
@@ -204,6 +209,7 @@ In addition, the followings are the task list for the current implementation.
 * [ ] Remaining items.
   * [ ] Error recovery during parsing like a panic mode.
   * [ ] Error report for reassigning a value into a variable of `const`.
+  * [ ] `isDefined` property.
 
 ## Others
 

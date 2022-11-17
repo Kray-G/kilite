@@ -139,7 +139,7 @@ enum {
         for (int i = idxsz - 1; i >= 0; --i) { \
             vmvar *px = &(((ctx)->vstk)[((ctx)->vstkp)++]); \
             vmvar *item = (v)->o->ary[i]; \
-            if (item) {\
+            if (item) { \
                 SHCOPY_VAR_TO(ctx, px, item); \
             } else { \
                 px->t = VAR_INT64; px->i = 0; \
@@ -420,16 +420,32 @@ typedef struct vmctx {
 } \
 /**/
 
-#define RESUME_HOOK(ctx, ac, alc, label, func, file, line) {\
+#define RESUME_HOOK(ctx, ac, alc, label, func, file, line) { \
     if (ctx->callee->yfnc) { \
         int pp = vstackp(ctx); \
+        vmobj *o = alcobj(ctx); \
         for (int i = 0; i < ac; ++i) { \
-            vmvar *aa = local_var(ctx, (i + alc)); \
-            push_var(ctx, aa, label, func, file, line); \
+            vmvar *a = local_var(ctx, (i + alc)); \
+            array_push(ctx, o, a); \
         } \
+        for (int i = ac - 1; i >= 0; --i) { \
+            push_var(ctx, o->ary[i], label, func, file, line); \
+        } \
+        pbakobj(ctx, o); \
         vmfnc *f = ctx->callee->yfnc; \
         CALL(f, f->lex, &yy, ac) \
         restore_vstackp(ctx, pp); \
+    } \
+} \
+/**/
+
+#define RESUME(ctx, vn, ac, alc, label, func, file, line) { \
+    vn = alcvar_obj(ctx, alcobj(ctx)); \
+    for (int i = 0; i < ac; ++i) { \
+        vmvar *aa = local_var(ctx, (i + alc)); \
+        vmvar *ax = alcvar_initial(ctx); \
+        SHCOPY_VAR_TO(ctx, ax, aa); \
+        array_push(ctx, vn->o, ax); \
     } \
 } \
 /**/

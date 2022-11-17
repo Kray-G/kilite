@@ -189,6 +189,9 @@ void disp_inst(kl_kir_program *p, kl_kir_inst *i)
     case KIR_CATCH:
         disp_1op("catch", i);
         break;
+    case KIR_RESUME:
+        disp_1op("resume", i);
+        break;
     case KIR_YIELD:
         printf(IDT OP "Y%d\n", "yield", i->labelid);
         break;

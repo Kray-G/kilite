@@ -549,6 +549,9 @@ static void check_symbol(kl_context *ctx, kl_lexer *l, const char *name)
 
 static void check_assigned(kl_context *ctx, kl_lexer *l, kl_expr *lhs)
 {
+    if (!lhs) {
+        return;
+    }
     if (lhs->nodetype == TK_VAR && lhs->sym) {
         kl_symbol *v = lhs->sym->ref ? lhs->sym->ref : lhs->sym;
         v->assigned++;
@@ -1104,13 +1107,34 @@ static kl_expr *parse_expr_ternary(kl_context *ctx, kl_lexer *l)
     return lhs;
 }
 
+static kl_expr *parse_expr_yield(kl_context *ctx, kl_lexer *l, kl_expr *lhs)
+{
+    lexer_fetch(l);
+    kl_expr *rhs = parse_expr_ternary(ctx, l);
+    if (lhs) {
+        check_assigned(ctx, l, lhs);
+        kl_expr *v = parse_expr_varname(ctx, l, "_tmp", TK_LET);
+        lhs = make_bin_expr(ctx, l, TK_EQ, lhs, v);
+    }
+    lhs = make_conn_expr(ctx, l, TK_YIELD, lhs, rhs);
+    ++(ctx->scope->yield);
+    lhs->yield = ctx->scope->yield;
+    return lhs;
+}
+
 static kl_expr *parse_expr_assignment(kl_context *ctx, kl_lexer *l)
 {
     DEBUG_PARSER_PHASE();
+    if (l->tok == TK_YIELD) {
+        return parse_expr_yield(ctx, l, NULL);
+    }
     kl_expr *lhs = parse_expr_ternary(ctx, l);
     tk_token tok = l->tok;
     if (TK_EQ <= tok && tok <= TK_LOREQ) {
         lexer_fetch(l);
+        if (tok == TK_EQ && l->tok == TK_YIELD) {
+            return parse_expr_yield(ctx, l, lhs);
+        }
         kl_expr *rhs = parse_expr_assignment(ctx, l);   // Right recursion.
         check_assigned(ctx, l, lhs);
         lhs = make_bin_expr(ctx, l, tok, lhs, rhs);
@@ -1576,14 +1600,10 @@ static kl_stmt *parse_declaration(kl_context *ctx, kl_lexer *l, int decltype)
     return s;
 }
 
-static kl_stmt *parse_return_throw_yield(kl_context *ctx, kl_lexer *l, int tok)
+static kl_stmt *parse_return_throw(kl_context *ctx, kl_lexer *l, int tok)
 {
     DEBUG_PARSER_PHASE();
     kl_stmt *s = make_stmt(ctx, l, tok);
-    if (tok == TK_YIELD) {
-        ++(ctx->scope->yield);
-        s->yield = ctx->scope->yield;
-    }
 
     if (l->tok != TK_IF && l->tok != TK_SEMICOLON) {
         s->e1 = parse_expression(ctx, l);
@@ -2188,11 +2208,10 @@ static kl_stmt *parse_statement(kl_context *ctx, kl_lexer *l)
         }
         lexer_fetch(l);
         break;
-    case TK_YIELD:
     case TK_RETURN:
     case TK_THROW:
         lexer_fetch(l);
-        r = parse_return_throw_yield(ctx, l, tok);
+        r = parse_return_throw(ctx, l, tok);
         break;
     case TK_EXTERN:
         lexer_fetch(l);
