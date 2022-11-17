@@ -49,6 +49,7 @@ enum {
     EXCEPT_TOO_FEW_ARGUMENTS,
     EXCEPT_TYPE_MISMATCH,
     EXCEPT_INVALID_FIBER_STATE,
+    EXCEPT_DEAD_FIBER_CALLED,
     EXCEPT_MAX,
 };
 
@@ -283,6 +284,7 @@ typedef struct vmfnc {
     int64_t n;          /* The minimum of n */
     const char *name;   /* function name */
     void *f;            /* function pointer */
+    int created;        /* 1 means it's right after created. */
     int yield;          /* The next position at the next call after yield. */
     int varcnt;         /* The number of variables this should hold. */
     struct vmfnc *yfnc; /* The resumed funtion after yield. */

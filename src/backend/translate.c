@@ -701,6 +701,17 @@ static void translate_call(func_context *fctx, xstr *code, kl_kir_func *f, kl_ki
     }
 }
 
+static void translate_yield(func_context *fctx, xstr *code, kl_kir_func *f, kl_kir_inst *i)
+{
+    if (f->has_frame) {
+        xstra_inst(code, "YIELD_FRM(ctx, cur, %d, %d, SAVE_LOCAL());\n\n", i->labelid, fctx->total_vars);
+    } else {
+        xstra_inst(code, "YIELD(ctx, %d, %d, SAVE_LOCAL());\n\n", i->labelid, fctx->total_vars);
+    }
+    xstraf(code, "Y%d:;\n", i->labelid);
+    xstra_inst(code, "ctx->callee->yield = 0;\n");
+}
+
 static void translate_yield_check(func_context *fctx, xstr *code, kl_kir_func *f, kl_kir_inst *i)
 {
     char buf1[256] = {0};
@@ -1132,12 +1143,7 @@ static void translate_inst(xstr *code, kl_kir_func *f, kl_kir_inst *i, func_cont
         xstra_inst(code, "CATCH_EXCEPTION(ctx, %s);\n", var_value(buf1, &(i->r1)));
         break;
     case KIR_YIELD:
-        if (f->has_frame) {
-            xstra_inst(code, "YIELD_FRM(ctx, cur, %d, %d, SAVE_LOCAL());\n\n", i->labelid, fctx->total_vars);
-        } else {
-            xstra_inst(code, "YIELD(ctx, %d, %d, SAVE_LOCAL());\n\n", i->labelid, fctx->total_vars);
-        }
-        xstraf(code, "Y%d:;\n", i->labelid);
+        translate_yield(fctx, code, f, i);
         break;
 
     case KIR_JMPIFT:

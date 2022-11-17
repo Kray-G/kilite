@@ -191,7 +191,13 @@ int TypeMismatchException(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 
 int InvalidFiberStateException(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
-    RuntimeException_create(ctx, lex, r, "InvalidFiberStateException", "Invalid Fiber state");
+    RuntimeException_create(ctx, lex, r, "InvalidFiberStateException", "Invalid fiber state");
+    return 0;
+}
+
+int DeadFiberCalledException(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    RuntimeException_create(ctx, lex, r, "DeadFiberCalledException", "Dead fiber called");
     return 0;
 }
 
@@ -230,6 +236,9 @@ int throw_system_exception(int line, vmctx *ctx, int id)
         break;
     case EXCEPT_INVALID_FIBER_STATE:
         InvalidFiberStateException(ctx, NULL, r, 0);
+        break;
+    case EXCEPT_DEAD_FIBER_CALLED:
+        DeadFiberCalledException(ctx, NULL, r, 0);
         break;
     default:
         RuntimeException_create(ctx, NULL, r, "SystemException", "Unknown exception");
@@ -318,18 +327,20 @@ static int Fiber_resume(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     int e = 0;
 
-    int p = vstackp(ctx);
+    /* a0 should be the Fiber object. */
+    vmvar *a0 = local_var(ctx, 0);
+    vmfnc *f1 = a0->o->ary[0]->f;
+    if (f1->created == 0 && f1->yield == 0) {
+        return throw_system_exception(__LINE__, ctx, EXCEPT_DEAD_FIBER_CALLED);
+    }
+    f1->created = 0;
 
+    int p = vstackp(ctx);
     for (int i = 1; i < ac; ++i) {
         vmvar *a = local_var(ctx, i);
         push_var(ctx, a, L0, "<libstd>", "libstd.c", __LINE__);
     }
-
-    /* a0 should be the Fiber object. */
     vmfnc *callee = ctx->callee;
-    vmvar *a0 = local_var(ctx, 0);
-    vmfnc *f1 = a0->o->ary[0]->f;
-
     ctx->callee = f1;
     e = ((vmfunc_t)(f1->f))(ctx, f1->lex, r, ac - 1);
     ctx->callee = callee;
@@ -349,7 +360,7 @@ static int Fiber_isAlive(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     vmvar *a0 = local_var(ctx, 0);
     vmfnc *f1 = a0->o->ary[0]->f;
 
-    SET_I64(r, f1->yield > 0);
+    SET_I64(r, f1->created > 0 || f1->yield > 0);
     return 0;
 }
 
@@ -376,6 +387,7 @@ static int Fiber_create(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 
     vmvar *n0 = alcvar_initial(ctx);
     SHCOPY_VAR_TO(ctx, n0, a0);
+    n0->f->created = 1;
 
     vmobj *o = alcobj(ctx);
     array_push(ctx, o, n0);
