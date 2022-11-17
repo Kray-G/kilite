@@ -1097,11 +1097,8 @@ static void translate_inst(xstr *code, kl_kir_func *f, kl_kir_inst *i, func_cont
     case KIR_PURE:
         if (f->is_pure) {
             translate_pure_hook(code, f);
-        }
-        if (!f->is_global && !f->is_pure) {
+        } else {
             xstra_inst(code, "goto HEAD;\n\n");
-        }
-        if (!f->is_pure) {
             translate_resume_hook(fctx, code, f, i);
         }
         break;
@@ -1130,7 +1127,9 @@ static void translate_inst(xstr *code, kl_kir_func *f, kl_kir_inst *i, func_cont
         break;
 
     case KIR_RET:
-        xstra_inst(code, "if (e != FLOW_YIELD) ctx->callee->yield = 0;\n");
+        if (!f->is_global && !f->is_pure) {
+            xstra_inst(code, "if (e != FLOW_YIELD) ctx->callee->yield = 0;\n");
+        }
         xstra_inst(code, "return e;\n");
         break;
     case KIR_THROWE:
