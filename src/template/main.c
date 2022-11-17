@@ -8,7 +8,9 @@ int main(void)
 
     int ri = 0;
     vmvar r = {0};
+    ctx->callee = alcfnc(ctx, run_global, NULL, "run_global", 0); // dummy.
     int e = run_global(ctx, NULL, &r, 0);
+    ctx->callee = NULL;
     if (e) {
         exception_uncaught(ctx, ctx->except);
     } else {

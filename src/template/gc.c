@@ -50,11 +50,19 @@ void mark_fnc(vmfnc *f)
     }
 
     MARK(f);
+    if (f->yfnc) {
+        mark_fnc(f->yfnc);
+    }
     if (f->frm) {
         mark_frm(f->frm);
     }
     if (f->lex) {
         mark_frm(f->lex);
+    }
+    if (f->varcnt > 0) {
+        for (int i = 0; i < f->varcnt; ++i) {
+            mark_var(f->vars[i]);
+        }
     }
 }
 
@@ -212,6 +220,7 @@ void mark_all(vmctx *ctx)
 {
     premark_all(ctx);
     mark_var(ctx->except);
+    mark_fnc(ctx->callee);
     mark_fnc(ctx->methodmissing);
 
     int fstkp = ctx->fstkp;
@@ -307,6 +316,11 @@ void sweep(vmctx *ctx)
         vmfnc *n = f->liv;
         if (!IS_MARKED(f)) {
             ++fc;
+            if (f->vars) {
+                free(f->vars);
+                f->vars = NULL;
+                f->varcnt = 0;
+            }
             pbakfnc(ctx, f);
         }
         f = n;

@@ -363,6 +363,10 @@ static inline kl_expr *make_bin_expr(kl_context *ctx, kl_lexer *l, tk_token tk, 
 {
     if (!lhs) return rhs;
     kl_expr *e = make_expr(ctx, l, tk);
+    if (tk == TK_CALL) {
+        ++(ctx->scope->yield);
+        e->yield = ctx->scope->yield;   /* This number will be used when yield check. */
+    }
     e->lhs = lhs;
     e->rhs = rhs;
     return e;
@@ -1577,7 +1581,8 @@ static kl_stmt *parse_return_throw_yield(kl_context *ctx, kl_lexer *l, int tok)
     DEBUG_PARSER_PHASE();
     kl_stmt *s = make_stmt(ctx, l, tok);
     if (tok == TK_YIELD) {
-        ctx->scope->has_yield = 1;
+        ++(ctx->scope->yield);
+        s->yield = ctx->scope->yield;
     }
 
     if (l->tok != TK_IF && l->tok != TK_SEMICOLON) {
@@ -2262,6 +2267,7 @@ int parse(kl_context *ctx, kl_lexer *l)
     push_nsstack(ctx, n);
     kl_stmt *s = make_stmt(ctx, l, TK_NAMESPACE);
     kl_symbol *sym = make_symbol(ctx, l, TK_NAMESPACE, 0);
+    sym->is_global = 1;
     sym->name = parse_const_str(ctx, l, "run_global");
     s->sym = sym;
 

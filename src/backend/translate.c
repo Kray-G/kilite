@@ -24,6 +24,7 @@ typedef struct func_context {
     int push_count;
     int push_max;
     int temp_count;
+    int resume_start;
     int skip;
     xstr str;
 } func_context;
@@ -226,7 +227,7 @@ static void translate_call_pure(xstr *code, kl_kir_func *f, func_context *fctx, 
             xstra_inst(code, "if (*e > 0) goto L%d;\n", f->funcend);
         }
     } else {
-        xstra_inst(code, "<ERROR>");
+        xstra_inst(code, "<ERROR:%d>", __LINE__);
         /* TODO: error */
     }
 }
@@ -545,8 +546,12 @@ static void translate_pusharg(func_context *fctx, xstr *code, kl_kir_inst *i, in
                 var_value(buf1, rn), catchid, i->funcname, escape(&(fctx->str), i->filename), i->line);
         }
         break;
+    case TK_FUNC:
+        xstra_inst(code, "{ push_var_f(ctx, f%d, L%d, \"%s\", \"%s\", %d); }\n",
+            rn->funcid, catchid, i->funcname, escape(&(fctx->str), i->filename), i->line);
+        break;
     default:
-        xstra_inst(code, "<ERROR>");
+        xstra_inst(code, "<ERROR:%d>", __LINE__);
         /* TODO: error */
         break;
     }
@@ -677,6 +682,7 @@ static void translate_call(func_context *fctx, xstr *code, kl_kir_func *f, kl_ki
     char buf1[256] = {0};
     char buf2[256] = {0};
     var_value(buf1, &(i->r1));
+    var_value(buf2, &(i->r2));
     if (i->r2.funcid > 0) {
         if (i->r2.t == TK_FUNC) {
             /* This means a direct call of an anonymous function. */
@@ -689,10 +695,41 @@ static void translate_call(func_context *fctx, xstr *code, kl_kir_func *f, kl_ki
         }
     } else {
         int tclabel = i->catchid > 0 ? i->catchid : f->funcend;
-        var_value(buf2, &(i->r2));
         xstra_inst(code, "CHECK_CALL(ctx, %s, L%d, %s, %d + ad%d, \"%s\", \"%s\", %d);\n",
             buf2, tclabel, buf1, i->r2.args, i->r2.callcnt,
             i->funcname, escape(&(fctx->str), i->filename), i->line);
+    }
+}
+
+static void translate_yield_check(func_context *fctx, xstr *code, kl_kir_func *f, kl_kir_inst *i)
+{
+    char buf1[256] = {0};
+    char buf2[256] = {0};
+    var_value(buf1, &(i->r1));
+    var_value(buf2, &(i->r2));
+    if (!f->is_global && !f->is_pure) {
+        if (i->labelid > 0) {
+            /* There is the case when returned back by yield. */
+            if (i->r2.funcid > 0) {
+                if (f->has_frame) {
+                    xstra_inst(code, "CHECK_YIELD_FRM(ctx, %s, frm, f%d, %d, %d, SAVE_LOCAL());\n",
+                        buf1, i->r2.funcid, i->labelid, fctx->temp_count);
+                } else {
+                    xstra_inst(code, "CHECK_YIELD(ctx, %s, f%d, %d, %d, SAVE_LOCAL());\n",
+                        buf1, i->r2.funcid, i->labelid, fctx->temp_count);
+                }
+            } else {
+                if (f->has_frame) {
+                    xstra_inst(code, "CHECK_YIELD_FRM(ctx, %s, frm, (%s)->f, %d, %d, SAVE_LOCAL());\n",
+                        buf1, buf2, i->labelid, fctx->temp_count);
+                } else {
+                    xstra_inst(code, "CHECK_YIELD(ctx, %s, (%s)->f, %d, %d, SAVE_LOCAL());\n",
+                        buf1, buf2, i->labelid, fctx->temp_count);
+                }
+            }
+            xstraf(code, "\nY%d:;\n", i->labelid);
+            xstra_inst(code, "if (yieldno > 0) SHCOPY_VAR_TO(ctx, %s, &yy);\n", buf1);
+        }
     }
 }
 
@@ -877,6 +914,133 @@ static void translate_funcref(xstr *code, kl_kir_func *f)
     }
 }
 
+static void translate_resume_hook(func_context *fctx, xstr *code, kl_kir_func *f, kl_kir_inst *i)
+{
+    int total_vars = fctx->total_vars;
+    int yield = i->labelid;
+    xstraf(code, "RESUMEHOOK:;\n");
+    if (yield > 0) {
+        for (int idx = 0; idx < fctx->resume_start; ++idx) {
+            xstra_inst(code, "n%d = frm->v[%d];\n", idx, idx);
+        }
+        for (int idx = fctx->resume_start; idx < total_vars; ++idx) {
+            xstra_inst(code, "n%d = ctx->callee->vars[%d];\n", idx, idx - fctx->resume_start);
+        }
+        xstra_inst(code, "switch (yieldno) {\n");
+        for (int idx = 1; idx <= yield; ++idx) {
+            xstra_inst(code, "case %d: RESUME_HOOK(ctx, ac, allocated_local, L%d, \"%s\", \"%s\", %d); goto Y%d;\n",
+                idx, f->funcend, i->funcname, escape(&(fctx->str), i->filename), i->line, idx);
+        }
+        xstra_inst(code, "default: e = throw_system_exception(__LINE__, ctx, EXCEPT_INVALID_FIBER_STATE); goto L%d;\n", f->funcend);
+        xstra_inst(code, "}\n");
+    }
+    xstraf(code, "\nHEAD:;\n");
+}
+
+static void translate_alocal(func_context *fctx, xstr *code, kl_kir_func *f, kl_kir_inst *i)
+{
+    fctx->total_vars = i->r1.i64;
+    fctx->local_vars = i->r2.i64;   // including arguments.
+    fctx->temp_count = fctx->total_vars;
+    fctx->resume_start = 0;
+
+    if (!f->is_global && !f->is_pure) {
+        xstra_inst(code, "#define SAVE_LOCAL() {");
+        for (int i = 0; i < fctx->total_vars; ++i) {
+            xstraf(code, " SHCOPY_VAR_TO(ctx, f->vars[%d], n%d);", i, i);
+        }
+        xstraf(code, " }\n");
+    }
+
+    if (fctx->total_vars > 0) {
+        xstra_inst(code, "const int allocated_local = %" PRId64 ";\n", fctx->total_vars);
+        xstra_inst(code, "alloc_var(ctx, %" PRId64 ", L%d, \"%s\", \"%s\", %d);\n",
+            fctx->total_vars, f->funcend, i->funcname, escape(&(fctx->str), i->filename), i->line);
+    }
+    if (!f->is_global && !f->is_pure) {
+        xstra_inst(code, "int yieldno = ctx->callee->yield;\n");
+    }
+    xstra_inst(code, "vmvar ");
+    for (int idx = 0; idx < fctx->total_vars; ++idx) {
+        if (idx != 0) xstraf(code, ", ");
+        xstraf(code, "*n%d", idx);
+    }
+    xstraf(code, ";\n");
+    xstra_inst(code, "vmvar yy = {0}; SET_UNDEF(&yy);\n");
+    if (!f->is_global && !f->is_pure) {
+        xstra_inst(code, "if (yieldno > 0) goto RESUMEHOOK;\n");
+    }
+    for (int idx = 0; idx < fctx->total_vars; ++idx) {
+        xstra_inst(code, "n%d = local_var(ctx, %d);\n", idx, idx);
+    }
+}
+
+static void translate_mkfrm(func_context *fctx, xstr *code, kl_kir_func *f, kl_kir_inst *i)
+{
+    fctx->total_vars = i->r1.i64;
+    fctx->local_vars = i->r2.i64;   // including arguments.
+    fctx->temp_count = fctx->total_vars - fctx->local_vars;
+    fctx->resume_start = fctx->local_vars;
+
+    if (!f->is_global && !f->is_pure) {
+        xstra_inst(code, "#define SAVE_LOCAL() {");
+        for (int i = fctx->local_vars; i < fctx->total_vars; ++i) {
+            xstraf(code, " SHCOPY_VAR_TO(ctx, f->vars[%d], n%d);", i - fctx->local_vars, i);
+        }
+        xstraf(code, " }\n");
+    }
+
+    if (!f->is_global && !f->is_pure) {
+        xstra_inst(code, "int yieldno = ctx->callee->yield;\n");
+    }
+    xstra_inst(code, "vmfrm *frm;\n", fctx->local_vars);
+    xstra_inst(code, "vmvar ");
+    for (int idx = 0; idx < fctx->total_vars; ++idx) {
+        if (idx != 0) xstraf(code, ", ");
+        xstraf(code, "*n%d", idx);
+    }
+    xstraf(code, ";\n");
+    xstra_inst(code, "vmvar yy = {0}; SET_UNDEF(&yy);\n");
+    if (fctx->total_vars > 0 && fctx->temp_count > 0) {
+        xstra_inst(code, "const int allocated_local = %" PRId64 ";\n", fctx->temp_count);
+        xstra_inst(code, "alloc_var(ctx, %" PRId64 ", L%d, \"%s\", \"%s\", %d);\n",
+            fctx->temp_count, f->funcend, i->funcname, escape(&(fctx->str), i->filename), i->line);
+    }
+    if (!f->is_global && !f->is_pure) {
+        xstra_inst(code, "if (yieldno > 0) {\n");
+        xstra_inst(code, "    frm = ctx->callee->frm;\n");
+        xstra_inst(code, "    push_frm(ctx, e, frm, L%d, \"%s\", \"%s\", %d);\n", f->funcend, i->funcname, escape(&(fctx->str), i->filename), i->line);
+        xstra_inst(code, "    goto RESUMEHOOK;\n");
+        xstra_inst(code, "}\n");
+    }
+    xstra_inst(code, "frm = alcfrm(ctx, lex, %" PRId64 ");\n", fctx->local_vars);
+    xstra_inst(code, "push_frm(ctx, e, frm, L%d, \"%s\", \"%s\", %d);\n", f->funcend, i->funcname, escape(&(fctx->str), i->filename), i->line);
+    for (int idx = 0; idx < fctx->local_vars; ++idx) {
+        xstra_inst(code, "n%d = frm->v[%d] = alcvar_initial(ctx);\n", idx, idx);
+    }
+    if (fctx->total_vars > 0 && fctx->temp_count > 0) {
+        for (int idx = fctx->local_vars; idx < fctx->total_vars; ++idx) {
+            xstra_inst(code, "n%d = local_var(ctx, %d);\n", idx, idx - fctx->local_vars);
+        }
+    }
+    xstra_inst(code, "\n");
+}
+
+static void translate_rlocal(func_context *fctx, xstr *code)
+{
+    if (fctx->total_vars > 0) {
+        xstra_inst(code, "reduce_vstackp(ctx, allocated_local);\n");
+    }
+}
+
+static void translate_popfrm(func_context *fctx, xstr *code)
+{
+    if (fctx->total_vars > 0 && fctx->temp_count > 0) {
+        xstra_inst(code, "reduce_vstackp(ctx, allocated_local);\n");
+    }
+    xstra_inst(code, "pop_frm(ctx);\n");
+}
+
 static void translate_inst(xstr *code, kl_kir_func *f, kl_kir_inst *i, func_context *fctx, int blank)
 {
     if (i->disabled) {
@@ -909,56 +1073,17 @@ static void translate_inst(xstr *code, kl_kir_func *f, kl_kir_inst *i, func_cont
         }
         break;
 
-    case KIR_ALOCAL: {
-        fctx->total_vars = i->r1.i64;
-        fctx->local_vars = i->r2.i64;   // including arguments.
-        if (fctx->total_vars > 0) {
-            xstra_inst(code, "const int allocated_local = %" PRId64 ";\n", fctx->total_vars);
-            xstra_inst(code, "alloc_var(ctx, %" PRId64 ", L%d, \"%s\", \"%s\", %d);\n",
-                fctx->total_vars, f->funcend, i->funcname, escape(&(fctx->str), i->filename), i->line);
-            xstra_inst(code, "CHECK_EXCEPTION(L%d, \"%s\", \"%s\", %d);\n",
-                f->funcend, i->funcname, escape(&(fctx->str), i->filename), i->line);
-        }
-        for (int idx = 0; idx < fctx->total_vars; ++idx) {
-            xstra_inst(code, "vmvar *n%d = local_var(ctx, %d);\n", idx, idx);
-        }
-        translate_funcref(code, f);
-        xstra_inst(code, "\n");
+    case KIR_ALOCAL:
+        translate_alocal(fctx, code, f, i);
         break;
-    }
     case KIR_RLOCAL:
-        if (fctx->total_vars > 0) {
-            xstra_inst(code, "reduce_vstackp(ctx, allocated_local);\n");
-        }
+        translate_rlocal(fctx, code);
         break;
-    case KIR_MKFRM: {
-        fctx->total_vars = i->r1.i64;
-        fctx->local_vars = i->r2.i64;   // including arguments.
-        fctx->temp_count = fctx->total_vars - fctx->local_vars;
-        xstra_inst(code, "vmfrm *frm = alcfrm(ctx, lex, %" PRId64 ");\n", fctx->local_vars);
-        xstra_inst(code, "push_frm(ctx, frm, L%d, \"%s\", \"%s\", %d);\n", f->funcend, i->funcname, escape(&(fctx->str), i->filename), i->line);
-        for (int idx = 0; idx < fctx->local_vars; ++idx) {
-            xstra_inst(code, "vmvar *n%d = frm->v[%d] = alcvar_initial(ctx);\n", idx, idx);
-        }
-        if (fctx->total_vars > 0 && fctx->temp_count > 0) {
-            xstra_inst(code, "const int allocated_local = %" PRId64 ";\n", fctx->temp_count);
-            xstra_inst(code, "alloc_var(ctx, %" PRId64 ", L%d, \"%s\", \"%s\", %d);\n",
-                fctx->temp_count, f->funcend, i->funcname, escape(&(fctx->str), i->filename), i->line);
-            xstra_inst(code, "CHECK_EXCEPTION(L%d, \"%s\", \"%s\", %d);\n",
-                f->funcend, i->funcname, escape(&(fctx->str), i->filename), i->line);
-            for (int idx = fctx->local_vars; idx < fctx->total_vars; ++idx) {
-                xstra_inst(code, "vmvar *n%d = local_var(ctx, %d);\n", idx, idx - fctx->local_vars);
-            }
-        }
-        translate_funcref(code, f);
-        xstra_inst(code, "\n");
+    case KIR_MKFRM:
+        translate_mkfrm(fctx, code, f, i);
         break;
-    }
     case KIR_POPFRM:
-        if (fctx->total_vars > 0 && fctx->temp_count > 0) {
-            xstra_inst(code, "reduce_vstackp(ctx, allocated_local);\n");
-        }
-        xstra_inst(code, "pop_frm(ctx);\n");
+        translate_popfrm(fctx, code);
         break;
     case KIR_SETARG:
         xstra_inst(code, "SET_ARGVAR(%d, %d, allocated_local);\n", (int)i->r1.i64, (int)i->r2.i64);
@@ -969,6 +1094,12 @@ static void translate_inst(xstr *code, kl_kir_func *f, kl_kir_inst *i, func_cont
     case KIR_PURE:
         if (f->is_pure) {
             translate_pure_hook(code, f);
+        }
+        if (!f->is_global && !f->is_pure) {
+            xstra_inst(code, "goto HEAD;\n\n");
+        }
+        if (!f->is_pure) {
+            translate_resume_hook(fctx, code, f, i);
         }
         break;
 
@@ -991,8 +1122,12 @@ static void translate_inst(xstr *code, kl_kir_func *f, kl_kir_inst *i, func_cont
     case KIR_CHKEXCEPT:
         xstra_inst(code, "CHECK_EXCEPTION(L%d, \"%s\", \"%s\", %d);\n", i->labelid, i->funcname, escape(&(fctx->str), i->filename), i->line);
         break;
+    case KIR_YIELDC:
+        translate_yield_check(fctx, code, f, i);
+        break;
 
     case KIR_RET:
+        xstra_inst(code, "if (e != FLOW_YIELD) ctx->callee->yield = 0;\n");
         xstra_inst(code, "return e;\n");
         break;
     case KIR_THROWE:
@@ -1003,6 +1138,14 @@ static void translate_inst(xstr *code, kl_kir_func *f, kl_kir_inst *i, func_cont
         break;
     case KIR_CATCH:
         xstra_inst(code, "CATCH_EXCEPTION(ctx, %s);\n", var_value(buf1, &(i->r1)));
+        break;
+    case KIR_YIELD:
+        if (f->has_frame) {
+            xstra_inst(code, "YIELD_FRM(ctx, cur, %d, %d, SAVE_LOCAL());\n\n", i->labelid, fctx->total_vars);
+        } else {
+            xstra_inst(code, "YIELD(ctx, %d, %d, SAVE_LOCAL());\n\n", i->labelid, fctx->total_vars);
+        }
+        xstraf(code, "Y%d:;\n", i->labelid);
         break;
 
     case KIR_JMPIFT:
@@ -1135,6 +1278,8 @@ void translate_func(kl_kir_program *p, xstr *code, kl_kir_func *f)
     xstra_inst(code, "GC_CHECK(ctx);\n");
     xstra_inst(code, "int e = 0;\n\n");
 
+    translate_funcref(code, f);
+
     kl_kir_inst *i = f->head;
     kl_kir_inst *prev = NULL;
     while (i) {
@@ -1148,6 +1293,16 @@ void translate_func(kl_kir_program *p, xstr *code, kl_kir_func *f)
         i = i->next;
     }
 
+    if (!f->is_global && !f->is_pure) {
+        xstraf(code, "\nYEND:;\n");
+        if (f->has_frame) {
+            translate_popfrm(&fctx, code);
+        } else {
+            translate_rlocal(&fctx, code);
+        }
+        xstra_inst(code, "return e;\n");
+        xstra_inst(code, "#undef SAVE_LOCAL\n");
+    }
     xstraf(code, "}\n\n");
 }
 

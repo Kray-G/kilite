@@ -23,12 +23,13 @@ typedef struct kl_symbol {
     const char *basename;           //  The name of the base class.
     const char *prototype;          //  The function prototype of this function.
     int has_func;                   //  If 1, this symbol's scope has an internal function. If 0, this func doesn't need a frame.
-    int has_yield;                  //  If 1, this symbol's scope has `yield` statement.
+    int yield;                      //  The number of `yield` statements in this symbol's scope.
     int is_const;                   //  If true, the symbole can't be modfied.
     int is_native;                  //  The function with `native` keyword.
     int is_callable;                //  The callable symbol, which is like TK_FUNC, TK_CLASS, or something.
     int is_recursive;               //  This reference symbol could be recursive call. ref->is_callable should be 1.
     int is_dot3;                    //  The variable is written with the 3 dots.
+    int is_global;                  //  This symbol is a global namespace.
     int assigned;                   //  The count of assignment to this variable.
     int level;                      //  The level of lexical scope, which means a distance from the scope having the 'ref' symbol.
     int index;                      //  The index of this symbol.
@@ -86,6 +87,7 @@ typedef struct kl_expr {
         const char *big;
     } val;
 
+    int yield;                      //  yield check number.
     int line;                       //  The line in the source code.
     int pos;                        //  The pos in the source code.
     struct kl_expr *lhs;            //  Left hand side.
@@ -103,6 +105,7 @@ typedef struct kl_stmt {
 
     int line;                       //  The line in the source code.
     int pos;                        //  The pos in the source code.
+    int yield;                      //  The yield number when this statement is `yield`.
     struct kl_stmt *next;           //  The pointer to next statement.
     struct kl_stmt *chn;            //  For memory allocation control.
 } kl_stmt;

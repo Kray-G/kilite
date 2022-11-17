@@ -147,6 +147,9 @@ void disp_inst(kl_kir_program *p, kl_kir_inst *i)
     case KIR_SETARGL:
         disp_2op("setargl", i);
         break;
+    case KIR_PURE:
+        printf(IDT OP "\n", "purehook");
+        break;
 
     case KIR_SVSTKP:
         printf(IDT OP, "savestkp");
@@ -168,6 +171,9 @@ void disp_inst(kl_kir_program *p, kl_kir_inst *i)
     case KIR_CHKEXCEPT:
         printf(IDT OP "L%d\n", "chkexcept", i->labelid);
         break;
+    case KIR_YIELDC:
+        printf(IDT OP "Y%d\n", "yieldcheck", i->labelid);
+        break;
 
     case KIR_RET:
         printf(IDT OP "\n", "ret");
@@ -182,6 +188,9 @@ void disp_inst(kl_kir_program *p, kl_kir_inst *i)
         break;
     case KIR_CATCH:
         disp_1op("catch", i);
+        break;
+    case KIR_YIELD:
+        printf(IDT OP "Y%d\n", "yield", i->labelid);
         break;
 
     case KIR_JMPIFT:

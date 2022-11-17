@@ -189,6 +189,12 @@ int TypeMismatchException(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     return 0;
 }
 
+int InvalidFiberStateException(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    RuntimeException_create(ctx, lex, r, "InvalidFiberStateException", "Invalid Fiber state");
+    return 0;
+}
+
 /* Make exception */
 
 int throw_system_exception(int line, vmctx *ctx, int id)
@@ -222,13 +228,16 @@ int throw_system_exception(int line, vmctx *ctx, int id)
     case EXCEPT_TYPE_MISMATCH:
         TypeMismatchException(ctx, NULL, r, 0);
         break;
+    case EXCEPT_INVALID_FIBER_STATE:
+        InvalidFiberStateException(ctx, NULL, r, 0);
+        break;
     default:
         RuntimeException_create(ctx, NULL, r, "SystemException", "Unknown exception");
         break;
     }
 
     ctx->except = r;
-    return 1;
+    return FLOW_EXCEPTION;
 }
 
 /* System */
@@ -299,6 +308,91 @@ int SystemTimer(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     vmobj *o = alcobj(ctx);
     KL_SET_METHOD(o, create, SystemTimer_create, 0)
+    SET_OBJ(r, o);
+    return 0;
+}
+
+/* Fiber */
+
+static int Fiber_resume(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    int e = 0;
+
+    int p = vstackp(ctx);
+
+    for (int i = 1; i < ac; ++i) {
+        vmvar *a = local_var(ctx, i);
+        push_var(ctx, a, L0, "<libstd>", "libstd.c", __LINE__);
+    }
+
+    /* a0 should be the Fiber object. */
+    vmfnc *callee = ctx->callee;
+    vmvar *a0 = local_var(ctx, 0);
+    vmfnc *f1 = a0->o->ary[0]->f;
+
+    ctx->callee = f1;
+    e = ((vmfunc_t)(f1->f))(ctx, f1->lex, r, ac - 1);
+    ctx->callee = callee;
+    restore_vstackp(ctx, p);
+    CHECK_EXCEPTION(L0, "<libstd>", "libstd.c", __LINE__);
+    if (e == FLOW_YIELD) {
+        e = 0;
+    }
+
+L0:;
+    return e;
+}
+
+static int Fiber_isAlive(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    /* a0 should be the Fiber object. */
+    vmvar *a0 = local_var(ctx, 0);
+    vmfnc *f1 = a0->o->ary[0]->f;
+
+    SET_I64(r, f1->yield > 0);
+    return 0;
+}
+
+static int Fiber_reset(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    /* a0 should be the Fiber object. */
+    vmvar *a0 = local_var(ctx, 0);
+    vmfnc *f1 = a0->o->ary[0]->f;
+
+    f1->yield = 0;
+    SET_I64(r, 1);
+    return 0;
+}
+
+static int Fiber_create(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    if (ac < 1) {
+        return throw_system_exception(__LINE__, ctx, EXCEPT_TOO_FEW_ARGUMENTS);
+    }
+    vmvar *a0 = local_var(ctx, 0);
+    if (a0->t != VAR_FNC) {
+        return throw_system_exception(__LINE__, ctx, EXCEPT_TYPE_MISMATCH);
+    }
+
+    vmvar *n0 = alcvar_initial(ctx);
+    SHCOPY_VAR_TO(ctx, n0, a0);
+
+    vmobj *o = alcobj(ctx);
+    array_push(ctx, o, n0);
+    KL_SET_PROPERTY_I(o, isFiber, 1)
+    KL_SET_METHOD(o, resume, Fiber_resume, 0)
+    KL_SET_METHOD(o, isAlive, Fiber_isAlive, 0)
+    KL_SET_METHOD(o, reset, Fiber_reset, 0)
+    SET_OBJ(r, o);
+    o->is_sysobj = 1;
+
+    return 0;
+}
+
+int Fiber(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    vmobj *o = alcobj(ctx);
+    KL_SET_METHOD(o, create, Fiber_create, 1)
     SET_OBJ(r, o);
     return 0;
 }

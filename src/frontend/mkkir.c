@@ -236,7 +236,9 @@ static void add_func(kl_kir_program *prog, kl_kir_func *func)
         kl_symbol *f = e->sym; \
         kl_kir_func *func = gen_function(ctx, f, (e)->s, NULL); \
         add_func(ctx->program, func); \
-        (rn) = make_lit_func(ctx, (e)->sym); \
+        kl_kir_opr rfnc = make_lit_func(ctx, (e)->sym); \
+        if ((rn).index == 0) (rn) = make_var(ctx, sym, TK_TANY); \
+        (rni) = new_inst_op2(ctx->program, e->line, e->pos, KIR_MOV, &(rn), &(rfnc)); \
         break; \
     default: \
         if ((rn).index == 0) (rn) = make_var(ctx, sym, e->typeid); \
@@ -686,7 +688,6 @@ static kl_kir_inst *gen_callargs(kl_context *ctx, kl_symbol *sym, kl_expr *e, in
             head = new_inst_op1(ctx->program, e->line, e->pos, KIR_PUSHARG, &r2);
             set_file_func(ctx, sym, head);
         } else {
-            KIR_MOVE_LAST(last);
             last->next = new_inst_op1(ctx->program, e->line, e->pos, KIR_PUSHARG, &r2);
             last = last->next;
             set_file_func(ctx, sym, last);
@@ -743,7 +744,14 @@ static kl_kir_inst *gen_call(kl_context *ctx, kl_symbol *sym, kl_kir_opr *r1, kl
     ilst->next = new_inst_op1(ctx->program, e->line, e->pos, KIR_RSSTKP, &rc);
     ilst = ilst->next;
     ilst->next = new_inst_chkexcept(ctx->program, e->line, e->pos, ctx->tclabel > 0 ? ctx->tclabel : sym->funcend);
-    set_file_func(ctx, sym, ilst->next);
+    ilst = ilst->next;
+    set_file_func(ctx, sym, ilst);
+    if (!sym->is_global) {
+        ilst->next = new_inst_op2(ctx->program, e->line, e->pos, KIR_YIELDC, r1, &r2);
+        ilst = ilst->next;
+        set_file_func(ctx, sym, ilst);
+        ilst->labelid = e->yield;
+    }
 
     /* r2i: arguments */
     /* r1i: func */
@@ -1097,6 +1105,23 @@ static kl_kir_inst *gen_throw(kl_context *ctx, kl_symbol *sym, kl_stmt *s)
     set_file_func(ctx, sym, last);
     last->labelid = ctx->tclabel > 0 ? ctx->tclabel : sym->funcend;
 
+    return head;
+}
+
+static kl_kir_inst *gen_yield(kl_context *ctx, kl_symbol *sym, kl_stmt *s)
+{
+    kl_kir_inst *head = NULL;
+    if (s->e1) {
+        kl_kir_opr r1 = make_ret_var(ctx, sym);
+        head = gen_expr(ctx, sym, &r1, s->e1);
+    }
+    kl_kir_inst *inst = new_inst(ctx->program, s->line, s->pos, KIR_YIELD);
+    inst->labelid = s->yield;
+    if (!head) {
+        head = inst;
+    } else {
+        get_last(head)->next = inst;
+    }
     return head;
 }
 
@@ -1707,6 +1732,8 @@ static kl_kir_func *gen_function(kl_context *ctx, kl_symbol *sym, kl_stmt *s, kl
     }
     last->next = new_inst(ctx->program, sym->line, sym->pos, KIR_PURE);
     last = last->next;
+    set_file_func(ctx, sym, last);
+    last->labelid = sym->yield;
 
     kl_stmt *sh = s;
     while (sh) {
@@ -1769,9 +1796,17 @@ static kl_kir_func *gen_namespace(kl_context *ctx, kl_symbol *sym, kl_stmt *s)
     kl_kir_inst *last = NULL;
 
     int localvars = sym->idxmax;
+    func->is_global = sym->is_global;
     func->funcend = sym->funcend = get_next_label(ctx);
     func->head = last = new_inst(ctx->program, sym->line, sym->pos, KIR_MKFRM);
     set_file_func(ctx, sym, last);
+
+    if (!sym->is_global) {
+        last->next = new_inst(ctx->program, sym->line, sym->pos, KIR_PURE);
+        last = last->next;
+        set_file_func(ctx, sym, last);
+        last->labelid = sym->yield;
+    }
 
     while (s) {
         kl_kir_inst *next = gen_stmt(ctx, sym, s);
@@ -1963,6 +1998,9 @@ static kl_kir_inst *gen_stmt(kl_context *ctx, kl_symbol *sym, kl_stmt *s)
         break;
     case TK_THROW:
         head = gen_throw(ctx, sym, s);
+        break;
+    case TK_YIELD:
+        head = gen_yield(ctx, sym, s);
         break;
     case TK_EXTERN: {
         kl_expr *e2 = s->e2;

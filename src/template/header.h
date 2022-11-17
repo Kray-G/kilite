@@ -34,6 +34,9 @@ int strcmp(const char *s1, const char *s2);
 #endif
 #endif
 
+#define FLOW_EXCEPTION (1)
+#define FLOW_YIELD (2)
+
 /* System Exceptions */
 enum {
     EXCEPT_EXCEPTION = 0,
@@ -45,6 +48,7 @@ enum {
     EXCEPT_NO_MATCHING_PATTERN,
     EXCEPT_TOO_FEW_ARGUMENTS,
     EXCEPT_TYPE_MISMATCH,
+    EXCEPT_INVALID_FIBER_STATE,
     EXCEPT_MAX,
 };
 
@@ -72,13 +76,13 @@ enum {
 #define IS_MARKED(obj) (((obj)->flags & 0x01) == 0x01)
 #define IS_HELD(obj) (((obj)->flags & 0x02) == 0x02)
 
-#define push_frm(ctx, m, label, func, file, line) do { \
+#define push_frm(ctx, e, frm, label, func, file, line) do { \
     if ((ctx)->fstksz <= (ctx)->fstkp) { \
         e = throw_system_exception(__LINE__, ctx, EXCEPT_STACK_OVERFLOW); \
         exception_addtrace(ctx, ctx->except, func, file, line); \
         goto label; \
     } \
-    (((ctx)->fstk)[((ctx)->fstkp)++] = (m)); \
+    (((ctx)->fstk)[((ctx)->fstkp)++] = (frm)); \
 } while (0)
 /**/
 #define pop_frm(ctx) (--((ctx)->fstkp))
@@ -93,7 +97,7 @@ enum {
 } while (0) \
 /**/
 #define vstackp(ctx) ((ctx)->vstkp)
-#define push_var_def(ctx, v, label, func, file, line, pushcode) \
+#define push_var_def(ctx, label, func, file, line, pushcode) \
     do { \
             if ((ctx)->vstksz <= (ctx)->vstkp) { \
             e = throw_system_exception(__LINE__, ctx, EXCEPT_STACK_OVERFLOW); \
@@ -104,11 +108,12 @@ enum {
         pushcode \
     } while (0) \
 /**/
-#define push_var(ctx, v, label, func, file, line)   push_var_def(ctx, v, label, func, file, line, { SHCOPY_VAR_TO(ctx, px, v); })
-#define push_var_i(ctx, v, label, func, file, line) push_var_def(ctx, v, label, func, file, line, { px->t = VAR_INT64; px->i = (v); })
-#define push_var_b(ctx, v, label, func, file, line) push_var_def(ctx, v, label, func, file, line, { px->t = VAR_BIG; px->bi = alcbgi_bigz(ctx, BzFromString((v), 10, BZ_UNTIL_END)); })
-#define push_var_d(ctx, v, label, func, file, line) push_var_def(ctx, v, label, func, file, line, { px->t = VAR_DBL; px->d = (v); })
-#define push_var_s(ctx, v, label, func, file, line) push_var_def(ctx, v, label, func, file, line, { px->t = VAR_STR; px->s = alcstr_str(ctx, v); })
+#define push_var(ctx, v, label, func, file, line)   push_var_def(ctx, label, func, file, line, { SHCOPY_VAR_TO(ctx, px, v); })
+#define push_var_i(ctx, v, label, func, file, line) push_var_def(ctx, label, func, file, line, { px->t = VAR_INT64; px->i = (v); })
+#define push_var_b(ctx, v, label, func, file, line) push_var_def(ctx, label, func, file, line, { px->t = VAR_BIG; px->bi = alcbgi_bigz(ctx, BzFromString((v), 10, BZ_UNTIL_END)); })
+#define push_var_d(ctx, v, label, func, file, line) push_var_def(ctx, label, func, file, line, { px->t = VAR_DBL; px->d = (v); })
+#define push_var_s(ctx, v, label, func, file, line) push_var_def(ctx, label, func, file, line, { px->t = VAR_STR; px->s = alcstr_str(ctx, v); })
+#define push_var_f(ctx, v, label, func, file, line) push_var_def(ctx, label, func, file, line, { px->t = VAR_FNC; px->f = v; })
 #define push_var_sys(ctx, v, fn, label, func, file, line) \
     if (v->t == VAR_OBJ && v->o->is_sysobj) { \
         if ((ctx)->vstksz <= (ctx)->vstkp) { \
@@ -172,6 +177,14 @@ enum {
         return throw_system_exception(__LINE__, ctx, EXCEPT_TYPE_MISMATCH); \
     } \
 } \
+/**/
+
+#define KL_SET_PROPERTY(o, name, vs) \
+    hashmap_set(ctx, o, #name, vs); \
+/**/
+
+#define KL_SET_PROPERTY_I(o, name, i64) \
+    hashmap_set(ctx, o, #name, alcvar_int64(ctx, i64, 0)); \
 /**/
 
 #define KL_SET_METHOD(o, name, fname, args) \
@@ -270,8 +283,12 @@ typedef struct vmfnc {
     int64_t n;          /* The minimum of n */
     const char *name;   /* function name */
     void *f;            /* function pointer */
-    struct vmfrm *frm;  /* the funtion frame holding arguments */
-    struct vmfrm *lex;  /* the lexical frame bound with this function */
+    int yield;          /* The next position at the next call after yield. */
+    int varcnt;         /* The number of variables this should hold. */
+    struct vmfnc *yfnc; /* The resumed funtion after yield. */
+    struct vmfrm *frm;  /* The funtion frame holding arguments */
+    struct vmvar **vars;/* Hold the local condition when yield was done. */
+    struct vmfrm *lex;  /* The lexical frame bound with this function */
 } vmfnc;
 
 typedef struct vmfrm {
@@ -363,26 +380,118 @@ typedef struct vmctx {
     } \
 } \
 /**/
-#define CHECK_EXCEPTION(label, func, file, line) if (e) { \
+
+#define CHECK_EXCEPTION(label, func, file, line) if (e == FLOW_EXCEPTION) { \
     exception_addtrace(ctx, ctx->except, func, file, line); \
     goto label; \
 } \
 /**/
+
 #define THROW_EXCEPTION(ctx, v, label, func, file, line) { \
     SHCOPY_VAR_TO(ctx, ctx->except, v); \
     exception_addtrace(ctx, ctx->except, func, file, line); \
-    e = 1; \
+    e = FLOW_EXCEPTION; \
     goto label; \
 } \
 /**/
+
 #define THROW_CURRENT(ctx, label, func, file, line) { \
     if (line > 0) { \
         exception_addtrace(ctx, ctx->except, func, file, line); \
     } \
-    e = 1; \
+    e = FLOW_EXCEPTION; \
     goto label; \
 } \
 /**/
+
+#define RESUME_HOOK(ctx, ac, alc, label, func, file, line) {\
+    if (ctx->callee->yfnc) { \
+        int pp = vstackp(ctx); \
+        for (int i = 0; i < ac; ++i) { \
+            vmvar *aa = local_var(ctx, (i + alc)); \
+            push_var(ctx, aa, label, func, file, line); \
+        } \
+        vmfnc *f = ctx->callee->yfnc; \
+        CALL(f, f->lex, &yy, ac) \
+        restore_vstackp(ctx, pp); \
+    } \
+} \
+/**/
+
+#define YIELD_FRM(ctx, cur, ynum, total, copyblock) { \
+    vmfnc *f = ctx->callee; \
+    f->yield = ynum; \
+    f->frm = cur; \
+    if (f->vars == NULL) { \
+        f->vars = (vmvar**)calloc(total, sizeof(vmvar*)); \
+        for (int i = 0; i < total; ++i) { \
+            f->vars[i] = alcvar_initial(ctx); \
+        } \
+    } \
+    f->varcnt = total; \
+    copyblock; \
+    e = FLOW_YIELD; \
+    goto YEND;\
+} \
+/**/
+
+#define YIELD(ctx, ynum, total, copyblock) { \
+    vmfnc *f = ctx->callee; \
+    f->yield = ynum; \
+    if (f->vars == NULL) { \
+        f->vars = (vmvar**)calloc(total, sizeof(vmvar*)); \
+        for (int i = 0; i < total; ++i) { \
+            f->vars[i] = alcvar_initial(ctx); \
+        } \
+    } \
+    f->varcnt = total; \
+    copyblock; \
+    e = FLOW_YIELD; \
+    goto YEND;\
+} \
+/**/
+
+#define CHECK_YIELD_FRM(ctx, ret, cur, fnc, ynum, total, copyblock) \
+    if (e == FLOW_YIELD) { \
+        vmfnc *f = ctx->callee; \
+        f->yield = ynum; \
+        f->yfnc = fnc; \
+        f->frm = cur; \
+        if (f->vars == NULL) { \
+            f->vars = (vmvar**)calloc(total, sizeof(vmvar*)); \
+            for (int i = 0; i < total; ++i) { \
+                f->vars[i] = alcvar_initial(ctx); \
+            } \
+        } \
+        f->varcnt = total; \
+        copyblock; \
+        if (r != ret) { \
+            SHCOPY_VAR_TO(ctx, (r), (ret)); \
+        } \
+        goto YEND;\
+    } \
+/**/
+
+#define CHECK_YIELD(ctx, ret, fnc, ynum, total, copyblock) \
+    if (e == FLOW_YIELD) { \
+        vmfnc *f = ctx->callee; \
+        f->yield = ynum; \
+        f->yfnc = fnc; \
+        if (f->vars == NULL) { \
+            f->vars = (vmvar**)calloc(total, sizeof(vmvar*)); \
+            for (int i = 0; i < total; ++i) { \
+                f->vars[i] = alcvar_initial(ctx); \
+            } \
+        } \
+        f->varcnt = total; \
+        copyblock; \
+        if (r != ret) { \
+            SHCOPY_VAR_TO(ctx, (r), (ret)); \
+        } \
+        goto YEND;\
+    } \
+/**/
+
 #define CATCH_EXCEPTION(ctx, v) { \
     e = 0; \
     SHCOPY_VAR_TO(ctx, v, ctx->except); \
@@ -921,7 +1030,7 @@ typedef struct vmctx {
         OP_ADD_B_I(ctx, r, v0, i1, label, func, file, line) \
     } else { \
         e = add_v_i(ctx, r, v0, i1); \
-        if (e) { \
+        if (e == FLOW_EXCEPTION) { \
             exception_addtrace(ctx, ctx->except, func, file, line); \
             goto label; \
         } \
@@ -937,7 +1046,7 @@ typedef struct vmctx {
         OP_ADD_I_B(ctx, r, i0, v1, label, func, file, line) \
     } else { \
         e = add_i_v(ctx, r, i0, v1); \
-        if (e) { \
+        if (e == FLOW_EXCEPTION) { \
             exception_addtrace(ctx, ctx->except, func, file, line); \
             goto label; \
         } \
@@ -959,14 +1068,14 @@ typedef struct vmctx {
             bi_normalize(r); \
         } else { \
             e = add_v_v(ctx, r, v0, v1); \
-            if (e) { \
+            if (e == FLOW_EXCEPTION) { \
                 exception_addtrace(ctx, ctx->except, func, file, line); \
                 goto label; \
             } \
         } \
     } else { \
         e = add_v_v(ctx, r, v0, v1); \
-        if (e) { \
+        if (e == FLOW_EXCEPTION) { \
             exception_addtrace(ctx, ctx->except, func, file, line); \
             goto label; \
         } \
@@ -1047,7 +1156,7 @@ typedef struct vmctx {
         OP_SUB_B_I(ctx, r, v0, i1, label, func, file, line) \
     } else { \
         e = sub_v_i(ctx, r, v0, i1); \
-        if (e) { \
+        if (e == FLOW_EXCEPTION) { \
             exception_addtrace(ctx, ctx->except, func, file, line); \
             goto label; \
         } \
@@ -1063,7 +1172,7 @@ typedef struct vmctx {
         OP_SUB_I_B(ctx, r, i0, v1, label, func, file, line) \
     } else { \
         e = sub_i_v(ctx, r, i0, v1); \
-        if (e) { \
+        if (e == FLOW_EXCEPTION) { \
             exception_addtrace(ctx, ctx->except, func, file, line); \
             goto label; \
         } \
@@ -1084,14 +1193,14 @@ typedef struct vmctx {
             (r)->bi = alcbgi_bigz(ctx, BzSubtract((v0)->bi->b, (v1)->bi->b)); \
         } else { \
             e = sub_v_v(ctx, r, v0, v1); \
-            if (e) { \
+            if (e == FLOW_EXCEPTION) { \
                 exception_addtrace(ctx, ctx->except, func, file, line); \
                 goto label; \
             } \
         } \
     } else { \
         e = sub_v_v(ctx, r, v0, v1); \
-        if (e) { \
+        if (e == FLOW_EXCEPTION) { \
             exception_addtrace(ctx, ctx->except, func, file, line); \
             goto label; \
         } \
@@ -1189,7 +1298,7 @@ typedef struct vmctx {
         OP_MUL_B_I(ctx, r, v0, i1, label, func, file, line) \
     } else { \
         e = mul_v_i(ctx, r, v0, i1); \
-        if (e) { \
+        if (e == FLOW_EXCEPTION) { \
             exception_addtrace(ctx, ctx->except, func, file, line); \
             goto label; \
         } \
@@ -1205,7 +1314,7 @@ typedef struct vmctx {
         OP_MUL_I_B(ctx, r, i0, v1, label, func, file, line) \
     } else { \
         e = mul_i_v(ctx, r, i0, v1); \
-        if (e) { \
+        if (e == FLOW_EXCEPTION) { \
             exception_addtrace(ctx, ctx->except, func, file, line); \
             goto label; \
         } \
@@ -1226,14 +1335,14 @@ typedef struct vmctx {
             (r)->bi = alcbgi_bigz(ctx, BzMultiply((v0)->bi->b, (v1)->bi->b)); \
         } else { \
             e = mul_v_v(ctx, r, v0, v1); \
-            if (e) { \
+            if (e == FLOW_EXCEPTION) { \
                 exception_addtrace(ctx, ctx->except, func, file, line); \
                 goto label; \
             } \
         } \
     } else { \
         e = mul_v_v(ctx, r, v0, v1); \
-        if (e) { \
+        if (e == FLOW_EXCEPTION) { \
             exception_addtrace(ctx, ctx->except, func, file, line); \
             goto label; \
         } \
@@ -1279,7 +1388,7 @@ typedef struct vmctx {
         OP_DIV_B_I(ctx, r, v0, i1, label, func, file, line) \
     } else { \
         e = div_v_i(ctx, r, v0, i1); \
-        if (e) { \
+        if (e == FLOW_EXCEPTION) { \
             exception_addtrace(ctx, ctx->except, func, file, line); \
             goto label; \
         } \
@@ -1295,7 +1404,7 @@ typedef struct vmctx {
         OP_DIV_I_B(ctx, r, i0, v1, label, func, file, line) \
     } else { \
         e = div_i_v(ctx, r, i0, v1); \
-        if (e) { \
+        if (e == FLOW_EXCEPTION) { \
             exception_addtrace(ctx, ctx->except, func, file, line); \
             goto label; \
         } \
@@ -1316,14 +1425,14 @@ typedef struct vmctx {
             (r)->d = ((double)(BzToDouble((v0)->bi->b))) / (BzToDouble((v1)->bi->b)); \
         } else { \
             e = div_v_v(ctx, r, v0, v1); \
-            if (e) { \
+            if (e == FLOW_EXCEPTION) { \
                 exception_addtrace(ctx, ctx->except, func, file, line); \
                 goto label; \
             } \
         } \
     } else { \
         e = div_v_v(ctx, r, v0, v1); \
-        if (e) { \
+        if (e == FLOW_EXCEPTION) { \
             exception_addtrace(ctx, ctx->except, func, file, line); \
             goto label; \
         } \
@@ -1386,7 +1495,7 @@ typedef struct vmctx {
         OP_MOD_B_I(ctx, r, v0, i1, label, func, file, line) \
     } else { \
         e = mod_v_i(ctx, r, v0, i1); \
-        if (e) { \
+        if (e == FLOW_EXCEPTION) { \
             exception_addtrace(ctx, ctx->except, func, file, line); \
             goto label; \
         } \
@@ -1402,7 +1511,7 @@ typedef struct vmctx {
         OP_MOD_I_B(ctx, r, i0, v1, label, func, file, line) \
     } else { \
         e = mod_i_v(ctx, r, i0, v1); \
-        if (e) { \
+        if (e == FLOW_EXCEPTION) { \
             exception_addtrace(ctx, ctx->except, func, file, line); \
             goto label; \
         } \
@@ -1427,14 +1536,14 @@ typedef struct vmctx {
             bi_normalize(r); \
         } else { \
             e = mod_v_v(ctx, r, v0, v1); \
-            if (e) { \
+            if (e == FLOW_EXCEPTION) { \
                 exception_addtrace(ctx, ctx->except, func, file, line); \
                 goto label; \
             } \
         } \
     } else { \
         e = mod_v_v(ctx, r, v0, v1); \
-        if (e) { \
+        if (e == FLOW_EXCEPTION) { \
             exception_addtrace(ctx, ctx->except, func, file, line); \
             goto label; \
         } \
@@ -1484,7 +1593,7 @@ typedef struct vmctx {
         OP_POW_B_I(ctx, r, vp0, ip1, label, func, file, line) \
     } else { \
         e = pow_v_i(ctx, r, vp0, ip1); \
-        if (e) { \
+        if (e == FLOW_EXCEPTION) { \
             exception_addtrace(ctx, ctx->except, func, file, line); \
             goto label; \
         } \
@@ -1500,7 +1609,7 @@ typedef struct vmctx {
         OP_POW_I_B(ctx, r, ip0, vp1, label, func, file, line) \
     } else { \
         e = pow_i_v(ctx, r, ip0, vp1); \
-        if (e) { \
+        if (e == FLOW_EXCEPTION) { \
             exception_addtrace(ctx, ctx->except, func, file, line); \
             goto label; \
         } \
@@ -1522,14 +1631,14 @@ typedef struct vmctx {
             goto label; \
         } else { \
             e = pow_v_v(ctx, r, vp0, vp1); \
-            if (e) { \
+            if (e == FLOW_EXCEPTION) { \
                 exception_addtrace(ctx, ctx->except, func, file, line); \
                 goto label; \
             } \
         } \
     } else { \
         e = pow_v_v(ctx, r, vp0, vp1); \
-        if (e) { \
+        if (e == FLOW_EXCEPTION) { \
             exception_addtrace(ctx, ctx->except, func, file, line); \
             goto label; \
         } \
@@ -1564,7 +1673,7 @@ typedef struct vmctx {
         OP_EQEQ_B_I(ctx, r, v0, i1, label, func, file, line) \
     } else { \
         e = eqeq_v_i(ctx, r, v0, i1); \
-        if (e) { \
+        if (e == FLOW_EXCEPTION) { \
             exception_addtrace(ctx, ctx->except, func, file, line); \
             goto label; \
         } \
@@ -1579,7 +1688,7 @@ typedef struct vmctx {
         OP_EQEQ_I_B(ctx, r, i0, v1, label, func, file, line) \
     } else { \
         e = eqeq_i_v(ctx, r, i0, v1); \
-        if (e) { \
+        if (e == FLOW_EXCEPTION) { \
             exception_addtrace(ctx, ctx->except, func, file, line); \
             goto label; \
         } \
@@ -1601,14 +1710,14 @@ typedef struct vmctx {
             (r)->i = (c == BZ_EQ); \
         } else { \
             e = eqeq_v_v(ctx, r, v0, v1); \
-            if (e) { \
+            if (e == FLOW_EXCEPTION) { \
                 exception_addtrace(ctx, ctx->except, func, file, line); \
                 goto label; \
             } \
         } \
     } else { \
         e = eqeq_v_v(ctx, r, v0, v1); \
-        if (e) { \
+        if (e == FLOW_EXCEPTION) { \
             exception_addtrace(ctx, ctx->except, func, file, line); \
             goto label; \
         } \
@@ -1644,7 +1753,7 @@ typedef struct vmctx {
         (r)->i = 1; \
     } else { \
         e = neq_v_i(ctx, r, v0, i1); \
-        if (e) { \
+        if (e == FLOW_EXCEPTION) { \
             exception_addtrace(ctx, ctx->except, func, file, line); \
             goto label; \
         } \
@@ -1660,7 +1769,7 @@ typedef struct vmctx {
         (r)->i = 1; \
     } else { \
         e = neq_i_v(ctx, r, i0, v1); \
-        if (e) { \
+        if (e == FLOW_EXCEPTION) { \
             exception_addtrace(ctx, ctx->except, func, file, line); \
             goto label; \
         } \
@@ -1682,14 +1791,14 @@ typedef struct vmctx {
             (r)->i = (c != BZ_EQ); \
         } else { \
             e = neq_v_v(ctx, r, v0, v1); \
-            if (e) { \
+            if (e == FLOW_EXCEPTION) { \
                 exception_addtrace(ctx, ctx->except, func, file, line); \
                 goto label; \
             } \
         } \
     } else { \
         e = neq_v_v(ctx, r, v0, v1); \
-        if (e) { \
+        if (e == FLOW_EXCEPTION) { \
             exception_addtrace(ctx, ctx->except, func, file, line); \
             goto label; \
         } \
@@ -1730,7 +1839,7 @@ typedef struct vmctx {
         OP_LT_B_I(ctx, r, v0, i1, label, func, file, line) \
     } else { \
         e = lt_v_i(ctx, r, v0, i1); \
-        if (e) { \
+        if (e == FLOW_EXCEPTION) { \
             exception_addtrace(ctx, ctx->except, func, file, line); \
             goto label; \
         } \
@@ -1745,7 +1854,7 @@ typedef struct vmctx {
         OP_LT_I_B(ctx, r, i0, v1, label, func, file, line) \
     } else { \
         e = lt_i_v(ctx, r, i0, v1); \
-        if (e) { \
+        if (e == FLOW_EXCEPTION) { \
             exception_addtrace(ctx, ctx->except, func, file, line); \
             goto label; \
         } \
@@ -1767,14 +1876,14 @@ typedef struct vmctx {
             (r)->i = (c == BZ_LT); \
         } else { \
             e = lt_v_v(ctx, r, v0, v1); \
-            if (e) { \
+            if (e == FLOW_EXCEPTION) { \
                 exception_addtrace(ctx, ctx->except, func, file, line); \
                 goto label; \
             } \
         } \
     } else { \
         e = lt_v_v(ctx, r, v0, v1); \
-        if (e) { \
+        if (e == FLOW_EXCEPTION) { \
             exception_addtrace(ctx, ctx->except, func, file, line); \
             goto label; \
         } \
@@ -1815,7 +1924,7 @@ typedef struct vmctx {
         OP_LE_B_I(ctx, r, v0, i1, label, func, file, line) \
     } else { \
         e = le_v_i(ctx, r, v0, i1); \
-        if (e) { \
+        if (e == FLOW_EXCEPTION) { \
             exception_addtrace(ctx, ctx->except, func, file, line); \
             goto label; \
         } \
@@ -1830,7 +1939,7 @@ typedef struct vmctx {
         OP_LE_I_B(ctx, r, i0, v1, label, func, file, line) \
     } else { \
         e = le_i_v(ctx, r, i0, v1); \
-        if (e) { \
+        if (e == FLOW_EXCEPTION) { \
             exception_addtrace(ctx, ctx->except, func, file, line); \
             goto label; \
         } \
@@ -1852,14 +1961,14 @@ typedef struct vmctx {
             (r)->i = (c != BZ_GT); \
         } else { \
             e = le_v_v(ctx, r, v0, v1); \
-            if (e) { \
+            if (e == FLOW_EXCEPTION) { \
                 exception_addtrace(ctx, ctx->except, func, file, line); \
                 goto label; \
             } \
         } \
     } else { \
         e = le_v_v(ctx, r, v0, v1); \
-        if (e) { \
+        if (e == FLOW_EXCEPTION) { \
             exception_addtrace(ctx, ctx->except, func, file, line); \
             goto label; \
         } \
@@ -1918,7 +2027,7 @@ typedef struct vmctx {
         OP_LGE_B_I(ctx, r, v0, i1, label, func, file, line) \
     } else { \
         e = lge_v_i(ctx, r, v0, i1); \
-        if (e) { \
+        if (e == FLOW_EXCEPTION) { \
             exception_addtrace(ctx, ctx->except, func, file, line); \
             goto label; \
         } \
@@ -1933,7 +2042,7 @@ typedef struct vmctx {
         OP_LGE_I_B(ctx, r, i0, v1, label, func, file, line) \
     } else { \
         e = lge_i_v(ctx, r, i0, v1); \
-        if (e) { \
+        if (e == FLOW_EXCEPTION) { \
             exception_addtrace(ctx, ctx->except, func, file, line); \
             goto label; \
         } \
@@ -1955,14 +2064,14 @@ typedef struct vmctx {
             (r)->i = (c == BZ_EQ) ? 0 : ((c == BZ_LT) ? -1 : 1); \
         } else { \
             e = lge_v_v(ctx, r, v0, v1); \
-            if (e) { \
+            if (e == FLOW_EXCEPTION) { \
                 exception_addtrace(ctx, ctx->except, func, file, line); \
                 goto label; \
             } \
         } \
     } else { \
         e = lge_v_v(ctx, r, v0, v1); \
-        if (e) { \
+        if (e == FLOW_EXCEPTION) { \
             exception_addtrace(ctx, ctx->except, func, file, line); \
             goto label; \
         } \
@@ -2051,6 +2160,7 @@ INLINE extern int throw_system_exception(int line, vmctx *ctx, int id);
 INLINE extern int exception_addtrace(vmctx *ctx, vmvar *e, const char *funcname, const char *filename, int linenum);
 INLINE extern int exception_printtrace(vmctx *ctx, vmvar *e);
 INLINE extern int exception_uncaught(vmctx *ctx, vmvar *e);
+INLINE extern int Fiber_yield(vmctx *ctx, int yield);
 
 INLINE extern int add_v_i(vmctx *ctx, vmvar *r, vmvar *v, int64_t i);
 INLINE extern int add_i_v(vmctx *ctx, vmvar *r, int64_t i, vmvar *v);
