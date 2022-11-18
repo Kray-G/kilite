@@ -235,6 +235,11 @@ static inline int is_global_namespace(kl_context *ctx)
     return ctx->ns->is_global;
 }
 
+static inline int is_type_token(tk_token tok)
+{
+    return tok == TK_TYPEID || tok == TK_FUNC;
+}
+
 static inline void push_nsstack(kl_context *ctx, kl_nsstack *n)
 {
     n->prev = ctx->ns;
@@ -901,7 +906,7 @@ static kl_expr *parse_expr_postfix(kl_context *ctx, kl_lexer *l, int is_new)
             tok = l->tok;
         } else if (tok == TK_DOT) {
             lexer_fetch(l);
-            const char *name = (l->tok == TK_TYPEID) ? typeidname(l->typeid) : l->str;
+            const char *name = (is_type_token(l->tok)) ? typeidname(l->typeid) : l->str;
             if (!name || name[0] == 0) {
                 parse_error(ctx, __LINE__, l, "Property name is needed");
                 return panic_mode_expr(lhs, ';', ctx, l);
@@ -1244,7 +1249,7 @@ static kl_expr *parse_type(kl_context *ctx, kl_lexer *l)
             // No more types.
             break;
         }
-        if (l->tok == TK_TYPEID) {
+        if (is_type_token(l->tok)) {
             kl_expr *e1 = make_expr(ctx, l, TK_TYPENODE);
             e1->typeid = l->typeid;
             e = make_bin_expr(ctx, l, TK_COMMA, e, e1);
@@ -1261,7 +1266,7 @@ static kl_expr *parse_type(kl_context *ctx, kl_lexer *l)
     }
     if (l->tok == TK_DARROW) {
         lexer_fetch(l);
-        if (l->tok == TK_TYPEID) {
+        if (is_type_token(l->tok)) {
             kl_expr *e1 = make_expr(ctx, l, TK_TYPENODE);
             e1->typeid = l->typeid;
             e = make_conn_expr(ctx, l, TK_DARROW, e, e1);
@@ -1295,7 +1300,7 @@ static tk_typeid check_rettype(kl_symbol *sym)
 static kl_expr *parse_type_expr(kl_context *ctx, kl_lexer *l, kl_expr *e, kl_symbol *sym)
 {
     lexer_fetch(l);
-    if (l->tok == TK_TYPEID) {
+    if (is_type_token(l->tok)) {
         e->typeid = sym->typeid = l->typeid;
         lexer_fetch(l);
     } else {
@@ -1308,7 +1313,7 @@ static kl_expr *parse_type_expr(kl_context *ctx, kl_lexer *l, kl_expr *e, kl_sym
 static kl_stmt *parse_type_stmt(kl_context *ctx, kl_lexer *l, kl_stmt *s, kl_symbol *sym)
 {
     lexer_fetch(l);
-    if (l->tok == TK_TYPEID) {
+    if (is_type_token(l->tok)) {
         s->typeid = sym->typeid = l->typeid;
         lexer_fetch(l);
     } else {
@@ -1730,7 +1735,7 @@ static kl_expr *parse_class_base_expression(kl_context *ctx, kl_lexer *l)
     tk_token tok = l->tok;
     while (tok == TK_DOT) {
         lexer_fetch(l);
-        const char *name = (l->tok == TK_TYPEID) ? typeidname(l->typeid) : l->str;
+        const char *name = (is_type_token(l->tok)) ? typeidname(l->typeid) : l->str;
         if (!name || name[0] == 0) {
             parse_error(ctx, __LINE__, l, "Property name is needed");
             return panic_mode_expr(lhs, ';', ctx, l);

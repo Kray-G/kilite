@@ -1,0 +1,6 @@
+
+function Integer_times(n:int64, f:func) {
+    for (var i:int64 = 0; i < n; ++i) {
+        f(i);
+    }
+}

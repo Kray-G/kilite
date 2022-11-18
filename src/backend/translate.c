@@ -1334,6 +1334,10 @@ char *translate(kl_kir_program *p, int mode)
     }
     kl_kir_func *f = p->head;
     while (f) {
+        if (f->is_global && mode == TRANS_LIB) {
+            f = f->next;
+            continue;
+        }
         translate_func(p, &str, f);
         f = f->next;
     }

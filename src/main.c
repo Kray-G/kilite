@@ -19,6 +19,7 @@ typedef struct kl_argopts {
     int out_bmir;
     int out_mir;
     int out_kir;
+    int out_lib;
     int out_csrc;
     int out_cdebug;
     int out_ast;
@@ -98,6 +99,9 @@ static int parse_long_options(int ac, char **av, int *i, kl_argopts *opts)
         opts->out_ast = 1;
     } else if (strcmp(av[*i], "--kir") == 0) {
         opts->out_kir = 1;
+    } else if (strcmp(av[*i], "--makelib") == 0) {
+        opts->out_lib = 1;
+        opts->disable_pure = 1;
     } else if (strcmp(av[*i], "--csrc") == 0) {
         opts->out_csrc = 1;
     } else if (strcmp(av[*i], "--cdebug") == 0) {
@@ -239,10 +243,15 @@ int main(int ac, char **av)
             printf("int xsprintf(char *buf, const char *fmt, ...) { va_list ap; va_start(ap, fmt); vsprintf(buf, fmt, ap); va_end(ap); }\n\n");
         }
     } else {
-        s = translate(ctx->program, TRANS_DEBUG);
+        s = translate(ctx->program, opts.out_lib ? TRANS_LIB : TRANS_DEBUG);
+    }
+
+    if (opts.out_lib) {
+        printf("%s\n", s);
+        goto END;
     }
     if (opts.out_mir || opts.out_bmir) {
-        ri = output(opts.file, s, opts.out_bmir, opts.out_stdout ? NULL : (opts.out_mir ? ".mir" : ".bmir"));
+        ri = output(opts.file, s, opts.out_bmir, (opts.out_stdout || opts.out_lib) ? NULL : (opts.out_mir ? ".mir" : ".bmir"));
         goto END;
     }
 

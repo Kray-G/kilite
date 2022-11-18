@@ -436,7 +436,7 @@ static inline int check_keyword(kl_lexer *l)
         if (strcmp(l->str, "extern") == 0) return TK_EXTERN;
         break;
     case 'f':
-        if (strcmp(l->str, "func") == 0) return TK_FUNC;
+        if (strcmp(l->str, "func") == 0) return set_type(l, TK_FUNC, TK_TFUNC);
         if (strcmp(l->str, "function") == 0) return TK_FUNC;
         if (strcmp(l->str, "for") == 0) return TK_FOR;
         if (strcmp(l->str, "fallthrough") == 0) return TK_FALLTHROUGH;

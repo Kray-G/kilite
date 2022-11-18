@@ -13,7 +13,8 @@ cp -f c2m ../
 cp -f libmir_static.a ../
 cd ..
 
-TEMPF=h.c
+BIN=$PWD
+TEMPF=$BIN/h.c
 
 # Create a header source code.
 gcc -O2 -o makecstr ../build/makecstr.c
@@ -62,6 +63,11 @@ cat ../src/template/str.c >> $TEMPF
 cat ../src/template/obj.c >> $TEMPF
 cat ../src/template/op.c >> $TEMPF
 cat ../src/template/libstd.c >> $TEMPF
+
+cd ../src/template/std
+$BIN/kilite.exe --makelib integer.klt >> $TEMPF
+cd $BIN
+
 ./c2m -DUSE_INT64 -I lib -c $TEMPF
 rm kilite.bmir
 mv h.bmir kilite.bmir

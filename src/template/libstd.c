@@ -540,36 +540,6 @@ int Math(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 
 /* Integer */
 
-int Integer_times(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
-{
-    DEF_ARG(a0, 2, VAR_INT64);
-    vmvar *a1 = local_var(ctx, 1);
-    if (a1->t != VAR_FNC) {
-        return throw_system_exception(__LINE__, ctx, EXCEPT_TYPE_MISMATCH);
-    }
-
-    int e = 0;
-    int count = a0->i;
-    vmfnc *f1 = a1->f;
-    vmvar *vn = alcvar_initial(ctx);
-    vmfnc *callee = ctx->callee;
-    ctx->callee = f1;
-    for (int i = 0; i < count; ++i) {
-        int p = vstackp(ctx);
-        SET_I64(vn, i);
-        push_var(ctx, vn, L0, __func__, __FILE__, __LINE__);
-        e = ((vmfunc_t)(f1->f))(ctx, f1->lex, r, 1);
-        restore_vstackp(ctx, p);
-        if (e) {
-            break;
-        }
-    }
-
-L0:;
-    ctx->callee = callee;
-    return 0;
-}
-
 int Integer_next(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     DEF_ARG(a0, 1, VAR_INT64);
@@ -577,11 +547,13 @@ int Integer_next(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     return 0;
 }
 
+extern int kl_Integer_times(vmctx *ctx, vmfrm *lex, vmvar *r, int ac);
+
 int Integer(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     vmobj *o = alcobj(ctx);
     ctx->i = o;
-    KL_SET_METHOD(o, times, Integer_times, 2)
+    KL_SET_METHOD(o, times, kl_Integer_times, 2)
     KL_SET_METHOD(o, next, Integer_next, 2)
 
     KL_SET_METHOD(o, acos, Math_acos, 1)

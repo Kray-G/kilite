@@ -7,10 +7,12 @@ if not exist bin mkdir bin
 if not exist bin goto ERROR1
 cd bin
 
+set BIN=%CD%
+set PATH=%PATH%;%BIN%
 if not exist mir_static.lib call ..\build\mir_vs2019.cmd
 if not exist mir_static.lib goto ERROR
 
-set TEMPF=h.c
+set TEMPF=%BIN%\h.c
 
 @REM Create a header source code.
 cl -O2 ..\build\makecstr.c
@@ -60,6 +62,11 @@ type ..\src\template\str.c >> %TEMPF%
 type ..\src\template\obj.c >> %TEMPF%
 type ..\src\template\op.c >> %TEMPF%
 type ..\src\template\libstd.c >> %TEMPF%
+
+pushd ..\src\template\std
+kilite.exe --makelib integer.klt >> %TEMPF%
+popd
+
 c2m -DUSE_INT64 -I lib -c %TEMPF%
 del kilite.bmir
 ren %TEMPF:.c=.bmir% kilite.bmir
