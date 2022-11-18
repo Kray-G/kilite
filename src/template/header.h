@@ -213,6 +213,12 @@ typedef struct vmctx {
     vmvar *except;          /* Current exception that was thrown. */
     int exceptl;            /* The line where the exception occurred. */
 
+    vmobj *i;               /* Special object for integer. */
+    vmobj *d;               /* Special object for double. */
+    vmobj *s;               /* Special object for string. */
+    vmobj *b;               /* Special object for binary. */
+    vmobj *o;               /* Special object for object or array. */
+
     struct {
         vmvar var;
         vmfnc fnc;
@@ -723,11 +729,30 @@ typedef struct vmctx {
 } \
 /**/
 
-#define OP_HASH_APPLY(ctx, r, v, str) { \
+#define OP_HASH_APPLY(ctx, r, v, str, adx) { \
     vmvar *t1 = ((v)->a) ? (v)->a : (v); \
-    if ((t1)->t == VAR_OBJ) { \
-        OP_HASH_APPLY_OBJ(ctx, r, t1, str) \
-    } else { \
+    switch ((t1)->t) { \
+    case VAR_INT64: { \
+        vmvar *t2 = hashmap_search(ctx->i, str); \
+        if (!t2 || t2->t != VAR_FNC) { \
+            (r)->t = VAR_UNDEF; \
+        } \
+        push_var_i(ctx, t1->i, END/* dummy */, "", "", 0); \
+        (r)->t = VAR_FNC; \
+        (r)->f = t2->f; \
+        adx++; \
+        break; \
+    } \
+    case VAR_DBL: \
+        break; \
+    case VAR_STR: \
+        break; \
+    case VAR_BIN: \
+        break; \
+    case VAR_OBJ: \
+        OP_HASH_APPLY_OBJ(ctx, r, t1, str); \
+        break; \
+    default: \
         (r)->t = VAR_UNDEF; \
     } \
 } \

@@ -599,7 +599,11 @@ static void translate_idx(func_context *fctx, xstr *code, kl_kir_inst *i, int r3
         xstra_inst(code, "OP_ARRAY_REF%s_I(ctx, %s, %s, ((int)%s));\n", (lvalue ? "L" : ""), buf1, buf2, i->r3.dbl);
         break;
     case TK_VSTR:
-        xstra_inst(code, "OP_HASH_APPLY%s(ctx, %s, %s, \"%s\");\n", (lvalue ? "L" : ""), buf1, buf2, escape(&(fctx->str), i->r3.str));
+        if (lvalue) {
+            xstra_inst(code, "OP_HASH_APPLYL(ctx, %s, %s, \"%s\");\n", buf1, buf2, escape(&(fctx->str), i->r3.str));
+        } else {
+            xstra_inst(code, "OP_HASH_APPLY(ctx, %s, %s, \"%s\", ad%d);\n", buf1, buf2, escape(&(fctx->str), i->r3.str), i->r2.callcnt);
+        }
         break;
     case TK_VAR:
         switch (r3typeid) {
@@ -1300,8 +1304,9 @@ void translate_func(kl_kir_program *p, xstr *code, kl_kir_func *f)
         i = i->next;
     }
 
+    xstraf(code, "\nEND:;\n");
     if (!f->is_global && !f->is_pure) {
-        xstraf(code, "\nYEND:;\n");
+        xstraf(code, "YEND:;\n");
         if (f->has_frame) {
             translate_popfrm(&fctx, code);
         } else {

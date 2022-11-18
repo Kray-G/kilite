@@ -462,16 +462,43 @@ L0:;
 int Integer(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     vmobj *o = alcobj(ctx);
+    ctx->i = o;
     KL_SET_METHOD(o, times, Integer_times, 2)
     SET_OBJ(r, o);
     return 0;
 }
 
 /* Double */
+
+int Double(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    vmobj *o = alcobj(ctx);
+    ctx->d = o;
+    SET_OBJ(r, o);
+    return 0;
+}
+
 /* String */
+
+int String(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    vmobj *o = alcobj(ctx);
+    ctx->s = o;
+    SET_OBJ(r, o);
+    return 0;
+}
+
 /* Binary */
-/* Array */
-/* Object */
+
+int Binary(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    vmobj *o = alcobj(ctx);
+    ctx->s = o;
+    SET_OBJ(r, o);
+    return 0;
+}
+
+/* Array/Object */
 
 int Object_keys(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
@@ -490,6 +517,7 @@ int Object_keys(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 int Object(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     vmobj *o = alcobj(ctx);
+    ctx->o = o;
     KL_SET_METHOD(o, keys, Object_keys, 1)
     SET_OBJ(r, o);
     return 0;

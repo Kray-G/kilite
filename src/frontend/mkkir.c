@@ -600,7 +600,13 @@ static kl_kir_inst *gen_apply_str(kl_context *ctx, kl_symbol *sym, kl_kir_opr *r
     kl_kir_opr r2 = {0};
     KL_KIR_CHECK_LVALUE(l, r2, r2i);
     kl_kir_opr r3 = make_lit_str(ctx, r->val.str);
-    kl_kir_inst *inst = new_inst_op3(ctx->program, e->line, e->pos, ctx->in_lvalue ? KIR_APLYL : KIR_APLY, r1, &r2, &r3);
+    kl_kir_inst *inst;
+    if (ctx->in_lvalue) {
+        inst = new_inst_op3(ctx->program, e->line, e->pos, KIR_APLYL, r1, &r2, &r3);
+    } else {
+        r2.callcnt = ctx->callcnt;
+        inst = new_inst_op3(ctx->program, e->line, e->pos, KIR_APLY, r1, &r2, &r3);
+    }
     if (r2i) {
         kl_kir_inst *r2l = get_last(r2i);
         r2l->next = inst;
@@ -709,7 +715,9 @@ static kl_kir_inst *gen_call(kl_context *ctx, kl_symbol *sym, kl_kir_opr *r1, kl
     kl_kir_inst *r1l = NULL;
     kl_kir_inst *pushobj = NULL;
 
+    int pcallcnt = ctx->callcnt;
     int callcnt = sym->callcnt++;
+    ctx->callcnt = callcnt;
     kl_expr *f = e->lhs;
     kl_symbol *fsym = (f->sym && f->sym->ref) ? f->sym->ref : f->sym;
     if (f->nodetype == TK_VAR && fsym && fsym->symtoken != TK_VAR) {
@@ -732,6 +740,7 @@ static kl_kir_inst *gen_call(kl_context *ctx, kl_symbol *sym, kl_kir_opr *r1, kl
             }
         }
     }
+    ctx->callcnt = pcallcnt;
     r1->typeid = TK_TANY;
 
     r2.callcnt = callcnt;
