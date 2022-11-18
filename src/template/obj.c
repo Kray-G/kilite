@@ -408,3 +408,27 @@ vmobj *object_copy(vmctx *ctx, vmobj *src)
     }
     return obj;
 }
+
+static int compkeys(const void * n1, const void * n2)
+{
+    return strcmp((*(vmvar **)n1)->s->s, (*(vmvar **)n2)->s->s);
+}
+
+vmobj *object_get_keys(vmctx *ctx, vmobj *src)
+{
+    vmobj *obj = alcobj(ctx);
+    int hsz = src->hsz;
+    vmvar *map = src->map;
+
+    for (int i = 0; i < hsz; ++i) {
+        vmvar *v = &(map[i]);
+        if (IS_HASHITEM_EXIST(v)) {
+            if (v->s && v->s->s) {
+                array_push(ctx, obj, alcvar_str(ctx, v->s->s));
+            }
+        }
+    }
+
+    qsort(obj->ary, obj->idxsz, sizeof(vmvar *), compkeys);
+    return obj;
+}

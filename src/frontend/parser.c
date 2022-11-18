@@ -573,6 +573,12 @@ static void check_assigned(kl_context *ctx, kl_lexer *l, kl_expr *lhs)
 
 static kl_expr *parse_expr_varname(kl_context *ctx, kl_lexer *l, const char *name, int decltype)
 {
+    if (!name) {
+        char buf[256] = {0};
+        sprintf(buf, "_tmp%d", (ctx->tmpnum)++);
+        name = parse_const_str(ctx, l, buf);
+    }
+
     kl_expr *e = make_expr(ctx, l, TK_VAR);
     kl_symbol *sym;
     if (decltype) {
@@ -838,8 +844,7 @@ static kl_expr *parse_expr_list(kl_context *ctx, kl_lexer *l, int endch)
 static kl_expr *parse_expr_postfix(kl_context *ctx, kl_lexer *l, int is_new)
 {
     DEBUG_PARSER_PHASE();
-    kl_expr *lhs;
-    lhs = parse_expr_factor(ctx, l);
+    kl_expr *lhs = parse_expr_factor(ctx, l);
     tk_token tok = l->tok;
     if (tok == TK_INC || tok == TK_DEC) {
         kl_expr *e = make_expr(ctx, l, tok == TK_INC ? TK_INCP : TK_DECP);
@@ -849,24 +854,41 @@ static kl_expr *parse_expr_postfix(kl_context *ctx, kl_lexer *l, int is_new)
         return e;
     }
 
-    while (tok == TK_LSBR || tok == TK_LLBR || tok == TK_DOT || tok == TK_DOT2 || tok == TK_DOT3) {
+    while (tok == TK_LSBR || tok == TK_LXBR || tok == TK_LLBR || tok == TK_DOT || tok == TK_DOT2 || tok == TK_DOT3) {
         if (tok == TK_LSBR) {
             lexer_fetch(l);
             kl_expr *rhs = parse_expr_list(ctx, l, TK_RSBR);
             kl_symbol *sym = lhs->sym;
-            tk_typeid tid = lhs->sym ? sym->rettype : lhs->typeid;
+            tk_typeid tid = sym ? sym->rettype : lhs->typeid;
             lhs = make_bin_expr(ctx, l, TK_CALL, lhs, rhs);
             lhs->typeid = tid;
             if (l->tok != TK_RSBR) {
                 parse_error(ctx, __LINE__, l, "The ')' is missing");
                 return panic_mode_expr(lhs, ';', ctx, l);
             }
-            lexer_fetch(l);
-            tok = l->tok;
-            if (is_new && lhs->nodetype == TK_CALL) {
+            if (is_new) {
                 lhs->lhs = make_bin_expr(ctx, l, TK_DOT, lhs->lhs, make_str_expr(ctx, l, "create"));
                 is_new = 0; /* `new` operator will take effect to only the first call operation. */
             }
+            lexer_fetch(l);
+            if (l->tok == TK_LXBR) {
+                lexer_fetch(l);
+                kl_expr *block = parse_block_function(ctx, l);
+                lhs->rhs = make_bin_expr(ctx, l, TK_COMMA, lhs->rhs, block);
+            }
+            tok = l->tok;
+        } else if (tok == TK_LXBR) {
+            kl_symbol *sym = lhs->sym;
+            tk_typeid tid = sym ? sym->rettype : lhs->typeid;
+            if (is_new) {
+                lhs = make_bin_expr(ctx, l, TK_DOT, lhs, make_str_expr(ctx, l, "create"));
+                is_new = 0; /* `new` operator will take effect to only the first call operation. */
+            }
+            lexer_fetch(l);
+            kl_expr *block = parse_block_function(ctx, l);
+            lhs = make_bin_expr(ctx, l, TK_CALL, lhs, block);
+            lhs->typeid = tid;
+            tok = l->tok;
         } else if (tok == TK_LLBR) {
             lexer_fetch(l);
             kl_expr *rhs = parse_expression(ctx, l);
@@ -955,7 +977,7 @@ static kl_expr *parse_expr_term(kl_context *ctx, kl_lexer *l)
     tk_token tok = l->tok;
     while (tok == TK_MUL || tok == TK_DIV || tok == TK_MOD || tok == TK_POW) {
         lexer_fetch(l);
-        kl_expr *rhs = parse_expr_prefix(ctx, l);
+        kl_expr *rhs = (tok == TK_POW) ? parse_expr_term(ctx, l) : parse_expr_prefix(ctx, l);
         lhs = make_bin_expr(ctx, l, tok, lhs, rhs);
         tok = l->tok;
     }
@@ -1110,10 +1132,10 @@ static kl_expr *parse_expr_ternary(kl_context *ctx, kl_lexer *l)
 static kl_expr *parse_expr_yield(kl_context *ctx, kl_lexer *l, kl_expr *lhs)
 {
     lexer_fetch(l);
-    kl_expr *rhs = parse_expr_ternary(ctx, l);
+    kl_expr *rhs = (l->tok == TK_SEMICOLON || l->tok == TK_IF) ? NULL : parse_expr_ternary(ctx, l);
     if (lhs) {
         check_assigned(ctx, l, lhs);
-        kl_expr *v = parse_expr_varname(ctx, l, "_tmp", TK_LET);
+        kl_expr *v = parse_expr_varname(ctx, l, NULL, TK_LET);
         lhs = make_bin_expr(ctx, l, TK_EQ, lhs, v);
     }
     lhs = make_conn_expr(ctx, l, TK_YIELD, lhs, rhs);
@@ -1699,6 +1721,41 @@ static kl_stmt *make_instanceof(kl_context *ctx, kl_lexer *l, const char *cname,
     return s;
 }
 
+static kl_expr *parse_class_base_expression(kl_context *ctx, kl_lexer *l)
+{
+    DEBUG_PARSER_PHASE();
+    kl_expr *lhs = parse_expr_factor(ctx, l);
+    tk_token tok = l->tok;
+    while (tok == TK_DOT) {
+        lexer_fetch(l);
+        const char *name = (l->tok == TK_TYPEID) ? typeidname(l->typeid) : l->str;
+        if (!name || name[0] == 0) {
+            parse_error(ctx, __LINE__, l, "Property name is needed");
+            return panic_mode_expr(lhs, ';', ctx, l);
+        }
+        kl_expr *rhs = make_expr(ctx, l, TK_VSTR);
+        rhs->typeid = TK_TSTR;
+        rhs->val.str = parse_const_str(ctx, l, l->str);
+        lhs = make_bin_expr(ctx, l, tok, lhs, rhs);
+        lexer_fetch(l);
+        tok = l->tok;
+    }
+    if (tok == TK_LSBR) {
+        lexer_fetch(l);
+        kl_expr *rhs = parse_expr_list(ctx, l, TK_RSBR);
+        kl_symbol *sym = lhs->sym;
+        tk_typeid tid = sym ? sym->rettype : lhs->typeid;
+        lhs = make_bin_expr(ctx, l, TK_CALL, lhs, rhs);
+        lhs->typeid = tid;
+        if (l->tok != TK_RSBR) {
+            parse_error(ctx, __LINE__, l, "The ')' is missing");
+            return panic_mode_expr(lhs, ';', ctx, l);
+        }
+        lexer_fetch(l);
+    }
+    return lhs;
+}
+
 static kl_stmt *parse_class(kl_context *ctx, kl_lexer *l)
 {
     DEBUG_PARSER_PHASE();
@@ -1742,13 +1799,12 @@ static kl_stmt *parse_class(kl_context *ctx, kl_lexer *l)
 
     if (l->tok == TK_COLON) {
         lexer_fetch(l);
-        // TODO: TK_DOT should be also accepted because it means the class in a namespace.
         if (l->tok != TK_NAME) {
             parse_error(ctx, __LINE__, l, "Base class name is missing");
             return s;
         }
         sym->basename = parse_const_str(ctx, l, l->str);
-        sym->base = parse_expression(ctx, l);
+        sym->base = parse_class_base_expression(ctx, l);
         if (sym->base->nodetype != TK_CALL) {
             sym->base = make_bin_expr(ctx, l, TK_CALL, sym->base, NULL);
         }

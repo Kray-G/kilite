@@ -190,7 +190,10 @@ int main(int ac, char **av)
     }
 
     kl_lexer *l = lexer_new_file(opts.in_stdin ? NULL : opts.file);
-    l->precode = "const undefined; extern System; extern SystemTimer; extern Math; extern Fiber; extern RuntimeException();\n";
+    l->precode = "const undefined;"
+        "extern System; extern SystemTimer; extern Math; extern Fiber;"
+        "extern Integer; extern Object; "
+        "extern RuntimeException();\n";
 
     kl_context *ctx = parser_new_context();
     l->filename = ctx->filename = opts.file ? opts.file : "stdin";

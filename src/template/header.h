@@ -77,123 +77,8 @@ enum {
 #define IS_MARKED(obj) (((obj)->flags & 0x01) == 0x01)
 #define IS_HELD(obj) (((obj)->flags & 0x02) == 0x02)
 
-#define push_frm(ctx, e, frm, label, func, file, line) do { \
-    if ((ctx)->fstksz <= (ctx)->fstkp) { \
-        e = throw_system_exception(__LINE__, ctx, EXCEPT_STACK_OVERFLOW); \
-        exception_addtrace(ctx, ctx->except, func, file, line); \
-        goto label; \
-    } \
-    (((ctx)->fstk)[((ctx)->fstkp)++] = (frm)); \
-} while (0)
-/**/
-#define pop_frm(ctx) (--((ctx)->fstkp))
-
-#define alloc_var(ctx, n, label, func, file, line) do { \
-    if ((ctx)->vstksz <= ((ctx)->vstkp + n)) { \
-        e = throw_system_exception(__LINE__, ctx, EXCEPT_STACK_OVERFLOW); \
-        exception_addtrace(ctx, ctx->except, func, file, line); \
-        goto label; \
-    } \
-    (((ctx)->vstkp) += (n)); \
-} while (0) \
-/**/
-#define vstackp(ctx) ((ctx)->vstkp)
-#define push_var_def(ctx, label, func, file, line, pushcode) \
-    do { \
-            if ((ctx)->vstksz <= (ctx)->vstkp) { \
-            e = throw_system_exception(__LINE__, ctx, EXCEPT_STACK_OVERFLOW); \
-            exception_addtrace(ctx, ctx->except, func, file, line); \
-            goto label; \
-        } \
-        vmvar *px = &(((ctx)->vstk)[((ctx)->vstkp)++]); \
-        pushcode \
-    } while (0) \
-/**/
-#define push_var(ctx, v, label, func, file, line)   push_var_def(ctx, label, func, file, line, { SHCOPY_VAR_TO(ctx, px, v); })
-#define push_var_i(ctx, v, label, func, file, line) push_var_def(ctx, label, func, file, line, { px->t = VAR_INT64; px->i = (v); })
-#define push_var_b(ctx, v, label, func, file, line) push_var_def(ctx, label, func, file, line, { px->t = VAR_BIG; px->bi = alcbgi_bigz(ctx, BzFromString((v), 10, BZ_UNTIL_END)); })
-#define push_var_d(ctx, v, label, func, file, line) push_var_def(ctx, label, func, file, line, { px->t = VAR_DBL; px->d = (v); })
-#define push_var_s(ctx, v, label, func, file, line) push_var_def(ctx, label, func, file, line, { px->t = VAR_STR; px->s = alcstr_str(ctx, v); })
-#define push_var_f(ctx, v, label, func, file, line) push_var_def(ctx, label, func, file, line, { px->t = VAR_FNC; px->f = v; })
-#define push_var_sys(ctx, v, fn, label, func, file, line) \
-    if (v->t == VAR_OBJ && v->o->is_sysobj) { \
-        if ((ctx)->vstksz <= (ctx)->vstkp) { \
-            e = throw_system_exception(__LINE__, ctx, EXCEPT_STACK_OVERFLOW); \
-            exception_addtrace(ctx, ctx->except, func, file, line); \
-            goto label; \
-        } \
-        vmvar *px = &(((ctx)->vstk)[((ctx)->vstkp)++]); \
-        SHCOPY_VAR_TO(ctx, px, v); \
-        ++fn; \
-    } \
-/**/
-#define push_var_a(ctx, v, fn, label, func, file, line) \
-    if ((v)->t == VAR_OBJ) { \
-        int idxsz = (v)->o->idxsz; \
-        fn += idxsz - 1;\
-        if ((ctx)->vstksz <= ((ctx)->vstkp + idxsz)) { \
-            e = throw_system_exception(__LINE__, ctx, EXCEPT_STACK_OVERFLOW); \
-            exception_addtrace(ctx, ctx->except, func, file, line); \
-            goto label; \
-        } \
-        for (int i = idxsz - 1; i >= 0; --i) { \
-            vmvar *px = &(((ctx)->vstk)[((ctx)->vstkp)++]); \
-            vmvar *item = (v)->o->ary[i]; \
-            if (item) { \
-                SHCOPY_VAR_TO(ctx, px, item); \
-            } else { \
-                px->t = VAR_INT64; px->i = 0; \
-            } \
-        } \
-    }\
-/**/
-#define pop_var(ctx) (--((ctx)->vstkp))
-#define reduce_vstackp(ctx, n) (((ctx)->vstkp) -= (n))
-#define restore_vstackp(ctx, p) (((ctx)->vstkp) = (p))
-#define init_var(v) ((v)->t = VAR_UNDEF)
-#define local_var(ctx, n) (&(((ctx)->vstk)[(ctx)->vstkp - ((n) + 1)]))
-#define local_var_index(n) ((ctx)->vstkp - ((n) + 1))
-
-#define KL_CAST_TO_I64(ctx, v) { \
-    if ((v)->t == VAR_UNDEF) { \
-        (v)->t = VAR_INT64; \
-        (v)->i = 0; \
-    } else if ((v)->t == VAR_DBL) { \
-        (v)->t = VAR_INT64; \
-        (v)->i = (int64_t)((v)->d); \
-    } else if ((v)->t != VAR_INT64) { \
-        return throw_system_exception(__LINE__, ctx, EXCEPT_TYPE_MISMATCH); \
-    } \
-} \
-/**/
-
-#define KL_CAST_TO_DBL(ctx, v) { \
-    if ((v)->t == VAR_UNDEF) { \
-        (v)->t = VAR_DBL; \
-        (v)->d = 0.0; \
-    } else if ((v)->t == VAR_INT64) { \
-        (v)->t = VAR_DBL; \
-        (v)->d = (double)((v)->i); \
-    } else if ((v)->t != VAR_DBL) { \
-        return throw_system_exception(__LINE__, ctx, EXCEPT_TYPE_MISMATCH); \
-    } \
-} \
-/**/
-
-#define KL_SET_PROPERTY(o, name, vs) \
-    hashmap_set(ctx, o, #name, vs); \
-/**/
-
-#define KL_SET_PROPERTY_I(o, name, i64) \
-    hashmap_set(ctx, o, #name, alcvar_int64(ctx, i64, 0)); \
-/**/
-
-#define KL_SET_METHOD(o, name, fname, args) \
-    hashmap_set(ctx, o, #name, alcvar_fnc(ctx, alcfnc(ctx, fname, NULL, #name, args))); \
-/**/
-
 /***************************************************************************
- * VM Variable
+ * Basic structures
 */
 
 #define IS_VMINT(x) ((x) <= VAR_BIG)
@@ -306,7 +191,7 @@ typedef struct vmfrm {
 } vmfrm;
 
 /***************************************************************************
- * VM Context
+ * Context
 */
 typedef struct vmctx {
     int tick;
@@ -354,7 +239,133 @@ typedef struct vmctx {
     } fre;
 } vmctx;
 
-/* Operator macros */
+/***************************************************************************
+ * Stack operations
+*/
+
+#define push_frm(ctx, e, frm, label, func, file, line) do { \
+    if ((ctx)->fstksz <= (ctx)->fstkp) { \
+        e = throw_system_exception(__LINE__, ctx, EXCEPT_STACK_OVERFLOW); \
+        exception_addtrace(ctx, ctx->except, func, file, line); \
+        goto label; \
+    } \
+    (((ctx)->fstk)[((ctx)->fstkp)++] = (frm)); \
+} while (0)
+/**/
+#define pop_frm(ctx) (--((ctx)->fstkp))
+
+#define alloc_var(ctx, n, label, func, file, line) do { \
+    if ((ctx)->vstksz <= ((ctx)->vstkp + n)) { \
+        e = throw_system_exception(__LINE__, ctx, EXCEPT_STACK_OVERFLOW); \
+        exception_addtrace(ctx, ctx->except, func, file, line); \
+        goto label; \
+    } \
+    (((ctx)->vstkp) += (n)); \
+} while (0) \
+/**/
+#define vstackp(ctx) ((ctx)->vstkp)
+#define push_var_def(ctx, label, func, file, line, pushcode) \
+    do { \
+            if ((ctx)->vstksz <= (ctx)->vstkp) { \
+            e = throw_system_exception(__LINE__, ctx, EXCEPT_STACK_OVERFLOW); \
+            exception_addtrace(ctx, ctx->except, func, file, line); \
+            goto label; \
+        } \
+        vmvar *px = &(((ctx)->vstk)[((ctx)->vstkp)++]); \
+        pushcode \
+    } while (0) \
+/**/
+#define push_var(ctx, v, label, func, file, line)   push_var_def(ctx, label, func, file, line, { SHCOPY_VAR_TO(ctx, px, v); })
+#define push_var_i(ctx, v, label, func, file, line) push_var_def(ctx, label, func, file, line, { px->t = VAR_INT64; px->i = (v); })
+#define push_var_b(ctx, v, label, func, file, line) push_var_def(ctx, label, func, file, line, { px->t = VAR_BIG; px->bi = alcbgi_bigz(ctx, BzFromString((v), 10, BZ_UNTIL_END)); })
+#define push_var_d(ctx, v, label, func, file, line) push_var_def(ctx, label, func, file, line, { px->t = VAR_DBL; px->d = (v); })
+#define push_var_s(ctx, v, label, func, file, line) push_var_def(ctx, label, func, file, line, { px->t = VAR_STR; px->s = alcstr_str(ctx, v); })
+#define push_var_f(ctx, v, label, func, file, line) push_var_def(ctx, label, func, file, line, { px->t = VAR_FNC; px->f = v; })
+#define push_var_sys(ctx, v, fn, label, func, file, line) \
+    if (v->t == VAR_OBJ && v->o->is_sysobj) { \
+        if ((ctx)->vstksz <= (ctx)->vstkp) { \
+            e = throw_system_exception(__LINE__, ctx, EXCEPT_STACK_OVERFLOW); \
+            exception_addtrace(ctx, ctx->except, func, file, line); \
+            goto label; \
+        } \
+        vmvar *px = &(((ctx)->vstk)[((ctx)->vstkp)++]); \
+        SHCOPY_VAR_TO(ctx, px, v); \
+        ++fn; \
+    } \
+/**/
+#define push_var_a(ctx, v, fn, label, func, file, line) \
+    if ((v)->t == VAR_OBJ) { \
+        int idxsz = (v)->o->idxsz; \
+        fn += idxsz - 1;\
+        if ((ctx)->vstksz <= ((ctx)->vstkp + idxsz)) { \
+            e = throw_system_exception(__LINE__, ctx, EXCEPT_STACK_OVERFLOW); \
+            exception_addtrace(ctx, ctx->except, func, file, line); \
+            goto label; \
+        } \
+        for (int i = idxsz - 1; i >= 0; --i) { \
+            vmvar *px = &(((ctx)->vstk)[((ctx)->vstkp)++]); \
+            vmvar *item = (v)->o->ary[i]; \
+            if (item) { \
+                SHCOPY_VAR_TO(ctx, px, item); \
+            } else { \
+                px->t = VAR_INT64; px->i = 0; \
+            } \
+        } \
+    }\
+/**/
+#define pop_var(ctx) (--((ctx)->vstkp))
+#define reduce_vstackp(ctx, n) (((ctx)->vstkp) -= (n))
+#define restore_vstackp(ctx, p) (((ctx)->vstkp) = (p))
+#define init_var(v) ((v)->t = VAR_UNDEF)
+#define local_var(ctx, n) (&(((ctx)->vstk)[(ctx)->vstkp - ((n) + 1)]))
+#define local_var_index(n) ((ctx)->vstkp - ((n) + 1))
+
+/***************************************************************************
+ * Useful macros
+*/
+
+#define KL_CAST_TO_I64(ctx, v) { \
+    if ((v)->t == VAR_UNDEF) { \
+        (v)->t = VAR_INT64; \
+        (v)->i = 0; \
+    } else if ((v)->t == VAR_DBL) { \
+        (v)->t = VAR_INT64; \
+        (v)->i = (int64_t)((v)->d); \
+    } else if ((v)->t != VAR_INT64) { \
+        return throw_system_exception(__LINE__, ctx, EXCEPT_TYPE_MISMATCH); \
+    } \
+} \
+/**/
+
+#define KL_CAST_TO_DBL(ctx, v) { \
+    if ((v)->t == VAR_UNDEF) { \
+        (v)->t = VAR_DBL; \
+        (v)->d = 0.0; \
+    } else if ((v)->t == VAR_INT64) { \
+        (v)->t = VAR_DBL; \
+        (v)->d = (double)((v)->i); \
+    } else if ((v)->t != VAR_DBL) { \
+        return throw_system_exception(__LINE__, ctx, EXCEPT_TYPE_MISMATCH); \
+    } \
+} \
+/**/
+
+#define KL_SET_PROPERTY(o, name, vs) \
+    hashmap_set(ctx, o, #name, vs); \
+/**/
+
+#define KL_SET_PROPERTY_I(o, name, i64) \
+    hashmap_set(ctx, o, #name, alcvar_int64(ctx, i64, 0)); \
+/**/
+
+#define KL_SET_METHOD(o, name, fname, args) \
+    hashmap_set(ctx, o, #name, alcvar_fnc(ctx, alcfnc(ctx, fname, NULL, #name, args))); \
+/**/
+
+
+/***************************************************************************
+ * Operation macros
+*/
 
 #define EXTERN_FUNC(name, vn) { \
     int name(vmctx *ctx, vmfrm *lex, vmvar *r, int ac); \
@@ -2189,6 +2200,7 @@ INLINE extern vmobj *array_create(vmobj *obj, int asz);
 INLINE extern vmobj *array_set(vmctx *ctx, vmobj *obj, int64_t idx, vmvar *vs);
 INLINE extern vmobj *array_push(vmctx *ctx, vmobj *obj, vmvar *vs);
 INLINE extern vmobj *object_copy(vmctx *ctx, vmobj *src);
+INLINE extern vmobj *object_get_keys(vmctx *ctx, vmobj *src);
 
 INLINE extern int run_global(vmctx *ctx, vmfrm *lex, vmvar *r, int ac);
 INLINE extern int throw_system_exception(int line, vmctx *ctx, int id);

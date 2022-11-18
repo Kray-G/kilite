@@ -122,6 +122,7 @@ typedef struct kl_context {
     kl_symbol *global;              //  The symbol of the global scope.
     kl_conststr *hash[HASHSIZE];    //  Hashtable of constant string.
 
+    int tmpnum;                     //  Multi purpose use with incremented.
     int funcid;                     //  Current max value of function index.
     int labelid;                    //  Current max value of label index.
     kl_kir_program *program;        //  KIR output program.

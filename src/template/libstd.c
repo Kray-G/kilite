@@ -421,3 +421,76 @@ int Fiber(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     SET_OBJ(r, o);
     return 0;
 }
+
+/* Integer */
+
+int Integer_times(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    if (ac < 2) {
+        return throw_system_exception(__LINE__, ctx, EXCEPT_TOO_FEW_ARGUMENTS);
+    }
+    vmvar *a0 = local_var(ctx, 0);
+    if (a0->t != VAR_INT64) {
+        return throw_system_exception(__LINE__, ctx, EXCEPT_TYPE_MISMATCH);
+    }
+    vmvar *a1 = local_var(ctx, 1);
+    if (a1->t != VAR_FNC) {
+        return throw_system_exception(__LINE__, ctx, EXCEPT_TYPE_MISMATCH);
+    }
+    int e = 0;
+    int count = a0->i;
+    vmfnc *f1 = a1->f;
+    vmvar *vn = alcvar_initial(ctx);
+    vmfnc *callee = ctx->callee;
+    ctx->callee = f1;
+    for (int i = 0; i < count; ++i) {
+        int p = vstackp(ctx);
+        SET_I64(vn, i);
+        push_var(ctx, vn, L0, __func__, __FILE__, __LINE__);
+        e = ((vmfunc_t)(f1->f))(ctx, f1->lex, r, 1);
+        restore_vstackp(ctx, p);
+        if (e) {
+            break;
+        }
+    }
+
+L0:;
+    ctx->callee = callee;
+    return 0;
+}
+
+int Integer(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    vmobj *o = alcobj(ctx);
+    KL_SET_METHOD(o, times, Integer_times, 2)
+    SET_OBJ(r, o);
+    return 0;
+}
+
+/* Double */
+/* String */
+/* Binary */
+/* Array */
+/* Object */
+
+int Object_keys(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    if (ac < 1) {
+        return throw_system_exception(__LINE__, ctx, EXCEPT_TOO_FEW_ARGUMENTS);
+    }
+    vmvar *a0 = local_var(ctx, 0);
+    if (a0->t != VAR_OBJ) {
+        return throw_system_exception(__LINE__, ctx, EXCEPT_TYPE_MISMATCH);
+    }
+    vmobj *keys = object_get_keys(ctx, a0->o);
+    SET_OBJ(r, keys);
+    return 0;
+}
+
+int Object(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    vmobj *o = alcobj(ctx);
+    KL_SET_METHOD(o, keys, Object_keys, 1)
+    SET_OBJ(r, o);
+    return 0;
+}

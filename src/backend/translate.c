@@ -971,20 +971,20 @@ static void translate_alocal(func_context *fctx, xstr *code, kl_kir_func *f, kl_
         xstraf(code, " }\n");
     }
 
-    if (fctx->total_vars > 0) {
-        xstra_inst(code, "const int allocated_local = %" PRId64 ";\n", fctx->total_vars);
-        xstra_inst(code, "alloc_var(ctx, %" PRId64 ", L%d, \"%s\", \"%s\", %d);\n",
-            fctx->total_vars, f->funcend, i->funcname, escape(&(fctx->str), i->filename), i->line);
-    }
     if (!f->is_global && !f->is_pure) {
         xstra_inst(code, "int yieldno = ctx->callee->yield;\n");
     }
-    xstra_inst(code, "vmvar ");
-    for (int idx = 0; idx < fctx->total_vars; ++idx) {
-        if (idx != 0) xstraf(code, ", ");
-        xstraf(code, "*n%d", idx);
+    xstra_inst(code, "const int allocated_local = %" PRId64 ";\n", fctx->total_vars);
+    if (fctx->total_vars > 0) {
+        xstra_inst(code, "alloc_var(ctx, %" PRId64 ", L%d, \"%s\", \"%s\", %d);\n",
+            fctx->total_vars, f->funcend, i->funcname, escape(&(fctx->str), i->filename), i->line);
+        xstra_inst(code, "vmvar ");
+        for (int idx = 0; idx < fctx->total_vars; ++idx) {
+            if (idx != 0) xstraf(code, ", ");
+            xstraf(code, "*n%d", idx);
+        }
+        xstraf(code, ";\n");
     }
-    xstraf(code, ";\n");
     xstra_inst(code, "vmvar yy = {0}; SET_UNDEF(&yy);\n");
     if (!f->is_global && !f->is_pure) {
         xstra_inst(code, "if (yieldno > 0) goto RESUMEHOOK;\n");
