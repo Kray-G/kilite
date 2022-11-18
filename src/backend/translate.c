@@ -976,8 +976,8 @@ static void translate_alocal(func_context *fctx, xstr *code, kl_kir_func *f, kl_
     }
     xstra_inst(code, "const int allocated_local = %" PRId64 ";\n", fctx->total_vars);
     if (fctx->total_vars > 0) {
-        xstra_inst(code, "alloc_var(ctx, %" PRId64 ", L%d, \"%s\", \"%s\", %d);\n",
-            fctx->total_vars, f->funcend, i->funcname, escape(&(fctx->str), i->filename), i->line);
+        xstra_inst(code, "alloc_var(ctx, allocated_local, L%d, \"%s\", \"%s\", %d);\n",
+            f->funcend, i->funcname, escape(&(fctx->str), i->filename), i->line);
         xstra_inst(code, "vmvar ");
         for (int idx = 0; idx < fctx->total_vars; ++idx) {
             if (idx != 0) xstraf(code, ", ");

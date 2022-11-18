@@ -547,13 +547,77 @@ int Integer_next(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     return 0;
 }
 
-extern int kl_Integer_times(vmctx *ctx, vmfrm *lex, vmvar *r, int ac);
+int Integer_times(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    GC_CHECK(ctx);
+    int e = 0;
+
+    #define SAVE_LOCAL() { SAVEN(0, n0); SAVEN(1, n1); SAVEN(2, n2); SAVEN(3, n3); }
+    int yieldno = ctx->callee->yield;
+    const int allocated_local = 4;
+    alloc_var(ctx, allocated_local, L1, "Integer_times", "<integer>", 2);
+    vmvar *n0, *n1, *n2, *n3;
+    vmvar yy = {0}; SET_UNDEF(&yy);
+    if (yieldno > 0) goto RESUMEHOOK;
+    n0 = local_var(ctx, 0);
+    n1 = local_var(ctx, 1);
+    n2 = local_var(ctx, 2);
+    n3 = local_var(ctx, 3);
+    SET_ARGVAR(0, 0, allocated_local);
+    SET_ARGVAR(1, 1, allocated_local);
+    goto HEAD;
+
+RESUMEHOOK:;
+    n0 = ctx->callee->vars[0];
+    n1 = ctx->callee->vars[1];
+    n2 = ctx->callee->vars[2];
+    n3 = ctx->callee->vars[3];
+    RESUME_HOOK(ctx, ac, allocated_local, L1, "Integer_times", "<integer>", 2);
+    switch (yieldno) {
+    case 1: goto Y1;
+    default: e = throw_system_exception(__LINE__, ctx, EXCEPT_INVALID_FIBER_STATE); goto L1;
+    }
+
+HEAD:;
+    SET_I64(n2, 0);
+    goto L4;
+
+L2:;
+    GC_CHECK(ctx);
+    int ad0 = 0, p0 = vstackp(ctx);
+    { push_var(ctx, n2, L1, "Integer_times", "<integer>", 4); }
+    CHECK_CALL(ctx, n1, L1, (r), 1 + ad0, "Integer_times", "<integer>", 4);
+    restore_vstackp(ctx, p0);
+    CHECK_EXCEPTION(L1, "Integer_times", "<integer>", 4);
+    CHECK_YIELD(ctx, (r), (n1)->f, 1, 4, SAVE_LOCAL());
+
+Y1:;
+    RESUME_SETUP(1, (r), L1, "Integer_times", "<integer>", 4)
+
+L5:;
+    ++(n2->i);
+
+L4:;
+    if (n2->i < n0->i) goto L2;
+
+L3:;
+L1:;
+    reduce_vstackp(ctx, allocated_local);
+    if (e != FLOW_YIELD) ctx->callee->yield = 0;
+    return e;
+
+END:;
+YEND:;
+    reduce_vstackp(ctx, allocated_local);
+    return e;
+    #undef SAVE_LOCAL
+}
 
 int Integer(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     vmobj *o = alcobj(ctx);
     ctx->i = o;
-    KL_SET_METHOD(o, times, kl_Integer_times, 2)
+    KL_SET_METHOD(o, times, Integer_times, 2)
     KL_SET_METHOD(o, next, Integer_next, 2)
 
     KL_SET_METHOD(o, acos, Math_acos, 1)
@@ -634,6 +698,85 @@ int Binary(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 
 /* Array/Object */
 
+int Array_each(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    GC_CHECK(ctx);
+    int e = 0;
+
+    #define SAVE_LOCAL() { SAVEN(0, n0); SAVEN(1, n1); SAVEN(2, n2); SAVEN(3, n3); SAVEN(4, n4); }
+    int yieldno = ctx->callee->yield;
+    const int allocated_local = 5;
+    alloc_var(ctx, allocated_local, L1, "Array_each", "<array>", 2);
+    vmvar *n0, *n1, *n2, *n3, *n4;
+    vmvar yy = {0}; SET_UNDEF(&yy);
+    if (yieldno > 0) goto RESUMEHOOK;
+    n0 = local_var(ctx, 0);
+    n1 = local_var(ctx, 1);
+    n2 = local_var(ctx, 2);
+    n3 = local_var(ctx, 3);
+    n4 = local_var(ctx, 4);
+    SET_ARGVAR(0, 0, allocated_local);
+    SET_ARGVAR(1, 1, allocated_local);
+    goto HEAD;
+
+RESUMEHOOK:;
+    n0 = ctx->callee->vars[0];
+    n1 = ctx->callee->vars[1];
+    n2 = ctx->callee->vars[2];
+    n3 = ctx->callee->vars[3];
+    n4 = ctx->callee->vars[4];
+    RESUME_HOOK(ctx, ac, allocated_local, L1, "Array_each", "<array>", 2);
+    switch (yieldno) {
+    case 2: goto Y2;
+    default: e = throw_system_exception(__LINE__, ctx, EXCEPT_INVALID_FIBER_STATE); goto L1;
+    }
+
+HEAD:;
+    if (n0->t != VAR_OBJ) {
+        return throw_system_exception(__LINE__, ctx, EXCEPT_TYPE_MISMATCH);
+    }
+    SET_I64(n2, n0->o->idxsz);
+    SET_I64(n3, 0);
+    goto L4;
+
+L2:;
+    GC_CHECK(ctx);
+    int ad1 = 0, p1 = vstackp(ctx);
+    OP_ARRAY_REF_I(ctx, n4, n0, n3->i);
+    { push_var(ctx, n4, L1, "Array_each", "<array>", 5); }
+    CHECK_CALL(ctx, n1, L1, (r), 1 + ad1, "Array_each", "<array>", 5);
+    restore_vstackp(ctx, p1);
+    CHECK_EXCEPTION(L1, "Array_each", "<array>", 5);
+    CHECK_YIELD(ctx, (r), (n1)->f, 2, 6, SAVE_LOCAL());
+
+Y2:;
+    RESUME_SETUP(2, (r), L1, "Array_each", "<array>", 5)
+
+L5:;
+    ++(n3->i);
+L4:;
+    if (n3->i < n2->i) goto L2;
+
+L3:;
+L1:;
+    reduce_vstackp(ctx, allocated_local);
+    if (e != FLOW_YIELD) ctx->callee->yield = 0;
+    return e;
+
+END:;
+YEND:;
+    reduce_vstackp(ctx, allocated_local);
+    return e;
+    #undef SAVE_LOCAL
+}
+
+int Array_size(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    DEF_ARG(a0, 1, VAR_OBJ);
+    SET_I64(r, a0->o->idxsz);
+    return 0;
+}
+
 int Object_keys(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     DEF_ARG(a0, 1, VAR_OBJ);
@@ -642,10 +785,12 @@ int Object_keys(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     return 0;
 }
 
-int Object(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+int Array(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     vmobj *o = alcobj(ctx);
     ctx->o = o;
+    KL_SET_METHOD(o, size, Array_size, 1)
+    KL_SET_METHOD(o, each, Array_each, 1)
     KL_SET_METHOD(o, keys, Object_keys, 1)
     SET_OBJ(r, o);
     return 0;

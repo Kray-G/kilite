@@ -63,10 +63,6 @@ type ..\src\template\obj.c >> %TEMPF%
 type ..\src\template\op.c >> %TEMPF%
 type ..\src\template\libstd.c >> %TEMPF%
 
-pushd ..\src\template\std
-kilite.exe --makelib integer.klt >> %TEMPF%
-popd
-
 c2m -DUSE_INT64 -I lib -c %TEMPF%
 del kilite.bmir
 ren %TEMPF:.c=.bmir% kilite.bmir

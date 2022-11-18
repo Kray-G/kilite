@@ -64,10 +64,6 @@ cat ../src/template/obj.c >> $TEMPF
 cat ../src/template/op.c >> $TEMPF
 cat ../src/template/libstd.c >> $TEMPF
 
-cd ../src/template/std
-$BIN/kilite.exe --makelib integer.klt >> $TEMPF
-cd $BIN
-
 ./c2m -DUSE_INT64 -I lib -c $TEMPF
 rm kilite.bmir
 mv h.bmir kilite.bmir

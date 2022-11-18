@@ -197,8 +197,8 @@ int main(int ac, char **av)
     l->precode = "const undefined;"
         "extern System; extern SystemTimer; extern Math; extern Fiber;"
         "extern RuntimeException();"
-        "extern Integer; extern Double; extern String; extern Binary; extern Object;"
-        "const Array = Object;"
+        "extern Integer; extern Double; extern String; extern Binary; extern Array; "
+        "const Object = Array;"
         "\n";
 
     kl_context *ctx = parser_new_context();

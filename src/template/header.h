@@ -218,7 +218,7 @@ typedef struct vmctx {
     vmobj *d;               /* Special object for double. */
     vmobj *s;               /* Special object for string. */
     vmobj *b;               /* Special object for binary. */
-    vmobj *o;               /* Special object for object or array. */
+    vmobj *o;               /* Special object for object/array. */
 
     struct {
         vmvar var;
