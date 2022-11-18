@@ -363,7 +363,7 @@ static inline kl_expr *make_bin_expr(kl_context *ctx, kl_lexer *l, tk_token tk, 
 {
     if (!lhs) return rhs;
     kl_expr *e = make_expr(ctx, l, tk);
-    if (tk == TK_CALL) {
+    if (tk == TK_CALL && !ctx->in_finally) {
         ++(ctx->scope->yield);
         e->yield = ctx->scope->yield;   /* This number will be used when yield check. */
     }
@@ -1545,7 +1545,9 @@ static kl_stmt *parse_try(kl_context *ctx, kl_lexer *l)
     /* finally part */
     if (l->tok == TK_FINALLY) {
         lexer_fetch(l);
+        ctx->in_finally = 1;
         s->s3 = parse_statement(ctx, l);
+        ctx->in_finally = 0;
     }
 
     return s;

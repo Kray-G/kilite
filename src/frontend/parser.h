@@ -116,6 +116,7 @@ typedef struct kl_context {
     int error_limit;                //  If the error count exceeds this value, stop parsing and exit the program.
     int options;                    //  Options for parser.
     int in_lvalue;                  //  The decltype in parsing l-value.
+    int in_finally;                  //  The decltype in parsing l-value.
     kl_stmt *head;                  //  The head of object tree.
     kl_nsstack *ns;                 //  Namespace stack.
     kl_symbol *scope;               //  The symbol of a current scope.

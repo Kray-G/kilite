@@ -746,7 +746,7 @@ static kl_kir_inst *gen_call(kl_context *ctx, kl_symbol *sym, kl_kir_opr *r1, kl
     ilst->next = new_inst_chkexcept(ctx->program, e->line, e->pos, ctx->tclabel > 0 ? ctx->tclabel : sym->funcend);
     ilst = ilst->next;
     set_file_func(ctx, sym, ilst);
-    if (!sym->is_global) {
+    if (!sym->is_global && !ctx->in_finally) {
         ilst->next = new_inst_op2(ctx->program, e->line, e->pos, KIR_YIELDC, r1, &r2);
         ilst = ilst->next;
         set_file_func(ctx, sym, ilst);
@@ -1060,8 +1060,10 @@ static kl_kir_inst *gen_ret(kl_context *ctx, kl_symbol *sym, kl_stmt *s)
     }
 
     if (ctx->fincode) {
+        ctx->in_finally = 1;
         last->next = gen_block(ctx, sym, ctx->fincode);
         KIR_MOVE_LAST(last);
+        ctx->in_finally = 0;
     }
 
     last->next = new_inst_jump(ctx->program, s->line, s->pos, sym->funcend, last);
@@ -1079,10 +1081,6 @@ static kl_kir_inst *gen_throw(kl_context *ctx, kl_symbol *sym, kl_stmt *s)
         head = gen_expr(ctx, sym, &r1, s->e1);
         last = get_last(head);
 
-        if (ctx->fincode) {
-            last->next = gen_block(ctx, sym, ctx->fincode);
-            KIR_MOVE_LAST(last);
-        }
         if (!head) {
             head = last = new_inst_op1(ctx->program, s->line, s->pos, KIR_THROWE, &r1);
         } else {
@@ -1091,10 +1089,6 @@ static kl_kir_inst *gen_throw(kl_context *ctx, kl_symbol *sym, kl_stmt *s)
             last = last->next;
         }
     } else {
-        if (ctx->fincode) {
-            head = gen_block(ctx, sym, ctx->fincode);
-            last = get_last(head);
-        }
         if (!head) {
             head = last = new_inst(ctx->program, s->line, s->pos, KIR_THROW);
         } else {
@@ -1324,6 +1318,7 @@ static kl_kir_inst *gen_try(kl_context *ctx, kl_symbol *sym, kl_stmt *s)
     if (s->s3) {
         ctx->fincode = s->s3;
     }
+
     int flabel = -1;
     int tclabel = ctx->tclabel;
     if (s->s2 || s->s3) {
@@ -1334,9 +1329,12 @@ static kl_kir_inst *gen_try(kl_context *ctx, kl_symbol *sym, kl_stmt *s)
     kl_kir_inst *head = gen_stmt(ctx, sym, s->s1);
     kl_kir_inst *last = get_last(head);
     if (s->s3) {
+        ctx->in_finally = 1;
         last->next = gen_stmt(ctx, sym, s->s3);
         KIR_MOVE_LAST(last);
+        ctx->in_finally = 0;
     }
+
     int nlabel = get_next_label(ctx);
     last->next = new_inst_jump(ctx->program, s->line, s->pos, nlabel, last);
     last = last->next;
@@ -1355,8 +1353,10 @@ static kl_kir_inst *gen_try(kl_context *ctx, kl_symbol *sym, kl_stmt *s)
         KIR_MOVE_LAST(last);
         if (last->opcode != KIR_JMP && last->opcode != KIR_THROW && last->opcode != KIR_THROWE && last->opcode != KIR_RET) {
             if (s->s3) {
+                ctx->in_finally = 1;
                 last->next = gen_stmt(ctx, sym, s->s3);
                 KIR_MOVE_LAST(last);
+                ctx->in_finally = 0;
             }
             last->next = new_inst_jump(ctx->program, s->line, s->pos, nlabel, last);
             last = last->next;
@@ -1369,8 +1369,10 @@ static kl_kir_inst *gen_try(kl_context *ctx, kl_symbol *sym, kl_stmt *s)
     if (!s->s2 && s->s3) {
         last->next = new_inst_label(ctx->program, s->line, s->pos, flabel, last, 0);
         last = last->next;
+        ctx->in_finally = 1;
         last->next = gen_stmt(ctx, sym, s->s3);
         KIR_MOVE_LAST(last);
+        ctx->in_finally = 0;
         last->next = new_inst(ctx->program, 0, 0, KIR_THROW);
         last = last->next;
         set_file_func(ctx, sym, last);
