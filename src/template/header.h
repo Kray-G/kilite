@@ -731,29 +731,42 @@ typedef struct vmctx {
 
 #define OP_HASH_APPLY(ctx, r, v, str, adx) { \
     vmvar *t1 = ((v)->a) ? (v)->a : (v); \
+    vmvar *t2 = NULL; \
+    int done = 0; \
     switch ((t1)->t) { \
-    case VAR_INT64: { \
-        vmvar *t2 = hashmap_search(ctx->i, str); \
-        if (!t2 || t2->t != VAR_FNC) { \
-            (r)->t = VAR_UNDEF; \
-        } \
-        push_var_i(ctx, t1->i, END/* dummy */, "", "", 0); \
-        (r)->t = VAR_FNC; \
-        (r)->f = t2->f; \
-        adx++; \
+    case VAR_INT64: \
+    case VAR_BIG: \
+        t2 = hashmap_search(ctx->i, str); \
         break; \
-    } \
     case VAR_DBL: \
+        t2 = hashmap_search(ctx->d, str); \
         break; \
     case VAR_STR: \
+        t2 = hashmap_search(ctx->s, str); \
         break; \
     case VAR_BIN: \
         break; \
     case VAR_OBJ: \
-        OP_HASH_APPLY_OBJ(ctx, r, t1, str); \
+        if (t1->o) { \
+            t2 = hashmap_search(t1->o, str); \
+            if (t2) { \
+                COPY_VAR_TO(ctx, (r), t2); \
+                done = 1; \
+            } \
+        } \
         break; \
     default: \
-        (r)->t = VAR_UNDEF; \
+        break; \
+    } \
+    if (!done) { \
+        if (t2 && t2->t == VAR_FNC) { \
+            push_var(ctx, t1, END/* dummy */, "", "", 0); \
+            (r)->t = VAR_FNC; \
+            (r)->f = t2->f; \
+            adx++; \
+        } else { \
+            (r)->t = VAR_UNDEF; \
+        } \
     } \
 } \
 /**/

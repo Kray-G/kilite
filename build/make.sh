@@ -62,7 +62,6 @@ cat ../src/template/str.c >> $TEMPF
 cat ../src/template/obj.c >> $TEMPF
 cat ../src/template/op.c >> $TEMPF
 cat ../src/template/libstd.c >> $TEMPF
-cat ../src/template/libmath.c >> $TEMPF
 ./c2m -DUSE_INT64 -I lib -c $TEMPF
 rm kilite.bmir
 mv h.bmir kilite.bmir
