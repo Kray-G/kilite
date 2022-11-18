@@ -745,7 +745,8 @@ static void translate_yield_check(func_context *fctx, xstr *code, kl_kir_func *f
                 }
             }
             xstraf(code, "\nY%d:;\n", i->labelid);
-            xstra_inst(code, "if (yieldno > 0) SHCOPY_VAR_TO(ctx, %s, &yy);\n", buf1);
+            xstra_inst(code, "RESUME_SETUP(%d, %s, L%d, \"%s\", \"%s\", %d)\n",
+                i->labelid, buf1, i->catchid, i->funcname, escape(&(fctx->str), i->filename), i->line);
         }
     }
 }
@@ -943,10 +944,11 @@ static void translate_resume_hook(func_context *fctx, xstr *code, kl_kir_func *f
         for (int idx = fctx->resume_start; idx < total_vars; ++idx) {
             xstra_inst(code, "n%d = ctx->callee->vars[%d];\n", idx, idx - fctx->resume_start);
         }
+        xstra_inst(code, "RESUME_HOOK(ctx, ac, allocated_local, L%d, \"%s\", \"%s\", %d);\n",
+            i->catchid, i->funcname, escape(&(fctx->str), i->filename), i->line);
         xstra_inst(code, "switch (yieldno) {\n");
         for (int idx = 1; idx <= yield; ++idx) {
-            xstra_inst(code, "case %d: RESUME_HOOK(ctx, ac, allocated_local, L%d, \"%s\", \"%s\", %d); goto Y%d;\n",
-                idx, f->funcend, i->funcname, escape(&(fctx->str), i->filename), i->line, idx);
+            xstra_inst(code, "case %d: goto Y%d;\n", idx, idx);
         }
         xstra_inst(code, "default: e = throw_system_exception(__LINE__, ctx, EXCEPT_INVALID_FIBER_STATE); goto L%d;\n", f->funcend);
         xstra_inst(code, "}\n");
@@ -964,7 +966,7 @@ static void translate_alocal(func_context *fctx, xstr *code, kl_kir_func *f, kl_
     if (!f->is_global && !f->is_pure) {
         xstra_inst(code, "#define SAVE_LOCAL() {");
         for (int i = 0; i < fctx->total_vars; ++i) {
-            xstraf(code, " SHCOPY_VAR_TO(ctx, f->vars[%d], n%d);", i, i);
+            xstraf(code, " SAVEN(%d, n%d);", i, i);
         }
         xstraf(code, " }\n");
     }
@@ -1002,7 +1004,7 @@ static void translate_mkfrm(func_context *fctx, xstr *code, kl_kir_func *f, kl_k
     if (!f->is_global && !f->is_pure) {
         xstra_inst(code, "#define SAVE_LOCAL() {");
         for (int i = fctx->local_vars; i < fctx->total_vars; ++i) {
-            xstraf(code, " SHCOPY_VAR_TO(ctx, f->vars[%d], n%d);", i - fctx->local_vars, i);
+            xstraf(code, " SAVEN(%d, n%d);", i - fctx->local_vars, i);
         }
         xstraf(code, " }\n");
     }
@@ -1040,7 +1042,6 @@ static void translate_mkfrm(func_context *fctx, xstr *code, kl_kir_func *f, kl_k
             xstra_inst(code, "n%d = local_var(ctx, %d);\n", idx, idx - fctx->local_vars);
         }
     }
-    xstra_inst(code, "\n");
 }
 
 static void translate_rlocal(func_context *fctx, xstr *code)

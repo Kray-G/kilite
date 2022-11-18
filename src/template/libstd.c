@@ -335,22 +335,30 @@ static int Fiber_resume(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     }
     f1->created = 0;
 
+    int args;
+    if (ac == 2) {
+        vmvar *vn = local_var(ctx, 1);
+        push_var(ctx, vn, L0, __func__, __FILE__, __LINE__);
+        args = 1;
+    } else if (ac > 2) {
+        vmvar *vn = alcvar_obj(ctx, alcobj(ctx));
+        for (int i = 1; i < ac; ++i) {
+            vmvar *aa = local_var(ctx, i);
+            vmvar *ax = alcvar_initial(ctx);
+            SHCOPY_VAR_TO(ctx, ax, aa);
+            array_push(ctx, vn->o, ax);
+        }
+        push_var(ctx, vn, L0, __func__, __FILE__, __LINE__);
+        args = 1;
+    } else {
+        args = 0;
+    }
     int p = vstackp(ctx);
-    vmobj *o = alcobj(ctx);
-    for (int i = 1; i < ac; ++i) {
-        vmvar *a = local_var(ctx, i);
-        array_push(ctx, o, a);
-    }
-    for (int i = ac - 2; i >= 0; --i) {
-        push_var(ctx, o->ary[i], L0, "<libstd>", "libstd.c", __LINE__);
-    }
-    pbakobj(ctx, o);
     vmfnc *callee = ctx->callee;
     ctx->callee = f1;
-    e = ((vmfunc_t)(f1->f))(ctx, f1->lex, r, ac - 1);
+    e = ((vmfunc_t)(f1->f))(ctx, f1->lex, r, args);
     ctx->callee = callee;
     restore_vstackp(ctx, p);
-    CHECK_EXCEPTION(L0, "<libstd>", "libstd.c", __LINE__);
     if (e == FLOW_YIELD) {
         e = 0;
     }

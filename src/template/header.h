@@ -420,33 +420,36 @@ typedef struct vmctx {
 } \
 /**/
 
+#define SAVEN(i, nv) SHCOPY_VAR_TO(ctx, f->vars[i], nv)
+
 #define RESUME_HOOK(ctx, ac, alc, label, func, file, line) { \
-    if (ctx->callee->yfnc) { \
+    if (yieldno > 0 && ctx->callee->yfnc) { \
+        if (ac > 0) { \
+            vmvar *a = local_var(ctx, alc); \
+            push_var(ctx, a, label, func, file, line); \
+        } \
         int pp = vstackp(ctx); \
-        vmobj *o = alcobj(ctx); \
-        for (int i = 0; i < ac; ++i) { \
-            vmvar *a = local_var(ctx, (i + alc)); \
-            array_push(ctx, o, a); \
-        } \
-        for (int i = ac - 1; i >= 0; --i) { \
-            push_var(ctx, o->ary[i], label, func, file, line); \
-        } \
-        pbakobj(ctx, o); \
         vmfnc *f = ctx->callee->yfnc; \
         CALL(f, f->lex, &yy, ac) \
         restore_vstackp(ctx, pp); \
+        if (e == FLOW_YIELD) { \
+            SHCOPY_VAR_TO(ctx, (r), &yy); \
+            goto YEND; \
+        } \
     } \
 } \
 /**/
 
 #define RESUME(ctx, vn, ac, alc, label, func, file, line) { \
-    vn = alcvar_obj(ctx, alcobj(ctx)); \
-    for (int i = 0; i < ac; ++i) { \
-        vmvar *aa = local_var(ctx, (i + alc)); \
-        vmvar *ax = alcvar_initial(ctx); \
-        SHCOPY_VAR_TO(ctx, ax, aa); \
-        array_push(ctx, vn->o, ax); \
-    } \
+    vn = alcvar_initial(ctx); \
+    vmvar *aa = local_var(ctx, alc); \
+    SHCOPY_VAR_TO(ctx, vn, aa); \
+} \
+/**/
+
+#define RESUME_SETUP(ynum, vn, label, func, file, line) if (yieldno == ynum) { \
+    SHCOPY_VAR_TO(ctx, vn, &yy); \
+    CHECK_EXCEPTION(label, func, file, line); \
 } \
 /**/
 
