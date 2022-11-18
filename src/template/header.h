@@ -146,6 +146,7 @@ typedef struct vmvar {
 
     int32_t flags;
     int32_t hasht;
+    int32_t push;
     vartype t;
     int64_t i;
     double d;
@@ -297,6 +298,10 @@ typedef struct vmctx {
         vmvar *px = &(((ctx)->vstk)[((ctx)->vstkp)++]); \
         SHCOPY_VAR_TO(ctx, px, v); \
         ++fn; \
+    } \
+    if (v->push) { \
+        ++fn; \
+        v->push = 0; \
     } \
 /**/
 #define push_var_a(ctx, v, fn, label, func, file, line) \
@@ -729,8 +734,8 @@ typedef struct vmctx {
 } \
 /**/
 
-#define OP_HASH_APPLY(ctx, r, v, str, adx) { \
-    vmvar *t1 = ((v)->a) ? (v)->a : (v); \
+#define OP_HASH_APPLY(ctx, r, v, str) { \
+    vmvar *t1 = (v); \
     vmvar *t2 = NULL; \
     int done = 0; \
     switch ((t1)->t) { \
@@ -754,6 +759,9 @@ typedef struct vmctx {
                 done = 1; \
             } \
         } \
+        if (!done) { \
+            t2 = hashmap_search(ctx->o, str); \
+        } \
         break; \
     default: \
         break; \
@@ -763,7 +771,7 @@ typedef struct vmctx {
             push_var(ctx, t1, END/* dummy */, "", "", 0); \
             (r)->t = VAR_FNC; \
             (r)->f = t2->f; \
-            adx++; \
+            t1->push = 1; \
         } else { \
             (r)->t = VAR_UNDEF; \
         } \

@@ -1,5 +1,15 @@
 #include "common.h"
 
+#define DEF_ARG(a0, ac, type) \
+    if (ac < ac) { \
+        return throw_system_exception(__LINE__, ctx, EXCEPT_TOO_FEW_ARGUMENTS); \
+    } \
+    vmvar *a0 = local_var(ctx, 0); \
+    if (a0->t != type) { \
+        return throw_system_exception(__LINE__, ctx, EXCEPT_TYPE_MISMATCH); \
+    } \
+/**/
+
 /* This is the prototype that the functions written here will need. */
 
 extern void *SystemTimer_init(void);
@@ -390,13 +400,7 @@ static int Fiber_reset(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 
 static int Fiber_create(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
-    if (ac < 1) {
-        return throw_system_exception(__LINE__, ctx, EXCEPT_TOO_FEW_ARGUMENTS);
-    }
-    vmvar *a0 = local_var(ctx, 0);
-    if (a0->t != VAR_FNC) {
-        return throw_system_exception(__LINE__, ctx, EXCEPT_TYPE_MISMATCH);
-    }
+    DEF_ARG(a0, 1, VAR_FNC);
 
     vmvar *n0 = alcvar_initial(ctx);
     SHCOPY_VAR_TO(ctx, n0, a0);
@@ -538,17 +542,12 @@ int Math(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 
 int Integer_times(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
-    if (ac < 2) {
-        return throw_system_exception(__LINE__, ctx, EXCEPT_TOO_FEW_ARGUMENTS);
-    }
-    vmvar *a0 = local_var(ctx, 0);
-    if (a0->t != VAR_INT64) {
-        return throw_system_exception(__LINE__, ctx, EXCEPT_TYPE_MISMATCH);
-    }
+    DEF_ARG(a0, 2, VAR_INT64);
     vmvar *a1 = local_var(ctx, 1);
     if (a1->t != VAR_FNC) {
         return throw_system_exception(__LINE__, ctx, EXCEPT_TYPE_MISMATCH);
     }
+
     int e = 0;
     int count = a0->i;
     vmfnc *f1 = a1->f;
@@ -571,11 +570,41 @@ L0:;
     return 0;
 }
 
+int Integer_next(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    DEF_ARG(a0, 1, VAR_INT64);
+    SET_I64(r, a0->i + 1);
+    return 0;
+}
+
 int Integer(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     vmobj *o = alcobj(ctx);
     ctx->i = o;
     KL_SET_METHOD(o, times, Integer_times, 2)
+    KL_SET_METHOD(o, next, Integer_next, 2)
+
+    KL_SET_METHOD(o, acos, Math_acos, 1)
+    KL_SET_METHOD(o, asin, Math_asin, 1)
+    KL_SET_METHOD(o, atan, Math_atan, 1)
+    KL_SET_METHOD(o, atan2, Math_atan2, 2)
+    KL_SET_METHOD(o, cos, Math_cos, 1)
+    KL_SET_METHOD(o, sin, Math_sin, 1)
+    KL_SET_METHOD(o, tan, Math_tan, 1)
+    KL_SET_METHOD(o, cosh, Math_cosh, 1)
+    KL_SET_METHOD(o, sinh, Math_sinh, 1)
+    KL_SET_METHOD(o, tanh, Math_tanh, 1)
+    KL_SET_METHOD(o, exp, Math_exp, 1)
+    KL_SET_METHOD(o, ldexp, Math_ldexp, 2)
+    KL_SET_METHOD(o, log, Math_log, 1)
+    KL_SET_METHOD(o, log10, Math_log10, 1)
+    KL_SET_METHOD(o, pow, Math_pow, 2)
+    KL_SET_METHOD(o, sqrt, Math_sqrt, 1)
+    KL_SET_METHOD(o, ceil, Math_ceil, 1)
+    KL_SET_METHOD(o, fabs, Math_fabs, 1)
+    KL_SET_METHOD(o, floor, Math_floor, 1)
+    KL_SET_METHOD(o, fmod, Math_fmod, 2)
+    KL_SET_METHOD(o, random, Math_random, 0)
     SET_OBJ(r, o);
     return 0;
 }
@@ -586,6 +615,27 @@ int Double(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     vmobj *o = alcobj(ctx);
     ctx->d = o;
+    KL_SET_METHOD(o, acos, Math_acos, 1)
+    KL_SET_METHOD(o, asin, Math_asin, 1)
+    KL_SET_METHOD(o, atan, Math_atan, 1)
+    KL_SET_METHOD(o, atan2, Math_atan2, 2)
+    KL_SET_METHOD(o, cos, Math_cos, 1)
+    KL_SET_METHOD(o, sin, Math_sin, 1)
+    KL_SET_METHOD(o, tan, Math_tan, 1)
+    KL_SET_METHOD(o, cosh, Math_cosh, 1)
+    KL_SET_METHOD(o, sinh, Math_sinh, 1)
+    KL_SET_METHOD(o, tanh, Math_tanh, 1)
+    KL_SET_METHOD(o, exp, Math_exp, 1)
+    KL_SET_METHOD(o, ldexp, Math_ldexp, 2)
+    KL_SET_METHOD(o, log, Math_log, 1)
+    KL_SET_METHOD(o, log10, Math_log10, 1)
+    KL_SET_METHOD(o, pow, Math_pow, 2)
+    KL_SET_METHOD(o, sqrt, Math_sqrt, 1)
+    KL_SET_METHOD(o, ceil, Math_ceil, 1)
+    KL_SET_METHOD(o, fabs, Math_fabs, 1)
+    KL_SET_METHOD(o, floor, Math_floor, 1)
+    KL_SET_METHOD(o, fmod, Math_fmod, 2)
+    KL_SET_METHOD(o, random, Math_random, 0)
     SET_OBJ(r, o);
     return 0;
 }
@@ -614,13 +664,7 @@ int Binary(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 
 int Object_keys(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
-    if (ac < 1) {
-        return throw_system_exception(__LINE__, ctx, EXCEPT_TOO_FEW_ARGUMENTS);
-    }
-    vmvar *a0 = local_var(ctx, 0);
-    if (a0->t != VAR_OBJ) {
-        return throw_system_exception(__LINE__, ctx, EXCEPT_TYPE_MISMATCH);
-    }
+    DEF_ARG(a0, 1, VAR_OBJ);
     vmobj *keys = object_get_keys(ctx, a0->o);
     SET_OBJ(r, keys);
     return 0;

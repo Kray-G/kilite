@@ -601,12 +601,7 @@ static kl_kir_inst *gen_apply_str(kl_context *ctx, kl_symbol *sym, kl_kir_opr *r
     KL_KIR_CHECK_LVALUE(l, r2, r2i);
     kl_kir_opr r3 = make_lit_str(ctx, r->val.str);
     kl_kir_inst *inst;
-    if (ctx->in_lvalue) {
-        inst = new_inst_op3(ctx->program, e->line, e->pos, KIR_APLYL, r1, &r2, &r3);
-    } else {
-        r2.callcnt = ctx->callcnt;
-        inst = new_inst_op3(ctx->program, e->line, e->pos, KIR_APLY, r1, &r2, &r3);
-    }
+    inst = new_inst_op3(ctx->program, e->line, e->pos, ctx->in_lvalue ? KIR_APLYL : KIR_APLY, r1, &r2, &r3);
     if (r2i) {
         kl_kir_inst *r2l = get_last(r2i);
         r2l->next = inst;

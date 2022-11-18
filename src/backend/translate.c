@@ -599,11 +599,7 @@ static void translate_idx(func_context *fctx, xstr *code, kl_kir_inst *i, int r3
         xstra_inst(code, "OP_ARRAY_REF%s_I(ctx, %s, %s, ((int)%s));\n", (lvalue ? "L" : ""), buf1, buf2, i->r3.dbl);
         break;
     case TK_VSTR:
-        if (lvalue) {
-            xstra_inst(code, "OP_HASH_APPLYL(ctx, %s, %s, \"%s\");\n", buf1, buf2, escape(&(fctx->str), i->r3.str));
-        } else {
-            xstra_inst(code, "OP_HASH_APPLY(ctx, %s, %s, \"%s\", ad%d);\n", buf1, buf2, escape(&(fctx->str), i->r3.str), i->r2.callcnt);
-        }
+        xstra_inst(code, "OP_HASH_APPLY%s(ctx, %s, %s, \"%s\");\n", (lvalue ? "L" : ""), buf1, buf2, escape(&(fctx->str), i->r3.str));
         break;
     case TK_VAR:
         switch (r3typeid) {
@@ -728,7 +724,7 @@ static void translate_yield_check(func_context *fctx, xstr *code, kl_kir_func *f
     char buf2[256] = {0};
     var_value(buf1, &(i->r1));
     var_value(buf2, &(i->r2));
-    if (!f->is_global && !f->is_pure) {
+    if (!f->is_global) {
         if (i->labelid > 0) {
             /* There is the case when returned back by yield. */
             if (i->r2.funcid > 0) {
@@ -967,7 +963,7 @@ static void translate_alocal(func_context *fctx, xstr *code, kl_kir_func *f, kl_
     fctx->temp_count = fctx->total_vars;
     fctx->resume_start = 0;
 
-    if (!f->is_global && !f->is_pure) {
+    if (!f->is_global) {
         xstra_inst(code, "#define SAVE_LOCAL() {");
         for (int i = 0; i < fctx->total_vars; ++i) {
             xstraf(code, " SAVEN(%d, n%d);", i, i);
@@ -975,7 +971,7 @@ static void translate_alocal(func_context *fctx, xstr *code, kl_kir_func *f, kl_
         xstraf(code, " }\n");
     }
 
-    if (!f->is_global && !f->is_pure) {
+    if (!f->is_global) {
         xstra_inst(code, "int yieldno = ctx->callee->yield;\n");
     }
     xstra_inst(code, "const int allocated_local = %" PRId64 ";\n", fctx->total_vars);
@@ -990,7 +986,7 @@ static void translate_alocal(func_context *fctx, xstr *code, kl_kir_func *f, kl_
         xstraf(code, ";\n");
     }
     xstra_inst(code, "vmvar yy = {0}; SET_UNDEF(&yy);\n");
-    if (!f->is_global && !f->is_pure) {
+    if (!f->is_global) {
         xstra_inst(code, "if (yieldno > 0) goto RESUMEHOOK;\n");
     }
     for (int idx = 0; idx < fctx->total_vars; ++idx) {
@@ -1005,7 +1001,7 @@ static void translate_mkfrm(func_context *fctx, xstr *code, kl_kir_func *f, kl_k
     fctx->temp_count = fctx->total_vars - fctx->local_vars;
     fctx->resume_start = fctx->local_vars;
 
-    if (!f->is_global && !f->is_pure) {
+    if (!f->is_global) {
         xstra_inst(code, "#define SAVE_LOCAL() {");
         for (int i = fctx->local_vars; i < fctx->total_vars; ++i) {
             xstraf(code, " SAVEN(%d, n%d);", i - fctx->local_vars, i);
@@ -1013,7 +1009,7 @@ static void translate_mkfrm(func_context *fctx, xstr *code, kl_kir_func *f, kl_k
         xstraf(code, " }\n");
     }
 
-    if (!f->is_global && !f->is_pure) {
+    if (!f->is_global) {
         xstra_inst(code, "int yieldno = ctx->callee->yield;\n");
     }
     xstra_inst(code, "vmfrm *frm;\n", fctx->local_vars);
@@ -1029,7 +1025,7 @@ static void translate_mkfrm(func_context *fctx, xstr *code, kl_kir_func *f, kl_k
         xstra_inst(code, "alloc_var(ctx, %" PRId64 ", L%d, \"%s\", \"%s\", %d);\n",
             fctx->temp_count, f->funcend, i->funcname, escape(&(fctx->str), i->filename), i->line);
     }
-    if (!f->is_global && !f->is_pure) {
+    if (!f->is_global) {
         xstra_inst(code, "if (yieldno > 0) {\n");
         xstra_inst(code, "    frm = ctx->callee->frm;\n");
         xstra_inst(code, "    push_frm(ctx, e, frm, L%d, \"%s\", \"%s\", %d);\n", f->funcend, i->funcname, escape(&(fctx->str), i->filename), i->line);
@@ -1108,10 +1104,9 @@ static void translate_inst(xstr *code, kl_kir_func *f, kl_kir_inst *i, func_cont
     case KIR_PURE:
         if (f->is_pure) {
             translate_pure_hook(code, f);
-        } else {
-            xstra_inst(code, "goto HEAD;\n\n");
-            translate_resume_hook(fctx, code, f, i);
         }
+        xstra_inst(code, "goto HEAD;\n\n");
+        translate_resume_hook(fctx, code, f, i);
         break;
 
     case KIR_SVSTKP:
@@ -1138,7 +1133,7 @@ static void translate_inst(xstr *code, kl_kir_func *f, kl_kir_inst *i, func_cont
         break;
 
     case KIR_RET:
-        if (!f->is_global && !f->is_pure) {
+        if (!f->is_global) {
             xstra_inst(code, "if (e != FLOW_YIELD) ctx->callee->yield = 0;\n");
         }
         xstra_inst(code, "return e;\n");
@@ -1305,7 +1300,7 @@ void translate_func(kl_kir_program *p, xstr *code, kl_kir_func *f)
     }
 
     xstraf(code, "\nEND:;\n");
-    if (!f->is_global && !f->is_pure) {
+    if (!f->is_global) {
         xstraf(code, "YEND:;\n");
         if (f->has_frame) {
             translate_popfrm(&fctx, code);
