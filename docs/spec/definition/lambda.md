@@ -390,7 +390,6 @@ b = 100
 Divide by zero
 Stack Trace Information:
         at function anonymous_func2(test.kx:9)
-        at function anonymous_func2(test.kx:16)
         at <main-block>(test.kx:27)
 b = 102
 c = 999

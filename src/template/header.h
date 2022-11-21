@@ -432,8 +432,7 @@ typedef struct vmctx {
 } \
 /**/
 
-#define THROW_CURRENT(ctx, label, func, file, line) { \
-    exception_addtrace(ctx, ctx->except, func, file, line); \
+#define RETHROW(ctx, label, func, file, line) { \
     e = FLOW_EXCEPTION; \
     goto label; \
 } \

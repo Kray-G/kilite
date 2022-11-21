@@ -1146,7 +1146,7 @@ static void translate_inst(xstr *code, kl_kir_func *f, kl_kir_inst *i, func_cont
         xstra_inst(code, "THROW_EXCEPTION(ctx, %s, L%d, \"%s\", \"%s\", %d);\n", var_value(buf1, &(i->r1)), i->labelid, i->funcname, escape(&(fctx->str), i->filename), i->line);
         break;
     case KIR_THROW:
-        xstra_inst(code, "THROW_CURRENT(ctx, L%d, \"%s\", \"%s\", %d);\n", i->labelid, i->funcname, escape(&(fctx->str), i->filename), i->line);
+        xstra_inst(code, "RETHROW(ctx, L%d, \"%s\", \"%s\", %d);\n", i->labelid, i->funcname, escape(&(fctx->str), i->filename), i->line);
         break;
     case KIR_CATCH:
         xstra_inst(code, "CATCH_EXCEPTION(ctx, %s);\n", var_value(buf1, &(i->r1)));

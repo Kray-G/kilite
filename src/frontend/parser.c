@@ -906,7 +906,7 @@ static kl_expr *parse_expr_factor(kl_context *ctx, kl_lexer *l)
         e = parse_anonymous_function(ctx, l);
         break;
     default:
-        parse_error(ctx, __LINE__, l, "Found the unknown factor in an expression");
+        parse_error(ctx, __LINE__, l, "Found the unknown factor in an expression(%s)", tokenname(l->tok));
     }
 
     return e;
@@ -1633,15 +1633,19 @@ static kl_stmt *parse_try(kl_context *ctx, kl_lexer *l)
             }
             lexer_fetch(l);
         }
+        int in_catch = ctx->in_catch;
+        ctx->in_catch = 1;
         s->s2 = parse_statement(ctx, l);
+        ctx->in_catch = in_catch;
     }
 
     /* finally part */
     if (l->tok == TK_FINALLY) {
         lexer_fetch(l);
+        int in_finally = ctx->in_finally;
         ctx->in_finally = 1;
         s->s3 = parse_statement(ctx, l);
-        ctx->in_finally = 0;
+        ctx->in_finally = in_finally;
     }
 
     return s;
@@ -1727,7 +1731,10 @@ static kl_stmt *parse_return_throw(kl_context *ctx, kl_lexer *l, int tok)
 
     if (l->tok != TK_IF && l->tok != TK_SEMICOLON) {
         s->e1 = parse_expression(ctx, l);
+    } else if (tok == TK_THROW && !ctx->in_catch) {
+        parse_error(ctx, __LINE__, l, "Can not use throw without expression outside catch clause");
     }
+
     if (l->tok == TK_IF) {
         kl_stmt *m = parse_if_modifier(ctx, l);
         m->s1 = s;
@@ -2430,10 +2437,18 @@ static kl_stmt *parse_statement_list(kl_context *ctx, kl_lexer *l)
             head = s2;
         }
         if (s1 && s1->nodetype == TK_LABEL && !s1->s1) {
-            s1->s1 = s2;
-            s1->s1->sym = s1->sym;
+            if (!s2) {
+                parse_error(ctx, __LINE__, l, "No label block");
+            } else {
+                s1->s1 = s2;
+                s1->s1->sym = s1->sym;
+            }
         } else {
             s1 = connect_stmt(s1, s2);
+        }
+        while (l->tok == TK_SEMICOLON) {
+            /* Skip semicolons because it means no statement. */
+            lexer_fetch(l);
         }
         if (s2 == NULL || l->tok == TK_RXBR) {
             break;
