@@ -366,9 +366,34 @@ static inline kl_expr *make_str_expr(kl_context *ctx, kl_lexer *l, const char *s
     return e;
 }
 
+static kl_expr *gen_specialized_call(kl_context *ctx, kl_lexer *l, tk_token tk, kl_expr *lhs, kl_expr *rhs)
+{
+    /* e->nodetype should be TK_CALL */
+    kl_expr *sp = NULL;
+    if (lhs && !rhs && lhs->nodetype == TK_DOT) {
+        kl_expr *ll = lhs->lhs;
+        kl_expr *lr = lhs->rhs;
+        if (ll && lr && ll->nodetype == TK_VAR && ll->typeid == TK_TOBJ && lr->nodetype == TK_VSTR) {
+            if (strcmp(lr->val.str, "size") == 0) {
+                sp = make_expr(ctx, l, TK_ARYSIZE);
+                sp->lhs = ll;
+            }
+        }
+    }
+    return sp;
+}
+
+
 static inline kl_expr *make_bin_expr(kl_context *ctx, kl_lexer *l, tk_token tk, kl_expr *lhs, kl_expr *rhs)
 {
     if (!lhs) return rhs;
+    if (tk == TK_CALL && !ctx->in_finally) {
+        kl_expr *sp = gen_specialized_call(ctx, l, tk, lhs, rhs);
+        if (sp) {
+            return sp;
+        }
+    }
+
     kl_expr *e = make_expr(ctx, l, tk);
     if (tk == TK_CALL && !ctx->in_finally) {
         ++(ctx->scope->yield);
@@ -1598,9 +1623,11 @@ static kl_expr *parse_decl_expr(kl_context *ctx, kl_lexer *l, int decltype)
         if (l->tok == TK_EQ) {
             lexer_fetch(l);
             kl_expr *rhs = parse_expr_assignment(ctx, l);
-            lhs->typeid = rhs->typeid;
+            if (lhs->typeid == TK_TANY) {
+                lhs->typeid = rhs->typeid;
+            }
             check_assigned(ctx, l, lhs);
-            if (lhs->sym) {
+            if (lhs->sym && lhs->sym->typeid == TK_TANY) {
                 lhs->sym->typeid = rhs->typeid;
             }
             lhs = make_bin_expr(ctx, l, TK_EQ, lhs, rhs);

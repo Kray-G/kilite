@@ -311,6 +311,10 @@ void disp_inst(kl_kir_program *p, kl_kir_inst *i)
     case KIR_TYPE:
         disp_3op("type", i);
         break;
+
+    case KIR_ARYSIZE:
+        disp_2op("arysize", i);
+        break;
     }
 }
 

@@ -12,6 +12,7 @@ static const char *tpname[] = {
     "real",
     "string",
     "binary",
+    "object",
     "func",
 };
 static const char *tkname[] = {
@@ -143,6 +144,8 @@ static const char *tkname[] = {
     "TK_RANGE3",
     "TK_COMMENT1",
     "TK_COMMENTX",
+
+    "TK_ARYSIZE",
 };
 
 #define LEXER_CHECK_12_TOK(ch2, tok1, tok12)\

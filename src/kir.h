@@ -163,6 +163,9 @@ typedef enum tk_token {
     TK_RANGE3,              //  The range object with dot3.
     TK_COMMENT1,            //  1 line comment.
     TK_COMMENTX,            //  Multi lines comment.
+
+    // Specialized operation
+    TK_ARYSIZE,
 } tk_token;
 
 typedef enum kl_kir {
@@ -254,6 +257,10 @@ typedef enum kl_kir {
     KIR_CHKMATCH,   //  <r1>, <r2>              ;   if <r1> != <r2>, throw NoMatchingPatternException.
 
     KIR_TYPE,       //  <r1>, <r2>, n           ;   <r1>  <-  true if <r2> type == n
+    KIR_TYPECHK,    //  <r1>, n                 ;   throw exception if <r1> type != n
+
+    /* Special instructions */
+    KIR_ARYSIZE,    //  <r1>, <r2>              ;   <r1>  <-  <r2>.size()
 } kl_kir;
 
 /* These should be the same as the one in the template/header.h */

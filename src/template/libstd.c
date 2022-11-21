@@ -1,10 +1,11 @@
 #include "common.h"
 
-#define DEF_ARG(a0, ac, type) \
-    if (ac < ac) { \
+/* check argument's type if it's specified */
+#define DEF_ARG(a0, n, type) \
+    if (ac < (n+1)) { \
         return throw_system_exception(__LINE__, ctx, EXCEPT_TOO_FEW_ARGUMENTS); \
     } \
-    vmvar *a0 = local_var(ctx, 0); \
+    vmvar *a0 = local_var(ctx, n); \
     if (a0->t != type) { \
         return throw_system_exception(__LINE__, ctx, EXCEPT_TYPE_MISMATCH); \
     } \
@@ -400,7 +401,7 @@ static int Fiber_reset(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 
 static int Fiber_create(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
-    DEF_ARG(a0, 1, VAR_FNC);
+    DEF_ARG(a0, 0, VAR_FNC);
 
     vmvar *n0 = alcvar_initial(ctx);
     SHCOPY_VAR_TO(ctx, n0, a0);
@@ -542,7 +543,7 @@ int Math(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 
 int Integer_next(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
-    DEF_ARG(a0, 1, VAR_INT64);
+    DEF_ARG(a0, 0, VAR_INT64);
     SET_I64(r, a0->i + 1);
     return 0;
 }
@@ -638,14 +639,14 @@ extern int Array_each(vmctx *ctx, vmfrm *lex, vmvar *r, int ac);
 
 int Array_size(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
-    DEF_ARG(a0, 1, VAR_OBJ);
+    DEF_ARG(a0, 0, VAR_OBJ);
     SET_I64(r, a0->o->idxsz);
     return 0;
 }
 
 int Object_keys(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
-    DEF_ARG(a0, 1, VAR_OBJ);
+    DEF_ARG(a0, 0, VAR_OBJ);
     vmobj *keys = object_get_keys(ctx, a0->o);
     SET_OBJ(r, keys);
     return 0;

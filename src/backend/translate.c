@@ -1096,7 +1096,11 @@ static void translate_inst(xstr *code, kl_kir_func *f, kl_kir_inst *i, func_cont
         translate_popfrm(fctx, code);
         break;
     case KIR_SETARG:
-        xstra_inst(code, "SET_ARGVAR(%d, %d, allocated_local);\n", (int)i->r1.i64, (int)i->r2.i64);
+        if (i->r2.typeid > 0) {
+            xstra_inst(code, "SET_ARGVAR_TYPE(%d, %d, allocated_local, %d);\n", (int)i->r1.i64, (int)i->r2.i64, i->r2.typeid);
+        } else {
+            xstra_inst(code, "SET_ARGVAR(%d, %d, allocated_local);\n", (int)i->r1.i64, (int)i->r2.i64);
+        }
         break;
     case KIR_SETARGL:
         set_last_args(code, f, (int)i->r1.i64, (int)i->r2.i64);
@@ -1266,6 +1270,10 @@ static void translate_inst(xstr *code, kl_kir_func *f, kl_kir_inst *i, func_cont
 
     case KIR_TYPE:
         translate_type(code, i);
+        break;
+
+    case KIR_ARYSIZE:
+        xstra_inst(code, "SET_I64(%s, (%s)->o->idxsz);\n", var_value(buf1, &(i->r1)), var_value(buf2, &(i->r2)));
         break;
     }
 }

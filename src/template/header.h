@@ -402,7 +402,6 @@ typedef struct vmctx {
 /**/
 
 /* Check if it's a function, exception. */
-
 #define CHECK_CALL(ctx, v, label, r, ac, func, file, line) { \
     if ((v)->t == VAR_FNC) { \
         CALL((v)->f, ((v)->f)->lex, r, ac) \
@@ -689,6 +688,20 @@ typedef struct vmctx {
 #define SET_ARGVAR(vn, idx, alc) { \
     if (idx < ac) { \
         vmvar *aa = local_var(ctx, (idx + alc)); \
+        SHCOPY_VAR_TO(ctx, n##vn, aa); \
+    } else { \
+        init_var(n##vn); \
+    } \
+} \
+/**/
+
+#define SET_ARGVAR_TYPE(vn, idx, alc, type) { \
+    if (idx < ac) { \
+        vmvar *aa = local_var(ctx, (idx + alc)); \
+        if (aa->t != type) { \
+            e = throw_system_exception(__LINE__, ctx, EXCEPT_TYPE_MISMATCH); \
+            goto END; \
+        } \
         SHCOPY_VAR_TO(ctx, n##vn, aa); \
     } else { \
         init_var(n##vn); \

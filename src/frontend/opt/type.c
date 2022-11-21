@@ -27,7 +27,7 @@ static void type_expr(kl_context *ctx, type_context *tc, kl_expr *e)
         type_expr(ctx, tc, r);
     }
     if (l && r) {
-        if (e->nodetype == TK_EQ) {
+        if (e->nodetype == TK_EQ && l->typeid == TK_TANY) {
             l->typeid = r->typeid;
             if (!l->prototype && r->prototype) {
                 l->prototype = r->prototype;

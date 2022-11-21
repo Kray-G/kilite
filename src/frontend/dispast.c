@@ -285,6 +285,7 @@ static void disp_expr(kl_expr *e, int indent)
         printf("op(%s): %s\n", tokenname(e->nodetype), typeidname(e->typeid));
         disp_expr(e->lhs, indent + 1);
         break;
+
     case TK_YIELD:
         printf("yield\n");
         if (e->lhs) {
@@ -294,6 +295,13 @@ static void disp_expr(kl_expr *e, int indent)
             disp_expr(e->rhs, indent + 1);
         }
         break;
+
+    case TK_ARYSIZE:
+        printf("op(%s): ", tokenname(e->nodetype));
+        disp_expr(e->lhs, -1);
+        printf("\n");
+        break;
+
     default:
         printf("[MISSING]: %s\n", tokenname(e->nodetype));
     }

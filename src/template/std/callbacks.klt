@@ -14,7 +14,7 @@ function Integer_times(n:int64, f:func) {
 /* Array functions */
 
 function Array_each(a:obj, f:func) {
-    let n = a.size();
+    let n:int64 = a.size();
     for (var i:int64 = 0; i < n; ++i) {
         f(a[i]);
     }
