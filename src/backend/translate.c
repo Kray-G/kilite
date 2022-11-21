@@ -1096,8 +1096,8 @@ static void translate_inst(xstr *code, kl_kir_func *f, kl_kir_inst *i, func_cont
         translate_popfrm(fctx, code);
         break;
     case KIR_SETARG:
-        if (i->r2.typeid > 0) {
-            xstra_inst(code, "SET_ARGVAR_TYPE(%d, %d, allocated_local, %d);\n", (int)i->r1.i64, (int)i->r2.i64, i->r2.typeid);
+        if (i->r2.typestr != NULL) {
+            xstra_inst(code, "SET_ARGVAR_TYPE(%d, %d, allocated_local, %s);\n", (int)i->r1.i64, (int)i->r2.i64, i->r2.typestr);
         } else {
             xstra_inst(code, "SET_ARGVAR(%d, %d, allocated_local);\n", (int)i->r1.i64, (int)i->r2.i64);
         }
@@ -1327,19 +1327,13 @@ char *translate(kl_kir_program *p, int mode)
         return NULL;
     }
 
-    const char *header = vmheader();
-    int len = strlen(header);
-    int cap = len * 2;
+    int cap = 2048;
     xstr str = {
         .len = 0,
         .cap = cap,
         .s = (char *)calloc(cap, sizeof(char)),
     };
 
-    if (mode == TRANS_DEBUG) {
-        xstraf(&str, "#define USE_INT64\n");
-        xstra(&str, header, len);
-    }
     kl_kir_func *f = p->head;
     while (f) {
         if (f->is_global && mode == TRANS_LIB) {
@@ -1350,7 +1344,7 @@ char *translate(kl_kir_program *p, int mode)
         f = f->next;
     }
 
-    if (mode == TRANS_DEBUG) {
+    if (mode == TRANS_FULL) {
         xstraf(&str, "void setup_context(vmctx *ctx)\n{\n");
         xstra_inst(&str, "ctx->print_result = %d;\n", p->print_result);
         xstra_inst(&str, "ctx->verbose = %d;\n", p->verbose);

@@ -39,27 +39,25 @@ static inline int get_next_label(kl_context *ctx)
     return ctx->labelid++;
 }
 
-static int translate_vartype(tk_typeid tp)
+static const char *translate_vartype(tk_typeid tp)
 {
     switch (tp) {
-    case TK_TUNDEF:
-        return 0;
     case TK_TSINT64:
-        return VAR_INT64;
+        return "VAR_INT64";
     case TK_TBIGINT:
-        return VAR_BIG;
+        return "VAR_BIG";
     case TK_TDBL:
-        return VAR_DBL;
+        return "VAR_DBL";
     case TK_TSTR:
-        return VAR_STR;
+        return "VAR_STR";
     case TK_TBIN:
-        return VAR_BIN;
+        return "VAR_BIN";
     case TK_TOBJ:
-        return VAR_OBJ;
+        return "VAR_OBJ";
     case TK_TFUNC:
-        return VAR_FNC;
+        return "VAR_FNC";
     }
-    return 0;
+    return NULL;
 }
 
 static kl_kir_inst *new_inst(kl_kir_program *p, int line, int pos, kl_kir op)
@@ -1760,7 +1758,7 @@ static kl_kir_inst *gen_setargs(kl_context *ctx, kl_symbol *sym, kl_expr *e, int
             int index = e->sym->index;
             kl_kir_opr rn = make_lit_i64(ctx, index);
             kl_kir_opr ri = make_lit_i64(ctx, *idx);
-            ri.typeid = translate_vartype(e->sym->typeid);
+            ri.typestr = translate_vartype(e->sym->typeid);
             head = new_inst_op2(ctx->program, e->line, e->pos, e->sym->is_dot3 ? KIR_SETARGL : KIR_SETARG, &rn, &ri);
         }
         ++*idx;

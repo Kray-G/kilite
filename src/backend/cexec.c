@@ -122,13 +122,21 @@ double SystemTimer_elapsed_impl(void *p)
 
 struct data {
     const char *p;
+    const char *code;
 };
 
 static int getc_func(void *data)
 {
     struct data *d = (struct data *)data;
-    if (!*d->p) return EOF;
-    return *d->p++;
+    if (*(d->p)) {
+        return *d->p++;
+    }
+    d->p = d->code;
+    d->code = NULL;
+    if (d->p && *(d->p)) {
+        return *d->p++;
+    }
+    return EOF;
 }
 
 static FILE *open_output_file(const char *fname, kl_opts *opts, int ismir)
@@ -187,7 +195,7 @@ int run(int *ret, const char *fname, const char *src, int ac, char **av, char **
     int r = 1, lazy = 1;
     MIR_context_t ctx = MIR_init();
     struct c2mir_options options = {0};
-    struct data getc_data = { .p = src };
+    struct data getc_data = { .code = src, .p = vmheader() };
 
     // options.verbose_p = 1;
     options.message_file = stderr;

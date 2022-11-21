@@ -1,3 +1,4 @@
+#define USE_INT64 1
 /*
  * Simplified BSD License
  *

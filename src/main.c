@@ -100,6 +100,7 @@ static int parse_long_options(int ac, char **av, int *i, kl_argopts *opts)
     } else if (strcmp(av[*i], "--kir") == 0) {
         opts->out_kir = 1;
     } else if (strcmp(av[*i], "--makelib") == 0) {
+        opts->out_src = 1;
         opts->out_lib = 1;
         opts->disable_pure = 1;
     } else if (strcmp(av[*i], "--csrc") == 0) {
@@ -237,6 +238,10 @@ int main(int ac, char **av)
         s = translate(ctx->program, opts.out_cdebug ? TRANS_DEBUG : TRANS_SRC);
         printf("%s\n", s);
         if (opts.out_cdebug) {
+            printf("void setup_context(vmctx *ctx)\n{\n");
+            printf("    ctx->print_result = 1;\n");
+            printf("    ctx->verbose = 0;\n");
+            printf("}\n\n");
             printf("void _putchar(char ch) { putchar(ch); }\n");
             printf("uint32_t Math_random_impl(void) { return 0; }\n");
             printf("void *SystemTimer_init(void) { return NULL; }\n");
@@ -245,8 +250,9 @@ int main(int ac, char **av)
             printf("int xprintf(const char *fmt, ...) { va_list ap; va_start(ap, fmt); vprintf(fmt, ap); va_end(ap); }\n");
             printf("int xsprintf(char *buf, const char *fmt, ...) { va_list ap; va_start(ap, fmt); vsprintf(buf, fmt, ap); va_end(ap); }\n\n");
         }
+        goto END;
     } else {
-        s = translate(ctx->program, opts.out_lib ? TRANS_LIB : TRANS_DEBUG);
+        s = translate(ctx->program, opts.out_lib ? TRANS_LIB : TRANS_FULL);
     }
 
     if (opts.out_lib) {
