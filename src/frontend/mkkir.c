@@ -295,6 +295,9 @@ static void set_file_func(kl_context *ctx, kl_symbol *sym, kl_kir_inst *i)
     i->funcname = strcmp(sym->name, "run_global") == 0 ? "<main-block>" : sym->name;
     i->filename = ctx->filename;
     i->catchid = ctx->tclabel;
+    if (ctx->options & PARSER_OPT_MAKELIB) {
+        i->line = 0;    // reset the line info when it's a makelib mode.
+    }
 }
 
 static kl_kir_opr make_var(kl_context *ctx, kl_symbol *sym, tk_typeid tid)

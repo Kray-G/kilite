@@ -203,6 +203,9 @@ int main(int ac, char **av)
 
     kl_context *ctx = parser_new_context();
     l->filename = ctx->filename = opts.file ? opts.file : "stdin";
+    if (opts.out_lib) {
+        ctx->options |= PARSER_OPT_MAKELIB;
+    }
     if (opts.disable_pure) {
         ctx->options |= PARSER_OPT_DISABLE_PURE;
     }

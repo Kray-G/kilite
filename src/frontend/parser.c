@@ -132,8 +132,10 @@ static char *make_func_name(kl_context *ctx, kl_lexer *l, const char *str, tk_to
         parse_error(ctx, __LINE__, l, "Internal error with allocation failed");
     } else {
         kl_nsstack *n = ctx->ns;
-        strcpy(buf + pos, "kl_");
-        pos += 3;
+        if ((ctx->options & PARSER_OPT_MAKELIB) == 0) {
+            strcpy(buf + pos, "kl_");
+            pos += 3;
+        }
         strcpy(buf + pos, str);
         pos += len;
         switch (type) {

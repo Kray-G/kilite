@@ -466,6 +466,7 @@ static inline int check_keyword(kl_lexer *l)
         break;
     case 'o':
         if (strcmp(l->str, "otherwise") == 0) return TK_OTHERWISE;
+        if (strcmp(l->str, "obj") == 0) return set_type(l, TK_TYPEID, TK_TOBJ);
         break;
     case 'p':
         if (strcmp(l->str, "private") == 0) return TK_PRIVATE;

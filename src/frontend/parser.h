@@ -150,5 +150,6 @@ extern void free_context(kl_context *ctx);
 #define PARSER_OPT_PHASE        (0x01)
 #define PARSER_OPT_DISABLE_PURE (0x02)
 #define PARSER_OPT_ERR_STDOUT   (0x04)
+#define PARSER_OPT_MAKELIB      (0x08)
 
 #endif /* KILITE_PARSER_H */

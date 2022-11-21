@@ -1,7 +1,0 @@
-
-function Array_each(a, f:func) {
-    let n = a.size();
-    for (var i:int64 = 0; i < n; ++i) {
-        f(a[i]);
-    }
-}

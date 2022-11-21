@@ -1,0 +1,21 @@
+/*
+    Call back functions should accept the yield operation from the function this function would call.
+    Therefore the functions should be made created by the translator of kilite.
+*/
+
+/* Integer functions */
+
+function Integer_times(n:int64, f:func) {
+    for (var i:int64 = 0; i < n; ++i) {
+        f(i);
+    }
+}
+
+/* Array functions */
+
+function Array_each(a:obj, f:func) {
+    let n = a.size();
+    for (var i:int64 = 0; i < n; ++i) {
+        f(a[i]);
+    }
+}

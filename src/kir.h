@@ -19,6 +19,7 @@ typedef enum tk_typeid {
     TK_TDBL,                //  real
     TK_TSTR,                //  string
     TK_TBIN,                //  binary
+    TK_TOBJ,                //  object or array
     TK_TFUNC,               //  function
 
     TK_TCLASSBASE,          //  The typename value of class will be started from this value.

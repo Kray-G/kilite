@@ -273,7 +273,7 @@ typedef struct vmctx {
 #define vstackp(ctx) ((ctx)->vstkp)
 #define push_var_def(ctx, label, func, file, line, pushcode) \
     do { \
-            if ((ctx)->vstksz <= (ctx)->vstkp) { \
+        if ((ctx)->vstksz <= (ctx)->vstkp) { \
             e = throw_system_exception(__LINE__, ctx, EXCEPT_STACK_OVERFLOW); \
             exception_addtrace(ctx, ctx->except, func, file, line); \
             goto label; \
@@ -434,9 +434,7 @@ typedef struct vmctx {
 /**/
 
 #define THROW_CURRENT(ctx, label, func, file, line) { \
-    if (line > 0) { \
-        exception_addtrace(ctx, ctx->except, func, file, line); \
-    } \
+    exception_addtrace(ctx, ctx->except, func, file, line); \
     e = FLOW_EXCEPTION; \
     goto label; \
 } \
