@@ -74,7 +74,7 @@ Fiber 3
     c1 = 300, c2 = [400, 500]
 try[3] = 600
 Uncaught exception: No one catch the exception.
-FiberException: Fiber has been already dead
+DeadFiberCalledException: Dead fiber called
 Stack Trace Information:
         at <main-block>(test.kx:16)
 ```

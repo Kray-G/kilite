@@ -10,7 +10,7 @@ static kl_expr *parse_expression(kl_context *ctx, kl_lexer *l);
 static kl_expr *parse_decl_expr(kl_context *ctx, kl_lexer *l, int decltype);
 static kl_stmt *parse_statement(kl_context *ctx, kl_lexer *l);
 static kl_stmt *parse_statement_list(kl_context *ctx, kl_lexer *l);
-static kl_expr *parse_block_function(kl_context *ctx, kl_lexer *l);
+static kl_expr *parse_block_function(kl_context *ctx, kl_lexer *l, int is_block);
 static kl_expr *parse_anonymous_function(kl_context *ctx, kl_lexer *l);
 
 #define DEBUG_PARSER_PHASE()\
@@ -370,7 +370,7 @@ static kl_expr *gen_specialized_call(kl_context *ctx, kl_lexer *l, tk_token tk, 
 {
     /* e->nodetype should be TK_CALL */
     kl_expr *sp = NULL;
-    if (lhs && !rhs && lhs->nodetype == TK_DOT) {
+    if (lhs && lhs->nodetype == TK_DOT) {
         kl_expr *ll = lhs->lhs;
         kl_expr *lr = lhs->rhs;
         if (ll && lr && ll->nodetype == TK_VAR && ll->typeid == TK_TOBJ && lr->nodetype == TK_VSTR) {
@@ -603,6 +603,56 @@ static void check_assigned(kl_context *ctx, kl_lexer *l, kl_expr *lhs)
     }
 }
 
+static int get_var_num(kl_expr *e, int *idx, int num)
+{
+    if (!e) {
+        return -1;
+    }
+    if (e->nodetype == TK_COMMA) {
+        int n = get_var_num(e->lhs, idx, num);
+        if (n >= 0) {
+            return n;
+        }
+        return get_var_num(e->rhs, idx, num);
+    } else {
+        if (*idx == num && e->sym) {
+            return e->sym->index;
+        }
+        ++*idx;
+    }
+    return -1;
+}
+
+static kl_symbol *set_placeholder(kl_context *ctx, kl_lexer *l, const char *name)
+{
+    if (name[0] == '_') {
+        int num = 0;
+        switch (name[1]) {
+        case '1': num = 1; break;
+        case '2': num = 2; break;
+        case '3': num = 3; break;
+        case '4': num = 4; break;
+        case '5': num = 5; break;
+        case '6': num = 6; break;
+        case '7': num = 7; break;
+        case '8': num = 8; break;
+        case '9': num = 9; break;
+        }
+        if (num > 0) {
+            kl_symbol *sym = make_symbol(ctx, l, TK_VAR, 1);
+            if (ctx->scope->placemax < num) {
+                ctx->scope->placemax = num;
+            }
+            int idx = 0;
+            int n = get_var_num(ctx->scope->args, &idx, num-1);
+            sym->index = n >= 0 ? n : num - 1;
+            sym->is_const = 1;
+            return sym;
+        }
+    }
+    return NULL;
+}
+
 static kl_expr *parse_expr_varname(kl_context *ctx, kl_lexer *l, const char *name, int decltype)
 {
     if (!name) {
@@ -614,13 +664,19 @@ static kl_expr *parse_expr_varname(kl_context *ctx, kl_lexer *l, const char *nam
     kl_expr *e = make_expr(ctx, l, TK_VAR);
     kl_symbol *sym;
     if (decltype) {
-        check_symbol(ctx, l, name);
-        sym = make_symbol(ctx, l, TK_VAR, 0);
-        sym->is_const = decltype == TK_CONST;
+        sym = set_placeholder(ctx, l, name);
+        if (!sym) {
+            check_symbol(ctx, l, name);
+            sym = make_symbol(ctx, l, TK_VAR, 0);
+            sym->is_const = decltype == TK_CONST;
+        }
     } else {
         sym = make_ref_symbol(ctx, l, TK_VAR, name);
         if (!sym) {
-            sym = make_symbol(ctx, l, TK_VAR, 0);
+            sym = set_placeholder(ctx, l, name);
+            if (!sym) {
+                sym = make_symbol(ctx, l, TK_VAR, 0);
+            }
         }
     }
     sym->name = parse_const_str(ctx, l, name);
@@ -738,7 +794,7 @@ static kl_expr *parse_lvalue_factor(kl_context *ctx, kl_lexer *l)
             if (ctx->in_lvalue) {
                 parse_error(ctx, __LINE__, l, "The block function can't be the l-value");
             }
-            return parse_block_function(ctx, l);
+            return parse_block_function(ctx, l, 1);
         }
         e = make_expr(ctx, l, TK_VOBJ);
         if (l->tok != TK_RXBR) {
@@ -804,6 +860,12 @@ static kl_expr *parse_expr_factor(kl_context *ctx, kl_lexer *l)
             e = parse_expr_factor(ctx, l);
             e = make_conn_expr(ctx, l, TK_DOT3, e, NULL);
         }
+        break;
+    case TK_AND:
+        if (ctx->in_lvalue) {
+            parse_error(ctx, __LINE__, l, "The block function can't be the l-value");
+        }
+        e = parse_block_function(ctx, l, 0);
         break;
     case TK_NAME:
         e = parse_expr_varname(ctx, l, l->str, ctx->in_lvalue);
@@ -905,7 +967,7 @@ static kl_expr *parse_expr_postfix(kl_context *ctx, kl_lexer *l, int is_new)
             lexer_fetch(l);
             if (l->tok == TK_LXBR) {
                 lexer_fetch(l);
-                kl_expr *block = parse_block_function(ctx, l);
+                kl_expr *block = parse_block_function(ctx, l, 1);
                 lhs->rhs = make_bin_expr(ctx, l, TK_COMMA, lhs->rhs, block);
             }
             tok = l->tok;
@@ -917,7 +979,7 @@ static kl_expr *parse_expr_postfix(kl_context *ctx, kl_lexer *l, int is_new)
                 is_new = 0; /* `new` operator will take effect to only the first call operation. */
             }
             lexer_fetch(l);
-            kl_expr *block = parse_block_function(ctx, l);
+            kl_expr *block = parse_block_function(ctx, l, 1);
             lhs = make_bin_expr(ctx, l, TK_CALL, lhs, block);
             lhs->typeid = tid;
             tok = l->tok;
@@ -1961,7 +2023,7 @@ static kl_stmt *parse_module(kl_context *ctx, kl_lexer *l)
     return s;
 }
 
-static kl_expr *parse_block_function(kl_context *ctx, kl_lexer *l)
+static kl_expr *parse_block_function(kl_context *ctx, kl_lexer *l, int is_block)
 {
     kl_expr *e = make_expr(ctx, l, TK_FUNC);
     kl_symbol *sym = make_symbol(ctx, l, TK_FUNC, 1);
@@ -1981,41 +2043,51 @@ static kl_expr *parse_block_function(kl_context *ctx, kl_lexer *l)
 
     if (l->tok == TK_AND) {
         lexer_fetch(l);
-
-        /* Function arguments */
-        if (l->tok != TK_LSBR) {
-            parse_error(ctx, __LINE__, l, "The '(' is missing");
-            return panic_mode_expr(e, '{', ctx, l);
+        if (!is_block && l->tok == TK_LXBR) {
+            is_block = 1;
+            lexer_fetch(l);
+        } else {
+            /* Function arguments */
+            if (l->tok != TK_LSBR) {
+                parse_error(ctx, __LINE__, l, "The '(' is missing");
+                return panic_mode_expr(e, '{', ctx, l);
+            }
+            lexer_fetch(l);
+            ctx->in_lvalue = TK_LET;
+            e->e = sym->args = parse_def_arglist(ctx, l, sym);
+            sym->argcount = sym->idxmax;
+            ctx->in_lvalue = 0;
+            if (l->tok != TK_RSBR) {
+                parse_error(ctx, __LINE__, l, "The ')' is missing");
+                return e;
+            }
+            lexer_fetch(l);
         }
-        lexer_fetch(l);
-        ctx->in_lvalue = TK_LET;
-        e->e = sym->args = parse_def_arglist(ctx, l, sym);
-        sym->argcount = sym->idxmax;
-        ctx->in_lvalue = 0;
-        if (l->tok != TK_RSBR) {
-            parse_error(ctx, __LINE__, l, "The ')' is missing");
-            return e;
-        }
-        lexer_fetch(l);
     } 
 
     if (l->tok == TK_DARROW) {
         lexer_fetch(l);
-        e->s = make_stmt(ctx, l, TK_RETURN);
-        e->s->e1 = parse_expression(ctx, l);
+        if (l->tok == TK_LXBR) {
+            e->s = parse_statement(ctx, l);
+        } else {
+            e->s = make_stmt(ctx, l, TK_RETURN);
+            e->s->e1 = parse_expression(ctx, l);
+        }
     } else {
         e->s = parse_statement_list(ctx, l);
     }
 
-    if (l->tok != TK_RXBR) {
-        parse_error(ctx, __LINE__, l, "The '}' is missing");
-        return e;
+    if (is_block) {
+        if (l->tok != TK_RXBR) {
+            parse_error(ctx, __LINE__, l, "The '}' is missing");
+            return e;
+        }
+        lexer_fetch(l);
     }
 
     sym->prototype = create_prototype(ctx, l, sym);
     ctx->scope = sym->scope;
     pop_nsstack(ctx);
-    lexer_fetch(l);
     return e;
 }
 

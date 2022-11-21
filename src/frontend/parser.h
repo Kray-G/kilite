@@ -34,6 +34,7 @@ typedef struct kl_symbol {
     int level;                      //  The level of lexical scope, which means a distance from the scope having the 'ref' symbol.
     int index;                      //  The index of this symbol.
     int count;                      //  Variable counter in this scope.
+    int placemax;                   //  The current placeholder max.
     int idxmax;                     //  The current index max.
     int argcount;                   //  The number of arguments.
     int funcid;                     //  The function id to specify the function.
@@ -116,7 +117,8 @@ typedef struct kl_context {
     int error_limit;                //  If the error count exceeds this value, stop parsing and exit the program.
     int options;                    //  Options for parser.
     int in_lvalue;                  //  The decltype in parsing l-value.
-    int in_finally;                 //  The decltype in parsing l-value.
+    int in_finally;                 //  To check if the statement is a finally clause.
+    int in_catch;                   //  To check if the statement is a catch clause.
     int callcnt;                    //  Current call count to call method.
     kl_stmt *head;                  //  The head of object tree.
     kl_nsstack *ns;                 //  Namespace stack.

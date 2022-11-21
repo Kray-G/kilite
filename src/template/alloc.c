@@ -166,7 +166,7 @@ vmstr *alcstr_str(vmctx *ctx, const char *s)
     vmstr *v = alcstr_pure(ctx);
     int len = s ? strlen(s) : -1;
     if (v->cap > 0) {
-        if (len < v->cap) {
+        if (0 <= len && len < v->cap) {
             strcpy(v->s, s);
             v->len = len;
             v->hd = v->s;

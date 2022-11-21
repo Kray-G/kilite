@@ -236,6 +236,9 @@ int main(int ac, char **av)
     ctx->program->verbose = opts.verbose;
     if (opts.out_src && (opts.out_csrc || opts.out_cdebug)) {
         s = translate(ctx->program, opts.out_cdebug ? TRANS_DEBUG : TRANS_SRC);
+        if (opts.out_cdebug) {
+            printf("%s", vmheader());
+        }
         printf("%s\n", s);
         if (opts.out_cdebug) {
             printf("void setup_context(vmctx *ctx)\n{\n");

@@ -113,10 +113,10 @@ vmstr *str_append_ch(vmctx *ctx, vmstr *vs, const char ch)
     return str_append_impl(ctx, vs, buf, 1);
 }
 
-vmstr *str_append_dbl(vmctx *ctx, vmstr *vs, double d)
+vmstr *str_append_dbl(vmctx *ctx, vmstr *vs, double *d)
 {
     char buf[256] = {0};
-    xsprintf(buf, "%.16g", d);
+    xsprintf(buf, "%.16g", *d);
     return str_append_impl(ctx, vs, buf, strlen(buf));
 }
 
@@ -150,7 +150,7 @@ vmstr *str_from_i64(vmctx *ctx, int64_t i)
     return str_append_i64(ctx, vs, i);
 }
 
-vmstr *str_from_dbl(vmctx *ctx, double d)
+vmstr *str_from_dbl(vmctx *ctx, double *d)
 {
     vmstr *vs = alcstr_str(ctx, NULL);
     return str_append_dbl(ctx, vs, d);

@@ -295,6 +295,14 @@ static int check_pure_function_expr(kl_context *ctx, kl_expr *e)
         }
         break;
     }
+    case TK_CALL: {
+        kl_expr *l = e->lhs;
+        if (l->nodetype == TK_VAR) {
+            if (!(l->sym->is_callable && l->sym->is_recursive)) {
+                return 0;
+            }
+        }
+    }
     default:
         break;
     }

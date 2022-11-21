@@ -5,7 +5,14 @@
 
 /* Integer functions */
 
-function Integer_times(n:int64, f:func) {
+function Integer_times(n:int64, f) {
+    if (f.isUndefined) {
+        let a = [];
+        for (var i:int64 = 0; i < n; ++i) {
+            a.push(i);
+        }
+        return a;
+    }
     for (var i:int64 = 0; i < n; ++i) {
         f(i);
     }
@@ -16,6 +23,15 @@ function Integer_times(n:int64, f:func) {
 function Array_each(a:obj, f:func) {
     let n:int64 = a.size();
     for (var i:int64 = 0; i < n; ++i) {
-        f(a[i]);
+        f(a[i], i);
     }
+}
+
+function Array_map(a:obj, f:func) {
+    let r:obj = {};
+    let n:int64 = a.size();
+    for (var i:int64 = 0; i < n; ++i) {
+        r.push(f(a[i], i));
+    }
+    return r;
 }

@@ -229,7 +229,6 @@ int run(int *ret, const char *fname, const char *src, int ac, char **av, char **
         MIR_load_external(ctx, "SystemTimer_restart_impl", SystemTimer_restart_impl);
         MIR_load_external(ctx, "SystemTimer_elapsed_impl", SystemTimer_elapsed_impl);
         MIR_load_external(ctx, "Math_random_impl", Math_random_impl);
-        MIR_load_external(ctx, "_putchar", putchar);
         MIR_item_t main_func = load_main_modules(ctx);
         if (main_func == NULL || main_func->addr == NULL) {
             printf("Can't find the 'main'\n");

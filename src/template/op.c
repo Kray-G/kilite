@@ -139,7 +139,7 @@ int add_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
             break;
         case VAR_STR:
             r->t = VAR_STR;
-            r->s = str_from_dbl(ctx, v0->d);
+            r->s = str_from_dbl(ctx, &(v0->d));
             str_append_str(ctx, r->s, v1->s);
             break;
         case VAR_FNC:
@@ -168,7 +168,7 @@ int add_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
         case VAR_DBL:
             r->t = VAR_STR;
             r->s = str_dup(ctx, v0->s);
-            str_append_dbl(ctx, r->s, v1->d);
+            str_append_dbl(ctx, r->s, &(v1->d));
             break;
         case VAR_STR: {
             vmstr *s = str_dup(ctx, v0->s);

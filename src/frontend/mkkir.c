@@ -1111,8 +1111,15 @@ static kl_kir_inst *gen_ret(kl_context *ctx, kl_symbol *sym, kl_stmt *s)
 
 static kl_kir_inst *gen_throw(kl_context *ctx, kl_symbol *sym, kl_stmt *s)
 {
+    kl_kir_inst *fin = NULL;
     kl_kir_inst *head = NULL;
     kl_kir_inst *last = NULL;
+
+    if (ctx->in_catch && ctx->fincode) {
+        ctx->in_finally = 1;
+        fin = gen_block(ctx, sym, ctx->fincode);
+        ctx->in_finally = 0;
+    }
 
     if (s->e1) {
         kl_kir_opr r1 = make_ret_var(ctx, sym);
@@ -1138,6 +1145,11 @@ static kl_kir_inst *gen_throw(kl_context *ctx, kl_symbol *sym, kl_stmt *s)
     set_file_func(ctx, sym, last);
     last->labelid = ctx->tclabel > 0 ? ctx->tclabel : sym->funcend;
 
+    if (fin) {
+        last = get_last(fin);
+        last->next = head;
+        head = fin;
+    }
     return head;
 }
 
@@ -1379,6 +1391,7 @@ static kl_kir_inst *gen_try(kl_context *ctx, kl_symbol *sym, kl_stmt *s)
     last = last->next;
 
     if (s->s2) {
+        ctx->in_catch = 1;
         last->next = new_inst_label(ctx->program, s->line, s->pos, ctx->tclabel, last, 0);
         last = last->next;
         ctx->tclabel = tclabel;
@@ -1390,6 +1403,7 @@ static kl_kir_inst *gen_try(kl_context *ctx, kl_symbol *sym, kl_stmt *s)
         }
         last->next = gen_stmt(ctx, sym, s->s2);
         KIR_MOVE_LAST(last);
+        ctx->in_catch = 0;
         if (last->opcode != KIR_JMP && last->opcode != KIR_THROW && last->opcode != KIR_THROWE && last->opcode != KIR_RET) {
             if (s->s3) {
                 ctx->in_finally = 1;
@@ -1723,27 +1737,11 @@ static kl_kir_inst *gen_block(kl_context *ctx, kl_symbol *sym, kl_stmt *s)
     return head;
 }
 
-static kl_kir_inst *gen_args(kl_context *ctx, kl_symbol *sym, kl_expr *e)
-{
-    kl_kir_inst *head = NULL;
-    if (e->nodetype == TK_COMMA) {
-        head = gen_args(ctx, sym, e->lhs);
-        if (!head) {
-            head = gen_args(ctx, sym, e->rhs);
-        } else {
-            kl_kir_inst *last = get_last(head);
-            last->next = gen_args(ctx, sym, e->rhs);
-        }
-    } else {
-        if (e->s) {
-            head = gen_stmt(ctx, sym, e->s);
-        }
-    }
-    return head;
-}
-
 static kl_kir_inst *gen_setargs(kl_context *ctx, kl_symbol *sym, kl_expr *e, int *idx)
 {
+    if (!e) {
+        return NULL;
+    }
     kl_kir_inst *head = NULL;
     if (e->nodetype == TK_COMMA) {
         head = gen_setargs(ctx, sym, e->lhs, idx);
@@ -1766,8 +1764,38 @@ static kl_kir_inst *gen_setargs(kl_context *ctx, kl_symbol *sym, kl_expr *e, int
     return head;
 }
 
+static kl_kir_inst *gen_args(kl_context *ctx, kl_symbol *sym, kl_expr *e)
+{
+    if (!e) {
+        return NULL;
+    }
+    kl_kir_inst *head = NULL;
+    if (e->nodetype == TK_COMMA) {
+        head = gen_args(ctx, sym, e->lhs);
+        if (!head) {
+            head = gen_args(ctx, sym, e->rhs);
+        } else {
+            kl_kir_inst *last = get_last(head);
+            last->next = gen_args(ctx, sym, e->rhs);
+        }
+    } else {
+        if (e->s) {
+            head = gen_stmt(ctx, sym, e->s);
+        }
+    }
+    return head;
+}
+
 static kl_kir_func *gen_function(kl_context *ctx, kl_symbol *sym, kl_stmt *s, kl_symbol *initer)
 {
+    // adjustment of arguments count.
+    if (sym->idxmax < sym->placemax) {
+        sym->idxmax = sym->placemax;
+    }
+    if (sym->argcount < sym->placemax) {
+        sym->argcount = sym->placemax;
+    }
+
     kl_kir_inst *last = NULL;
     kl_kir_func *func = new_func(ctx, sym->line, sym->pos, sym->name);
     func->has_frame = sym->has_func;
@@ -1782,18 +1810,24 @@ static kl_kir_func *gen_function(kl_context *ctx, kl_symbol *sym, kl_stmt *s, kl
     }
     set_file_func(ctx, sym, last);
 
-    if (sym->args) {
-        int idx = 0;
-        kl_kir_inst *setargs = gen_setargs(ctx, sym, sym->args, &idx);
-        if (setargs) {
-            last->next = setargs;
-            last = get_last(last);
+    int idx = 0;
+    kl_kir_inst *setargs = gen_setargs(ctx, sym, sym->args, &idx);
+    if (setargs) {
+        last->next = setargs;
+        last = get_last(last);
+    }
+    if (idx < sym->placemax) {
+        for (int i = idx; i < sym->placemax; ++i) {
+            kl_kir_opr rn = make_lit_i64(ctx, i);
+            kl_kir_opr ri = make_lit_i64(ctx, i);
+            last->next = new_inst_op2(ctx->program, s->line, s->pos, KIR_SETARG, &rn, &ri);
+            last = last->next;
         }
-        kl_kir_inst *args = gen_args(ctx, sym, sym->args);
-        if (args) {
-            last->next = args;
-            last = get_last(last);
-        }
+    }
+    kl_kir_inst *args = gen_args(ctx, sym, sym->args);
+    if (args) {
+        last->next = args;
+        last = get_last(last);
     }
     last->next = new_inst(ctx->program, sym->line, sym->pos, KIR_PURE);
     last = last->next;

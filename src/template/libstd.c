@@ -17,6 +17,13 @@ extern void *SystemTimer_init(void);
 extern void SystemTimer_restart_impl(void *p);
 extern double SystemTimer_elapsed_impl(void *p);
 
+/* Basic functions */
+
+void _putchar(char ch)
+{
+    putchar(ch);
+}
+
 /* Exceptions */
 
 int exception_addtrace(vmctx *ctx, vmvar *e, const char *funcname, const char *filename, int linenum)
@@ -347,22 +354,33 @@ static int Fiber_resume(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     f1->created = 0;
 
     int args;
-    if (ac == 2) {
-        vmvar *vn = local_var(ctx, 1);
-        push_var(ctx, vn, L0, __func__, __FILE__, __LINE__);
-        args = 1;
-    } else if (ac > 2) {
-        vmvar *vn = alcvar_obj(ctx, alcobj(ctx));
+    if (f1->yield == 0) {
+        args = ac - 1;
+        vmvar **aa = alloca(args);
         for (int i = 1; i < ac; ++i) {
-            vmvar *aa = local_var(ctx, i);
-            vmvar *ax = alcvar_initial(ctx);
-            SHCOPY_VAR_TO(ctx, ax, aa);
-            array_push(ctx, vn->o, ax);
+            aa[i-1] = local_var(ctx, i);
         }
-        push_var(ctx, vn, L0, __func__, __FILE__, __LINE__);
-        args = 1;
+        for (int i = ac - 2; i >= 0; --i) {
+            push_var(ctx, aa[i], L0, __func__, __FILE__, __LINE__);
+        }
     } else {
-        args = 0;
+        if (ac == 2) {
+            vmvar *vn = local_var(ctx, 1);
+            push_var(ctx, vn, L0, __func__, __FILE__, __LINE__);
+            args = 1;
+        } else if (ac > 2) {
+            vmvar *vn = alcvar_obj(ctx, alcobj(ctx));
+            for (int i = 1; i < ac; ++i) {
+                vmvar *aa = local_var(ctx, i);
+                vmvar *ax = alcvar_initial(ctx);
+                SHCOPY_VAR_TO(ctx, ax, aa);
+                array_push(ctx, vn->o, ax);
+            }
+            push_var(ctx, vn, L0, __func__, __FILE__, __LINE__);
+            args = 1;
+        } else {
+            args = 0;
+        }
     }
     int p = vstackp(ctx);
     vmfnc *callee = ctx->callee;
@@ -636,11 +654,40 @@ int Binary(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 /* Array/Object */
 
 extern int Array_each(vmctx *ctx, vmfrm *lex, vmvar *r, int ac);
+extern int Array_map(vmctx *ctx, vmfrm *lex, vmvar *r, int ac);
 
 int Array_size(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     DEF_ARG(a0, 0, VAR_OBJ);
     SET_I64(r, a0->o->idxsz);
+    return 0;
+}
+
+int Array_join(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    DEF_ARG(a0, 0, VAR_OBJ);
+    DEF_ARG(a1, 1, VAR_STR);
+    SET_STR(r, "");
+    vmobj *o = a0->o;
+    int n = o->idxsz;
+    if (n > 0) {
+        add_v_v(ctx, r, r, o->ary[0]);
+        for (int i = 1; i < n; ++i) {
+            add_v_v(ctx, r, r, a1);
+            add_v_v(ctx, r, r, o->ary[i]);
+        }
+    }
+    return 0;
+}
+
+int Array_push(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    DEF_ARG(a0, 0, VAR_OBJ);
+    vmobj *o = a0->o;
+    for (int i = 1; i < ac; ++i) {
+        vmvar *aa = local_var(ctx, i);
+        array_push(ctx, o, copy_var(ctx, aa, 0));
+    }
     return 0;
 }
 
@@ -656,9 +703,12 @@ int Array(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     vmobj *o = alcobj(ctx);
     ctx->o = o;
-    KL_SET_METHOD(o, size, Array_size, 1)
-    KL_SET_METHOD(o, each, Array_each, 1)
+    KL_SET_METHOD(o, each, Array_each, 2)
+    KL_SET_METHOD(o, push, Array_push, 1)
+    KL_SET_METHOD(o, map, Array_map, 1)
+    KL_SET_METHOD(o, join, Array_join, 1)
     KL_SET_METHOD(o, keys, Object_keys, 1)
+    KL_SET_METHOD(o, size, Array_size, 1)
     SET_OBJ(r, o);
     return 0;
 }

@@ -8,7 +8,7 @@ Lambda is a simple style of an anonymous function.
 `&` is used instead of `function`, and `=> expression` is used instead of block.
 
 ```javascript
-var calc = &(func, a, b) => func(a, b);
+var calc = &(f, a, b) => f(a, b);
 System.println(calc(&(a, b) => a + b, 2, 3));   // 5
 ```
 
@@ -263,7 +263,7 @@ System.println(test(1.5));
 var n = 10000;
 var loop_while = &(n) => {
     var v = 0, i = 0;
-    LABEL::
+    LABEL:
     while (1) {
         while (i <= n) {
             if (i == 9) {
@@ -293,7 +293,7 @@ while(10000) = 46
 var n = 10000;
 var loop_for = &(n) => {
     var v = 0;
-    LABEL::
+    LABEL:
     while (1) {
         for (var i = 0; i <= n; ++i) {
             if (i == 9) continue;
@@ -320,7 +320,7 @@ for(10000) = 46
 var n = 10000;
 var loop_do_while = &(n) => {
     var v = 0, i = 0;
-    LABEL::
+    LABEL:
     while (1) {
         do {
             if (i == 9) {
@@ -389,6 +389,8 @@ try {
 b = 100
 Divide by zero
 Stack Trace Information:
+        at function anonymous_func2(test.kx:9)
+        at function anonymous_func2(test.kx:16)
         at <main-block>(test.kx:27)
 b = 102
 c = 999
@@ -399,8 +401,8 @@ c = 999
 #### Code
 
 ```javascript
-function calc(x, y, func) {
-    return func(x, y);
+function calc(x, y, f) {
+    return f(x, y);
 }
 
 // The callback function can be put outside an arugument list.
