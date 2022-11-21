@@ -64,7 +64,7 @@ cat ../src/template/obj.c >> $TEMPF
 cat ../src/template/op.c >> $TEMPF
 cat ../src/template/libstd.c >> $TEMPF
 cd ../src/template/std
-$BIN/kilite.exe --makelib callbacks.klt >> $TEMPF
+$BIN/kilite --makelib callbacks.klt >> $TEMPF
 cd $BIN
 
 ./c2m -DUSE_INT64 -I lib -c $TEMPF
