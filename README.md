@@ -150,6 +150,9 @@ I will note the followings as I don't forget it.
     * [x] Make the factorial recursive function work with big integer.
     * [x] All basic comparisons including `<=>`.
     * [x] `&&` and `||` as a shortcut operator.
+      * [ ] `&&=` and `||=` as a shortcut operator.
+      * [ ] `??` as a shortcut operator.
+      * [ ] `??=` as a shortcut operator.
     * [x] String operations.
     * [x] Array operations.
     * [x] Object operations.
