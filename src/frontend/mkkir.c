@@ -334,6 +334,9 @@ static kl_kir_opr make_var(kl_context *ctx, kl_symbol *sym, tk_typeid tid)
 
 static kl_kir_opr make_ret_var(kl_context *ctx, kl_symbol *sym)
 {
+    if (ctx->in_finally) {
+        return make_var(ctx, sym, TK_TANY);
+    }
     kl_kir_opr r1 = {
         .t = TK_VAR,
         .index = -1,
@@ -1012,6 +1015,74 @@ static kl_kir_inst *gen_not(kl_context *ctx, kl_symbol *sym, kl_kir_opr *r1, kl_
     return head;
 }
 
+static int is_same_array_index(kl_expr *a, kl_expr *b)
+{
+    if (a->nodetype == TK_VSINT && b->nodetype == TK_VSINT) {
+        return a->val.i64 == b->val.i64;
+    }
+    return 0;
+}
+
+static int is_same_var(kl_expr *a, kl_expr *b)
+{
+    if (a->nodetype == TK_VAR && b->nodetype == TK_VAR) {
+        kl_symbol *sa = a->sym;
+        kl_symbol *sb = b->sym;
+        return sa && sb && sa->index == sb->index && sa->level == sb->level;
+    }
+    return 0;
+}
+
+static int is_same_elem(kl_expr *a, kl_expr *b)
+{
+    if (a->nodetype == TK_IDX && b->nodetype == TK_IDX) {
+        if (is_same_var(a->lhs, b->lhs)) {
+            if (is_same_var(a->rhs, b->rhs) || is_same_array_index(a->rhs, b->rhs)) {
+                return 1;
+            }
+        }
+    }
+
+    return 0;
+}
+
+static kl_kir_inst *check_swap(kl_context *ctx, kl_symbol *sym, kl_kir_opr *r1, kl_expr *e)
+{
+    kl_kir_inst *head = NULL;
+    kl_expr *l = e->lhs;
+    kl_expr *r = e->rhs;
+    if (l->nodetype == TK_VARY && r->nodetype == TK_VARY) {
+        l = l->lhs; /* l should be TK_COMMA */
+        r = r->lhs; /* r should be TK_COMMA */
+        kl_expr *ll = l->lhs;
+        kl_expr *lr = l->rhs;
+        kl_expr *rl = r->lhs;
+        kl_expr *rr = r->rhs;
+        if (is_same_var(ll, rr) && is_same_var(lr, rl)) {
+            kl_symbol *sl = ll->sym;
+            kl_symbol *sr = lr->sym;
+            kl_kir_opr r2 = make_var_index(ctx, sl->index, sl->level, sl->typeid);
+            kl_kir_opr r3 = make_var_index(ctx, sr->index, sr->level, sr->typeid);
+            head = new_inst_op2(ctx->program, e->line, e->pos, KIR_SWAP, &r2, &r3);
+        } else if (is_same_elem(ll, rr) && is_same_elem(lr, rl)) {
+            kl_kir_opr r2 = make_var(ctx, sym, l->lhs->typeid);
+            kl_kir_opr r3 = make_var(ctx, sym, l->rhs->typeid);
+            ctx->in_lvalue = 1;
+            kl_kir_inst *r2i = gen_apply(ctx, sym, &r2, l->lhs);
+            kl_kir_inst *r3i = gen_apply(ctx, sym, &r3, l->rhs);
+            ctx->in_lvalue = 0;
+            head = new_inst_op2(ctx->program, e->line, e->pos, KIR_SWAPA, &r2, &r3);
+            kl_kir_inst *last = get_last(r2i);
+            last->next = r3i;
+            last = get_last(r3i);
+            last->next = head;
+            head = r2i;
+        }
+    }
+
+    return head;
+}
+
 static kl_kir_inst *gen_assign(kl_context *ctx, kl_symbol *sym, kl_kir_opr *r1, kl_expr *e)
 {
     kl_expr *l = e->lhs;
@@ -1024,6 +1095,11 @@ static kl_kir_inst *gen_assign(kl_context *ctx, kl_symbol *sym, kl_kir_opr *r1, 
         if (r1 && r1->index >= 0 && (r1->index != rr.index || r1->level != rr.level)) {
             last->next = new_inst_op2(ctx->program, l->line, l->pos, KIR_MOV, r1, &rr);
         }
+        return head;
+    }
+
+    head = check_swap(ctx, sym, r1, e);
+    if (head) {
         return head;
     }
 

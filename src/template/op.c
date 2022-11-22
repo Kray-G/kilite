@@ -21,7 +21,11 @@ int not_v(vmctx *ctx, vmvar *r, vmvar *v)
         r->i = v->s->len == 0;
         break;
     case VAR_FNC:
+        return throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION, NULL);
     case VAR_OBJ:
+        r->t = VAR_INT64;
+        r->i = v->o->idxsz == 0;
+        break;
     default:
         return throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION, NULL);
     }
@@ -883,7 +887,7 @@ int mod_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
             r->o = alcobj(ctx);
             r->o->is_formatter = 1;
             hashmap_set(ctx, r->o, "_format", v0);
-            array_set(ctx, r->o, 0, v1);
+            array_push(ctx, r->o, v1);
             break;
         case VAR_FNC:
         default:

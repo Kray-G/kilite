@@ -312,6 +312,12 @@ void disp_inst(kl_kir_program *p, kl_kir_inst *i)
         disp_3op("type", i);
         break;
 
+    case KIR_SWAP:
+        disp_2op("swap", i);
+        break;
+    case KIR_SWAPA:
+        disp_2op("swapa", i);
+        break;
     case KIR_RANGEF:
         disp_3op("rangef", i);
         break;

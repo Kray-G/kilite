@@ -890,6 +890,31 @@ static void translate_type(xstr *code, kl_kir_inst *i)
     }
 }
 
+static void translate_swap(func_context *fctx, xstr *code, kl_kir_inst *i)
+{
+    char buf1[256] = {0};
+    char buf2[256] = {0};
+    var_value(buf1, &(i->r1));
+    var_value(buf2, &(i->r2));
+    xstra_inst(code, "{ vmvar tmp; SHCOPY_VAR_TO(ctx, (&tmp), %s); SHCOPY_VAR_TO(ctx, %s, %s); SHCOPY_VAR_TO(ctx, %s, (&tmp)); }\n",
+        buf1, buf1, buf2, buf2
+    );
+}
+
+static void translate_swapa(func_context *fctx, xstr *code, kl_kir_inst *i)
+{
+    char buf1[256] = {0};
+    char buf2[256] = {0};
+    var_value(buf1, &(i->r1));
+    var_value(buf2, &(i->r2));
+    xstra_inst(code, "{ vmvar tmp; SHCOPY_VAR_TO(ctx, (&tmp), (%s)->a); SHCOPY_VAR_TO(ctx, (%s)->a, (%s)->a); SHCOPY_VAR_TO(ctx, (%s)->a, (&tmp)); }\n",
+        buf1, buf1, buf2, buf2
+    );
+    xstra_inst(code, "SHMOVE_VAR_TO(ctx, (%s), (%s)->a); SHMOVE_VAR_TO(ctx, (%s), (%s)->a);\n",
+        buf1, buf1, buf2, buf2
+    );
+}
+
 static void translate_range(func_context *fctx, xstr *code, kl_kir_inst *i, int excl)
 {
     char buf1[256] = {0};
@@ -1357,6 +1382,12 @@ static void translate_inst(xstr *code, kl_kir_func *f, kl_kir_inst *i, func_cont
         translate_type(code, i);
         break;
 
+    case KIR_SWAP:
+        translate_swap(fctx, code, i);
+        break;
+    case KIR_SWAPA:
+        translate_swapa(fctx, code, i);
+        break;
     case KIR_RANGEF:
         translate_range(fctx, code, i, 0);
         break;

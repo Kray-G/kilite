@@ -307,28 +307,30 @@ int throw_system_exception(int line, vmctx *ctx, int id, const char *msg)
 
 /* System */
 
-static int print(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+static int System_print(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     for (int i = 0; i < ac; ++i) {
         vmvar *an = local_var(ctx, i);
         print_obj(ctx, an);
     }
+    r->t = VAR_UNDEF;
 }
 
-static int println(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+static int System_println(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     for (int i = 0; i < ac; ++i) {
         vmvar *an = local_var(ctx, i);
         print_obj(ctx, an);
     }
     printf("\n");
+    r->t = VAR_UNDEF;
 }
 
 int System(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     vmobj *o = alcobj(ctx);
-    KL_SET_METHOD(o, print, print, ctx->frm, 1)
-    KL_SET_METHOD(o, println, println, ctx->frm, 1)
+    KL_SET_METHOD(o, print, System_print, ctx->frm, 1)
+    KL_SET_METHOD(o, println, System_println, ctx->frm, 1)
     SET_OBJ(r, o);
     return 0;
 }
