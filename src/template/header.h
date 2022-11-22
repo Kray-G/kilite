@@ -40,6 +40,7 @@ int strcmp(const char *s1, const char *s2);
 /* System Exceptions */
 enum {
     EXCEPT_EXCEPTION = 0,
+    EXCEPT_NOT_IMPLEMENTED,
     EXCEPT_RUNTIME_EXCEPTION,
     EXCEPT_STACK_OVERFLOW,
     EXCEPT_DIVIDE_BY_ZERO,
@@ -50,6 +51,7 @@ enum {
     EXCEPT_TYPE_MISMATCH,
     EXCEPT_INVALID_FIBER_STATE,
     EXCEPT_DEAD_FIBER_CALLED,
+    EXCEPT_RANGE_ERROR,
     EXCEPT_MAX,
 };
 
@@ -200,6 +202,7 @@ typedef struct vmctx {
     int gccnt;
     int verbose;
     int print_result;
+    const char *msgbuf;     /* Temporary used for the exception message, etc. */
 
     int vstksz;
     int vstkp;
@@ -252,7 +255,7 @@ typedef struct vmctx {
 
 #define push_frm(ctx, e, frm, label, func, file, line) do { \
     if ((ctx)->fstksz <= (ctx)->fstkp) { \
-        e = throw_system_exception(__LINE__, ctx, EXCEPT_STACK_OVERFLOW); \
+        e = throw_system_exception(__LINE__, ctx, EXCEPT_STACK_OVERFLOW, NULL); \
         exception_addtrace(ctx, ctx->except, func, file, line); \
         goto label; \
     } \
@@ -263,7 +266,7 @@ typedef struct vmctx {
 
 #define alloc_var(ctx, n, label, func, file, line) do { \
     if ((ctx)->vstksz <= ((ctx)->vstkp + n)) { \
-        e = throw_system_exception(__LINE__, ctx, EXCEPT_STACK_OVERFLOW); \
+        e = throw_system_exception(__LINE__, ctx, EXCEPT_STACK_OVERFLOW, NULL); \
         exception_addtrace(ctx, ctx->except, func, file, line); \
         goto label; \
     } \
@@ -274,7 +277,7 @@ typedef struct vmctx {
 #define push_var_def(ctx, label, func, file, line, pushcode) \
     do { \
         if ((ctx)->vstksz <= (ctx)->vstkp) { \
-            e = throw_system_exception(__LINE__, ctx, EXCEPT_STACK_OVERFLOW); \
+            e = throw_system_exception(__LINE__, ctx, EXCEPT_STACK_OVERFLOW, NULL); \
             exception_addtrace(ctx, ctx->except, func, file, line); \
             goto label; \
         } \
@@ -291,7 +294,7 @@ typedef struct vmctx {
 #define push_var_sys(ctx, v, fn, label, func, file, line) \
     if (v->t == VAR_OBJ && v->o->is_sysobj) { \
         if ((ctx)->vstksz <= (ctx)->vstkp) { \
-            e = throw_system_exception(__LINE__, ctx, EXCEPT_STACK_OVERFLOW); \
+            e = throw_system_exception(__LINE__, ctx, EXCEPT_STACK_OVERFLOW, NULL); \
             exception_addtrace(ctx, ctx->except, func, file, line); \
             goto label; \
         } \
@@ -309,7 +312,7 @@ typedef struct vmctx {
         int idxsz = (v)->o->idxsz; \
         fn += idxsz - 1;\
         if ((ctx)->vstksz <= ((ctx)->vstkp + idxsz)) { \
-            e = throw_system_exception(__LINE__, ctx, EXCEPT_STACK_OVERFLOW); \
+            e = throw_system_exception(__LINE__, ctx, EXCEPT_STACK_OVERFLOW, NULL); \
             exception_addtrace(ctx, ctx->except, func, file, line); \
             goto label; \
         } \
@@ -343,7 +346,7 @@ typedef struct vmctx {
         (v)->t = VAR_INT64; \
         (v)->i = (int64_t)((v)->d); \
     } else if ((v)->t != VAR_INT64) { \
-        return throw_system_exception(__LINE__, ctx, EXCEPT_TYPE_MISMATCH); \
+        return throw_system_exception(__LINE__, ctx, EXCEPT_TYPE_MISMATCH, NULL); \
     } \
 } \
 /**/
@@ -356,7 +359,7 @@ typedef struct vmctx {
         (v)->t = VAR_DBL; \
         (v)->d = (double)((v)->i); \
     } else if ((v)->t != VAR_DBL) { \
-        return throw_system_exception(__LINE__, ctx, EXCEPT_TYPE_MISMATCH); \
+        return throw_system_exception(__LINE__, ctx, EXCEPT_TYPE_MISMATCH, NULL); \
     } \
 } \
 /**/
@@ -410,7 +413,7 @@ typedef struct vmctx {
              { push_var_s(ctx, "<global>", label, func, file, line); } \
             CALL((ctx->methodmissing), (ctx->methodmissing)->lex, r, ac + 1) \
         } else { \
-            e = throw_system_exception(__LINE__, ctx, EXCEPT_METHOD_MISSING); \
+            e = throw_system_exception(__LINE__, ctx, EXCEPT_METHOD_MISSING, NULL); \
             exception_addtrace(ctx, ctx->except, func, file, line); \
             goto label; \
         } \
@@ -553,7 +556,7 @@ typedef struct vmctx {
 
 #define CHKMATCH_I64(v, vi, label, func, file, line) { \
     if ((v)->t != VAR_INT64 || (v)->i != (vi)) { \
-        e = throw_system_exception(__LINE__, ctx, EXCEPT_NO_MATCHING_PATTERN); \
+        e = throw_system_exception(__LINE__, ctx, EXCEPT_NO_MATCHING_PATTERN, NULL); \
         exception_addtrace(ctx, ctx->except, func, file, line); \
         goto label; \
     } \
@@ -562,7 +565,7 @@ typedef struct vmctx {
 
 #define CHKMATCH_DBL(v, vd, label, func, file, line) { \
     if ((v)->t != VAR_DBL || DBL_EPSILON <= ((v)->d - (vd))) { \
-        e = throw_system_exception(__LINE__, ctx, EXCEPT_NO_MATCHING_PATTERN); \
+        e = throw_system_exception(__LINE__, ctx, EXCEPT_NO_MATCHING_PATTERN, NULL); \
         exception_addtrace(ctx, ctx->except, func, file, line); \
         goto label; \
     } \
@@ -571,7 +574,7 @@ typedef struct vmctx {
 
 #define CHKMATCH_STR(v, i, label, func, file, line) { \
     if ((v)->t != VAR_STR || strcmp((v)->s->s, (vs)) != 0) { \
-        e = throw_system_exception(__LINE__, ctx, EXCEPT_NO_MATCHING_PATTERN); \
+        e = throw_system_exception(__LINE__, ctx, EXCEPT_NO_MATCHING_PATTERN, NULL); \
         exception_addtrace(ctx, ctx->except, func, file, line); \
         goto label; \
     } \
@@ -581,6 +584,36 @@ typedef struct vmctx {
 /* Copy Variable */
 
 #define MAKE_SUPER(ctx, dst, src) { vmobj *o = hashmap_copy_method(ctx, src->o); (dst)->t = VAR_OBJ; (dst)->o = o; }
+
+#define MAKE_RANGE_I_I(ctx, dst, r1, r2, excl, label, func, file, line) { \
+    int beg = r1; \
+    int end = r2; \
+    Range_create_i(ctx, NULL, dst, &beg, &end, excl); \
+} \
+/**/
+
+#define MAKE_RANGE_I_N(ctx, dst, r1, excl, label, func, file, line) { \
+    int beg = r1; \
+    Range_create_i(ctx, NULL, dst, &beg, NULL, excl); \
+} \
+/**/
+
+#define MAKE_RANGE_N_I(ctx, dst, r2, excl, label, func, file, line) { \
+    int end = r2; \
+    Range_create_i(ctx, NULL, dst, NULL, &end, excl); \
+} \
+/**/
+
+#define MAKE_RANGE(ctx, dst, r1, r2, excl, label, func, file, line) { \
+    int pp = vstackp(ctx); \
+    vmfnc *f = alcfnc(ctx, Range_create, NULL, "Range.create", 3); \
+    { push_var_i(ctx, excl, label, func, file, line); } \
+    { push_var(ctx, r2, label, func, file, line); } \
+    { push_var(ctx, r1, label, func, file, line); } \
+    CALL(f, NULL, dst, 3) \
+    restore_vstackp(ctx, pp); \
+} \
+/**/
 
 #define SET_UNDEF(dst)  { (dst)->t = VAR_UNDEF;                                   }
 #define SET_I64(dst, v) { (dst)->t = VAR_INT64; (dst)->i  = (v);                  }
@@ -698,7 +731,7 @@ typedef struct vmctx {
     if (idx < ac) { \
         vmvar *aa = local_var(ctx, (idx + alc)); \
         if (aa->t != type) { \
-            e = throw_system_exception(__LINE__, ctx, EXCEPT_TYPE_MISMATCH); \
+            e = throw_system_exception(__LINE__, ctx, EXCEPT_TYPE_MISMATCH, NULL); \
             goto END; \
         } \
         SHCOPY_VAR_TO(ctx, n##vn, aa); \
@@ -1456,7 +1489,7 @@ typedef struct vmctx {
 
 #define OP_DIV_I_I(ctx, r, i0, i1, label, func, file, line) { \
     if (i1 == 0) { \
-        e = throw_system_exception(__LINE__, ctx, EXCEPT_DIVIDE_BY_ZERO); \
+        e = throw_system_exception(__LINE__, ctx, EXCEPT_DIVIDE_BY_ZERO, NULL); \
         exception_addtrace(ctx, ctx->except, func, file, line); \
         goto label; \
     } \
@@ -1467,7 +1500,7 @@ typedef struct vmctx {
 
 #define OP_DIV_B_I(ctx, r, v0, i1, label, func, file, line) { \
     if (i1 == 0) { \
-        e = throw_system_exception(__LINE__, ctx, EXCEPT_DIVIDE_BY_ZERO); \
+        e = throw_system_exception(__LINE__, ctx, EXCEPT_DIVIDE_BY_ZERO, NULL); \
         exception_addtrace(ctx, ctx->except, func, file, line); \
         goto label; \
     } \
@@ -1551,7 +1584,7 @@ typedef struct vmctx {
 
 #define OP_MOD_I_I(ctx, r, i0, i1, label, func, file, line) { \
     if (i1 < DBL_EPSILON) { \
-        e = throw_system_exception(__LINE__, ctx, EXCEPT_DIVIDE_BY_ZERO); \
+        e = throw_system_exception(__LINE__, ctx, EXCEPT_DIVIDE_BY_ZERO, NULL); \
         exception_addtrace(ctx, ctx->except, func, file, line); \
         goto label; \
     } \
@@ -1562,7 +1595,7 @@ typedef struct vmctx {
 
 #define OP_MOD_B_I(ctx, r, v0, i1, label, func, file, line) { \
     if (i1 < DBL_EPSILON) { \
-        e = throw_system_exception(__LINE__, ctx, EXCEPT_DIVIDE_BY_ZERO); \
+        e = throw_system_exception(__LINE__, ctx, EXCEPT_DIVIDE_BY_ZERO, NULL); \
         exception_addtrace(ctx, ctx->except, func, file, line); \
         goto label; \
     } \
@@ -1681,7 +1714,7 @@ typedef struct vmctx {
 /**/
 
 #define OP_POW_I_B(ctx, r, i0, v1, label, func, file, line) { \
-    e = throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION); \
+    e = throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION, NULL); \
     exception_addtrace(ctx, ctx->except, func, file, line); \
     goto label; \
 } \
@@ -1728,7 +1761,7 @@ typedef struct vmctx {
             int64_t ip1 = (vp1)->i; \
             OP_POW_B_I(ctx, r, vp0, ip1, label, func, file, line) \
         } else if ((vp1)->t = VAR_BIG) { \
-            e = throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION); \
+            e = throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION, NULL); \
             exception_addtrace(ctx, ctx->except, func, file, line); \
             goto label; \
         } else { \
@@ -2259,7 +2292,7 @@ INLINE extern vmobj *object_copy(vmctx *ctx, vmobj *src);
 INLINE extern vmobj *object_get_keys(vmctx *ctx, vmobj *src);
 
 INLINE extern int run_global(vmctx *ctx, vmfrm *lex, vmvar *r, int ac);
-INLINE extern int throw_system_exception(int line, vmctx *ctx, int id);
+INLINE extern int throw_system_exception(int line, vmctx *ctx, int id, const char *msg);
 INLINE extern int exception_addtrace(vmctx *ctx, vmvar *e, const char *funcname, const char *filename, int linenum);
 INLINE extern int exception_printtrace(vmctx *ctx, vmvar *e);
 INLINE extern int exception_uncaught(vmctx *ctx, vmvar *e);
@@ -2301,5 +2334,8 @@ INLINE extern int ge_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1);
 INLINE extern int lge_v_i(vmctx *ctx, vmvar *r, vmvar *v, int64_t i);
 INLINE extern int lge_i_v(vmctx *ctx, vmvar *r, int64_t i, vmvar *v);
 INLINE extern int lge_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1);
+
+INLINE extern int iRange_create_i(vmctx *ctx, vmfrm *lex, vmvar *r, int *beg, int *end, int excl);
+INLINE extern int Range_create(vmctx *ctx, vmfrm *lex, vmvar *r, int ac);
 
 #endif /* KILITE_TEMPLATE_HEADER_H */

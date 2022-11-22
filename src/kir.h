@@ -260,6 +260,8 @@ typedef enum kl_kir {
     KIR_TYPECHK,    //  <r1>, n                 ;   throw exception if <r1> type != n
 
     /* Special instructions */
+    KIR_RANGEF,     //  <r1>, <r2>, <r3>        ;   <r1>  <-  new Range(<r2>, <r3>, true)
+    KIR_RANGET,     //  <r1>, <r2>, <r3>        ;   <r1>  <-  new Range(<r2>, <r3>, false)
     KIR_ARYSIZE,    //  <r1>, <r2>              ;   <r1>  <-  <r2>.size()
 } kl_kir;
 
@@ -273,6 +275,7 @@ typedef enum vartype {
     VAR_BIN,
     VAR_OBJ,
     VAR_FNC,
+    VAR_DEF,
     VAR_VOIDP,
 } vartype;
 

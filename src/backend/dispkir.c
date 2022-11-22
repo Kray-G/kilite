@@ -312,6 +312,13 @@ void disp_inst(kl_kir_program *p, kl_kir_inst *i)
         disp_3op("type", i);
         break;
 
+    case KIR_RANGEF:
+        disp_3op("rangef", i);
+        break;
+    case KIR_RANGET:
+        disp_3op("ranget", i);
+        break;
+
     case KIR_ARYSIZE:
         disp_2op("arysize", i);
         break;

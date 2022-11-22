@@ -840,10 +840,42 @@ static void translate_type(xstr *code, kl_kir_inst *i)
     char buf2[256] = {0};
     var_value(buf1, &(i->r1));
     var_value(buf2, &(i->r2));
-    if (i->r3.i64 == VAR_INT64) {
+    if (i->r3.i64 == VAR_DEF) {
+        xstra_inst(code, "SET_I64((%s), ((%s)->t != VAR_UNDEF));\n", buf1, buf2);
+    } else if (i->r3.i64 == VAR_INT64) {
         xstra_inst(code, "SET_I64((%s), (((%s)->t == VAR_INT64) || ((%s)->t == VAR_BIG)));\n", buf1, buf2, buf2);
     } else {
         xstra_inst(code, "SET_I64((%s), ((%s)->t == %d));\n", buf1, buf2, i->r3.i64);
+    }
+}
+
+static void translate_range(func_context *fctx, xstr *code, kl_kir_inst *i, int excl)
+{
+    char buf1[256] = {0};
+    char buf2[256] = {0};
+    char buf3[256] = {0};
+    if (i->r2.t == TK_VSINT && i->r3.t == TK_VSINT) {
+        var_value(buf1, &(i->r1));
+        int_value(buf2, &(i->r2));
+        int_value(buf3, &(i->r3));
+        xstra_inst(code, "MAKE_RANGE_I_I(ctx, %s, %s, %s, %d, L%d, \"%s\", \"%s\", %d);\n", buf1, buf2, buf3, excl,
+            i->catchid, i->funcname, escape(&(fctx->str), i->filename), i->line);
+    } else if (i->r2.t == TK_VSINT && i->r3.t == TK_UNKNOWN) {
+        var_value(buf1, &(i->r1));
+        int_value(buf2, &(i->r2));
+        xstra_inst(code, "MAKE_RANGE_I_N(ctx, %s, %s, %d, L%d, \"%s\", \"%s\", %d);\n", buf1, buf2, excl,
+            i->catchid, i->funcname, escape(&(fctx->str), i->filename), i->line);
+    } else if (i->r2.t == TK_UNKNOWN && i->r3.t == TK_VSINT) {
+        var_value(buf1, &(i->r1));
+        int_value(buf2, &(i->r3));
+        xstra_inst(code, "MAKE_RANGE_N_I(ctx, %s, %s, %d, L%d, \"%s\", \"%s\", %d);\n", buf1, buf2, excl,
+            i->catchid, i->funcname, escape(&(fctx->str), i->filename), i->line);
+    } else {
+        var_value(buf1, &(i->r1));
+        var_value(buf2, &(i->r2));
+        var_value(buf3, &(i->r3));
+        xstra_inst(code, "MAKE_RANGE(ctx, %s, %s, %s, %d, L%d, \"%s\", \"%s\", %d);\n", buf1, buf2, buf3, excl,
+            i->catchid, i->funcname, escape(&(fctx->str), i->filename), i->line);
     }
 }
 
@@ -950,7 +982,7 @@ static void translate_resume_hook(func_context *fctx, xstr *code, kl_kir_func *f
         for (int idx = 1; idx <= yield; ++idx) {
             xstra_inst(code, "case %d: goto Y%d;\n", idx, idx);
         }
-        xstra_inst(code, "default: e = throw_system_exception(__LINE__, ctx, EXCEPT_INVALID_FIBER_STATE); goto L%d;\n", f->funcend);
+        xstra_inst(code, "default: e = throw_system_exception(__LINE__, ctx, EXCEPT_INVALID_FIBER_STATE, NULL); goto L%d;\n", f->funcend);
         xstra_inst(code, "}\n");
     }
     xstraf(code, "\nHEAD:;\n");
@@ -1270,6 +1302,13 @@ static void translate_inst(xstr *code, kl_kir_func *f, kl_kir_inst *i, func_cont
 
     case KIR_TYPE:
         translate_type(code, i);
+        break;
+
+    case KIR_RANGEF:
+        translate_range(fctx, code, i, 0);
+        break;
+    case KIR_RANGET:
+        translate_range(fctx, code, i, 1);
         break;
 
     case KIR_ARYSIZE:

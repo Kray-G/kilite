@@ -3,11 +3,20 @@
 /* check argument's type if it's specified */
 #define DEF_ARG(a0, n, type) \
     if (ac < (n+1)) { \
-        return throw_system_exception(__LINE__, ctx, EXCEPT_TOO_FEW_ARGUMENTS); \
+        return throw_system_exception(__LINE__, ctx, EXCEPT_TOO_FEW_ARGUMENTS, NULL); \
     } \
     vmvar *a0 = local_var(ctx, n); \
     if (a0->t != type) { \
-        return throw_system_exception(__LINE__, ctx, EXCEPT_TYPE_MISMATCH); \
+        return throw_system_exception(__LINE__, ctx, EXCEPT_TYPE_MISMATCH, NULL); \
+    } \
+/**/
+#define DEF_ARG_ANY(a0, n) \
+    vmvar *a0 = (ac > n) ? local_var(ctx, n) : alcvar_initial(ctx); \
+/**/
+#define DEF_ARG_OR_UNDEF(a0, n, type) \
+    vmvar *a0 = (ac > n) ? local_var(ctx, n) : alcvar_initial(ctx); \
+    if (a0->t != type && a0->t != VAR_UNDEF) { \
+        return throw_system_exception(__LINE__, ctx, EXCEPT_TYPE_MISMATCH, NULL); \
     } \
 /**/
 
@@ -165,71 +174,87 @@ int RuntimeException(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     return 0;
 }
 
+int NotImplementedException(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    RuntimeException_create(ctx, lex, r, "NotImplementedException", ctx->msgbuf ? ctx->msgbuf : "Function not implemented");
+    return 0;
+}
+
 int StackOverflowException(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
-    RuntimeException_create(ctx, lex, r, "StackOverflowException", "System stack has been exhausted");
+    RuntimeException_create(ctx, lex, r, "StackOverflowException", ctx->msgbuf ? ctx->msgbuf : "System stack has been exhausted");
     return 0;
 }
 
 int DivideByZeroException(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
-    RuntimeException_create(ctx, lex, r, "DivideByZeroException", "Divide by zero");
+    RuntimeException_create(ctx, lex, r, "DivideByZeroException", ctx->msgbuf ? ctx->msgbuf : "Divide by zero");
     return 0;
 }
 
 int UnsupportedOperationException(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
-    RuntimeException_create(ctx, lex, r, "UnsupportedOperationException", "Unsupported operation");
+    RuntimeException_create(ctx, lex, r, "UnsupportedOperationException", ctx->msgbuf ? ctx->msgbuf : "Unsupported operation");
     return 0;
 }
 
 int MethodMissingException(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
-    RuntimeException_create(ctx, lex, r, "MethodMissingException", "Method missing");
+    RuntimeException_create(ctx, lex, r, "MethodMissingException", ctx->msgbuf ? ctx->msgbuf : "Method missing");
     return 0;
 }
 
 int NoMatchingPatternException(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
-    RuntimeException_create(ctx, lex, r, "NoMatchingPatternException", "Pattern not matched");
+    RuntimeException_create(ctx, lex, r, "NoMatchingPatternException", ctx->msgbuf ? ctx->msgbuf : "Pattern not matched");
     return 0;
 }
 
 int TooFewArgumentsException(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
-    RuntimeException_create(ctx, lex, r, "TooFewArgumentsException", "Too few arguments");
+    RuntimeException_create(ctx, lex, r, "TooFewArgumentsException", ctx->msgbuf ? ctx->msgbuf : "Too few arguments");
     return 0;
 }
 
 int TypeMismatchException(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
-    RuntimeException_create(ctx, lex, r, "TypeMismatchException", "Type mismatch");
+    RuntimeException_create(ctx, lex, r, "TypeMismatchException", ctx->msgbuf ? ctx->msgbuf : "Type mismatch");
     return 0;
 }
 
 int InvalidFiberStateException(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
-    RuntimeException_create(ctx, lex, r, "InvalidFiberStateException", "Invalid fiber state");
+    RuntimeException_create(ctx, lex, r, "InvalidFiberStateException", ctx->msgbuf ? ctx->msgbuf : "Invalid fiber state");
     return 0;
 }
 
 int DeadFiberCalledException(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
-    RuntimeException_create(ctx, lex, r, "DeadFiberCalledException", "Dead fiber called");
+    RuntimeException_create(ctx, lex, r, "DeadFiberCalledException", ctx->msgbuf ? ctx->msgbuf : "Dead fiber called");
+    return 0;
+}
+
+int RangeErrorException(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    RuntimeException_create(ctx, lex, r, "RangeErrorException", ctx->msgbuf ? ctx->msgbuf : "Range error");
     return 0;
 }
 
 /* Make exception */
 
-int throw_system_exception(int line, vmctx *ctx, int id)
+int throw_system_exception(int line, vmctx *ctx, int id, const char *msg)
 {
+    ctx->msgbuf = msg;
     vmvar *r = alcvar_initial(ctx);
     switch (id) {
     case EXCEPT_EXCEPTION:
-        RuntimeException_create(ctx, NULL, r, "SystemException", "Unknown exception");
+        RuntimeException_create(ctx, NULL, r, "SystemException", msg ? msg : "Unknown exception");
+        break;
+    case EXCEPT_NOT_IMPLEMENTED:
+        NotImplementedException(ctx, NULL, r, 0);
         break;
     case EXCEPT_RUNTIME_EXCEPTION:
-        RuntimeException_create(ctx, NULL, r, "RuntimeException", "Unknown exception");
+        RuntimeException_create(ctx, NULL, r, "RuntimeException", msg ? msg : "Unknown exception");
         break;
     case EXCEPT_STACK_OVERFLOW:
         StackOverflowException(ctx, NULL, r, 0);
@@ -258,11 +283,15 @@ int throw_system_exception(int line, vmctx *ctx, int id)
     case EXCEPT_DEAD_FIBER_CALLED:
         DeadFiberCalledException(ctx, NULL, r, 0);
         break;
+    case EXCEPT_RANGE_ERROR:
+        RangeErrorException(ctx, NULL, r, 0);
+        break;
     default:
-        RuntimeException_create(ctx, NULL, r, "SystemException", "Unknown exception");
+        RuntimeException_create(ctx, NULL, r, "SystemException", msg ? msg : "Unknown exception");
         break;
     }
 
+    ctx->msgbuf = NULL;
     ctx->except = r;
     return FLOW_EXCEPTION;
 }
@@ -349,7 +378,7 @@ static int Fiber_resume(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     vmvar *a0 = local_var(ctx, 0);
     vmfnc *f1 = a0->o->ary[0]->f;
     if (f1->created == 0 && f1->yield == 0) {
-        return throw_system_exception(__LINE__, ctx, EXCEPT_DEAD_FIBER_CALLED);
+        return throw_system_exception(__LINE__, ctx, EXCEPT_DEAD_FIBER_CALLED, NULL);
     }
     f1->created = 0;
 
@@ -441,6 +470,120 @@ int Fiber(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     vmobj *o = alcobj(ctx);
     KL_SET_METHOD(o, create, Fiber_create, 1)
+    SET_OBJ(r, o);
+    return 0;
+}
+
+/* Range for integer special */
+
+static int iRange_next(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    /* a0 should be the iRange object. */
+    vmvar *a0 = local_var(ctx, 0);
+    vmvar *e = a0->o->ary[3];
+    SHCOPY_VAR_TO(ctx, r, e);
+    if (r->t == VAR_UNDEF) {
+        return 0;
+    }
+    if (e->t == VAR_INT64) {
+        ++(e->i);
+        vmvar *end = a0->o->ary[1];
+        if (end->t == VAR_INT64) {
+            int exclusive = a0->o->ary[2]->i;
+            int endi = end->i - exclusive;
+            if (endi < e->i) {
+                e->t = VAR_UNDEF;
+            }
+        }
+    }
+    return 0;
+}
+
+static int iRange_begin(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    vmvar *a0 = local_var(ctx, 0);
+    vmvar *e = a0->o->ary[0];
+    if (e->t == VAR_UNDEF) {
+        return throw_system_exception(__LINE__, ctx, EXCEPT_RANGE_ERROR, NULL);
+    }
+    SHCOPY_VAR_TO(ctx, r, e);
+    return 0;
+}
+
+static int iRange_end(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    vmvar *a0 = local_var(ctx, 0);
+    vmvar *e = a0->o->ary[1];
+    if (e->t == VAR_UNDEF) {
+        return throw_system_exception(__LINE__, ctx, EXCEPT_RANGE_ERROR, NULL);
+    }
+    SHCOPY_VAR_TO(ctx, r, e);
+    return 0;
+}
+
+static int iRange_isEndExcluded(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    vmvar *a0 = local_var(ctx, 0);
+    vmvar *e = a0->o->ary[2];
+    SHCOPY_VAR_TO(ctx, r, e);
+    return 0;
+}
+
+int Range_create_i(vmctx *ctx, vmfrm *lex, vmvar *r, int *beg, int *end, int excl)
+{
+    vmvar *n0 = beg ? alcvar_int64(ctx, *beg, 0) : alcvar_initial(ctx);
+    vmvar *n1 = end ? alcvar_int64(ctx, *end, 0) : alcvar_initial(ctx);
+    vmvar *n2 = alcvar_int64(ctx, excl, 0);
+    vmvar *n3 = alcvar_initial(ctx);
+    SHCOPY_VAR_TO(ctx, n3, n0);
+
+    vmobj *o = alcobj(ctx);
+    array_push(ctx, o, n0);
+    array_push(ctx, o, n1);
+    array_push(ctx, o, n2);
+    array_push(ctx, o, n3);
+    KL_SET_METHOD(o, next, iRange_next, 0)
+    KL_SET_METHOD(o, begin, iRange_begin, 0)
+    KL_SET_METHOD(o, end, iRange_end, 0)
+    KL_SET_METHOD(o, isEndExcluded, iRange_isEndExcluded, 0)
+    SET_OBJ(r, o);
+    o->is_sysobj = 1;
+
+    return 0;
+}
+
+static int iRange_create(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    DEF_ARG_OR_UNDEF(a0, 0, VAR_INT64);
+    DEF_ARG_OR_UNDEF(a1, 1, VAR_INT64);
+    DEF_ARG_OR_UNDEF(a2, 2, VAR_INT64);
+
+    int beg = a0->i;
+    int end = a1->i;
+    int excl = a2->t == VAR_INT64 ? a2->i : 0;
+    return Range_create_i(ctx, lex, r,
+        a0->t == VAR_UNDEF ? NULL : &beg,
+        a1->t == VAR_UNDEF ? NULL : &end,
+        excl
+    );
+}
+
+int Range_create(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    DEF_ARG_ANY(a0, 0);
+    DEF_ARG_ANY(a1, 1);
+    if ((a0->t == VAR_INT64 || a0->t == VAR_UNDEF) && (a1->t == VAR_INT64 || a1->t == VAR_UNDEF)) {
+        iRange_create(ctx, lex, r, ac);
+    } else {
+        return throw_system_exception(__LINE__, ctx, EXCEPT_NOT_IMPLEMENTED, NULL);
+    }
+    return 0;
+}
+
+int Range(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    vmobj *o = alcobj(ctx);
+    KL_SET_METHOD(o, create, Range_create, 1)
     SET_OBJ(r, o);
     return 0;
 }

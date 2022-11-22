@@ -342,6 +342,14 @@ static kl_kir_opr make_ret_var(kl_context *ctx, kl_symbol *sym)
     return r1;
 }
 
+static kl_kir_opr make_lit_undef(kl_context *ctx)
+{
+    kl_kir_opr r1 = {
+        .t = TK_UNKNOWN,
+    };
+    return r1;
+}
+
 static kl_kir_opr make_lit_i64(kl_context *ctx, int64_t i64)
 {
     kl_kir_opr r1 = {
@@ -574,6 +582,9 @@ static kl_kir_inst *gen_check_type(kl_context *ctx, kl_symbol *sym, kl_kir_opr *
 
     if (strcmp(str, "isUndefined") == 0) {
         kl_kir_opr r3 = make_lit_i64(ctx, VAR_UNDEF);
+        inst = new_inst_op3(ctx->program, r->line, r->pos, KIR_TYPE, r1, &r2, &r3);
+    } else if (strcmp(str, "isDefined") == 0) {
+        kl_kir_opr r3 = make_lit_i64(ctx, VAR_DEF);
         inst = new_inst_op3(ctx->program, r->line, r->pos, KIR_TYPE, r1, &r2, &r3);
     } else if (strcmp(str, "isInteger") == 0) {
         kl_kir_opr r3 = make_lit_i64(ctx, VAR_INT64);
@@ -973,7 +984,8 @@ static kl_kir_inst *gen_assign(kl_context *ctx, kl_symbol *sym, kl_kir_opr *r1, 
 {
     kl_expr *l = e->lhs;
     kl_kir_inst *head = NULL;
-    if (e->lhs && e->rhs && e->lhs->nodetype == TK_VAR && (e->rhs->nodetype == TK_CALL || e->rhs->nodetype == TK_ARYSIZE)) {
+    if (e->lhs && e->rhs && e->lhs->nodetype == TK_VAR &&
+            (e->rhs->nodetype == TK_CALL || e->rhs->nodetype == TK_ARYSIZE || e->rhs->nodetype == TK_RANGE2 || e->rhs->nodetype == TK_RANGE3)) {
         kl_symbol *lsym = l->sym->ref ? l->sym->ref : l->sym;
         kl_kir_opr rr = make_var_index(ctx, lsym->index, l->sym->level, l->typeid);
         head = gen_expr(ctx, sym, &rr, e->rhs);
@@ -1477,6 +1489,68 @@ static kl_kir_inst *gen_yield(kl_context *ctx, kl_symbol *sym, kl_expr *e)
     return head;
 }
 
+static kl_kir_inst *gen_range(kl_context *ctx, kl_symbol *sym, kl_expr *e, kl_kir_opr *r1, int range)
+{
+    kl_kir_inst *head = NULL;
+    kl_expr *l = e->lhs;
+    kl_expr *r = e->rhs;
+    if (!l && !r) {
+        /* TODO: Error */
+        return NULL;
+    }
+    if (l && !r) {
+        if (l->nodetype == TK_VSINT) {
+            kl_kir_opr r2 = make_lit_i64(ctx, l->val.i64);
+            kl_kir_opr r3 = make_lit_undef(ctx);
+            head = new_inst_op3(ctx->program, e->line, e->pos, range == 2 ? KIR_RANGEF : KIR_RANGET, r1, &r2, &r3);
+            set_file_func(ctx, sym, head);
+        }
+    } else if (!l && r) {
+        if (r->nodetype == TK_VSINT) {
+            kl_kir_opr r2 = make_lit_undef(ctx);
+            kl_kir_opr r3 = make_lit_i64(ctx, r->val.i64);
+            head = new_inst_op3(ctx->program, e->line, e->pos, range == 2 ? KIR_RANGEF : KIR_RANGET, r1, &r2, &r3);
+            set_file_func(ctx, sym, head);
+        }
+    } else if (l->nodetype == TK_VSINT && r->nodetype == TK_VSINT) {
+        kl_kir_opr r2 = make_lit_i64(ctx, l->val.i64);
+        kl_kir_opr r3 = make_lit_i64(ctx, r->val.i64);
+        head = new_inst_op3(ctx->program, e->line, e->pos, range == 2 ? KIR_RANGEF : KIR_RANGET, r1, &r2, &r3);
+        set_file_func(ctx, sym, head);
+    }
+
+    if (!head) {
+        kl_kir_opr r2 = {0};
+        kl_kir_inst *r2i = NULL;
+        if (!l) {
+            r2 = make_lit_undef(ctx);
+        } else {
+            KL_KIR_CHECK_LITERAL(l, r2, r2i)
+        }
+        kl_kir_opr r3 = {0};
+        kl_kir_inst *r3i = NULL;
+        if (!r) {
+            r3 = make_lit_undef(ctx);
+        } else {
+            KL_KIR_CHECK_LITERAL(r, r3, r3i)
+        }
+        head = new_inst_op3(ctx->program, e->line, e->pos, range == 2 ? KIR_RANGEF : KIR_RANGET, r1, &r2, &r3);
+        set_file_func(ctx, sym, head);
+        if (r3i) {
+            kl_kir_inst *r3l = get_last(r3i);
+            r3l->next = head;
+            head = r3i;
+        }
+        if (r2i) {
+            kl_kir_inst *r2l = get_last(r2i);
+            r2l->next = head;
+            head = r2i;
+        }
+    }
+
+    return head;
+}
+
 static kl_kir_inst *gen_expr(kl_context *ctx, kl_symbol *sym, kl_kir_opr *r1, kl_expr *e)
 {
     kl_kir_inst *head = NULL;
@@ -1688,6 +1762,15 @@ static kl_kir_inst *gen_expr(kl_context *ctx, kl_symbol *sym, kl_kir_opr *r1, kl
         kl_kir_opr rr = make_var(ctx, sym, TK_TANY);
         head = gen_expr(ctx, sym, &rr, e->lhs);
         head->next = new_inst_op2(ctx->program, e->line, e->pos, KIR_MINUS, r1, &rr);
+        break;
+    }
+
+    case TK_RANGE2: {
+        head = gen_range(ctx, sym, e, r1, 2);
+        break;
+    }
+    case TK_RANGE3: {
+        head = gen_range(ctx, sym, e, r1, 3);
         break;
     }
 
