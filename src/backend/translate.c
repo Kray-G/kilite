@@ -881,10 +881,12 @@ static void translate_type(xstr *code, kl_kir_inst *i)
     var_value(buf2, &(i->r2));
     if (i->r3.i64 == VAR_DEF) {
         xstra_inst(code, "SET_I64((%s), ((%s)->t != VAR_UNDEF));\n", buf1, buf2);
+    } else if (i->r3.i64 == VAR_ARY) {
+        xstra_inst(code, "SET_I64((%s), ((%s)->t == VAR_OBJ && (%s)->o->idxsz > 0));\n", buf1, buf2, buf2);
     } else if (i->r3.i64 == VAR_INT64) {
         xstra_inst(code, "SET_I64((%s), (((%s)->t == VAR_INT64) || ((%s)->t == VAR_BIG)));\n", buf1, buf2, buf2);
     } else {
-        xstra_inst(code, "SET_I64((%s), ((%s)->t == %d));\n", buf1, buf2, i->r3.i64);
+        xstra_inst(code, "SET_I64((%s), ((%s)->t == %s));\n", buf1, buf2, i->r3.str);
     }
 }
 
@@ -1093,6 +1095,8 @@ static void translate_mkfrm(func_context *fctx, xstr *code, kl_kir_func *f, kl_k
         xstra_inst(code, "const int allocated_local = %" PRId64 ";\n", fctx->temp_count);
         xstra_inst(code, "alloc_var(ctx, %" PRId64 ", L%d, \"%s\", \"%s\", %d);\n",
             fctx->temp_count, f->funcend, i->funcname, escape(&(fctx->str), i->filename), i->line);
+    } else {
+        xstra_inst(code, "const int allocated_local = 0;\n");
     }
     if (!f->is_global && f->yield > 0) {
         xstra_inst(code, "if (yieldno > 0) {\n");
@@ -1101,7 +1105,11 @@ static void translate_mkfrm(func_context *fctx, xstr *code, kl_kir_func *f, kl_k
         xstra_inst(code, "    goto RESUMEHOOK;\n");
         xstra_inst(code, "}\n");
     }
-    xstra_inst(code, "frm = alcfrm(ctx, lex, %" PRId64 ");\n", fctx->local_vars);
+    if (f->is_global) {
+        xstra_inst(code, "ctx->frm = frm = alcfrm(ctx, lex, %" PRId64 ");\n", fctx->local_vars);
+    } else {
+        xstra_inst(code, "frm = alcfrm(ctx, lex, %" PRId64 ");\n", fctx->local_vars);
+    }
     xstra_inst(code, "push_frm(ctx, e, frm, L%d, \"%s\", \"%s\", %d);\n", f->funcend, i->funcname, escape(&(fctx->str), i->filename), i->line);
     for (int idx = 0; idx < fctx->local_vars; ++idx) {
         xstra_inst(code, "n%d = frm->v[%d] = alcvar_initial(ctx);\n", idx, idx);
@@ -1291,6 +1299,9 @@ static void translate_inst(xstr *code, kl_kir_func *f, kl_kir_inst *i, func_cont
         break;
     case KIR_GE:
         translate_chkcnd(fctx, code, "GE", ">=", i);
+        break;
+    case KIR_LGE:
+        translate_chkcnd(fctx, code, "LGE", NULL, i);
         break;
 
     case KIR_INC:

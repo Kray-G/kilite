@@ -276,6 +276,7 @@ typedef enum vartype {
     VAR_BIN,
     VAR_OBJ,
     VAR_FNC,
+    VAR_ARY,
     VAR_DEF,
     VAR_VOIDP,
 } vartype;

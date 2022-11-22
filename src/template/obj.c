@@ -403,8 +403,9 @@ vmobj *object_copy(vmctx *ctx, vmobj *src)
     if (asz < idxsz) {
         array_extend(ctx, obj, idxsz);
     }
+    obj->idxsz = idxsz;
     for (int i = 0; i < idxsz; ++i) {
-        obj->ary[i] = src->ary[i];
+        obj->ary[i] = copy_var(ctx, src->ary[i], 0);
     }
     return obj;
 }

@@ -5,15 +5,15 @@
 
 /* Integer functions */
 
-function Integer_times(n:int64, f) {
+function Integer_times(n:int64, f:func) {
     if (f.isUndefined) {
         let a:obj = [];
-        for (var i:int64 = 0; i < n; ++i) {
+        for (let i:int64 = 0; i < n; ++i) {
             a.push(i);
         }
         return a;
     }
-    for (var i:int64 = 0; i < n; ++i) {
+    for (let i:int64 = 0; i < n; ++i) {
         f(i);
     }
 }
@@ -22,15 +22,30 @@ function Integer_times(n:int64, f) {
 
 function Array_each(a:obj, f:func) {
     let n:int64 = a.size();
-    for (var i:int64 = 0; i < n; ++i) {
-        f(a[i], i);
+    if (n > 0) {
+        for (let i:int64 = 0; i < n; ++i) {
+            let r = f(a[i], i);
+            if (r.isDefined && !r) {
+                break;
+            }
+        }
+    } else {
+        let keys:obj = a.keySet();
+        let len:int64 = keys.size();
+        for (let i:int64 = 0; i < len; ++i) {
+            let key = keys[i];
+            let r = f([key, a[key]], i);
+            if (r.isDefined && !r) {
+                break;
+            }
+        }
     }
 }
 
 function Array_map(a:obj, f:func) {
     let r:obj = [];
     let n:int64 = a.size();
-    for (var i:int64 = 0; i < n; ++i) {
+    for (let i:int64 = 0; i < n; ++i) {
         r.push(f(a[i], i));
     }
     return r;
@@ -39,7 +54,7 @@ function Array_map(a:obj, f:func) {
 function Array_filter(a:obj, f:func) {
     let r:obj = [];
     let n:int64 = a.size();
-    for (var i:int64 = 0; i < n; ++i) {
+    for (let i:int64 = 0; i < n; ++i) {
         if (f(a[i], i)) {
             r.push(a[i]);
         }
@@ -50,10 +65,146 @@ function Array_filter(a:obj, f:func) {
 function Array_reject(a:obj, f:func) {
     let r:obj = [];
     let n:int64 = a.size();
-    for (var i:int64 = 0; i < n; ++i) {
+    for (let i:int64 = 0; i < n; ++i) {
         if (!f(a[i], i)) {
             r.push(a[i]);
         }
     }
     return r;
+}
+
+function Array_flatMap(a:obj, f:func) {
+    return a.map(f).flatten();
+}
+
+function Array_findAll(a:obj, f:func) {
+    let r:obj = [];
+    let len:int64 = a.size();
+    for (let i:int64 = 0; i < len; ++i) {
+        if (f(a[i], i)) {
+            r.push(a[i]);
+        }
+    }
+    return r;
+}
+
+function Array_reduce(a:obj, f:func, initer) {
+    let r = initer;
+    let len:int64 = a.size();
+    for (let i:int64 = 0; i < len; ++i) {
+        r = f(r, a[i], i);
+    }
+    return r;
+}
+
+function Array_all(a:obj, f:func) {
+    let r:obj = [];
+    let len:int64 = a.size();
+    for (let i:int64 = 0; i < len; ++i) {
+        let r = f([key, a[key]], i);
+        if (r.isDefined && !r) {
+            return false;
+        }
+    }
+    return true;
+}
+
+function Array_any(a:obj, f:func) {
+    let r:obj = [];
+    let len:int64 = a.size();
+    for (let i:int64 = 0; i < len; ++i) {
+        let r = f([key, a[key]], i);
+        if (r.isDefined && r) {
+            return true;
+        }
+    }
+    return false;
+}
+
+function Array_partition(a:obj, cond:func) {
+    let t:obj = [];
+    let f:obj = [];
+    let len:int64 = a.size();
+    for (let i:int64 = 0; i < len; ++i) {
+        let e = a[i];
+        if (cond(e)) {
+            t.push(e);
+        } else {
+            f.push(e);
+        }
+    }
+    return [t, f];
+};
+
+function Array_take(a:obj, n:int64) {
+    let r:obj = [];
+    let len:int64 = a.size();
+    if (n < len) {
+        len = n;
+    }
+    for (let i:int64 = 0; i < len; ++i) {
+        r.push(a[i]);
+    }
+    return r;
+};
+
+function Array_takeWhile(a:obj, f:func) {
+    let r:obj = [];
+    let len:int64 = a.size();
+    for (let i:int64 = 0; i < len; ++i) {
+        if (!f(a[i])) {
+            break;
+        }
+        r.push(a[i]);
+    }
+    return r;
+};
+
+function Array_drop(a:obj, n:int64) {
+    let r:obj = [];
+    let len:int64 = a.size();
+    for (let i = n; i < len; ++i) {
+        r.push(a[i]);
+    }
+    return r;
+};
+
+function Array_dropWhile(a:obj, f:func) {
+    let r:obj = [];
+    let len:int64 = a.size();
+    let i:int64 = 0;
+    for ( ; i < len; ++i) {
+        if (!f(a[i])) {
+            break;
+        }
+    }
+    for ( ; i < len; ++i) {
+        r.push(a[i]);
+    }
+    return r;
+};
+
+
+function Array_sort(a:obj, f:func) {
+    function _quicksort(a, first, last, comp) {
+        let i:int64 = first;
+        let j:int64 = last;
+        let x = a[(first + last) / 2];
+        while (true) {
+            while (comp(a[i], x) < 0) i++;
+            while (comp(x, a[j]) < 0) j--;
+            if (i >= j) break;
+            [a[i], a[j]] = [a[j], a[i]];
+            ++i; --j;
+        }
+        if (first  < i - 1)
+            _quicksort(a, first , i - 1, comp);
+        if (j + 1 < last)
+            _quicksort(a, j + 1, last, comp);
+    }
+    a = a.clone();
+    if (a.size() > 1) {
+        _quicksort(a, 0, a.size() - 1, comp.isDefined ? comp : { => _1 <=> _2 });
+    }
+    return a;
 }

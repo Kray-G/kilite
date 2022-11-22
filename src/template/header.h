@@ -52,6 +52,7 @@ enum {
     EXCEPT_INVALID_FIBER_STATE,
     EXCEPT_DEAD_FIBER_CALLED,
     EXCEPT_RANGE_ERROR,
+    EXCEPT_TOO_DEEP,
     EXCEPT_MAX,
 };
 
@@ -223,6 +224,8 @@ typedef struct vmctx {
     vmobj *b;               /* Special object for binary. */
     vmobj *o;               /* Special object for object/array. */
 
+    vmfrm *frm;             /* Reference to the global frame. */
+
     struct {
         vmvar var;
         vmfnc fnc;
@@ -372,8 +375,8 @@ typedef struct vmctx {
     hashmap_set(ctx, o, #name, alcvar_int64(ctx, i64, 0)); \
 /**/
 
-#define KL_SET_METHOD(o, name, fname, args) \
-    hashmap_set(ctx, o, #name, alcvar_fnc(ctx, alcfnc(ctx, fname, NULL, #name, args))); \
+#define KL_SET_METHOD(o, name, fname, lex, args) \
+    hashmap_set(ctx, o, #name, alcvar_fnc(ctx, alcfnc(ctx, fname, lex, #name, args))); \
 /**/
 
 
@@ -391,7 +394,7 @@ typedef struct vmctx {
 #define EXTERN_OBJECT(name, vn) { \
     int name(vmctx *ctx, vmfrm *lex, vmvar *r, int ac); \
     vmfnc *f = alcfnc(ctx, name, frm, #name, 0); \
-    e = ((vmfunc_t)(f->f))(ctx, lex, vn, 0); \
+    e = ((vmfunc_t)(f->f))(ctx, frm, vn, 0); \
 } \
 /**/
 

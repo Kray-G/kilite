@@ -147,8 +147,8 @@ static int Exception_create(vmctx *ctx, vmfrm *lex, vmvar *r, const char *name)
     vmobj *o = alcobj(ctx);
     vmvar *type = alcvar_str(ctx, name);
     hashmap_set(ctx, o, "_type", type);
-    KL_SET_METHOD(o, type, Exception_type, 1)
-    KL_SET_METHOD(o, printStackTrace, Exception_printStackTrace, 1)
+    KL_SET_METHOD(o, type, Exception_type, ctx->frm, 1)
+    KL_SET_METHOD(o, printStackTrace, Exception_printStackTrace, ctx->frm, 1)
     SET_OBJ(r, o);
     o->is_sysobj = 1;
     return 0;
@@ -159,7 +159,7 @@ int RuntimeException_create(vmctx *ctx, vmfrm *lex, vmvar *r, const char *name, 
     Exception_create(ctx, lex, r, name);
     vmobj *o = r->o;
     hashmap_set(ctx, o, "_what", alcvar_str(ctx, msg));
-    KL_SET_METHOD(o, what, Exception_what, 1)
+    KL_SET_METHOD(o, what, Exception_what, ctx->frm, 1)
     return 0;
 }
 
@@ -240,6 +240,12 @@ int RangeErrorException(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     return 0;
 }
 
+int TooDeepException(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    RuntimeException_create(ctx, lex, r, "TooDeepException", ctx->msgbuf ? ctx->msgbuf : "Too deep");
+    return 0;
+}
+
 /* Make exception */
 
 int throw_system_exception(int line, vmctx *ctx, int id, const char *msg)
@@ -286,6 +292,9 @@ int throw_system_exception(int line, vmctx *ctx, int id, const char *msg)
     case EXCEPT_RANGE_ERROR:
         RangeErrorException(ctx, NULL, r, 0);
         break;
+    case EXCEPT_TOO_DEEP:
+        TooDeepException(ctx, NULL, r, 0);
+        break;
     default:
         RuntimeException_create(ctx, NULL, r, "SystemException", msg ? msg : "Unknown exception");
         break;
@@ -318,8 +327,8 @@ static int println(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 int System(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     vmobj *o = alcobj(ctx);
-    KL_SET_METHOD(o, print, print, 1)
-    KL_SET_METHOD(o, println, println, 1)
+    KL_SET_METHOD(o, print, print, ctx->frm, 1)
+    KL_SET_METHOD(o, println, println, ctx->frm, 1)
     SET_OBJ(r, o);
     return 0;
 }
@@ -353,8 +362,8 @@ int SystemTimer_create(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     vmvar *timer = alcvar(ctx, VAR_VOIDP, 0);
     timer->p = SystemTimer_init();
     array_set(ctx, o, 0, timer);
-    KL_SET_METHOD(o, elapsed, SystemTimer_elapsed, 1)
-    KL_SET_METHOD(o, restart, SystemTimer_restart, 1)
+    KL_SET_METHOD(o, elapsed, SystemTimer_elapsed, ctx->frm, 1)
+    KL_SET_METHOD(o, restart, SystemTimer_restart, ctx->frm, 1)
     SET_OBJ(r, o);
     o->is_sysobj = 1;
     return 0;
@@ -363,7 +372,7 @@ int SystemTimer_create(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 int SystemTimer(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     vmobj *o = alcobj(ctx);
-    KL_SET_METHOD(o, create, SystemTimer_create, 0)
+    KL_SET_METHOD(o, create, SystemTimer_create, ctx->frm, 0)
     SET_OBJ(r, o);
     return 0;
 }
@@ -457,9 +466,9 @@ static int Fiber_create(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     vmobj *o = alcobj(ctx);
     array_push(ctx, o, n0);
     KL_SET_PROPERTY_I(o, isFiber, 1)
-    KL_SET_METHOD(o, resume, Fiber_resume, 0)
-    KL_SET_METHOD(o, isAlive, Fiber_isAlive, 0)
-    KL_SET_METHOD(o, reset, Fiber_reset, 0)
+    KL_SET_METHOD(o, resume, Fiber_resume, ctx->frm, 0)
+    KL_SET_METHOD(o, isAlive, Fiber_isAlive, ctx->frm, 0)
+    KL_SET_METHOD(o, reset, Fiber_reset, ctx->frm, 0)
     SET_OBJ(r, o);
     o->is_sysobj = 1;
 
@@ -469,7 +478,7 @@ static int Fiber_create(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 int Fiber(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     vmobj *o = alcobj(ctx);
-    KL_SET_METHOD(o, create, Fiber_create, 1)
+    KL_SET_METHOD(o, create, Fiber_create, ctx->frm, 1)
     SET_OBJ(r, o);
     return 0;
 }
@@ -542,10 +551,10 @@ int Range_create_i(vmctx *ctx, vmfrm *lex, vmvar *r, int *beg, int *end, int exc
     array_push(ctx, o, n1);
     array_push(ctx, o, n2);
     array_push(ctx, o, n3);
-    KL_SET_METHOD(o, next, iRange_next, 0)
-    KL_SET_METHOD(o, begin, iRange_begin, 0)
-    KL_SET_METHOD(o, end, iRange_end, 0)
-    KL_SET_METHOD(o, isEndExcluded, iRange_isEndExcluded, 0)
+    KL_SET_METHOD(o, next, iRange_next, ctx->frm, 0)
+    KL_SET_METHOD(o, begin, iRange_begin, ctx->frm, 0)
+    KL_SET_METHOD(o, end, iRange_end, ctx->frm, 0)
+    KL_SET_METHOD(o, isEndExcluded, iRange_isEndExcluded, ctx->frm, 0)
     SET_OBJ(r, o);
     o->is_sysobj = 1;
 
@@ -583,7 +592,7 @@ int Range_create(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 int Range(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     vmobj *o = alcobj(ctx);
-    KL_SET_METHOD(o, create, Range_create, 1)
+    KL_SET_METHOD(o, create, Range_create, ctx->frm, 1)
     SET_OBJ(r, o);
     return 0;
 }
@@ -715,30 +724,30 @@ int Integer(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     vmobj *o = alcobj(ctx);
     ctx->i = o;
-    KL_SET_METHOD(o, times, Integer_times, 2)
-    KL_SET_METHOD(o, next, Integer_next, 2)
+    KL_SET_METHOD(o, times, Integer_times, ctx->frm, 2)
+    KL_SET_METHOD(o, next, Integer_next, ctx->frm, 2)
 
-    KL_SET_METHOD(o, acos, Math_acos, 1)
-    KL_SET_METHOD(o, asin, Math_asin, 1)
-    KL_SET_METHOD(o, atan, Math_atan, 1)
-    KL_SET_METHOD(o, atan2, Math_atan2, 2)
-    KL_SET_METHOD(o, cos, Math_cos, 1)
-    KL_SET_METHOD(o, sin, Math_sin, 1)
-    KL_SET_METHOD(o, tan, Math_tan, 1)
-    KL_SET_METHOD(o, cosh, Math_cosh, 1)
-    KL_SET_METHOD(o, sinh, Math_sinh, 1)
-    KL_SET_METHOD(o, tanh, Math_tanh, 1)
-    KL_SET_METHOD(o, exp, Math_exp, 1)
-    KL_SET_METHOD(o, ldexp, Math_ldexp, 2)
-    KL_SET_METHOD(o, log, Math_log, 1)
-    KL_SET_METHOD(o, log10, Math_log10, 1)
-    KL_SET_METHOD(o, pow, Math_pow, 2)
-    KL_SET_METHOD(o, sqrt, Math_sqrt, 1)
-    KL_SET_METHOD(o, ceil, Math_ceil, 1)
-    KL_SET_METHOD(o, fabs, Math_fabs, 1)
-    KL_SET_METHOD(o, floor, Math_floor, 1)
-    KL_SET_METHOD(o, fmod, Math_fmod, 2)
-    KL_SET_METHOD(o, random, Math_random, 0)
+    KL_SET_METHOD(o, acos, Math_acos, ctx->frm, 1)
+    KL_SET_METHOD(o, asin, Math_asin, ctx->frm, 1)
+    KL_SET_METHOD(o, atan, Math_atan, ctx->frm, 1)
+    KL_SET_METHOD(o, atan2, Math_atan2, ctx->frm, 2)
+    KL_SET_METHOD(o, cos, Math_cos, ctx->frm, 1)
+    KL_SET_METHOD(o, sin, Math_sin, ctx->frm, 1)
+    KL_SET_METHOD(o, tan, Math_tan, ctx->frm, 1)
+    KL_SET_METHOD(o, cosh, Math_cosh, ctx->frm, 1)
+    KL_SET_METHOD(o, sinh, Math_sinh, ctx->frm, 1)
+    KL_SET_METHOD(o, tanh, Math_tanh, ctx->frm, 1)
+    KL_SET_METHOD(o, exp, Math_exp, ctx->frm, 1)
+    KL_SET_METHOD(o, ldexp, Math_ldexp, ctx->frm, 2)
+    KL_SET_METHOD(o, log, Math_log, ctx->frm, 1)
+    KL_SET_METHOD(o, log10, Math_log10, ctx->frm, 1)
+    KL_SET_METHOD(o, pow, Math_pow, ctx->frm, 2)
+    KL_SET_METHOD(o, sqrt, Math_sqrt, ctx->frm, 1)
+    KL_SET_METHOD(o, ceil, Math_ceil, ctx->frm, 1)
+    KL_SET_METHOD(o, fabs, Math_fabs, ctx->frm, 1)
+    KL_SET_METHOD(o, floor, Math_floor, ctx->frm, 1)
+    KL_SET_METHOD(o, fmod, Math_fmod, ctx->frm, 2)
+    KL_SET_METHOD(o, random, Math_random, ctx->frm, 0)
     SET_OBJ(r, o);
     return 0;
 }
@@ -749,27 +758,27 @@ int Double(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     vmobj *o = alcobj(ctx);
     ctx->d = o;
-    KL_SET_METHOD(o, acos, Math_acos, 1)
-    KL_SET_METHOD(o, asin, Math_asin, 1)
-    KL_SET_METHOD(o, atan, Math_atan, 1)
-    KL_SET_METHOD(o, atan2, Math_atan2, 2)
-    KL_SET_METHOD(o, cos, Math_cos, 1)
-    KL_SET_METHOD(o, sin, Math_sin, 1)
-    KL_SET_METHOD(o, tan, Math_tan, 1)
-    KL_SET_METHOD(o, cosh, Math_cosh, 1)
-    KL_SET_METHOD(o, sinh, Math_sinh, 1)
-    KL_SET_METHOD(o, tanh, Math_tanh, 1)
-    KL_SET_METHOD(o, exp, Math_exp, 1)
-    KL_SET_METHOD(o, ldexp, Math_ldexp, 2)
-    KL_SET_METHOD(o, log, Math_log, 1)
-    KL_SET_METHOD(o, log10, Math_log10, 1)
-    KL_SET_METHOD(o, pow, Math_pow, 2)
-    KL_SET_METHOD(o, sqrt, Math_sqrt, 1)
-    KL_SET_METHOD(o, ceil, Math_ceil, 1)
-    KL_SET_METHOD(o, fabs, Math_fabs, 1)
-    KL_SET_METHOD(o, floor, Math_floor, 1)
-    KL_SET_METHOD(o, fmod, Math_fmod, 2)
-    KL_SET_METHOD(o, random, Math_random, 0)
+    KL_SET_METHOD(o, acos, Math_acos, ctx->frm, 1)
+    KL_SET_METHOD(o, asin, Math_asin, ctx->frm, 1)
+    KL_SET_METHOD(o, atan, Math_atan, ctx->frm, 1)
+    KL_SET_METHOD(o, atan2, Math_atan2, ctx->frm, 2)
+    KL_SET_METHOD(o, cos, Math_cos, ctx->frm, 1)
+    KL_SET_METHOD(o, sin, Math_sin, ctx->frm, 1)
+    KL_SET_METHOD(o, tan, Math_tan, ctx->frm, 1)
+    KL_SET_METHOD(o, cosh, Math_cosh, ctx->frm, 1)
+    KL_SET_METHOD(o, sinh, Math_sinh, ctx->frm, 1)
+    KL_SET_METHOD(o, tanh, Math_tanh, ctx->frm, 1)
+    KL_SET_METHOD(o, exp, Math_exp, ctx->frm, 1)
+    KL_SET_METHOD(o, ldexp, Math_ldexp, ctx->frm, 2)
+    KL_SET_METHOD(o, log, Math_log, ctx->frm, 1)
+    KL_SET_METHOD(o, log10, Math_log10, ctx->frm, 1)
+    KL_SET_METHOD(o, pow, Math_pow, ctx->frm, 2)
+    KL_SET_METHOD(o, sqrt, Math_sqrt, ctx->frm, 1)
+    KL_SET_METHOD(o, ceil, Math_ceil, ctx->frm, 1)
+    KL_SET_METHOD(o, fabs, Math_fabs, ctx->frm, 1)
+    KL_SET_METHOD(o, floor, Math_floor, ctx->frm, 1)
+    KL_SET_METHOD(o, fmod, Math_fmod, ctx->frm, 2)
+    KL_SET_METHOD(o, random, Math_random, ctx->frm, 0)
     SET_OBJ(r, o);
     return 0;
 }
@@ -796,14 +805,22 @@ int Binary(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 
 /* Array/Object */
 
-int Array_size(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+static int Array_clone(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    DEF_ARG(a0, 0, VAR_OBJ);
+    r->t = VAR_OBJ;
+    r->o = object_copy(ctx, a0->o);
+    return 0;
+}
+
+static int Array_size(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     DEF_ARG(a0, 0, VAR_OBJ);
     SET_I64(r, a0->o->idxsz);
     return 0;
 }
 
-int Array_join(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+static int Array_join(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     DEF_ARG(a0, 0, VAR_OBJ);
     DEF_ARG(a1, 1, VAR_STR);
@@ -820,7 +837,7 @@ int Array_join(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     return 0;
 }
 
-int Array_push(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+static int Array_push(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     DEF_ARG(a0, 0, VAR_OBJ);
     vmobj *o = a0->o;
@@ -829,6 +846,43 @@ int Array_push(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
         array_push(ctx, o, copy_var(ctx, aa, 0));
     }
     return 0;
+}
+
+static int Array_flatten_impl(vmctx *ctx, vmvar *r, vmvar *a0, int level)
+{
+    if (100 < level) {
+        return throw_system_exception(__LINE__, ctx, EXCEPT_TOO_DEEP, NULL);
+    }
+    switch (a0->t) {
+    case VAR_UNDEF: array_push(ctx, r->o, copy_var(ctx, a0, 0)); break;
+    case VAR_INT64: array_push(ctx, r->o, copy_var(ctx, a0, 0)); break;
+    case VAR_BIG:   array_push(ctx, r->o, copy_var(ctx, a0, 0)); break;
+    case VAR_DBL:   array_push(ctx, r->o, copy_var(ctx, a0, 0)); break;
+    case VAR_STR:   array_push(ctx, r->o, copy_var(ctx, a0, 0)); break;
+    case VAR_BIN:   array_push(ctx, r->o, copy_var(ctx, a0, 0)); break;
+    case VAR_FNC:   array_push(ctx, r->o, copy_var(ctx, a0, 0)); break;
+    case VAR_OBJ: {
+        vmobj *o = a0->o;
+        for (int i = 0; i < o->idxsz; ++i) {
+            int e = Array_flatten_impl(ctx, r, o->ary[i], level + 1);
+            if (e != 0) {
+                return e;
+            }
+        }
+        break;
+    }
+    default:
+        break;
+    }
+    return 0;
+}
+
+static int Array_flatten(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    DEF_ARG(a0, 0, VAR_OBJ);
+    r->t = VAR_OBJ;
+    r->o = alcobj(ctx);
+    return Array_flatten_impl(ctx, r, a0, 0);
 }
 
 int Object_keys(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
@@ -843,19 +897,48 @@ extern int Array_each(vmctx *ctx, vmfrm *lex, vmvar *r, int ac);
 extern int Array_map(vmctx *ctx, vmfrm *lex, vmvar *r, int ac);
 extern int Array_filter(vmctx *ctx, vmfrm *lex, vmvar *r, int ac);
 extern int Array_reject(vmctx *ctx, vmfrm *lex, vmvar *r, int ac);
+extern int Array_flatMap(vmctx *ctx, vmfrm *lex, vmvar *r, int ac);
+extern int Array_findAll(vmctx *ctx, vmfrm *lex, vmvar *r, int ac);
+extern int Array_reduce(vmctx *ctx, vmfrm *lex, vmvar *r, int ac);
+extern int Array_all(vmctx *ctx, vmfrm *lex, vmvar *r, int ac);
+extern int Array_any(vmctx *ctx, vmfrm *lex, vmvar *r, int ac);
+extern int Array_partition(vmctx *ctx, vmfrm *lex, vmvar *r, int ac);
+extern int Array_take(vmctx *ctx, vmfrm *lex, vmvar *r, int ac);
+extern int Array_takeWhile(vmctx *ctx, vmfrm *lex, vmvar *r, int ac);
+extern int Array_drop(vmctx *ctx, vmfrm *lex, vmvar *r, int ac);
+extern int Array_dropWhile(vmctx *ctx, vmfrm *lex, vmvar *r, int ac);
+extern int Array_sort(vmctx *ctx, vmfrm *lex, vmvar *r, int ac);
 
 int Array(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     vmobj *o = alcobj(ctx);
     ctx->o = o;
-    KL_SET_METHOD(o, each, Array_each, 2)
-    KL_SET_METHOD(o, push, Array_push, 2)
-    KL_SET_METHOD(o, map, Array_map, 2)
-    KL_SET_METHOD(o, join, Array_join, 2)
-    KL_SET_METHOD(o, filter, Array_filter, 2)
-    KL_SET_METHOD(o, reject, Array_reject, 2)
-    KL_SET_METHOD(o, keys, Object_keys, 1)
-    KL_SET_METHOD(o, size, Array_size, 1)
+    KL_SET_METHOD(o, each, Array_each, ctx->frm, 2)
+    KL_SET_METHOD(o, push, Array_push, ctx->frm, 2)
+    KL_SET_METHOD(o, map, Array_map, ctx->frm, 2)
+    KL_SET_METHOD(o, collect, Array_map, ctx->frm, 2)
+    KL_SET_METHOD(o, join, Array_join, ctx->frm, 2)
+    KL_SET_METHOD(o, filter, Array_filter, ctx->frm, 2)
+    KL_SET_METHOD(o, reject, Array_reject, ctx->frm, 2)
+    KL_SET_METHOD(o, flatten, Array_flatten, ctx->frm, 2)
+    KL_SET_METHOD(o, flatMap, Array_flatMap, ctx->frm, 2)
+    KL_SET_METHOD(o, collectConcat, Array_flatMap, ctx->frm, 2)
+    KL_SET_METHOD(o, findAll, Array_findAll, ctx->frm, 2)
+    KL_SET_METHOD(o, select, Array_findAll, ctx->frm, 2)
+    KL_SET_METHOD(o, reduce, Array_reduce, ctx->frm, 3)
+    KL_SET_METHOD(o, inject, Array_reduce, ctx->frm, 3)
+    KL_SET_METHOD(o, all, Array_all, ctx->frm, 2)
+    KL_SET_METHOD(o, any, Array_any, ctx->frm, 2)
+    KL_SET_METHOD(o, partition, Array_partition, ctx->frm, 2)
+    KL_SET_METHOD(o, take, Array_take, ctx->frm, 2)
+    KL_SET_METHOD(o, takeWhile, Array_takeWhile, ctx->frm, 2)
+    KL_SET_METHOD(o, drop, Array_drop, ctx->frm, 2)
+    KL_SET_METHOD(o, dropWhile, Array_dropWhile, ctx->frm, 2)
+    KL_SET_METHOD(o, sort, Array_sort, ctx->frm, 2)
+    KL_SET_METHOD(o, clone, Array_clone, ctx->frm, 1)
+    KL_SET_METHOD(o, keys, Object_keys, ctx->frm, 1)
+    KL_SET_METHOD(o, keySet, Object_keys, ctx->frm, 1)
+    KL_SET_METHOD(o, size, Array_size, ctx->frm, 1)
     SET_OBJ(r, o);
     return 0;
 }
