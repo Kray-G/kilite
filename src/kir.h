@@ -222,6 +222,7 @@ typedef enum kl_kir {
      * Operators.
      *  <r*> is the value with a type.
      */
+    KIR_NOT,        //  <r1>, <r2>              ;   <r1>  <-  !<r2>
     KIR_MOV,        //  <r1>, <r2>              ;   <r1>  <-  <r2>
     KIR_MOVA,       //  <r1>, <r2>              ;   *<r1> <-  <r2>
     KIR_ADD,        //  <r1>, <r2>, <r3>        ;   <r1>  <-  <r2> + <r3>
@@ -326,6 +327,7 @@ typedef struct kl_kir_func {
     int has_dot3;
     int funcid;
     int funcend;
+    int yield;
     int vars;
     int line;
     int pos;

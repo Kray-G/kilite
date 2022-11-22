@@ -1055,13 +1055,21 @@ static kl_expr *parse_expr_prefix(kl_context *ctx, kl_lexer *l)
         return lhs;
     }
 
-    while (tok == TK_BNOT || tok == TK_NOT || tok == TK_ADD || tok == TK_SUB) {
+    if (tok == TK_NOT) {
+        lexer_fetch(l);
+        kl_expr *lhs = parse_expr_prefix(ctx, l);   // Right recursion.
+        lhs = make_bin_expr(ctx, l, tok, lhs, NULL);
+        return lhs;
+    }
+
+    if (tok == TK_BNOT || tok == TK_ADD || tok == TK_SUB) {
         lexer_fetch(l);
         kl_expr *lhs = parse_expr_postfix(ctx, l, 0);
         lhs = make_bin_expr(ctx, l, tok, lhs, NULL);
-        tok = l->tok;
+        return lhs;
     }
-    return lhs ? lhs : parse_expr_postfix(ctx, l, 0);
+
+    return parse_expr_postfix(ctx, l, 0);
 }
 
 static kl_expr *parse_expr_term(kl_context *ctx, kl_lexer *l)

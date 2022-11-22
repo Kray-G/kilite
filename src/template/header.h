@@ -1092,6 +1092,28 @@ typedef struct vmctx {
 } \
 /**/
 
+/* NOT */
+
+#define OP_NOT_I(ctx, r, i0, label, func, file, line) { \
+    (r)->t = VAR_INT64; \
+    (r)->i = (i0 == 0) ? 1 : 0; \
+} \
+/**/
+
+#define OP_NOT_V(ctx, r, v0, label, func, file, line) { \
+    if ((v0)->t == VAR_INT64) { \
+        int64_t i0 = (v0)->i; \
+        OP_NOT_I(ctx, r, i0, label, func, file, line) \
+    } else { \
+        e = not_v(ctx, r, v0); \
+        if (e == FLOW_EXCEPTION) { \
+            exception_addtrace(ctx, ctx->except, func, file, line); \
+            goto label; \
+        } \
+    } \
+} \
+/**/
+
 /* ADD */
 
 #define OP_NADD_I_I(e, n, r, i0, i1, label) { \

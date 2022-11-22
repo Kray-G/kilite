@@ -980,12 +980,26 @@ static kl_kir_inst *gen_assign_object(kl_context *ctx, kl_symbol *sym, kl_kir_op
     return head;
 }
 
+static kl_kir_inst *gen_not(kl_context *ctx, kl_symbol *sym, kl_kir_opr *r1, kl_expr *e)
+{
+    kl_kir_inst *r2i = NULL;
+    kl_kir_opr r2 = {0};
+    KL_KIR_CHECK_LITERAL(e->lhs, r2, r2i);
+    kl_kir_inst *head = new_inst_op2(ctx->program, e->line, e->pos, KIR_NOT, r1, &r2);
+    set_file_func(ctx, sym, head);
+    if (r2i) {
+        kl_kir_inst *r2l = get_last(r2i);
+        r2l->next = head;
+        head = r2i;
+    }
+    return head;
+}
+
 static kl_kir_inst *gen_assign(kl_context *ctx, kl_symbol *sym, kl_kir_opr *r1, kl_expr *e)
 {
     kl_expr *l = e->lhs;
     kl_kir_inst *head = NULL;
-    if (e->lhs && e->rhs && e->lhs->nodetype == TK_VAR &&
-            (e->rhs->nodetype == TK_CALL || e->rhs->nodetype == TK_ARYSIZE || e->rhs->nodetype == TK_RANGE2 || e->rhs->nodetype == TK_RANGE3)) {
+    if (e->lhs && e->rhs && e->lhs->nodetype == TK_VAR) {
         kl_symbol *lsym = l->sym->ref ? l->sym->ref : l->sym;
         kl_kir_opr rr = make_var_index(ctx, lsym->index, l->sym->level, l->typeid);
         head = gen_expr(ctx, sym, &rr, e->rhs);
@@ -1618,6 +1632,7 @@ static kl_kir_inst *gen_expr(kl_context *ctx, kl_symbol *sym, kl_kir_opr *r1, kl
         break;
 
     case TK_NOT:
+        head = gen_not(ctx, sym, r1, e);
         break;
     case TK_EQ:
         head = gen_assign(ctx, sym, r1, e);
@@ -1946,6 +1961,7 @@ static kl_kir_func *gen_function(kl_context *ctx, kl_symbol *sym, kl_stmt *s, kl
     func->funcid = sym->funcid;
     func->has_dot3 = sym->is_dot3;
     func->argcount = sym->argcount;
+    func->yield = sym->yield;
     func->head->r1 = (kl_kir_opr){ .t = TK_VSINT, .i64 = sym->count, .typeid = TK_TSINT64 };
     func->head->r2 = (kl_kir_opr){ .t = TK_VSINT, .i64 = localvars, .typeid = TK_TSINT64 };
     func->head->r3 = (kl_kir_opr){ .t = TK_VSINT, .i64 = sym->argcount, .typeid = TK_TSINT64 };

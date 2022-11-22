@@ -796,9 +796,6 @@ int Binary(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 
 /* Array/Object */
 
-extern int Array_each(vmctx *ctx, vmfrm *lex, vmvar *r, int ac);
-extern int Array_map(vmctx *ctx, vmfrm *lex, vmvar *r, int ac);
-
 int Array_size(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     DEF_ARG(a0, 0, VAR_OBJ);
@@ -842,14 +839,21 @@ int Object_keys(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     return 0;
 }
 
+extern int Array_each(vmctx *ctx, vmfrm *lex, vmvar *r, int ac);
+extern int Array_map(vmctx *ctx, vmfrm *lex, vmvar *r, int ac);
+extern int Array_filter(vmctx *ctx, vmfrm *lex, vmvar *r, int ac);
+extern int Array_reject(vmctx *ctx, vmfrm *lex, vmvar *r, int ac);
+
 int Array(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     vmobj *o = alcobj(ctx);
     ctx->o = o;
     KL_SET_METHOD(o, each, Array_each, 2)
-    KL_SET_METHOD(o, push, Array_push, 1)
-    KL_SET_METHOD(o, map, Array_map, 1)
-    KL_SET_METHOD(o, join, Array_join, 1)
+    KL_SET_METHOD(o, push, Array_push, 2)
+    KL_SET_METHOD(o, map, Array_map, 2)
+    KL_SET_METHOD(o, join, Array_join, 2)
+    KL_SET_METHOD(o, filter, Array_filter, 2)
+    KL_SET_METHOD(o, reject, Array_reject, 2)
     KL_SET_METHOD(o, keys, Object_keys, 1)
     KL_SET_METHOD(o, size, Array_size, 1)
     SET_OBJ(r, o);
