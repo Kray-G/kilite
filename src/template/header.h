@@ -1095,6 +1095,35 @@ typedef struct vmctx {
 } \
 /**/
 
+/* Bit NOT */
+
+#define OP_BNOT_I(ctx, r, i0, label, func, file, line) { \
+    (r)->t = VAR_INT64; \
+    (r)->i = ~(i0); \
+} \
+/**/
+
+#define OP_BNOT_B(ctx, r, v0, label, func, file, line) { \
+    (r)->t = VAR_BIG; \
+    (r)->bi = alcbgi_bigz(ctx, BzNot((v0)->bi->b)); \
+} \
+/**/
+
+#define OP_BNOT_V(ctx, r, v0, label, func, file, line) { \
+    if ((v0)->t == VAR_INT64) { \
+        OP_BNOT_I(ctx, r, (v0)->i, label, func, file, line) \
+    } else if ((v0)->t == VAR_BIG) { \
+        OP_BNOT_B(ctx, r, v0, label, func, file, line) \
+    } else { \
+        e = bnot_v(ctx, r, v0); \
+        if (e == FLOW_EXCEPTION) { \
+            exception_addtrace(ctx, ctx->except, func, file, line); \
+            goto label; \
+        } \
+    } \
+} \
+/**/
+
 /* NOT */
 
 #define OP_NOT_I(ctx, r, i0, label, func, file, line) { \
@@ -2239,6 +2268,252 @@ typedef struct vmctx {
 } \
 /**/
 
+/* Bit AND */
+
+#define OP_BAND_I_I(ctx, r, i0, i1, label, func, file, line) { \
+    (r)->t = VAR_INT64; \
+    (r)->i = (i0) & (i1); \
+} \
+/**/
+
+#define OP_BAND_B_I(ctx, r, v0, i1, label, func, file, line) { \
+    BigZ b1 = BzFromInteger(i1); \
+    (r)->t = VAR_BIG; \
+    (r)->bi = alcbgi_bigz(ctx, BzAnd((v0)->bi->b, b1)); \
+    BzFree(b1); \
+} \
+/**/
+
+#define OP_BAND_I_B(ctx, r, i0, v1, label, func, file, line) { \
+    BigZ b0 = BzFromInteger(i0); \
+    (r)->t = VAR_BIG; \
+    (r)->bi = alcbgi_bigz(ctx, BzAnd(b0, (v1)->bi->b)); \
+    BzFree(b0); \
+} \
+/**/
+
+#define OP_BAND_V_I(ctx, r, v0, i1, label, func, file, line) { \
+    if ((v0)->t == VAR_INT64) { \
+        OP_BAND_I_I(ctx, r, (v0)->i, i1, label, func, file, line) \
+    } else if ((v0)->t == VAR_BIG) { \
+        OP_BAND_B_I(ctx, r, v0, i1, label, func, file, line) \
+    } else { \
+        e = band_v_i(ctx, r, v0, i1); \
+        if (e == FLOW_EXCEPTION) { \
+            exception_addtrace(ctx, ctx->except, func, file, line); \
+            goto label; \
+        } \
+    } \
+} \
+/**/
+
+#define OP_BAND_I_V(ctx, r, i0, v1, label, func, file, line) { \
+    if ((v1)->t == VAR_INT64) { \
+        OP_BAND_I_I(ctx, r, i0, (v1)->i, label, func, file, line) \
+    } else if ((v1)->t == VAR_BIG) { \
+        OP_BAND_I_B(ctx, r, i0, v1, label, func, file, line) \
+    } else { \
+        e = band_i_v(ctx, r, i0, v1); \
+        if (e == FLOW_EXCEPTION) { \
+            exception_addtrace(ctx, ctx->except, func, file, line); \
+            goto label; \
+        } \
+    } \
+} \
+/**/
+
+#define OP_BAND(ctx, r, v0, v1, label, func, file, line) { \
+    if ((v0)->t == VAR_INT64) { \
+        int64_t i0 = (v0)->i; \
+        OP_BAND_I_V(ctx, r, i0, v1, label, func, file, line) \
+    } else if ((v0)->t == VAR_BIG) { \
+        if ((v1)->t = VAR_INT64) { \
+            int64_t i1 = (v1)->i; \
+            OP_BAND_B_I(ctx, r, v0, i1, label, func, file, line) \
+        } else if ((v1)->t = VAR_BIG) { \
+            (r)->t = VAR_BIG; \
+            (r)->bi = alcbgi_bigz(ctx, BzAdd((v0)->bi->b, (v1)->bi->b)); \
+        } else { \
+            e = band_v_v(ctx, r, v0, v1); \
+            if (e == FLOW_EXCEPTION) { \
+                exception_addtrace(ctx, ctx->except, func, file, line); \
+                goto label; \
+            } \
+        } \
+    } else { \
+        e = band_v_v(ctx, r, v0, v1); \
+        if (e == FLOW_EXCEPTION) { \
+            exception_addtrace(ctx, ctx->except, func, file, line); \
+            goto label; \
+        } \
+    } \
+} \
+/**/
+
+/* Bit OR */
+
+#define OP_BOR_I_I(ctx, r, i0, i1, label, func, file, line) { \
+    (r)->t = VAR_INT64; \
+    (r)->i = (i0) | (i1); \
+} \
+/**/
+
+#define OP_BOR_B_I(ctx, r, v0, i1, label, func, file, line) { \
+    BigZ b1 = BzFromInteger(i1); \
+    (r)->t = VAR_BIG; \
+    (r)->bi = alcbgi_bigz(ctx, BzOr((v0)->bi->b, b1)); \
+    BzFree(b1); \
+} \
+/**/
+
+#define OP_BOR_I_B(ctx, r, i0, v1, label, func, file, line) { \
+    BigZ b0 = BzFromInteger(i0); \
+    (r)->t = VAR_BIG; \
+    (r)->bi = alcbgi_bigz(ctx, BzOr(b0, (v1)->bi->b)); \
+    BzFree(b0); \
+} \
+/**/
+
+#define OP_BOR_V_I(ctx, r, v0, i1, label, func, file, line) { \
+    if ((v0)->t == VAR_INT64) { \
+        OP_BOR_I_I(ctx, r, (v0)->i, i1, label, func, file, line) \
+    } else if ((v0)->t == VAR_BIG) { \
+        OP_BOR_B_I(ctx, r, v0, i1, label, func, file, line) \
+    } else { \
+        e = bor_v_i(ctx, r, v0, i1); \
+        if (e == FLOW_EXCEPTION) { \
+            exception_addtrace(ctx, ctx->except, func, file, line); \
+            goto label; \
+        } \
+    } \
+} \
+/**/
+
+#define OP_BOR_I_V(ctx, r, i0, v1, label, func, file, line) { \
+    if ((v1)->t == VAR_INT64) { \
+        OP_BOR_I_I(ctx, r, i0, (v1)->i, label, func, file, line) \
+    } else if ((v1)->t == VAR_BIG) { \
+        OP_BOR_I_B(ctx, r, i0, v1, label, func, file, line) \
+    } else { \
+        e = bor_i_v(ctx, r, i0, v1); \
+        if (e == FLOW_EXCEPTION) { \
+            exception_addtrace(ctx, ctx->except, func, file, line); \
+            goto label; \
+        } \
+    } \
+} \
+/**/
+
+#define OP_BOR(ctx, r, v0, v1, label, func, file, line) { \
+    if ((v0)->t == VAR_INT64) { \
+        int64_t i0 = (v0)->i; \
+        OP_BOR_I_V(ctx, r, i0, v1, label, func, file, line) \
+    } else if ((v0)->t == VAR_BIG) { \
+        if ((v1)->t = VAR_INT64) { \
+            int64_t i1 = (v1)->i; \
+            OP_BOR_B_I(ctx, r, v0, i1, label, func, file, line) \
+        } else if ((v1)->t = VAR_BIG) { \
+            (r)->t = VAR_BIG; \
+            (r)->bi = alcbgi_bigz(ctx, BzAdd((v0)->bi->b, (v1)->bi->b)); \
+        } else { \
+            e = bor_v_v(ctx, r, v0, v1); \
+            if (e == FLOW_EXCEPTION) { \
+                exception_addtrace(ctx, ctx->except, func, file, line); \
+                goto label; \
+            } \
+        } \
+    } else { \
+        e = bor_v_v(ctx, r, v0, v1); \
+        if (e == FLOW_EXCEPTION) { \
+            exception_addtrace(ctx, ctx->except, func, file, line); \
+            goto label; \
+        } \
+    } \
+} \
+/**/
+
+/* Bit XOR */
+
+#define OP_BXOR_I_I(ctx, r, i0, i1, label, func, file, line) { \
+    (r)->t = VAR_INT64; \
+    (r)->i = (i0) ^ (i1); \
+} \
+/**/
+
+#define OP_BXOR_B_I(ctx, r, v0, i1, label, func, file, line) { \
+    BigZ b1 = BzFromInteger(i1); \
+    (r)->t = VAR_BIG; \
+    (r)->bi = alcbgi_bigz(ctx, BzXor((v0)->bi->b, b1)); \
+    BzFree(b1); \
+} \
+/**/
+
+#define OP_BXOR_I_B(ctx, r, i0, v1, label, func, file, line) { \
+    BigZ b0 = BzFromInteger(i0); \
+    (r)->t = VAR_BIG; \
+    (r)->bi = alcbgi_bigz(ctx, BzXor(b0, (v1)->bi->b)); \
+    BzFree(b0); \
+} \
+/**/
+
+#define OP_BXOR_V_I(ctx, r, v0, i1, label, func, file, line) { \
+    if ((v0)->t == VAR_INT64) { \
+        OP_BXOR_I_I(ctx, r, (v0)->i, i1, label, func, file, line) \
+    } else if ((v0)->t == VAR_BIG) { \
+        OP_BXOR_B_I(ctx, r, v0, i1, label, func, file, line) \
+    } else { \
+        e = bor_v_i(ctx, r, v0, i1); \
+        if (e == FLOW_EXCEPTION) { \
+            exception_addtrace(ctx, ctx->except, func, file, line); \
+            goto label; \
+        } \
+    } \
+} \
+/**/
+
+#define OP_BXOR_I_V(ctx, r, i0, v1, label, func, file, line) { \
+    if ((v1)->t == VAR_INT64) { \
+        OP_BXOR_I_I(ctx, r, i0, (v1)->i, label, func, file, line) \
+    } else if ((v1)->t == VAR_BIG) { \
+        OP_BXOR_I_B(ctx, r, i0, v1, label, func, file, line) \
+    } else { \
+        e = bor_i_v(ctx, r, i0, v1); \
+        if (e == FLOW_EXCEPTION) { \
+            exception_addtrace(ctx, ctx->except, func, file, line); \
+            goto label; \
+        } \
+    } \
+} \
+/**/
+
+#define OP_BXOR(ctx, r, v0, v1, label, func, file, line) { \
+    if ((v0)->t == VAR_INT64) { \
+        int64_t i0 = (v0)->i; \
+        OP_BXOR_I_V(ctx, r, i0, v1, label, func, file, line) \
+    } else if ((v0)->t == VAR_BIG) { \
+        if ((v1)->t = VAR_INT64) { \
+            int64_t i1 = (v1)->i; \
+            OP_BXOR_B_I(ctx, r, v0, i1, label, func, file, line) \
+        } else if ((v1)->t = VAR_BIG) { \
+            (r)->t = VAR_BIG; \
+            (r)->bi = alcbgi_bigz(ctx, BzAdd((v0)->bi->b, (v1)->bi->b)); \
+        } else { \
+            e = bor_v_v(ctx, r, v0, v1); \
+            if (e == FLOW_EXCEPTION) { \
+                exception_addtrace(ctx, ctx->except, func, file, line); \
+                goto label; \
+            } \
+        } \
+    } else { \
+        e = bor_v_v(ctx, r, v0, v1); \
+        if (e == FLOW_EXCEPTION) { \
+            exception_addtrace(ctx, ctx->except, func, file, line); \
+            goto label; \
+        } \
+    } \
+} \
+/**/
+
 INLINE extern vmctx *initialize(void);
 INLINE extern void finalize(vmctx *ctx);
 INLINE extern void setup_context(vmctx *ctx);
@@ -2359,6 +2634,16 @@ INLINE extern int ge_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1);
 INLINE extern int lge_v_i(vmctx *ctx, vmvar *r, vmvar *v, int64_t i);
 INLINE extern int lge_i_v(vmctx *ctx, vmvar *r, int64_t i, vmvar *v);
 INLINE extern int lge_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1);
+
+INLINE extern int band_v_i(vmctx *ctx, vmvar *r, vmvar *v, int64_t i);
+INLINE extern int band_i_v(vmctx *ctx, vmvar *r, int64_t i, vmvar *v);
+INLINE extern int band_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1);
+INLINE extern int bor_v_i(vmctx *ctx, vmvar *r, vmvar *v, int64_t i);
+INLINE extern int bor_i_v(vmctx *ctx, vmvar *r, int64_t i, vmvar *v);
+INLINE extern int bor_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1);
+INLINE extern int bxor_v_i(vmctx *ctx, vmvar *r, vmvar *v, int64_t i);
+INLINE extern int bxor_i_v(vmctx *ctx, vmvar *r, int64_t i, vmvar *v);
+INLINE extern int bxor_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1);
 
 INLINE extern int iRange_create_i(vmctx *ctx, vmfrm *lex, vmvar *r, int *beg, int *end, int excl);
 INLINE extern int Range_create(vmctx *ctx, vmfrm *lex, vmvar *r, int ac);

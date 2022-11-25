@@ -238,6 +238,18 @@ void disp_inst(kl_kir_program *p, kl_kir_inst *i)
     case KIR_POW:
         disp_3op("pow", i);
         break;
+    case KIR_BNOT:
+        disp_3op("bitnot", i);
+        break;
+    case KIR_BAND:
+        disp_3op("bitand", i);
+        break;
+    case KIR_BOR:
+        disp_3op("bitor", i);
+        break;
+    case KIR_BXOR:
+        disp_3op("bitxor", i);
+        break;
 
     case KIR_EQEQ:
         disp_3op("eqeq", i);

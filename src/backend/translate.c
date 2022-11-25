@@ -774,6 +774,22 @@ static void translate_yield_check(func_context *fctx, xstr *code, kl_kir_func *f
     }
 }
 
+static void translate_bnot(func_context *fctx, xstr *code, kl_kir_inst *i)
+{
+    char buf1[256] = {0};
+    char buf2[256] = {0};
+    var_value(buf1, &(i->r1));
+    if (i->r2.t == TK_VSINT) {
+        int_value(buf2, &(i->r2));
+        xstra_inst(code, "OP_BNOT_I(ctx, %s, %d, L%d, \"%s\", \"%s\", %d);\n", buf1, buf2,
+            i->catchid, i->funcname, escape(&(fctx->str), i->filename), i->line);
+    } else {
+        var_value(buf2, &(i->r2));
+        xstra_inst(code, "OP_BNOT_V(ctx, %s, %s, L%d, \"%s\", \"%s\", %d);\n", buf1, buf2,
+            i->catchid, i->funcname, escape(&(fctx->str), i->filename), i->line);
+    }
+}
+
 static void translate_not(func_context *fctx, xstr *code, kl_kir_inst *i)
 {
     char buf1[256] = {0};
@@ -1305,6 +1321,18 @@ static void translate_inst(xstr *code, kl_kir_func *f, kl_kir_inst *i, func_cont
         break;
     case KIR_POW:
         translate_chkcnd(fctx, code, "POW", NULL, i);
+        break;
+    case KIR_BNOT:
+        translate_bnot(fctx, code, i);
+        break;
+    case KIR_BAND:
+        translate_chkcnd(fctx, code, "BAND", NULL, i);
+        break;
+    case KIR_BOR:
+        translate_chkcnd(fctx, code, "BOR", NULL, i);
+        break;
+    case KIR_BXOR:
+        translate_chkcnd(fctx, code, "BXOR", NULL, i);
         break;
 
     case KIR_EQEQ:
