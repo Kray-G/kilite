@@ -981,6 +981,16 @@ static void translate_chkmatch(func_context *fctx, xstr *code, kl_kir_inst *i)
     }
 }
 
+static void translate_chkrange(func_context *fctx, xstr *code, kl_kir_inst *i)
+{
+    char buf1[256] = {0};
+    char buf2[256] = {0};
+    var_value(buf1, &(i->r1));
+    var_value(buf2, &(i->r2));
+    xstra_inst(code, "CHECK_RANGE(ctx, %s, %s, L%d, \"%s\", \"%s\", %d);\n",
+        buf1, buf2, i->catchid, i->funcname, escape(&(fctx->str), i->filename), i->line);
+}
+
 static void set_last_args(xstr *code, kl_kir_func *f, int idx, int total)
 {
     xstra_inst(code, "SET_OBJ(n%d, alcobj(ctx));\n", idx);
@@ -1088,6 +1098,7 @@ static void translate_alocal(func_context *fctx, xstr *code, kl_kir_func *f, kl_
     }
     xstra_inst(code, "const int allocated_local = %" PRId64 ";\n", fctx->total_vars);
     if (fctx->total_vars > 0) {
+        xstra_inst(code, "int pstop = vstackp(ctx);\n");
         xstra_inst(code, "alloc_var(ctx, allocated_local, L%d, \"%s\", \"%s\", %d);\n",
             f->funcend, i->funcname, escape(&(fctx->str), i->filename), i->line);
         xstra_inst(code, "vmvar ");
@@ -1133,6 +1144,7 @@ static void translate_mkfrm(func_context *fctx, xstr *code, kl_kir_func *f, kl_k
     xstraf(code, ";\n");
     xstra_inst(code, "vmvar yy = {0}; SET_UNDEF(&yy);\n");
     if (fctx->total_vars > 0 && fctx->temp_count > 0) {
+        xstra_inst(code, "int pstop = vstackp(ctx);\n");
         xstra_inst(code, "const int allocated_local = %" PRId64 ";\n", fctx->temp_count);
         xstra_inst(code, "alloc_var(ctx, %" PRId64 ", L%d, \"%s\", \"%s\", %d);\n",
             fctx->temp_count, f->funcend, i->funcname, escape(&(fctx->str), i->filename), i->line);
@@ -1165,14 +1177,14 @@ static void translate_mkfrm(func_context *fctx, xstr *code, kl_kir_func *f, kl_k
 static void translate_rlocal(func_context *fctx, xstr *code)
 {
     if (fctx->total_vars > 0) {
-        xstra_inst(code, "reduce_vstackp(ctx, allocated_local);\n");
+        xstra_inst(code, "restore_vstackp(ctx, pstop);\n");
     }
 }
 
 static void translate_popfrm(func_context *fctx, xstr *code)
 {
     if (fctx->total_vars > 0 && fctx->temp_count > 0) {
-        xstra_inst(code, "reduce_vstackp(ctx, allocated_local);\n");
+        xstra_inst(code, "restore_vstackp(ctx, pstop);\n");
     }
     xstra_inst(code, "pop_frm(ctx);\n");
 }
@@ -1404,6 +1416,9 @@ static void translate_inst(xstr *code, kl_kir_func *f, kl_kir_inst *i, func_cont
         break;
     case KIR_CHKMATCH:
         translate_chkmatch(fctx, code, i);
+        break;
+    case KIR_CHKRANGE:
+        translate_chkrange(fctx, code, i);
         break;
 
     case KIR_TYPE:

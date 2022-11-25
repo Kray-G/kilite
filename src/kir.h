@@ -263,6 +263,7 @@ typedef enum kl_kir {
     KIR_APLYL,      //  <r1>, <r2>, <str>       ;   <r1>  <-  &<r2>.<str>
     KIR_REMOVE,     //  <r1>, <str>             ;   <r1>.remove(<str>)
     KIR_CHKMATCH,   //  <r1>, <r2>              ;   if <r1> != <r2>, throw NoMatchingPatternException.
+    KIR_CHKRANGE,   //  <r1>, <r2>              ;   if !<r1>.includes(<r2>), throw NoMatchingPatternException.
 
     KIR_TYPE,       //  <r1>, <r2>, n           ;   <r1>  <-  true if <r2> type == n
     KIR_TYPECHK,    //  <r1>, n                 ;   throw exception if <r1> type != n

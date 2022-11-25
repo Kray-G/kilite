@@ -195,7 +195,7 @@ int main(int ac, char **av)
     }
 
     kl_lexer *l = lexer_new_file(opts.in_stdin ? NULL : opts.file);
-    l->precode = "const undefined;"
+    l->precode = "const undefined; const null = undefined;"
         "extern System; extern SystemTimer; extern Math; extern Fiber; extern Range;"
         "extern RuntimeException();"
         "extern Integer; extern Double; extern String; extern Binary; extern Array;"
@@ -227,7 +227,10 @@ int main(int ac, char **av)
         disp_ast(ctx);
         goto END;
     }
-    make_kir(ctx);
+    r = make_kir(ctx);
+    if (r > 0) {
+        goto END;
+    }
     if (opts.out_src && opts.out_kir) {
         disp_program(ctx->program);
         goto END;
@@ -250,8 +253,6 @@ int main(int ac, char **av)
             printf("void *SystemTimer_init(void) { return NULL; }\n");
             printf("void SystemTimer_restart_impl(void *p) {}\n");
             printf("double SystemTimer_elapsed_impl(void *p) { return 0.0; }\n");
-            printf("int xprintf(const char *fmt, ...) { va_list ap; va_start(ap, fmt); vprintf(fmt, ap); va_end(ap); }\n");
-            printf("int xsprintf(char *buf, const char *fmt, ...) { va_list ap; va_start(ap, fmt); vsprintf(buf, fmt, ap); va_end(ap); }\n\n");
         }
         goto END;
     } else {

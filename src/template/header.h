@@ -16,12 +16,10 @@ extern BigZ i64minm1;
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#define xprintf printf
-#define xsprintf sprintf
 #else
 #define INLINE inline
-int xprintf(const char *, ...);
-int xsprintf(const char *, const char *, ...);
+int printf(const char *, ...);
+int sprintf(const char *, const char *, ...);
 int64_t strtoll(const char*, char**, int);
 void *malloc(size_t);
 void *calloc(size_t, size_t);
@@ -615,6 +613,22 @@ typedef struct vmctx {
     { push_var(ctx, r1, label, func, file, line); } \
     CALL(f, NULL, dst, 3) \
     restore_vstackp(ctx, pp); \
+} \
+/**/
+
+#define CHECK_RANGE(ctx, r1, r2, label, func, file, line) { \
+    int pp = vstackp(ctx); \
+    vmvar *includes = hashmap_search(r1->o, "includes"); \
+    { push_var(ctx, r2, label, func, file, line); } \
+    vmvar *px = &(((ctx)->vstk)[((ctx)->vstkp)++]); \
+    SHCOPY_VAR_TO(ctx, px, r1); \
+    CHECK_CALL(ctx, includes, label, r1, 2, func, file, line) \
+    restore_vstackp(ctx, pp); \
+    if (r1->t != VAR_INT64 || r1->i == 0) { \
+        e = throw_system_exception(__LINE__, ctx, EXCEPT_NO_MATCHING_PATTERN, NULL); \
+        exception_addtrace(ctx, ctx->except, func, file, line); \
+        goto label; \
+    } \
 } \
 /**/
 

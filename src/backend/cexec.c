@@ -223,8 +223,8 @@ int run(int *ret, const char *fname, const char *src, int ac, char **av, char **
         if (opts->modules) {
             load_additional_modules(ctx, opts->modules);
         }
-        MIR_load_external(ctx, "xprintf", printf);
-        MIR_load_external(ctx, "xsprintf", sprintf);
+        MIR_load_external(ctx, "printf", printf);
+        MIR_load_external(ctx, "sprintf", sprintf);
         MIR_load_external(ctx, "SystemTimer_init", SystemTimer_init);
         MIR_load_external(ctx, "SystemTimer_restart_impl", SystemTimer_restart_impl);
         MIR_load_external(ctx, "SystemTimer_elapsed_impl", SystemTimer_elapsed_impl);

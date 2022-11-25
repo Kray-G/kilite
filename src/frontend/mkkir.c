@@ -5,6 +5,7 @@
 #define KIR_MOVE_LAST(last) while (last->next) last = last->next
 
 static kl_kir_inst *gen_block(kl_context *ctx, kl_symbol *sym, kl_stmt *s);
+static kl_kir_inst *gen_range(kl_context *ctx, kl_symbol *sym, kl_expr *e, kl_kir_opr *r1, int range);
 static kl_kir_inst *gen_assign_object(kl_context *ctx, kl_symbol *sym, kl_kir_opr *r1, kl_expr *e);
 static kl_kir_inst *gen_expr(kl_context *ctx, kl_symbol *sym, kl_kir_opr *r1, kl_expr *e);
 static kl_kir_inst *gen_stmt(kl_context *ctx, kl_symbol *sym, kl_stmt *s);
@@ -243,6 +244,7 @@ static void add_func(kl_kir_program *prog, kl_kir_func *func)
         (rn) = make_lit_str(ctx, (e)->val.str); \
         break; \
     case TK_VAR: \
+        check_autoset_flag(ctx, (e)->sym); \
         (rn) = make_var_index(ctx, (e)->sym->ref ? (e)->sym->ref->index : (e)->sym->index, (e)->sym->level, (e)->typeid); \
         if ((e)->sym->is_dot3) { \
             (rn).has_dot3 = 1; \
@@ -290,6 +292,13 @@ static void add_func(kl_kir_program *prog, kl_kir_func *func)
         break; \
     } \
 /**/
+
+static void check_autoset_flag(kl_context *ctx, kl_symbol *sym)
+{
+    if (!sym->ref && sym->is_autoset) {
+        mkkir_error(ctx, __LINE__, sym, "Symbol(%s) is not found", sym->name);
+    }
+}
 
 static kl_kir_inst *get_last(kl_kir_inst *i)
 {
@@ -885,6 +894,19 @@ static kl_kir_inst *gen_array_lvalue(kl_context *ctx, kl_symbol *sym, kl_kir_opr
         last->next = new_inst_op2(ctx->program, e->line, e->pos, KIR_MOVA, &rs, &r3);
         break;
     }
+    case TK_RANGE2:
+    case TK_RANGE3: {
+        rs = make_var(ctx, sym, TK_TANY);
+        r3 = make_lit_i64(ctx, *idx);
+        ++(*idx);
+        head = new_inst_op3(ctx->program, e->line, e->pos, KIR_IDX, &rs, r2, &r3);
+        kl_kir_opr r3 = make_var(ctx, sym, TK_TANY);
+        head->next = gen_range(ctx, sym, e, &r3, e->nodetype == TK_RANGE2 ? 2 : 3);
+        last = get_last(head);
+        last->next = new_inst_op2(ctx->program, e->line, e->pos, KIR_CHKRANGE, &r3, &rs);
+        set_file_func(ctx, sym, last->next);
+        break;
+    }
     default:
         rs = make_var(ctx, sym, TK_TANY);
         r3 = make_lit_i64(ctx, *idx);
@@ -935,6 +957,7 @@ static kl_kir_inst *gen_object_lvalue(kl_context *ctx, kl_symbol *sym, kl_kir_op
         kl_expr *r = e->rhs;
         switch (r->nodetype) {
         case TK_VAR:
+            check_autoset_flag(ctx, r->sym);
             rs = make_var_index(ctx, r->sym->ref ? r->sym->ref->index : r->sym->index, r->sym->level, r->typeid);
             if (r->sym->is_dot3) {
                 rs.has_dot3 = 1;
@@ -1744,6 +1767,7 @@ static kl_kir_inst *gen_expr(kl_context *ctx, kl_symbol *sym, kl_kir_opr *r1, kl
     }
     case TK_VAR: {
         if (!r1->prevent) {
+            check_autoset_flag(ctx, e->sym);
             kl_kir_opr rs = make_var_index(ctx, e->sym->index, e->sym->level, e->typeid);
             head = new_inst_op2(ctx->program, e->line, e->pos, KIR_MOV, r1, &rs);
         }
@@ -2422,5 +2446,5 @@ int make_kir(kl_context *ctx)
 {
     ctx->program = (kl_kir_program*)calloc(1, sizeof(kl_kir_program));
     gen_program(ctx, ctx->program, ctx->head);
-    return 0;
+    return ctx->errors;
 }

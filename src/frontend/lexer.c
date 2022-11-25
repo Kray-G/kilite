@@ -18,6 +18,7 @@ static const char *tpname[] = {
 static const char *tkname[] = {
     "TK_EOF",
     "TK_UNKNOWN",
+
     "TK_VSINT",
     "TK_VBIGINT",
     "TK_VDBL",
@@ -75,12 +76,12 @@ static const char *tkname[] = {
     "TK_ANDEQ",
     "TK_OREQ",
     "TK_XOREQ",
-    "TK_EXPEQ",
+    "TK_POWEQ",
     "TK_LSHEQ",
     "TK_RSHEQ",
     "TK_LANDEQ",
     "TK_LOREQ",
-
+    "TK_NULLCEQ",
     "TK_REGEQ",
     "TK_REGNE",
     "TK_EQEQ",
@@ -100,7 +101,7 @@ static const char *tkname[] = {
     "TK_OR",
     "TK_XOR",
     "TK_QES",
-    "TK_EXP",
+    "TK_POW",
     "TK_LSH",
     "TK_RSH",
     "TK_LAND",

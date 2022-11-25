@@ -319,6 +319,9 @@ void disp_inst(kl_kir_program *p, kl_kir_inst *i)
     case KIR_CHKMATCH:
         disp_2op("chkmatch", i);
         break;
+    case KIR_CHKRANGE:
+        disp_2op("chkrange", i);
+        break;
 
     case KIR_TYPE:
         disp_3op("type", i);

@@ -579,6 +579,21 @@ static void check_symbol(kl_context *ctx, kl_lexer *l, const char *name)
     }
 }
 
+static void check_assigned_dot(kl_context *ctx, kl_lexer *l, kl_expr *lhs)
+{
+    if (lhs->nodetype == TK_VAR && lhs->sym) {
+        kl_symbol *v = lhs->sym->ref ? lhs->sym->ref : lhs->sym;
+        v->is_autoset = 0;    /* clear this flag when it's lvalue. */
+    } else {
+        if (lhs->lhs) {
+            check_assigned_dot(ctx, l, lhs->lhs);
+        }
+        if (lhs->rhs) {
+            check_assigned_dot(ctx, l, lhs->rhs);
+        }
+    }
+}
+
 static void check_assigned(kl_context *ctx, kl_lexer *l, kl_expr *lhs)
 {
     if (!lhs) {
@@ -586,11 +601,14 @@ static void check_assigned(kl_context *ctx, kl_lexer *l, kl_expr *lhs)
     }
     if (lhs->nodetype == TK_VAR && lhs->sym) {
         kl_symbol *v = lhs->sym->ref ? lhs->sym->ref : lhs->sym;
+        v->is_autoset = 0;    /* clear this flag when it's lvalue. */
         v->assigned++;
         if (v->is_const && v->assigned > 1) {
             parse_error(ctx, __LINE__, l, "Can not assign a value to the 'const' variable");
         }
-    } else if (lhs->nodetype != TK_DOT) {
+    } else if (lhs->nodetype == TK_DOT) {
+        check_assigned_dot(ctx, l, lhs);
+    } else {
         if (lhs->lhs) {
             check_assigned(ctx, l, lhs->lhs);
         }
@@ -676,6 +694,7 @@ static kl_expr *parse_expr_varname(kl_context *ctx, kl_lexer *l, const char *nam
             sym = set_placeholder(ctx, l, name);
             if (!sym) {
                 sym = make_symbol(ctx, l, TK_VAR, 0);
+                sym->is_autoset = 1;
             }
         }
     }
@@ -1008,7 +1027,7 @@ static kl_expr *parse_expr_postfix(kl_context *ctx, kl_lexer *l, int is_new)
             tok = l->tok;
         } else if (tok == TK_DOT2 || tok == TK_DOT3) {
             lexer_fetch(l);
-            kl_expr *rhs = parse_expression(ctx, l);
+            kl_expr *rhs = parse_expr_assignment(ctx, l);
             lhs = make_bin_expr(ctx, l, tok == TK_DOT2 ? TK_RANGE2 : TK_RANGE3, lhs, rhs);
             tok = l->tok;
         }

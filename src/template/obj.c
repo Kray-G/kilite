@@ -40,7 +40,7 @@ static void hashmap_objprint_impl(vmobj *obj, int indent)
                     if (i < lsz) printf(", ");
                     break;
                 case VAR_DBL:
-                    xprintf("%.16g", v->d);
+                    printf("%.16g", v->d);
                     if (i < lsz) printf(", ");
                     break;
                 case VAR_BIG: {
@@ -109,7 +109,7 @@ static void hashmap_objprint_impl(vmobj *obj, int indent)
                         printf("%lld", va->i);
                         break;
                     case VAR_DBL:
-                        xprintf("%.16g", va->d);
+                        printf("%.16g", va->d);
                         break;
                     case VAR_BIG: {
                         char *bs = BzToString(va->bi->b, 10, 0);

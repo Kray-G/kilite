@@ -30,6 +30,7 @@ typedef struct kl_symbol {
     int is_recursive;               //  This reference symbol could be recursive call. ref->is_callable should be 1.
     int is_dot3;                    //  The variable is written with the 3 dots.
     int is_global;                  //  This symbol is a global namespace.
+    int is_autoset;                 //  This is the mark shown as made as a symbol without decralation.
     int assigned;                   //  The count of assignment to this variable.
     int level;                      //  The level of lexical scope, which means a distance from the scope having the 'ref' symbol.
     int index;                      //  The index of this symbol.

@@ -13,6 +13,15 @@
 #define DEF_ARG_ANY(a0, n) \
     vmvar *a0 = (ac > n) ? local_var(ctx, n) : alcvar_initial(ctx); \
 /**/
+#define DEF_ARG_INT(a0, n) \
+    if (ac < (n+1)) { \
+        return throw_system_exception(__LINE__, ctx, EXCEPT_TOO_FEW_ARGUMENTS, NULL); \
+    } \
+    vmvar *a0 = local_var(ctx, n); \
+    if (a0->t != VAR_INT64 && a0->t != VAR_BIG) { \
+        return throw_system_exception(__LINE__, ctx, EXCEPT_TYPE_MISMATCH, NULL); \
+    } \
+/**/
 #define DEF_ARG_OR_UNDEF(a0, n, type) \
     vmvar *a0 = (ac > n) ? local_var(ctx, n) : alcvar_initial(ctx); \
     if (a0->t != type && a0->t != VAR_UNDEF) { \
@@ -514,7 +523,7 @@ static int iRange_begin(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     vmvar *a0 = local_var(ctx, 0);
     vmvar *e = a0->o->ary[0];
-    if (e->t == VAR_UNDEF) {
+    if (e->t != VAR_INT64) {
         return throw_system_exception(__LINE__, ctx, EXCEPT_RANGE_ERROR, NULL);
     }
     SHCOPY_VAR_TO(ctx, r, e);
@@ -525,7 +534,7 @@ static int iRange_end(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     vmvar *a0 = local_var(ctx, 0);
     vmvar *e = a0->o->ary[1];
-    if (e->t == VAR_UNDEF) {
+    if (e->t != VAR_INT64) {
         return throw_system_exception(__LINE__, ctx, EXCEPT_RANGE_ERROR, NULL);
     }
     SHCOPY_VAR_TO(ctx, r, e);
@@ -537,6 +546,36 @@ static int iRange_isEndExcluded(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     vmvar *a0 = local_var(ctx, 0);
     vmvar *e = a0->o->ary[2];
     SHCOPY_VAR_TO(ctx, r, e);
+    return 0;
+}
+
+static int iRange_includes(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    vmvar *a0 = local_var(ctx, 0);
+    DEF_ARG(a1, 1, VAR_INT64);
+    vmvar *beg = a0->o->ary[0];
+    vmvar *end = a0->o->ary[1];
+    vmvar *ex = a0->o->ary[2];
+    if (ex->t != VAR_INT64) {
+        return throw_system_exception(__LINE__, ctx, EXCEPT_RANGE_ERROR, NULL);
+    }
+    if (beg->t == VAR_UNDEF && end->t == VAR_UNDEF) {
+        return throw_system_exception(__LINE__, ctx, EXCEPT_RANGE_ERROR, NULL);
+    }
+    int excl = ex->i;
+    int i = a1->i;
+    if (beg->t == VAR_UNDEF) {
+        int e = end->i - excl;
+        SET_I64(r, (i <= e));
+    } else if (end->t == VAR_UNDEF) {
+        int b = beg->i;
+        SET_I64(r, b <= i);
+    } else {
+        int b = beg->i;
+        int e = end->i - excl;
+        SET_I64(r, (b <= i && i <= e));
+    }
+
     return 0;
 }
 
@@ -556,6 +595,7 @@ int Range_create_i(vmctx *ctx, vmfrm *lex, vmvar *r, int *beg, int *end, int exc
     KL_SET_METHOD(o, next, iRange_next, ctx->frm, 0)
     KL_SET_METHOD(o, begin, iRange_begin, ctx->frm, 0)
     KL_SET_METHOD(o, end, iRange_end, ctx->frm, 0)
+    KL_SET_METHOD(o, includes, iRange_includes, ctx->frm, 1)
     KL_SET_METHOD(o, isEndExcluded, iRange_isEndExcluded, ctx->frm, 0)
     SET_OBJ(r, o);
     o->is_sysobj = 1;
@@ -713,10 +753,69 @@ int Math(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 
 /* Integer */
 
-int Integer_next(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+static int Integer_next(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
-    DEF_ARG(a0, 0, VAR_INT64);
-    SET_I64(r, a0->i + 1);
+    DEF_ARG_INT(a0, 0);
+    if (a0->t == VAR_INT64) {
+        SET_I64(r, a0->i + 1);
+    } else {
+        BigZ b2 = BzFromInteger(1);
+        r->t = VAR_BIG;
+        r->bi = alcbgi_bigz(ctx, BzAdd(a0->bi->b, b2));
+        BzFree(b2);
+    }
+    return 0;
+}
+
+static int digitch[] = {
+    '0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
+    'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm',
+    'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z'
+};
+
+static void Integer_toString_N(vmctx *ctx, vmstr *sv, int64_t iv, int n)
+{
+    if (iv >= n) {
+        Integer_toString_N(ctx, sv, iv / n, n);
+    }
+    int r = iv % n;
+    str_append_ch(ctx, sv, digitch[r]);
+}
+
+static int Integer_toString(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    DEF_ARG_INT(a0, 0);
+    DEF_ARG_OR_UNDEF(a1, 1, VAR_INT64);
+    int radix = a1->t == VAR_INT64 ? a1->i : 10;
+    r->t = VAR_STR;
+    if (a0->t == VAR_INT64) {
+        if (radix < 2 || 36 < radix) {
+            return throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION, "Unsupported radix number");
+        }
+        switch (radix) {
+        case 10: {
+            char buf[31] = {0};
+            sprintf(buf, "%lld", a0->i);
+            r->s = alcstr_str(ctx, buf);
+            break;
+        }
+        case 16: {
+            char buf[31] = {0};
+            sprintf(buf, "%llx", a0->i);
+            r->s = alcstr_str(ctx, buf);
+            break;
+        }
+        default:
+            r->s = alcstr_str(ctx, "");
+            Integer_toString_N(ctx, r->s, a0->i, radix);
+            break;
+        }
+    } else {
+        char *buf = BzToString(a0->bi->b, radix, 0);
+        r->s = alcstr_str(ctx, buf);
+        BzFreeString(buf);
+    }
+
     return 0;
 }
 
@@ -726,6 +825,7 @@ int Integer(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     vmobj *o = alcobj(ctx);
     ctx->i = o;
+    KL_SET_METHOD(o, toString, Integer_toString, ctx->frm, 2)
     KL_SET_METHOD(o, times, Integer_times, ctx->frm, 2)
     KL_SET_METHOD(o, next, Integer_next, ctx->frm, 2)
 
