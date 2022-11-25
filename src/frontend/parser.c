@@ -1212,21 +1212,35 @@ static kl_expr *parse_expr_logical_or(kl_context *ctx, kl_lexer *l)
     return lhs;
 }
 
-static kl_expr *parse_expr_ternary(kl_context *ctx, kl_lexer *l)
+static kl_expr *parse_expr_null_coalescing(kl_context *ctx, kl_lexer *l)
 {
     DEBUG_PARSER_PHASE();
     kl_expr *lhs = parse_expr_logical_or(ctx, l);
     tk_token tok = l->tok;
-    if (tok == TK_QES) {
+    while (tok == TK_NULLC) {
         lexer_fetch(l);
         kl_expr *rhs = parse_expr_logical_or(ctx, l);
+        lhs = make_bin_expr(ctx, l, tok, lhs, rhs);
+        tok = l->tok;
+    }
+    return lhs;
+}
+
+static kl_expr *parse_expr_ternary(kl_context *ctx, kl_lexer *l)
+{
+    DEBUG_PARSER_PHASE();
+    kl_expr *lhs = parse_expr_null_coalescing(ctx, l);
+    tk_token tok = l->tok;
+    if (tok == TK_QES) {
+        lexer_fetch(l);
+        kl_expr *rhs = parse_expr_null_coalescing(ctx, l);
         lhs = make_bin_expr(ctx, l, tok, lhs, rhs);
         if (l->tok != TK_COLON) {
             parse_error(ctx, __LINE__, l, "The ':' is missing in ternary expression");
             return panic_mode_expr(lhs, ';', ctx, l);
         }
         lexer_fetch(l);
-        lhs->xhs = parse_expr_logical_or(ctx, l);
+        lhs->xhs = parse_expr_null_coalescing(ctx, l);
     }
     return lhs;
 }
@@ -1254,7 +1268,7 @@ static kl_expr *parse_expr_assignment(kl_context *ctx, kl_lexer *l)
     }
     kl_expr *lhs = parse_expr_ternary(ctx, l);
     tk_token tok = l->tok;
-    if (TK_EQ <= tok && tok <= TK_LOREQ) {
+    if (TK_EQ <= tok && tok <= TK_NULLCEQ) {
         lexer_fetch(l);
         if (tok == TK_EQ && l->tok == TK_YIELD) {
             return parse_expr_yield(ctx, l, lhs);

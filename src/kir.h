@@ -96,6 +96,7 @@ typedef enum tk_token {
     TK_RSHEQ,               //  * >>=
     TK_LANDEQ,              //  * &&=
     TK_LOREQ,               //  * ||=
+    TK_NULLCEQ,             //  * ??=
         // Comparison
     TK_REGEQ,               //    =~
     TK_REGNE,               //    !~
@@ -121,6 +122,7 @@ typedef enum tk_token {
     TK_RSH,                 //  * >>
     TK_LAND,                //  * &&
     TK_LOR,                 //  * ||
+    TK_NULLC,               //  * ??
     TK_INC,                 //  * ++x
     TK_INCP,                //  * x++ (postfix)
     TK_DEC,                 //  * --x
@@ -168,6 +170,7 @@ typedef enum tk_token {
     TK_ARYSIZE,
 } tk_token;
 
+/* This is a temporary IR structure only used to convert from AST to C code. */
 typedef enum kl_kir {
     KIR_UNKNOWN = 0,
     KIR_NOP,

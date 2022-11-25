@@ -512,17 +512,18 @@ static kl_kir_inst *gen_logical_and(kl_context *ctx, kl_symbol *sym, kl_kir_opr 
 {
     kl_kir_inst *head = NULL;
     kl_kir_inst *r1l = NULL;
+    kl_kir_opr r2 = make_var(ctx, sym, TK_TANY);
     if (e->lhs->nodetype == TK_LAND) {
-        head = gen_logical_and(ctx, sym, r1, e->lhs, l1);
+        head = gen_logical_and(ctx, sym, &r2, e->lhs, l1);
     } else {
-        head = gen_expr(ctx, sym, r1, e->lhs);
+        head = gen_expr(ctx, sym, &r2, e->lhs);
     }
     r1l = get_last(head);
 
-    r1l->next = new_inst_jumpiff(ctx->program, e->line, e->pos, r1, l1);
-    kl_kir_inst *last = r1l->next;
+    r1l->next = new_inst_jumpiff(ctx->program, e->line, e->pos, &r2, l1);
+    r1l = r1l->next;
 
-    last->next = gen_expr(ctx, sym, r1, e->rhs);
+    r1l->next = gen_expr(ctx, sym, r1, e->rhs);
     return head;
 }
 
@@ -530,17 +531,41 @@ static kl_kir_inst *gen_logical_or(kl_context *ctx, kl_symbol *sym, kl_kir_opr *
 {
     kl_kir_inst *head = NULL;
     kl_kir_inst *r1l = NULL;
+    kl_kir_opr r2 = make_var(ctx, sym, TK_TANY);
     if (e->lhs->nodetype == TK_LOR) {
-        head = gen_logical_or(ctx, sym, r1, e->lhs, l1);
+        head = gen_logical_or(ctx, sym, &r2, e->lhs, l1);
     } else {
-        head = gen_expr(ctx, sym, r1, e->lhs);
+        head = gen_expr(ctx, sym, &r2, e->lhs);
     }
     r1l = get_last(head);
 
-    r1l->next = new_inst_jumpift(ctx->program, e->line, e->pos, r1, l1);
-    kl_kir_inst *last = r1l->next;
+    r1l->next = new_inst_jumpift(ctx->program, e->line, e->pos, &r2, l1);
+    r1l = r1l->next;
 
-    last->next = gen_expr(ctx, sym, r1, e->rhs);
+    r1l->next = gen_expr(ctx, sym, r1, e->rhs);
+    return head;
+}
+
+static kl_kir_inst *gen_null_coalescing(kl_context *ctx, kl_symbol *sym, kl_kir_opr *r1, kl_expr *e, int l1)
+{
+    kl_kir_inst *head = NULL;
+    kl_kir_inst *r1l = NULL;
+    kl_kir_opr r2 = make_var(ctx, sym, TK_TANY);
+    if (e->lhs->nodetype == TK_NULLC) {
+        head = gen_null_coalescing(ctx, sym, &r2, e->lhs, l1);
+    } else {
+        head = gen_expr(ctx, sym, &r2, e->lhs);
+    }
+    r1l = get_last(head);
+
+    kl_kir_opr r3 = make_lit_i64(ctx, VAR_DEF);
+    kl_kir_opr r4 = make_var(ctx, sym, TK_TANY);
+    r1l->next = new_inst_op3(ctx->program, e->line, e->pos, KIR_TYPE, &r4, &r2, &r3);
+    r1l = r1l->next;
+    r1l->next = new_inst_jumpift(ctx->program, e->line, e->pos, &r4, l1);
+    r1l = r1l->next;
+
+    r1l->next = gen_expr(ctx, sym, r1, e->rhs);
     return head;
 }
 
@@ -1755,8 +1780,11 @@ static kl_kir_inst *gen_expr(kl_context *ctx, kl_symbol *sym, kl_kir_opr *r1, kl
     case TK_POWEQ:
     case TK_LSHEQ:
     case TK_RSHEQ:
+        break;
     case TK_LANDEQ:
     case TK_LOREQ:
+    case TK_NULLCEQ:
+        break;
     case TK_REGEQ:
     case TK_REGNE:
         break;
@@ -1827,6 +1855,15 @@ static kl_kir_inst *gen_expr(kl_context *ctx, kl_symbol *sym, kl_kir_opr *r1, kl
     case TK_LOR: {
         int l1 = get_next_label(ctx);
         head = gen_logical_or(ctx, sym, r1, e, l1);
+        kl_kir_inst *last = get_last(head);
+        if (last) {
+            last->next = new_inst_label(ctx->program, e->line, e->pos, l1, last, 0);
+        }
+        break;
+    }
+    case TK_NULLC: {
+        int l1 = get_next_label(ctx);
+        head = gen_null_coalescing(ctx, sym, r1, e, l1);
         kl_kir_inst *last = get_last(head);
         if (last) {
             last->next = new_inst_label(ctx->program, e->line, e->pos, l1, last, 0);
