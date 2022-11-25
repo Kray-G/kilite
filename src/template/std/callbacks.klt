@@ -101,7 +101,7 @@ function Array_all(a:obj, f:func) {
     let r:obj = [];
     let len:int64 = a.size();
     for (let i:int64 = 0; i < len; ++i) {
-        let r = f([key, a[key]], i);
+        let r = f(a[i], i);
         if (r.isDefined && !r) {
             return false;
         }
@@ -113,7 +113,7 @@ function Array_any(a:obj, f:func) {
     let r:obj = [];
     let len:int64 = a.size();
     for (let i:int64 = 0; i < len; ++i) {
-        let r = f([key, a[key]], i);
+        let r = f(a[i], i);
         if (r.isDefined && r) {
             return true;
         }
