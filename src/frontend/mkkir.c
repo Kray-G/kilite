@@ -1651,6 +1651,12 @@ static kl_kir_inst *gen_for(kl_context *ctx, kl_symbol *sym, kl_stmt *s)
     return head;
 }
 
+static kl_kir_inst *gen_forin(kl_context *ctx, kl_symbol *sym, kl_stmt *s)
+{
+    int l1 = get_next_label(ctx);
+    return new_inst_label(ctx->program, s->line, s->pos, l1, NULL, 0);
+}
+
 static kl_kir_inst *gen_try(kl_context *ctx, kl_symbol *sym, kl_stmt *s)
 {
     kl_stmt *fincode = ctx->fincode;
@@ -2306,6 +2312,7 @@ static kl_kir_func *gen_namespace(kl_context *ctx, kl_symbol *sym, kl_stmt *s)
     kl_kir_inst *last = NULL;
 
     int localvars = sym->idxmax;
+    func->has_frame = 1;
     func->is_global = sym->is_global;
     func->funcend = sym->funcend = get_next_label(ctx);
     func->head = last = new_inst(ctx->program, sym->line, sym->pos, KIR_MKFRM);
@@ -2476,6 +2483,9 @@ static kl_kir_inst *gen_stmt(kl_context *ctx, kl_symbol *sym, kl_stmt *s)
         break;
     case TK_FOR:
         head = gen_for(ctx, sym, s);
+        break;
+    case TK_FORIN:
+        head = gen_forin(ctx, sym, s);
         break;
     case TK_TRY:
         head = gen_try(ctx, sym, s);
