@@ -332,6 +332,14 @@ void disp_inst(kl_kir_program *p, kl_kir_inst *i)
     case KIR_TYPE:
         disp_3op("type", i);
         break;
+    case KIR_GETITER:
+        disp_1op("getiter", i);
+        break;
+    case KIR_JMPIFNE:
+        printf(IDT OP, "jmpifne");
+        disp_v(i, 1);
+        printf(", L%d\n", i->labelid);
+        break;
 
     case KIR_SWAP:
         disp_2op("swap", i);

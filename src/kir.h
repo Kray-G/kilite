@@ -268,7 +268,8 @@ typedef enum kl_kir {
     KIR_CHKRANGE,   //  <r1>, <r2>              ;   if !<r1>.includes(<r2>), throw NoMatchingPatternException.
 
     KIR_TYPE,       //  <r1>, <r2>, n           ;   <r1>  <-  true if <r2> type == n
-    KIR_TYPECHK,    //  <r1>, n                 ;   throw exception if <r1> type != n
+    KIR_GETITER,    //  <r1>                    ;   <r1>  <-  get_iterator(<r1>).
+    KIR_JMPIFNE,    //  <r1>, <label>           ;   !<r1>.isEnded() will make it jump to the label.
 
     /* Special instructions */
     KIR_SWAP,       //  <r1>, <r2>              ;   <r1>  <-> <r2>

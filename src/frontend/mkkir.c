@@ -102,6 +102,19 @@ static kl_kir_inst *new_inst_label(kl_kir_program *p, int line, int pos, int lab
     return inst;
 }
 
+static kl_kir_inst *new_inst_jumpifne(kl_kir_program *p, int line, int pos, kl_kir_opr *r1, int labelid)
+{
+    kl_kir_inst *inst = (kl_kir_inst *)calloc(1, sizeof(kl_kir_inst));
+    inst->chn = p->ichn;
+    p->ichn = inst;
+    inst->opcode = KIR_JMPIFNE;
+    inst->r1 = *r1;
+    inst->labelid = labelid;
+    inst->line = line;
+    inst->pos = pos;
+    return inst;
+}
+
 static kl_kir_inst *new_inst_jumpift(kl_kir_program *p, int line, int pos, kl_kir_opr *r1, int labelid)
 {
     kl_kir_inst *inst = (kl_kir_inst *)calloc(1, sizeof(kl_kir_inst));
@@ -586,6 +599,10 @@ static kl_kir_inst *gen_apply(kl_context *ctx, kl_symbol *sym, kl_kir_opr *r1, k
     kl_kir_opr r3 = {0};
     KL_KIR_CHECK_LITERAL(r, r3, r3i);
 
+    if (r2.t != TK_VAR) {
+        mkkir_error(ctx, __LINE__, e->sym ? e->sym : sym, "Can't apply the index");
+    }
+
     kl_kir_inst *inst = new_inst_op3(ctx->program, e->line, e->pos, ctx->in_lvalue ? KIR_IDXL : KIR_IDX, r1, &r2, &r3);
     if (r2i) {
         kl_kir_inst *r2l = get_last(r2i);
@@ -870,6 +887,9 @@ static kl_kir_inst *gen_array_lvalue(kl_context *ctx, kl_symbol *sym, kl_kir_opr
         }
         break;
     case TK_VAR:
+        if (r2->t != TK_VAR) {
+            mkkir_error(ctx, __LINE__, e->sym ? e->sym : sym, "Can't apply the index");
+        }
         KL_KIR_CHECK_LITERAL(e, rs, head);
         r3 = make_lit_i64(ctx, *idx);
         ++(*idx);
@@ -882,6 +902,9 @@ static kl_kir_inst *gen_array_lvalue(kl_context *ctx, kl_symbol *sym, kl_kir_opr
         }
         break;
     case TK_IDX: {
+        if (r2->t != TK_VAR) {
+            mkkir_error(ctx, __LINE__, e->sym ? e->sym : sym, "Can't apply the index");
+        }
         rs = make_lit_i64(ctx, *idx);
         r3 = make_var(ctx, sym, TK_TANY);
         ++(*idx);
@@ -895,6 +918,9 @@ static kl_kir_inst *gen_array_lvalue(kl_context *ctx, kl_symbol *sym, kl_kir_opr
     }
     case TK_RANGE2:
     case TK_RANGE3: {
+        if (r2->t != TK_VAR) {
+            mkkir_error(ctx, __LINE__, e->sym ? e->sym : sym, "Can't apply the index");
+        }
         rs = make_var(ctx, sym, TK_TANY);
         r3 = make_lit_i64(ctx, *idx);
         ++(*idx);
@@ -907,6 +933,9 @@ static kl_kir_inst *gen_array_lvalue(kl_context *ctx, kl_symbol *sym, kl_kir_opr
         break;
     }
     default:
+        if (r2->t != TK_VAR) {
+            mkkir_error(ctx, __LINE__, e->sym ? e->sym : sym, "Can't apply the index");
+        }
         rs = make_var(ctx, sym, TK_TANY);
         r3 = make_lit_i64(ctx, *idx);
         ++(*idx);
@@ -1142,11 +1171,11 @@ static kl_kir_inst *check_swap(kl_context *ctx, kl_symbol *sym, kl_kir_opr *r1, 
     return head;
 }
 
-static kl_kir_inst *gen_assign(kl_context *ctx, kl_symbol *sym, kl_kir_opr *r1, kl_expr *e)
+static kl_kir_inst *gen_assign(kl_context *ctx, kl_symbol *sym, kl_kir_opr *r1, kl_kir_opr *r2, kl_expr *e)
 {
     kl_expr *l = e->lhs;
     kl_kir_inst *head = NULL;
-    if (e->lhs && e->rhs && e->lhs->nodetype == TK_VAR) {
+    if (!r2 && e->lhs && e->rhs && e->lhs->nodetype == TK_VAR) {
         kl_symbol *lsym = l->sym->ref ? l->sym->ref : l->sym;
         kl_kir_opr rr = make_var_index(ctx, lsym->index, l->sym->level, l->typeid);
         head = gen_expr(ctx, sym, &rr, e->rhs);
@@ -1162,9 +1191,13 @@ static kl_kir_inst *gen_assign(kl_context *ctx, kl_symbol *sym, kl_kir_opr *r1, 
         return head;
     }
 
-    kl_kir_opr r2 = {0};
-    KL_KIR_CHECK_LITERAL(e->rhs, r2, head);
-    kl_kir_inst *last = get_last(head);
+    kl_kir_opr r2x = {0};
+    kl_kir_inst *last = NULL;
+    if (!r2) {
+        r2 = &r2x;
+        KL_KIR_CHECK_LITERAL(e->rhs, *r2, head);
+        last = get_last(head);
+    }
 
     int lvalue = ctx->in_lvalue;
     ctx->in_lvalue = 1;
@@ -1172,15 +1205,15 @@ static kl_kir_inst *gen_assign(kl_context *ctx, kl_symbol *sym, kl_kir_opr *r1, 
         kl_symbol *lsym = l->sym->ref ? l->sym->ref : l->sym;
         if (last &&
                 (l->sym->level == last->r2.level) && (l->sym->index == last->r2.index) &&
-                (r2.level == last->r1.level) && (r2.index == last->r1.index)) {
+                (r2->level == last->r1.level) && (r2->index == last->r1.index)) {
             last->r1.level = last->r2.level;
             last->r1.index = last->r2.index;
         } else {
             kl_kir_opr rr = make_var_index(ctx, lsym->index, l->sym->level, l->typeid);
             if (!head) {
-                head = last = new_inst_op2(ctx->program, l->line, l->pos, KIR_MOV, &rr, &r2);
+                head = last = new_inst_op2(ctx->program, l->line, l->pos, KIR_MOV, &rr, r2);
             } else {
-                last->next = new_inst_op2(ctx->program, l->line, l->pos, KIR_MOV, &rr, &r2);
+                last->next = new_inst_op2(ctx->program, l->line, l->pos, KIR_MOV, &rr, r2);
                 last = last->next;
             }
             if (r1 && r1->index >= 0) {
@@ -1200,7 +1233,7 @@ static kl_kir_inst *gen_assign(kl_context *ctx, kl_symbol *sym, kl_kir_opr *r1, 
         kl_kir_inst *r1i = gen_expr(ctx, sym, r1, l);
         kl_kir_inst *r1l = get_last(r1i);
         ctx->in_lvalue = lvalue;
-        r1l->next = new_inst_op2(ctx->program, l->line, l->pos, KIR_MOVA, r1, &r2);
+        r1l->next = new_inst_op2(ctx->program, l->line, l->pos, KIR_MOVA, r1, r2);
         if (!head) {
             head = r1i;
         } else {
@@ -1209,9 +1242,9 @@ static kl_kir_inst *gen_assign(kl_context *ctx, kl_symbol *sym, kl_kir_opr *r1, 
     } else {
         /* Destructuring assignment */
         if (!head) {
-            head = gen_assign_object(ctx, sym, &r2, l);
+            head = gen_assign_object(ctx, sym, r2, l);
         } else {
-            last->next = gen_assign_object(ctx, sym, &r2, l);
+            last->next = gen_assign_object(ctx, sym, r2, l);
         }
     }
     ctx->in_lvalue = lvalue;
@@ -1653,8 +1686,48 @@ static kl_kir_inst *gen_for(kl_context *ctx, kl_symbol *sym, kl_stmt *s)
 
 static kl_kir_inst *gen_forin(kl_context *ctx, kl_symbol *sym, kl_stmt *s)
 {
+    kl_kir_inst *head = NULL;
+    kl_kir_inst *last = NULL;
+
     int l1 = get_next_label(ctx);
-    return new_inst_label(ctx->program, s->line, s->pos, l1, NULL, 0);
+    if (!s->e1 || !s->e2 || !s->sym) {
+        mkkir_error(ctx, __LINE__, sym, "Invalid for-in statement");
+        return new_inst_label(ctx->program, s->line, s->pos, l1, NULL, 0);
+    }
+
+    /* prologue */
+    kl_kir_opr r1 = make_var_index(ctx, s->sym->index, s->sym->level, TK_TANY);
+    int l2 = get_next_label(ctx);
+    head = gen_expr(ctx, sym, &r1, s->e2);
+    if (head) {
+        last = get_last(head);
+        last->next = new_inst_op1(ctx->program, s->line, s->pos, KIR_GETITER, &r1);
+        last = last->next;
+    } else {
+        head = last = new_inst_op1(ctx->program, s->line, s->pos, KIR_GETITER, &r1);
+    }
+    set_file_func(ctx, sym, last);
+    last->next = new_inst_jump(ctx->program, s->line, s->pos, l1, last);
+    last = last->next;
+    last->next = new_inst_label(ctx->program, s->line, s->pos, l2, last, 1);
+    last = last->next;
+
+    /* body */
+    if (s->s1) {
+        last->next = gen_stmt(ctx, sym, s->s1);
+        last = get_last(last);
+    }
+
+    /* epilogue */
+    last->next = new_inst_label(ctx->program, s->line, s->pos, l1, last, 0);
+    last = last->next;
+
+    last->next = gen_expr(ctx, sym, NULL, s->e1);
+    last = get_last(last);
+
+    last->next = new_inst_jumpifne(ctx->program, s->line, s->pos, &r1, l2);
+    set_file_func(ctx, sym, last->next);
+    return head;
 }
 
 static kl_kir_inst *gen_try(kl_context *ctx, kl_symbol *sym, kl_stmt *s)
@@ -1766,7 +1839,7 @@ static kl_kir_inst *gen_yield(kl_context *ctx, kl_symbol *sym, kl_expr *e)
         last->next = inst;
         last = inst;
         kl_kir_opr r1 = make_ret_var(ctx, sym);
-        last->next = gen_assign(ctx, sym, &r1, e->lhs);
+        last->next = gen_assign(ctx, sym, &r1, NULL, e->lhs);
     }
     return head;
 }
@@ -1907,7 +1980,7 @@ static kl_kir_inst *gen_expr(kl_context *ctx, kl_symbol *sym, kl_kir_opr *r1, kl
         head = gen_not(ctx, sym, r1, e);
         break;
     case TK_EQ:
-        head = gen_assign(ctx, sym, r1, e);
+        head = gen_assign(ctx, sym, r1, NULL, e);
         break;
 
     case TK_ADDEQ:

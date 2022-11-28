@@ -1621,7 +1621,13 @@ static kl_stmt *parse_for(kl_context *ctx, kl_lexer *l)
     if (l->tok == TK_IN) {
         s->nodetype = TK_FORIN; /* replace the tag */
         lexer_fetch(l);
-        s->e2 = parse_expression(ctx, l);
+        kl_expr *e2 = parse_expression(ctx, l);
+        kl_expr *v1 = parse_expr_varname(ctx, l, "_$forin", TK_LET);
+        s->e2 = make_bin_expr(ctx, l, TK_EQ, v1, e2);
+        kl_expr *v2 = make_bin_expr(ctx, l, TK_DOT, parse_expr_varname(ctx, l, "_$forin", 0), make_str_expr(ctx, l, "next"));
+        check_assigned(ctx, l, s->e1);
+        s->e1 = make_bin_expr(ctx, l, TK_EQ, s->e1, make_bin_expr(ctx, l, TK_CALL, v2, NULL));
+        s->sym = v1->sym;
     } else {
         if (l->tok == TK_SEMICOLON) {
             lexer_fetch(l);

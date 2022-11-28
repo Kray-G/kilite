@@ -56,7 +56,7 @@ void print_obj(vmctx *ctx, vmvar *v)
 {
     switch (v->t) {
     case VAR_UNDEF:
-        printf("undefined");
+        printf("null");
         break;
     case VAR_INT64:
         printf("%lld", v->i);

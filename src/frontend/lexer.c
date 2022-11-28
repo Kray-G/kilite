@@ -419,6 +419,9 @@ static inline int check_keyword(kl_lexer *l)
 {
     int hc = l->str[0];
     switch (hc) {
+    case 'a':
+        if (strcmp(l->str, "array") == 0) return set_type(l, TK_TYPEID, TK_TOBJ);
+        break;
     case 'b':
         if (strcmp(l->str, "binary") == 0) return set_type(l, TK_TYPEID, TK_TBIN);
         if (strcmp(l->str, "break") == 0) return TK_BREAK;
@@ -435,6 +438,7 @@ static inline int check_keyword(kl_lexer *l)
         if (strcmp(l->str, "default") == 0) return TK_DEFAULT;
         if (strcmp(l->str, "do") == 0) return TK_DO;
         if (strcmp(l->str, "dbl") == 0) return set_type(l, TK_TYPEID, TK_TDBL);
+        if (strcmp(l->str, "double") == 0) return set_type(l, TK_TYPEID, TK_TDBL);
         break;
     case 'e':
         if (strcmp(l->str, "else") == 0) return TK_ELSE;
@@ -442,7 +446,7 @@ static inline int check_keyword(kl_lexer *l)
         break;
     case 'f':
         if (strcmp(l->str, "func") == 0) return set_type(l, TK_FUNC, TK_TFUNC);
-        if (strcmp(l->str, "function") == 0) return TK_FUNC;
+        if (strcmp(l->str, "function") == 0) return set_type(l, TK_FUNC, TK_TFUNC);
         if (strcmp(l->str, "for") == 0) return TK_FOR;
         if (strcmp(l->str, "fallthrough") == 0) return TK_FALLTHROUGH;
         if (strcmp(l->str, "finally") == 0) return TK_FINALLY;
@@ -452,7 +456,8 @@ static inline int check_keyword(kl_lexer *l)
         }
         break;
     case 'i':
-        if (strcmp(l->str, "int64") == 0) return set_type(l, TK_TYPEID, TK_TSINT64);
+        if (strcmp(l->str, "int") == 0) return set_type(l, TK_TYPEID, TK_TSINT64);
+        if (strcmp(l->str, "integer") == 0) return set_type(l, TK_TYPEID, TK_TSINT64);
         if (strcmp(l->str, "if") == 0) return TK_IF;
         if (strcmp(l->str, "in") == 0) return TK_IN;
         if (strcmp(l->str, "import") == 0) return TK_IMPORT;
@@ -471,7 +476,7 @@ static inline int check_keyword(kl_lexer *l)
         break;
     case 'o':
         if (strcmp(l->str, "otherwise") == 0) return TK_OTHERWISE;
-        if (strcmp(l->str, "obj") == 0) return set_type(l, TK_TYPEID, TK_TOBJ);
+        if (strcmp(l->str, "object") == 0) return set_type(l, TK_TYPEID, TK_TOBJ);
         break;
     case 'p':
         if (strcmp(l->str, "private") == 0) return TK_PRIVATE;

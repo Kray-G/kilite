@@ -443,6 +443,28 @@ typedef struct vmctx {
 } \
 /**/
 
+#define GET_ITERATOR(ctx, lex, v, label, func, file, line) { \
+    Iterator_create(ctx, lex, v, 0); \
+} \
+/**/
+
+#define OP_JMP_IF_NOTEND(ctx, lex, v, label, func, file, line) { \
+    vmvar *isend = hashmap_search(v->o, "isEnded"); \
+    if (isend && isend->t == VAR_FNC) { \
+        int pp = vstackp(ctx); \
+        vmfnc *f = isend->f; \
+        vmvar rx; \
+        int ad0 = 0; \
+        push_var_sys(ctx, v, ad0, label, func, file, line); \
+        CALL(f, f->lex, &rx, ad0) \
+        restore_vstackp(ctx, pp); \
+        if (rx.t == VAR_UNDEF || (rx.t == VAR_INT64 && rx.i == 0)) goto label; \
+    } else { \
+        /* This is treated as the end. */ \
+    } \
+} \
+/**/
+
 #define SAVEN(i, nv) SHCOPY_VAR_TO(ctx, f->vars[i], nv)
 
 #define RESUME_HOOK(ctx, ac, alc, label, func, file, line) { \
@@ -642,7 +664,9 @@ typedef struct vmctx {
 #define SET_OBJ(dst, v) { (dst)->t = VAR_OBJ;   (dst)->o  = (v);                  }
 
 #define SHCOPY_VAR_TO(ctx, dst, src) { \
-    switch ((src)->t) { \
+    if (!src) { \
+        (dst)->t = VAR_UNDEF; \
+    } else switch ((src)->t) { \
     case VAR_UNDEF: \
         (dst)->t = VAR_UNDEF; \
         break; \
@@ -680,7 +704,9 @@ typedef struct vmctx {
 /**/
 
 #define COPY_VAR_TO(ctx, dst, src) { \
-    switch ((src)->t) { \
+    if (!src) { \
+        (dst)->t = VAR_UNDEF; \
+    } else switch ((src)->t) { \
     case VAR_UNDEF: \
         (dst)->t = VAR_UNDEF; \
         break; \
@@ -930,6 +956,8 @@ typedef struct vmctx {
         } else { \
             (r)->t = VAR_UNDEF; \
         } \
+    } else if (idx == 0) { \
+        COPY_VAR_TO(ctx, r, v); \
     } else { \
         (r)->t = VAR_UNDEF; \
     } \
@@ -2880,5 +2908,6 @@ INLINE extern int bxor_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1);
 
 INLINE extern int iRange_create_i(vmctx *ctx, vmfrm *lex, vmvar *r, int *beg, int *end, int excl);
 INLINE extern int Range_create(vmctx *ctx, vmfrm *lex, vmvar *r, int ac);
+INLINE extern int Iterator_create(vmctx *ctx, vmfrm *lex, vmvar *r, int ac);
 
 #endif /* KILITE_TEMPLATE_HEADER_H */

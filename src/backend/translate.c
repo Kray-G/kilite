@@ -1518,6 +1518,14 @@ static void translate_inst(xstr *code, kl_kir_func *f, kl_kir_inst *i, func_cont
     case KIR_ARYSIZE:
         xstra_inst(code, "SET_I64(%s, (%s)->o->idxsz);\n", var_value(buf1, &(i->r1)), var_value(buf2, &(i->r2)));
         break;
+    case KIR_GETITER:
+        xstra_inst(code, "GET_ITERATOR(ctx, lex, %s, L%d, \"%s\", \"%s\", %d);\n", var_value(buf1, &(i->r1)),
+            i->labelid, i->funcname, escape(&(fctx->str), i->filename), i->line);
+        break;
+    case KIR_JMPIFNE:
+        xstra_inst(code, "OP_JMP_IF_NOTEND(ctx, lex, %s, L%d, \"%s\", \"%s\", %d);\n", var_value(buf1, &(i->r1)),
+            i->labelid, i->funcname, escape(&(fctx->str), i->filename), i->line);
+        break;
     }
 }
 
