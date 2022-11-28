@@ -267,27 +267,61 @@ static void translate_op3_pure(func_context *fctx, xstr *code, kl_kir_func *f, c
     }
 }
 
+static int translate_chkcnd_precheck_pure(func_context *fctx, xstr *code, kl_kir_func *f, const char *sop, kl_kir_inst *i)
+{
+    kl_kir_inst *n = i->next;
+    if (i->r1.level == n->r1.level && i->r1.index == n->r1.index) {
+        kl_kir_opr *r1 = &(i->r1);
+        kl_kir_opr *r2 = &(i->r2);
+        kl_kir_opr *r3 = &(i->r3);
+
+        char buf2[256] = {0};
+        char buf3[256] = {0};
+        var_value_pure(buf2, r2);
+        var_value_pure(buf3, r3);
+        xstra_inst(code, "if (%s((%s) %s (%s))) goto L%d;\n",
+            i->next->opcode == KIR_JMPIFT ? "" : "!",
+            buf2, sop, buf3, n->labelid);
+        fctx->skip = 1;
+        return 1;
+    }
+    return 0;
+}
+
 static void translate_chkcnd_pure(func_context *fctx, xstr *code, kl_kir_func *f, const char *op, const char *sop, kl_kir_inst *i)
 {
     if (sop && i->next && (i->next->opcode == KIR_JMPIFT || i->next->opcode == KIR_JMPIFF)) {
-        kl_kir_inst *n = i->next;
-        if (i->r1.level == n->r1.level && i->r1.index == n->r1.index) {
-            kl_kir_opr *r1 = &(i->r1);
-            kl_kir_opr *r2 = &(i->r2);
-            kl_kir_opr *r3 = &(i->r3);
-
-            char buf2[256] = {0};
-            char buf3[256] = {0};
-            var_value_pure(buf2, r2);
-            var_value_pure(buf3, r3);
-            xstra_inst(code, "if (%s((%s) %s (%s))) goto L%d;\n",
-                i->next->opcode == KIR_JMPIFT ? "" : "!",
-                buf2, sop, buf3, n->labelid);
-            fctx->skip = 1;
+        if (translate_chkcnd_precheck_pure(fctx, code, f, sop, i) > 0) {
             return;
         }
     }
     translate_op3_pure(fctx, code, f, op, i);
+}
+
+static void translate_op3_direct_pure(func_context *fctx, xstr *code, kl_kir_func *f, const char *sop, kl_kir_inst *i)
+{
+    kl_kir_opr *r1 = &(i->r1);
+    kl_kir_opr *r2 = &(i->r2);
+    kl_kir_opr *r3 = &(i->r3);
+
+    char buf1[256] = {0};
+    char buf2[256] = {0};
+    char buf3[256] = {0};
+    char buf4[256] = {0};
+    var_value_pure(buf1, r1);
+    var_value_pure(buf2, r2);
+    var_value_pure(buf3, r3);
+    xstra_inst(code, "%s = %s %s %s;\n", buf1, buf2, sop, buf3);
+}
+
+static void translate_chkcnd_direct_pure(func_context *fctx, xstr *code, kl_kir_func *f, const char *sop, kl_kir_inst *i)
+{
+    if (sop && i->next && (i->next->opcode == KIR_JMPIFT || i->next->opcode == KIR_JMPIFF)) {
+        if (translate_chkcnd_precheck_pure(fctx, code, f, sop, i) > 0) {
+            return;
+        }
+    }
+    translate_op3_direct_pure(fctx, code, f, sop, i);
 }
 
 static void translate_incdec_pure(func_context *fctx, xstr *code, const char *sop, int is_postfix, kl_kir_inst *i)
@@ -312,6 +346,25 @@ static void translate_incdec_pure(func_context *fctx, xstr *code, const char *so
         }  else {
             xstra_inst(code, "%s = %s(%s);\n", buf1, sop, buf2);
         }
+    }
+}
+
+static void translate_bnot_pure(xstr *code, kl_kir_inst *i)
+{
+    char buf1[256] = {0};
+    var_value_pure(buf1, &(i->r1));
+    switch (i->r2.t) {
+    case TK_VAR: {
+        char buf2[256] = {0};
+        var_value_pure(buf2, &(i->r2));
+        xstra_inst(code, "%s = ~%s;\n", buf1, buf2);
+        break;
+    }
+    case TK_VSINT:
+        xstra_inst(code, "%s = %" PRId64 ";\n", buf1, ~(i->r2.i64));
+        break;
+    default:
+        break;
     }
 }
 
@@ -429,24 +482,36 @@ static void translate_inst_pure(xstr *code, kl_kir_func *f, kl_kir_inst *i, func
     case KIR_POW:
         translate_chkcnd_pure(fctx, code, f, "POW", NULL, i);
         break;
+    case KIR_BNOT:
+        translate_bnot_pure(code, i);
+        break;
+    case KIR_BAND:
+        translate_chkcnd_direct_pure(fctx, code, f, "&", i);
+        break;
+    case KIR_BOR:
+        translate_chkcnd_direct_pure(fctx, code, f, "|", i);
+        break;
+    case KIR_BXOR:
+        translate_chkcnd_direct_pure(fctx, code, f, "^", i);
+        break;
 
     case KIR_EQEQ:
-        translate_chkcnd_pure(fctx, code, f, "EQEQ", "==", i);
+        translate_chkcnd_direct_pure(fctx, code, f, "==", i);
         break;
     case KIR_NEQ:
-        translate_chkcnd_pure(fctx, code, f, "NEQ", "!=", i);
+        translate_chkcnd_direct_pure(fctx, code, f, "!=", i);
         break;
     case KIR_LT:
-        translate_chkcnd_pure(fctx, code, f, "LT", "<", i);
+        translate_chkcnd_direct_pure(fctx, code, f, "<", i);
         break;
     case KIR_LE:
-        translate_chkcnd_pure(fctx, code, f, "LE", "<=", i);
+        translate_chkcnd_direct_pure(fctx, code, f, "<=", i);
         break;
     case KIR_GT:
-        translate_chkcnd_pure(fctx, code, f, "GT", ">", i);
+        translate_chkcnd_direct_pure(fctx, code, f, ">", i);
         break;
     case KIR_GE:
-        translate_chkcnd_pure(fctx, code, f, "GE", ">=", i);
+        translate_chkcnd_direct_pure(fctx, code, f, ">=", i);
         break;
 
     case KIR_INC:

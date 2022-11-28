@@ -1814,8 +1814,14 @@ static kl_kir_inst *gen_expr(kl_context *ctx, kl_symbol *sym, kl_kir_opr *r1, kl
         head = gen_xassign(ctx, sym, KIR_MOD, r1, e);
         break;
     case TK_ANDEQ:
+        head = gen_xassign(ctx, sym, KIR_BAND, r1, e);
+        break;
     case TK_OREQ:
+        head = gen_xassign(ctx, sym, KIR_BOR, r1, e);
+        break;
     case TK_XOREQ:
+        head = gen_xassign(ctx, sym, KIR_BXOR, r1, e);
+        break;
     case TK_POWEQ:
     case TK_LSHEQ:
     case TK_RSHEQ:

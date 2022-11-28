@@ -1632,7 +1632,7 @@ int bor_v_i(vmctx *ctx, vmvar *r, vmvar *v, int64_t i)
     switch (v->t) {
     case VAR_UNDEF:
         r->t = VAR_INT64;
-        r->i = 0;
+        r->i = i;
         break;
     case VAR_DBL:
         r->t = VAR_INT64;
@@ -1653,7 +1653,7 @@ int bor_i_v(vmctx *ctx, vmvar *r, int64_t i, vmvar *v)
     switch (v->t) {
     case VAR_UNDEF:
         r->t = VAR_INT64;
-        r->i = 0;
+        r->i = i;
         break;
     case VAR_DBL:
         r->t = VAR_INT64;
@@ -1676,7 +1676,7 @@ int bor_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
         switch (v1->t) {
         case VAR_INT64:
             r->t = VAR_INT64;
-            r->i = 0;
+            r->i = v1->i;
             break;
         case VAR_DBL:
             r->t = VAR_DBL;
@@ -1693,7 +1693,7 @@ int bor_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
         switch (v1->t) {
         case VAR_UNDEF:
             r->t = VAR_INT64;
-            r->i = 0;
+            r->i = v0->i;
             break;
         case VAR_DBL:
             r->t = VAR_INT64;
@@ -1709,8 +1709,8 @@ int bor_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
     case VAR_BIG:
         switch (v1->t) {
         case VAR_UNDEF:
-            r->t = VAR_INT64;
-            r->i = 0;
+            r->t = VAR_BIG;
+            r->bi = alcbgi_bigz(ctx, BzCopy((v0)->bi->b));
             break;
         case VAR_DBL: {
             BigZ b1 = BzFromInteger((int64_t)v0->d);
@@ -1730,7 +1730,7 @@ int bor_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
         switch (v1->t) {
         case VAR_UNDEF:
             r->t = VAR_INT64;
-            r->i = 0;
+            r->i = (int64_t)v0->d;
             break;
         case VAR_INT64:
             r->t = VAR_INT64;
