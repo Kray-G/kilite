@@ -241,6 +241,12 @@ void disp_inst(kl_kir_program *p, kl_kir_inst *i)
     case KIR_BNOT:
         disp_3op("bitnot", i);
         break;
+    case KIR_BSHL:
+        disp_3op("bitshift-l", i);
+        break;
+    case KIR_BSHR:
+        disp_3op("bitshift-r", i);
+        break;
     case KIR_BAND:
         disp_3op("bitand", i);
         break;

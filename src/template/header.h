@@ -2282,6 +2282,190 @@ typedef struct vmctx {
 } \
 /**/
 
+/* Bit Shift-L */
+
+#define OP_BSHL_I_I(ctx, r, i0, i1, label, func, file, line) { \
+    if (i0 > 0 && i1 > 0) { \
+        if ((i1 >= 64) || (i0 > (INT64_MAX >> i1))) { \
+            BigZ b0 = BzFromInteger(i0); \
+            (r)->t = VAR_BIG; \
+            (r)->bi = alcbgi_bigz(ctx, BzAsh(b0, i1)); \
+            BzFree(b0); \
+        } else { \
+            (r)->t = VAR_INT64; \
+            (r)->i = (i0) << (i1); \
+        } \
+    } else { \
+        (r)->t = VAR_INT64; \
+        (r)->i = (i0) << (i1); \
+    } \
+} \
+/**/
+
+#define OP_BSHL_B_I(ctx, r, v0, i1, label, func, file, line) { \
+    (r)->t = VAR_BIG; \
+    (r)->bi = alcbgi_bigz(ctx, BzAsh((v0)->bi->b, i1)); \
+} \
+/**/
+
+#define OP_BSHL_I_B(ctx, r, i0, v1, label, func, file, line) { \
+    e = throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION, NULL); \
+    exception_addtrace(ctx, ctx->except, func, file, line); \
+    goto label; \
+} \
+/**/
+
+#define OP_BSHL_V_I(ctx, r, v0, i1, label, func, file, line) { \
+    if ((v0)->t == VAR_INT64) { \
+        OP_BSHL_I_I(ctx, r, (v0)->i, i1, label, func, file, line) \
+    } else if ((v0)->t == VAR_BIG) { \
+        OP_BSHL_B_I(ctx, r, v0, i1, label, func, file, line) \
+    } else { \
+        e = bshl_v_i(ctx, r, v0, i1); \
+        if (e == FLOW_EXCEPTION) { \
+            exception_addtrace(ctx, ctx->except, func, file, line); \
+            goto label; \
+        } \
+    } \
+} \
+/**/
+
+#define OP_BSHL_I_V(ctx, r, i0, v1, label, func, file, line) { \
+    if ((v1)->t == VAR_INT64) { \
+        OP_BSHL_I_I(ctx, r, i0, (v1)->i, label, func, file, line) \
+    } else if ((v1)->t == VAR_BIG) { \
+        OP_BSHL_I_B(ctx, r, i0, v1, label, func, file, line) \
+    } else { \
+        e = bshl_i_v(ctx, r, i0, v1); \
+        if (e == FLOW_EXCEPTION) { \
+            exception_addtrace(ctx, ctx->except, func, file, line); \
+            goto label; \
+        } \
+    } \
+} \
+/**/
+
+#define OP_BSHL(ctx, r, v0, v1, label, func, file, line) { \
+    if ((v0)->t == VAR_INT64) { \
+        int64_t i0 = (v0)->i; \
+        OP_BSHL_I_V(ctx, r, i0, v1, label, func, file, line) \
+    } else if ((v0)->t == VAR_BIG) { \
+        if ((v1)->t == VAR_INT64) { \
+            int64_t i1 = (v1)->i; \
+            OP_BSHL_B_I(ctx, r, v0, i1, label, func, file, line) \
+        } else if ((v1)->t == VAR_BIG) { \
+            e = throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION, NULL); \
+            exception_addtrace(ctx, ctx->except, func, file, line); \
+            goto label; \
+        } else { \
+            e = bshl_v_v(ctx, r, v0, v1); \
+            if (e == FLOW_EXCEPTION) { \
+                exception_addtrace(ctx, ctx->except, func, file, line); \
+                goto label; \
+            } \
+        } \
+    } else { \
+        e = bshl_v_v(ctx, r, v0, v1); \
+        if (e == FLOW_EXCEPTION) { \
+            exception_addtrace(ctx, ctx->except, func, file, line); \
+            goto label; \
+        } \
+    } \
+} \
+/**/
+
+/* Bit Shift-R */
+
+#define OP_BSHR_I_I(ctx, r, i0, i1, label, func, file, line) { \
+    if (i0 > 0 && i1 < 0) { \
+        if ((i1 >= 64) || (i0 > (INT64_MAX >> -(i1)))) { \
+            BigZ b0 = BzFromInteger(i0); \
+            (r)->t = VAR_BIG; \
+            (r)->bi = alcbgi_bigz(ctx, BzAsh(b0, -(i1))); \
+            BzFree(b0); \
+        } else { \
+            (r)->t = VAR_INT64; \
+            (r)->i = (i0) >> (i1); \
+        } \
+    } else { \
+        (r)->t = VAR_INT64; \
+        (r)->i = (i0) >> (i1); \
+    } \
+} \
+/**/
+
+#define OP_BSHR_B_I(ctx, r, v0, i1, label, func, file, line) { \
+    (r)->t = VAR_BIG; \
+    (r)->bi = alcbgi_bigz(ctx, BzAsh((v0)->bi->b, -(i1))); \
+} \
+/**/
+
+#define OP_BSHR_I_B(ctx, r, i0, v1, label, func, file, line) { \
+    e = throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION, NULL); \
+    exception_addtrace(ctx, ctx->except, func, file, line); \
+    goto label; \
+} \
+/**/
+
+#define OP_BSHR_V_I(ctx, r, v0, i1, label, func, file, line) { \
+    if ((v0)->t == VAR_INT64) { \
+        OP_BSHR_I_I(ctx, r, (v0)->i, i1, label, func, file, line) \
+    } else if ((v0)->t == VAR_BIG) { \
+        OP_BSHR_B_I(ctx, r, v0, i1, label, func, file, line) \
+    } else { \
+        e = bshr_v_i(ctx, r, v0, i1); \
+        if (e == FLOW_EXCEPTION) { \
+            exception_addtrace(ctx, ctx->except, func, file, line); \
+            goto label; \
+        } \
+    } \
+} \
+/**/
+
+#define OP_BSHR_I_V(ctx, r, i0, v1, label, func, file, line) { \
+    if ((v1)->t == VAR_INT64) { \
+        OP_BSHR_I_I(ctx, r, i0, (v1)->i, label, func, file, line) \
+    } else if ((v1)->t == VAR_BIG) { \
+        OP_BSHR_I_B(ctx, r, i0, v1, label, func, file, line) \
+    } else { \
+        e = bshr_i_v(ctx, r, i0, v1); \
+        if (e == FLOW_EXCEPTION) { \
+            exception_addtrace(ctx, ctx->except, func, file, line); \
+            goto label; \
+        } \
+    } \
+} \
+/**/
+
+#define OP_BSHR(ctx, r, v0, v1, label, func, file, line) { \
+    if ((v0)->t == VAR_INT64) { \
+        int64_t i0 = (v0)->i; \
+        OP_BSHR_I_V(ctx, r, i0, v1, label, func, file, line) \
+    } else if ((v0)->t == VAR_BIG) { \
+        if ((v1)->t == VAR_INT64) { \
+            int64_t i1 = (v1)->i; \
+            OP_BSHR_B_I(ctx, r, v0, i1, label, func, file, line) \
+        } else if ((v1)->t == VAR_BIG) { \
+            e = throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION, NULL); \
+            exception_addtrace(ctx, ctx->except, func, file, line); \
+            goto label; \
+        } else { \
+            e = bshr_v_v(ctx, r, v0, v1); \
+            if (e == FLOW_EXCEPTION) { \
+                exception_addtrace(ctx, ctx->except, func, file, line); \
+                goto label; \
+            } \
+        } \
+    } else { \
+        e = bshr_v_v(ctx, r, v0, v1); \
+        if (e == FLOW_EXCEPTION) { \
+            exception_addtrace(ctx, ctx->except, func, file, line); \
+            goto label; \
+        } \
+    } \
+} \
+/**/
+
 /* Bit AND */
 
 #define OP_BAND_I_I(ctx, r, i0, i1, label, func, file, line) { \

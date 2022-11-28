@@ -234,6 +234,8 @@ typedef enum kl_kir {
     KIR_DIV,        //  <r1>, <r2>, <r3>        ;   <r1>  <-  <r2> / <r3>
     KIR_MOD,        //  <r1>, <r2>, <r3>        ;   <r1>  <-  <r2> % <r3>
     KIR_POW,        //  <r1>, <r2>, <r3>        ;   <r1>  <-  <r2> ** <r3>
+    KIR_BSHL,       //  <r1>, <r2>, <r3>        ;   <r1>  <-  <r2> << <r3>
+    KIR_BSHR,       //  <r1>, <r2>, <r3>        ;   <r1>  <-  <r2> >> <r3>
     KIR_BNOT,       //  <r1>, <r2>              ;   <r1>  <-  ~<r2>
     KIR_BAND,       //  <r1>, <r2>, <r3>        ;   <r1>  <-  <r2> & <r3>
     KIR_BOR,        //  <r1>, <r2>, <r3>        ;   <r1>  <-  <r2> | <r3>

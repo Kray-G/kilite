@@ -485,6 +485,12 @@ static void translate_inst_pure(xstr *code, kl_kir_func *f, kl_kir_inst *i, func
     case KIR_BNOT:
         translate_bnot_pure(code, i);
         break;
+    case KIR_BSHL:
+        translate_chkcnd_direct_pure(fctx, code, f, "<<", i);
+        break;
+    case KIR_BSHR:
+        translate_chkcnd_direct_pure(fctx, code, f, ">>", i);
+        break;
     case KIR_BAND:
         translate_chkcnd_direct_pure(fctx, code, f, "&", i);
         break;
@@ -1401,6 +1407,12 @@ static void translate_inst(xstr *code, kl_kir_func *f, kl_kir_inst *i, func_cont
         break;
     case KIR_BNOT:
         translate_bnot(fctx, code, i);
+        break;
+    case KIR_BSHL:
+        translate_chkcnd(fctx, code, "BSHL", NULL, i);
+        break;
+    case KIR_BSHR:
+        translate_chkcnd(fctx, code, "BSHR", NULL, i);
         break;
     case KIR_BAND:
         translate_chkcnd(fctx, code, "BAND", NULL, i);

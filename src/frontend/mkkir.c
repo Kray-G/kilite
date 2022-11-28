@@ -1823,8 +1823,13 @@ static kl_kir_inst *gen_expr(kl_context *ctx, kl_symbol *sym, kl_kir_opr *r1, kl
         head = gen_xassign(ctx, sym, KIR_BXOR, r1, e);
         break;
     case TK_POWEQ:
+        head = gen_xassign(ctx, sym, KIR_POW, r1, e);
+        break;
     case TK_LSHEQ:
+        head = gen_xassign(ctx, sym, KIR_BSHL, r1, e);
+        break;
     case TK_RSHEQ:
+        head = gen_xassign(ctx, sym, KIR_BSHR, r1, e);
         break;
     case TK_LANDEQ:
     case TK_LOREQ:
@@ -1891,7 +1896,10 @@ static kl_kir_inst *gen_expr(kl_context *ctx, kl_symbol *sym, kl_kir_opr *r1, kl
         head = gen_op3_inst(ctx, sym, KIR_POW, r1, e);
         break;
     case TK_LSH:
+        head = gen_op3_inst(ctx, sym, KIR_BSHL, r1, e);
+        break;
     case TK_RSH:
+        head = gen_op3_inst(ctx, sym, KIR_BSHR, r1, e);
         break;
     case TK_LAND: {
         kl_kir_opr r2 = make_var(ctx, sym, TK_TANY);
