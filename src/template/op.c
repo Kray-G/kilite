@@ -899,7 +899,15 @@ int mod_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
         break;
     case VAR_STR:
         switch (v1->t) {
-        case VAR_UNDEF:
+        case VAR_UNDEF: {
+            r->t = VAR_OBJ;
+            r->o = alcobj(ctx);
+            r->o->is_formatter = 1;
+            hashmap_set(ctx, r->o, "_format", v0);
+            vmvar *v = alcvar_str(ctx, "((null))");
+            array_push(ctx, r->o, v);
+            break;
+        }
         case VAR_INT64:
         case VAR_BIG:
         case VAR_DBL:
@@ -922,7 +930,12 @@ int mod_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
         }
         r->t = VAR_OBJ;
         r->o = v0->o;
-        array_push(ctx, r->o, v1);
+        if (v1->t == VAR_UNDEF) {
+            vmvar *v = alcvar_str(ctx, "((null))");
+            array_push(ctx, r->o, v);
+        } else {
+            array_push(ctx, r->o, v1);
+        }
         break;
     case VAR_FNC:
     default:
@@ -1075,8 +1088,15 @@ int eqeq_v_i(vmctx *ctx, vmvar *r, vmvar *v, int64_t i)
         break;
     case VAR_DBL:
         r->t = VAR_INT64;
-        r->i = fabs(v->d) < DBL_EPSILON;
+        r->i = fabs(v->d - (double)i) < DBL_EPSILON;
         break;
+    case VAR_STR: {
+        char buf[32] = {0};
+        sprintf(buf, "%lld", i);
+        r->t = VAR_INT64;
+        r->i = strcmp(v->s->s, buf) == 0;
+        break;
+    }
     default:
         r->t = VAR_INT64;
         r->i = 0;
@@ -1120,6 +1140,13 @@ int eqeq_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
             r->t = VAR_INT64;
             r->i = fabs((double)v0->i - v1->d) < DBL_EPSILON;
             break;
+        case VAR_STR: {
+            char buf[32] = {0};
+            sprintf(buf, "%lld", v0->i);
+            r->t = VAR_INT64;
+            r->i = strcmp(v1->s->s, buf) == 0;
+            break;
+        }
         default:
             r->t = VAR_INT64;
             r->i = 0;
@@ -1127,8 +1154,19 @@ int eqeq_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
         }
         break;
     case VAR_BIG:
-        r->t = VAR_INT64;
-        r->i = 0;
+        switch (v1->t) {
+        case VAR_STR: {
+            char *bs = BzToString(v0->bi->b, 10, 0);
+            r->t = VAR_INT64;
+            r->i = strcmp(v1->s->s, bs) == 0;
+            BzFreeString(bs);
+            break;
+        }
+        default:
+            r->t = VAR_INT64;
+            r->i = 0;
+            break;
+        }
         break;
     case VAR_DBL:
         switch (v1->t) {
@@ -1147,6 +1185,13 @@ int eqeq_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
         case VAR_DBL:
             r->i = fabs(v0->d - v1->d) < DBL_EPSILON;
             break;
+        case VAR_STR: {
+            char buf[32] = {0};
+            sprintf(buf, "%.16g", v0->d);
+            r->t = VAR_INT64;
+            r->i = strcmp(v1->s->s, buf) == 0;
+            break;
+        }
         default:
             return throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION, NULL);
         }

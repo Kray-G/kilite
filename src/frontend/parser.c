@@ -2119,7 +2119,7 @@ static kl_expr *parse_block_function(kl_context *ctx, kl_lexer *l, int is_block)
             e->s = parse_statement(ctx, l);
         } else {
             e->s = make_stmt(ctx, l, TK_RETURN);
-            e->s->e1 = parse_expression(ctx, l);
+            e->s->e1 = parse_expr_assignment(ctx, l);
         }
     } else {
         e->s = parse_statement_list(ctx, l);
