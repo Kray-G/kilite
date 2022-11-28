@@ -539,15 +539,14 @@ static kl_kir_inst *gen_logical_or(kl_context *ctx, kl_symbol *sym, kl_kir_opr *
 {
     kl_kir_inst *head = NULL;
     kl_kir_inst *r1l = NULL;
-    kl_kir_opr r2 = make_var(ctx, sym, TK_TANY);
     if (e->lhs->nodetype == TK_LOR) {
-        head = gen_logical_or(ctx, sym, &r2, e->lhs, l1);
+        head = gen_logical_or(ctx, sym, r1, e->lhs, l1);
     } else {
-        head = gen_expr(ctx, sym, &r2, e->lhs);
+        head = gen_expr(ctx, sym, r1, e->lhs);
     }
     r1l = get_last(head);
 
-    r1l->next = new_inst_jumpift(ctx->program, e->line, e->pos, &r2, l1);
+    r1l->next = new_inst_jumpift(ctx->program, e->line, e->pos, r1, l1);
     r1l = r1l->next;
 
     r1l->next = gen_expr(ctx, sym, r1, e->rhs);
@@ -1191,6 +1190,7 @@ static kl_kir_inst *gen_assign(kl_context *ctx, kl_symbol *sym, kl_kir_opr *r1, 
             }
         }
     } else if (l->nodetype == TK_DOT || l->nodetype == TK_IDX) {
+        int lvalue = ctx->in_lvalue;
         ctx->in_lvalue = 1;
         kl_kir_opr rr = {0};
         if (!r1 || r1->index < 0) {
@@ -1199,7 +1199,7 @@ static kl_kir_inst *gen_assign(kl_context *ctx, kl_symbol *sym, kl_kir_opr *r1, 
         }
         kl_kir_inst *r1i = gen_expr(ctx, sym, r1, l);
         kl_kir_inst *r1l = get_last(r1i);
-        ctx->in_lvalue = 0;
+        ctx->in_lvalue = lvalue;
         r1l->next = new_inst_op2(ctx->program, l->line, l->pos, KIR_MOVA, r1, &r2);
         if (!head) {
             head = r1i;
@@ -1221,20 +1221,126 @@ static kl_kir_inst *gen_assign(kl_context *ctx, kl_symbol *sym, kl_kir_opr *r1, 
 
 static kl_kir_inst *gen_xassign(kl_context *ctx, kl_symbol *sym, kl_kir op, kl_kir_opr *r1, kl_expr *e)
 {
-
     kl_kir_inst *head = gen_op3_inst(ctx, sym, op, r1, e);
     kl_kir_inst *last = get_last(head);
 
     kl_expr *l = e->lhs;
     if (l->nodetype == TK_VAR) {
+        kl_kir_opr r3 = make_var_index(ctx, l->sym->ref ? l->sym->ref->index : l->sym->index, l->sym->level, l->typeid);
+        last->next = new_inst_op2(ctx->program, l->line, l->pos, KIR_MOV, &r3, r1);
+    } else if (l->nodetype == TK_DOT || l->nodetype == TK_IDX) {
+        int lvalue = ctx->in_lvalue;
+        ctx->in_lvalue = 1;
         kl_kir_opr r3 = {0};
         kl_kir_inst *r3i = NULL;
-        KL_KIR_CHECK_LITERAL(l, r3, r3i);
-        last->next = new_inst_op2(ctx->program, l->line, l->pos, KIR_MOV, &r3, r1);
+        KL_KIR_CHECK_LVALUE(l, r3, r3i);
+        ctx->in_lvalue = lvalue;
+        kl_kir_inst *inst = new_inst_op2(ctx->program, l->line, l->pos, KIR_MOVA, &r3, r1);
+        if (r3i) {
+            kl_kir_inst *r3l = get_last(r3i);
+            r3l->next = inst;
+            inst = r3i;
+        }
+        last->next = inst;
     } else {
         /* TODO: Error */
     }
 
+    return head;
+}
+
+static kl_kir_inst *gen_land_lor_assign(kl_context *ctx, kl_symbol *sym, kl_expr *e, int land)
+{
+    int l1 = get_next_label(ctx);
+    kl_expr *l = e->lhs;
+    kl_kir_inst *head = NULL;
+    kl_kir_inst *last = NULL;
+    if (l->nodetype == TK_VAR) {
+        kl_kir_opr r2 = make_var_index(ctx, l->sym->ref ? l->sym->ref->index : l->sym->index, l->sym->level, l->typeid);
+        head = land
+            ? new_inst_jumpiff(ctx->program, e->line, e->pos, &r2, l1)
+            : new_inst_jumpift(ctx->program, e->line, e->pos, &r2, l1);
+        kl_kir_opr r3 = make_var_index(ctx, l->sym->ref ? l->sym->ref->index : l->sym->index, l->sym->level, l->typeid);
+        last = get_last(head);
+        last->next = gen_expr(ctx, sym, &r3, e->rhs);
+    } else if (l->nodetype == TK_DOT || l->nodetype == TK_IDX) {
+        kl_kir_opr r2 = make_var(ctx, sym, TK_TANY);
+        head = gen_expr(ctx, sym, &r2, l);
+        kl_kir_inst *r1l = get_last(head);
+        r1l->next = land
+            ? new_inst_jumpiff(ctx->program, e->line, e->pos, &r2, l1)
+            : new_inst_jumpift(ctx->program, e->line, e->pos, &r2, l1);
+        r1l = r1l->next;
+        r1l->next = gen_expr(ctx, sym, &r2, e->rhs);
+        last = get_last(r1l);
+        int lvalue = ctx->in_lvalue;
+        ctx->in_lvalue = 1;
+        kl_kir_opr r3 = {0};
+        kl_kir_inst *r3i = NULL;
+        KL_KIR_CHECK_LVALUE(l, r3, r3i);
+        ctx->in_lvalue = lvalue;
+        kl_kir_inst *inst = new_inst_op2(ctx->program, l->line, l->pos, KIR_MOVA, &r3, &r2);
+        if (r3i) {
+            kl_kir_inst *r3l = get_last(r3i);
+            r3l->next = inst;
+            inst = r3i;
+        }
+        last->next = inst;
+    } else {
+        /* TODO: Error */
+    }
+
+    KIR_MOVE_LAST(last);
+    last->next = new_inst_label(ctx->program, e->line, e->pos, l1, last, 0);
+    return head;
+}
+
+static kl_kir_inst *gen_nullc_assign(kl_context *ctx, kl_symbol *sym, kl_expr *e)
+{
+    int l1 = get_next_label(ctx);
+    kl_expr *l = e->lhs;
+    kl_kir_inst *head = NULL;
+    kl_kir_inst *last = NULL;
+    if (l->nodetype == TK_VAR) {
+        kl_kir_opr r1 = make_var_index(ctx, l->sym->ref ? l->sym->ref->index : l->sym->index, l->sym->level, l->typeid);
+        kl_kir_opr r2 = make_lit_i64(ctx, VAR_DEF);
+        kl_kir_opr r3 = make_var(ctx, sym, TK_TANY);
+        head = new_inst_op3(ctx->program, e->line, e->pos, KIR_TYPE, &r3, &r1, &r2);
+        head->next = new_inst_jumpift(ctx->program, e->line, e->pos, &r3, l1);
+        r3 = make_var_index(ctx, l->sym->ref ? l->sym->ref->index : l->sym->index, l->sym->level, l->typeid);
+        last = get_last(head);
+        last->next = gen_expr(ctx, sym, &r3, e->rhs);
+    } else if (l->nodetype == TK_DOT || l->nodetype == TK_IDX) {
+        kl_kir_opr r1 = make_var(ctx, sym, TK_TANY);
+        kl_kir_opr r2 = make_lit_i64(ctx, VAR_DEF);
+        kl_kir_opr r3 = make_var(ctx, sym, TK_TANY);
+        head = gen_expr(ctx, sym, &r1, l);
+        kl_kir_inst *r1l = get_last(head);
+        r1l->next = new_inst_op3(ctx->program, e->line, e->pos, KIR_TYPE, &r3, &r1, &r2);
+        r1l = r1l->next;
+        r1l->next = new_inst_jumpift(ctx->program, e->line, e->pos, &r3, l1);
+        r1l = r1l->next;
+        r1l->next = gen_expr(ctx, sym, &r1, e->rhs);
+        last = get_last(r1l);
+        int lvalue = ctx->in_lvalue;
+        ctx->in_lvalue = 1;
+        kl_kir_opr r4 = {0};
+        kl_kir_inst *r4i = NULL;
+        KL_KIR_CHECK_LVALUE(l, r4, r4i);
+        ctx->in_lvalue = lvalue;
+        kl_kir_inst *inst = new_inst_op2(ctx->program, l->line, l->pos, KIR_MOVA, &r4, &r1);
+        if (r4i) {
+            kl_kir_inst *r4l = get_last(r4i);
+            r4l->next = inst;
+            inst = r4i;
+        }
+        last->next = inst;
+    } else {
+        /* TODO: Error */
+    }
+
+    KIR_MOVE_LAST(last);
+    last->next = new_inst_label(ctx->program, e->line, e->pos, l1, last, 0);
     return head;
 }
 
@@ -1832,8 +1938,13 @@ static kl_kir_inst *gen_expr(kl_context *ctx, kl_symbol *sym, kl_kir_opr *r1, kl
         head = gen_xassign(ctx, sym, KIR_BSHR, r1, e);
         break;
     case TK_LANDEQ:
+        head = gen_land_lor_assign(ctx, sym, e, 1);
+        break;
     case TK_LOREQ:
+        head = gen_land_lor_assign(ctx, sym, e, 0);
+        break;
     case TK_NULLCEQ:
+        head = gen_nullc_assign(ctx, sym, e);
         break;
     case TK_REGEQ:
     case TK_REGNE:

@@ -209,6 +209,9 @@ vmobj *hashmap_set(vmctx *ctx, vmobj *obj, const char *s, vmvar *vs)
             v->i = hc;
             v->s = alcstr_str(ctx, s);
             v->a = vs;
+            if (strcmp(s, "_False") == 0) {
+                obj->is_false = 1;
+            }
             return obj;
         }
         ++h;
@@ -237,6 +240,9 @@ vmobj *hashmap_remove(vmctx *ctx, vmobj *obj, const char *s)
                 v->s = NULL;
                 v->a = NULL;
                 HASHITEM_REMVD(v);
+                if (strcmp(s, "_False") == 0) {
+                    obj->is_false = 0;
+                }
                 return obj;
             }
         }

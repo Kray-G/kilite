@@ -132,6 +132,7 @@ typedef struct vmobj {
     int32_t flags;
     int32_t is_sysobj;  /* This is the mark for the system object and automatically passed to the function. */
     int32_t is_formatter;
+    int64_t is_false;
     int64_t idxsz;
     int64_t asz;
     int64_t hsz;
@@ -761,19 +762,53 @@ typedef struct vmctx {
 /* Conditional Jump */
 
 #define OP_JMP_IF_TRUE(r, label) { \
-    if ((r)->t == VAR_INT64) { \
+    switch ((r)->t) { \
+    case VAR_INT64: \
         if ((r)->i) goto label; \
-    } else { \
+        break; \
+    case VAR_DBL: \
+        if ((r)->d >= DBL_EPSILON) goto label; \
+        break; \
+    case VAR_BIG: \
+        goto label; \
+    case VAR_STR: \
+        if ((r)->s->len > 0) goto label; \
+        break; \
+    case VAR_FNC: \
+        goto label; \
+    case VAR_OBJ: \
+        if (!((r)->o->is_false)) goto label; \
+        break; \
+    default: \
         /* TODO */ \
+        break; \
     } \
 } \
 /**/
 
 #define OP_JMP_IF_FALSE(r, label) { \
-    if ((r)->t == VAR_INT64) { \
+    switch ((r)->t) { \
+    case VAR_UNDEF: \
+        goto label; \
+    case VAR_INT64: \
         if ((r)->i == 0) goto label; \
-    } else { \
+        break; \
+    case VAR_DBL: \
+        if ((r)->d < DBL_EPSILON) goto label; \
+        break; \
+    case VAR_BIG: \
+        break; \
+    case VAR_STR: \
+        if ((r)->s->len == 0) goto label; \
+        break; \
+    case VAR_FNC: \
+        break; \
+    case VAR_OBJ: \
+        if ((r)->o->is_false) goto label; \
+        break; \
+    default: \
         /* TODO */ \
+        break; \
     } \
 } \
 /**/

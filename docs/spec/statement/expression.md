@@ -32,7 +32,7 @@ Here is the order to calculate values.
 |  13   | Bit OR               | <code>&#124;</code>                                                                                           | left to right |
 |  14   | Logical AND          | `&&`                                                                                                          | left to right |
 |  15   | Logical OR           | <code>&#124;&#124;</code>                                                                                     | left to right |
-|  16   | Logical UNDEF        | `??`                                                                                                          | left to right |
+|  16   | Null Coalescing      | `??`                                                                                                          | left to right |
 |  17   | Function Composition | <code>+&gt;</code><code>&lt;+</code>                                                                          | left to right |
 |  18   | Pipeline             | <code>&#124;&gt;</code><code>&lt;&#124;</code>                                                                | left to right |
 |  19   | Ternary, ...         | ` ? : `, `function(){}`                                                                                       | right to left |
@@ -51,7 +51,7 @@ The individual operations are described below.
 *   [Ternary Expression](expression/ternary.md)
 *   [Pipeline Operation](expression/pipeline.md)
 *   [Function Composition Operation](expression/function_composition.md)
-*   [Logical UNDEF Operation](expression/logical_undef.md)
+*   [Null Coalescing Operation](expression/null_coalescing.md)
 *   [Logical OR Operation](expression/logical_or.md)
 *   [Logical AND Operation](expression/logical_and.md)
 *   [Bit OR Operation](expression/bit_or.md)
