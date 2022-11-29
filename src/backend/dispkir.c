@@ -5,6 +5,7 @@
 extern void escape_print(const char *);
 
 #define IDT "    "
+#define IDT2 "  "
 #define OP "%-16s"
 #define REG "$%d(%d):%s"
 #define TYPS(x) (i->r##x.typestr ? i->r##x.typestr : typeidname(i->r##x.typeid))
@@ -339,6 +340,29 @@ void disp_inst(kl_kir_program *p, kl_kir_inst *i)
         printf(IDT OP, "jmpifne");
         disp_v(i, 1);
         printf(", L%d\n", i->labelid);
+        break;
+
+    case KIR_SWITCHS:
+        disp_2op("switch", i);
+        break;
+    case KIR_SWITCHE:
+        disp_0op("switche");
+        break;
+    case KIR_CASEI:
+        printf(IDT2 OP IDT2, "casei:");
+        disp_v(i, 1);
+        printf("\n");
+        break;
+    case KIR_CASEV:
+        printf(IDT2 OP IDT2, "casev:");
+        disp_v(i, 1);
+        printf(", ");
+        disp_v(i, 2);
+        printf(", L%d\n", i->labelid);
+        break;
+    case KIR_DEFAULT:
+        printf(IDT2 OP IDT2, "default:");
+        printf("\n");
         break;
 
     case KIR_SWAP:

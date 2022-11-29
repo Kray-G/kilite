@@ -160,7 +160,7 @@ function test(a) {
 #### Code
 
 ```javascript
-var array = [1,2,3,4,5,6,7,8,9,10];
+var ary = [1,2,3,4,5,6,7,8,9,10];
 function switchTest(n) {
     switch (n) {
     case 1:     System.println(n); break;
@@ -177,8 +177,8 @@ function switchTest(n) {
         // fallthrough
     case 100:   System.println(n); break;
         break;
-    case array.length():
-        System.println("array-length:%{n}");
+    case ary.size():
+        System.println("ary-length:%{n}");
         break;
     case "aaa":
         System.println(n);
@@ -210,7 +210,7 @@ function switchTest(n) {
 7 => 7
 8 => 8
 9 => default - 9
-10 => array-length:10
+10 => ary-length:10
 11 => default - 11
 12 => default - 12
 98 => default - 98

@@ -55,6 +55,9 @@ typedef enum tk_token {
     TK_MIXIN,               //    mixin
     TK_FUNC,                //  * func/function, which one you can choose as you like.
     TK_NATIVE,              //    native
+    TK_SWITCH,              //    switch
+    TK_CASE,                //    case
+    TK_DEFAULT,             //    default
     TK_IF,                  //  * if
     TK_ELSE,                //  * else
     TK_DO,                  //  * do
@@ -63,12 +66,9 @@ typedef enum tk_token {
     TK_IN,                  //    in
     TK_FORIN,               //    for-in
     TK_RETURN,              //  * return
-    TK_SWITCH,              //    switch
-    TK_CASE,                //    case
     TK_WHEN,                //    when
     TK_BREAK,               //    break
     TK_CONTINUE,            //    continue
-    TK_DEFAULT,             //    default
     TK_OTHERWISE,           //    otherwise
     TK_FALLTHROUGH,         //    fallthrough
     TK_YIELD,               //    yield
@@ -270,6 +270,12 @@ typedef enum kl_kir {
     KIR_TYPE,       //  <r1>, <r2>, n           ;   <r1>  <-  true if <r2> type == n
     KIR_GETITER,    //  <r1>                    ;   <r1>  <-  get_iterator(<r1>).
     KIR_JMPIFNE,    //  <r1>, <label>           ;   !<r1>.isEnded() will make it jump to the label.
+
+    KIR_SWITCHS,    //  <r1>, <r2>              ;   <r1>  <-  <r2>, and switch <r1>.
+    KIR_SWITCHE,    //                          ;   the end of switch.
+    KIR_CASEI,      //  <n>                     ;   switch case label <n> as an integer.
+    KIR_CASEV,      //  <r1>, <r2>, <label>     ;   <r1> == <r2>, then goto label.
+    KIR_DEFAULT,    //                          ;   default label in switch.
 
     /* Special instructions */
     KIR_SWAP,       //  <r1>, <r2>              ;   <r1>  <-> <r2>

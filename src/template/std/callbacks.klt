@@ -18,6 +18,38 @@ function Integer_times(n:integer, f:func) {
     }
 }
 
+function Integer_upto(val:integer, max:integer, callback:func) {
+    var ary = [];
+    var index = 0;
+    if (callback.isFunction) {
+        for (var i = val; i <= max; ++i) {
+            ary[index] = callback(i, index);
+            ++index;
+        }
+    } else {
+        for (var i = val; i <= max; ++i) {
+            ary[index++] = val;
+        }
+    }
+    return ary;
+}
+
+function Integer_downto(val:integer, min:integer, callback:func) {
+    var ary = [];
+    var index = 0;
+    if (callback.isFunction) {
+        for (var i = val; i >= min; --i) {
+            ary[index] = callback(i, index);
+            ++index;
+        }
+    } else {
+        for (var i = val; i >= min; --i) {
+            ary[index++] = val;
+        }
+    }
+    return ary;
+}
+
 /* Array functions */
 
 function Array_each(a:object, f:func) {

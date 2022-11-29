@@ -411,6 +411,24 @@ static void disp_stmt(kl_stmt *s, int indent)
             }
         }
         break;
+    case TK_SWITCH:
+        printf("swicth: [$%d]", s->sym->index);
+        if (s->e1) {
+            disp_expr(s->e1, indent + 1);
+        }
+        if (s->s1) {
+            disp_stmt_list(s->s1, indent + 1);
+        }
+        break;
+    case TK_CASE:
+        printf("* case\n");
+        if (s->e1) {
+            disp_expr(s->e1, indent + 1);
+        }
+        break;
+    case TK_DEFAULT:
+        printf("* default\n");
+        break;
     case TK_IF:
         printf("if\n");
         if (s->e1) {

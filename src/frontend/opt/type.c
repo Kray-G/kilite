@@ -3,7 +3,6 @@
 typedef struct type_context {
     int errors;
     int error_stdout;
-    int in_native;
 } type_context;
 
 static int type_error(type_context *tc, const char *phase, int line, int pos, int len, const char *fmt, ...)
@@ -47,10 +46,6 @@ static void type_stmt(kl_context *ctx, type_context *tc, kl_stmt *stmt)
 {
     kl_stmt *s = stmt;
     while (s) {
-        int in_native = tc->in_native;
-        if (s->sym && s->sym->is_callable && s->sym->is_native) {
-            tc->in_native = 1;
-        }
         if (s->s1) {
             type_stmt(ctx, tc, s->s1);
         }
@@ -69,9 +64,6 @@ static void type_stmt(kl_context *ctx, type_context *tc, kl_stmt *stmt)
         if (s->e3) {
             type_expr(ctx, tc, s->e3);
         }
-        if (s->sym && s->sym->is_callable && s->sym->is_native) {
-            tc->in_native = in_native;
-        }
         s = s->next;
     }
 }
@@ -83,7 +75,7 @@ static void type_program(kl_context *ctx, type_context *tc, kl_stmt *s)
 
 void update_ast_type(kl_context *ctx)
 {
-    type_context tc = { .in_native = 0, .error_stdout = (ctx->options & PARSER_OPT_ERR_STDOUT) == PARSER_OPT_ERR_STDOUT };
+    type_context tc = { .error_stdout = (ctx->options & PARSER_OPT_ERR_STDOUT) == PARSER_OPT_ERR_STDOUT };
     type_program(ctx, &tc, ctx->head);
 }
 
@@ -135,16 +127,16 @@ static int check_pure(tk_token tk)
         pure = 0;
         break;
     case TK_RETURN: /* 1 */
-    case TK_SWITCH: /* 1 */
-    case TK_CASE: /* 1 */
         pure = 1;
         break;
+    case TK_SWITCH: /* 0 */
+    case TK_CASE: /* 0 */
+    case TK_DEFAULT: /* 0 */
     case TK_WHEN: /* 0 */
         pure = 0;
         break;
     case TK_BREAK: /* 1 */
     case TK_CONTINUE: /* 1 */
-    case TK_DEFAULT: /* 1 */
         pure = 1;
         break;
     case TK_OTHERWISE: /* 0 */

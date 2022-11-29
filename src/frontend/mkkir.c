@@ -1474,6 +1474,152 @@ static kl_kir_inst *gen_throw(kl_context *ctx, kl_symbol *sym, kl_stmt *s)
     return head;
 }
 
+static void gen_case_label(kl_context *ctx, kl_stmt *s, int *n)
+{
+    if (s->ncase) {
+        gen_case_label(ctx, s->ncase, n);
+    }
+    s->labelno = get_next_label(ctx);
+
+    kl_expr *v = s->e1;
+    if (v && v->nodetype == TK_VSINT) {
+        (*n)++;
+    }
+}
+
+static kl_kir_inst *gen_case_others(kl_context *ctx, kl_symbol *sym, kl_stmt *s)
+{
+    kl_kir_inst *head = NULL;
+    kl_kir_inst *inst = NULL;
+    if (s->ncase) {
+        head = gen_case_others(ctx, sym, s->ncase);
+    }
+    if (s->nodetype == TK_DEFAULT) {
+        return head;
+    }
+
+    kl_expr *v = s->e1;
+    if (v && v->nodetype != TK_VSINT) {
+        kl_symbol *ssym = ctx->switchstmt->sym;
+        kl_kir_opr sv = make_var_index(ctx, ssym->index, 0, TK_TANY);
+        kl_kir_inst *r1i = NULL;
+        kl_kir_opr r1 = {0};
+        KL_KIR_CHECK_LITERAL(v, r1, r1i);
+        inst = new_inst_op2(ctx->program, s->line, s->pos, KIR_CASEV, &sv, &r1);
+        set_file_func(ctx, sym, inst);
+        inst->labelid = s->labelno;
+        if (r1i) {
+            kl_kir_inst *r1l = get_last(r1i);
+            r1l->next = inst;
+            inst = r1i;
+        }
+        if (head) {
+            kl_kir_inst *last = get_last(head);
+            last->next = inst;
+        } else {
+            head = inst;
+        }
+    }
+
+    return head;
+}
+
+static kl_kir_inst *gen_switch(kl_context *ctx, kl_symbol *sym, kl_stmt *s)
+{
+    kl_kir_inst *head = NULL;
+    kl_kir_inst *last = NULL;
+    int l1 = get_next_label(ctx);
+    int ldef = get_next_label(ctx);
+    int blabel = ctx->blabel;
+    ctx->blabel = s->labelno = l1;
+    if (s->sym) {
+        s->sym->blabel = l1;
+    }
+
+    int n = 0;
+    if (s->ncase) {
+        gen_case_label(ctx, s->ncase, &n);
+    }
+
+    kl_stmt *prev = ctx->switchstmt;
+    ctx->switchstmt = s;
+    kl_stmt *ccase = ctx->casestmt;
+    ctx->casestmt = NULL;
+
+    kl_kir_opr r1 = {0};
+    KL_KIR_CHECK_LITERAL(s->e1, r1, head);
+    kl_kir_opr sv = make_var_index(ctx, s->sym->index, 0, TK_TANY);
+    if (n == 0) {
+        head = last = new_inst_op2(ctx->program, s->line, s->pos, KIR_MOV, &sv, &r1);
+        last->next = gen_case_others(ctx, sym, s->ncase);
+        last = get_last(last);
+        if (s->defcase) {    /* default: */
+            last->next = new_inst_jump(ctx->program, s->defcase->line, s->defcase->pos, s->defcase->labelno, NULL);
+            last = last->next;
+        }
+    } else {
+        if (!head) {
+            head = last = new_inst_op2(ctx->program, s->line, s->pos, KIR_SWITCHS, &sv, &r1);
+            head->labelid = ldef;
+        } else {
+            last = get_last(head);
+            last->next = new_inst_op2(ctx->program, s->line, s->pos, KIR_SWITCHS, &sv, &r1);
+            last = last->next;
+            last->labelid = ldef;
+        }
+    }
+
+    last->next = gen_stmt(ctx, sym, s->s1);
+    last = get_last(last);
+
+    if (n != 0) {
+        last->next = new_inst_jump(ctx->program, s->line, s->pos, l1, NULL);
+        last = last->next;
+        last->next = new_inst_label(ctx->program, s->line, s->pos, ldef, last, 0);
+        last = last->next;
+        last->next = new_inst(ctx->program, s->line, s->pos, KIR_DEFAULT);
+        last = last->next;
+        last->next = gen_case_others(ctx, sym, s->ncase);
+        last = get_last(last);
+        if (s->defcase) {    /* default: */
+            last->next = new_inst_jump(ctx->program, s->defcase->line, s->defcase->pos, s->defcase->labelno, NULL);
+            last = last->next;
+        }
+        last->next = new_inst(ctx->program, s->line, s->pos, KIR_SWITCHE);
+        last = last->next;
+    }
+
+    ctx->casestmt = ccase;
+    ctx->switchstmt = prev;
+    last->next = new_inst_label(ctx->program, s->line, s->pos, l1, last, 0);
+    ctx->blabel = blabel;
+    return head;
+}
+
+static kl_kir_inst *gen_case(kl_context *ctx, kl_symbol *sym, kl_stmt *s)
+{
+    kl_kir_inst *head, *last;
+    kl_expr *v = s->e1;
+    if (v && v->nodetype != TK_VSINT) {
+        head = new_inst_label(ctx->program, s->line, s->pos, s->labelno, NULL, 0);
+    } else {
+        kl_kir_opr r1 = make_lit_i64(ctx, s->e1->val.i64);
+        head = new_inst_op1(ctx->program, s->line, s->pos, KIR_CASEI, &r1);
+        head->next = new_inst_label(ctx->program, s->line, s->pos, s->labelno, NULL, 0);
+        last = get_last(head);
+    }
+
+    ctx->casestmt = s;
+    return head;
+}
+
+static kl_kir_inst *gen_default(kl_context *ctx, kl_symbol *sym, kl_stmt *s)
+{
+    kl_kir_inst *head = new_inst_label(ctx->program, s->line, s->pos, s->labelno, NULL, 0);
+    ctx->casestmt = s;
+    return head;
+}
+
 static kl_kir_inst *gen_if(kl_context *ctx, kl_symbol *sym, kl_stmt *s)
 {
     kl_kir_inst *head = NULL;
@@ -2556,6 +2702,17 @@ static kl_kir_inst *gen_stmt(kl_context *ctx, kl_symbol *sym, kl_stmt *s)
         }
         break;
 
+    case TK_SWITCH:
+        if (s->e1 && s->s1) {
+            head = gen_switch(ctx, sym, s);
+        }
+        break;
+    case TK_CASE:
+        head = gen_case(ctx, sym, s);
+        break;
+    case TK_DEFAULT:
+        head = gen_default(ctx, sym, s);
+        break;
     case TK_IF:
         if (s->e1) {
             head = gen_if(ctx, sym, s);

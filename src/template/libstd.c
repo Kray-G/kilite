@@ -959,6 +959,7 @@ static int Integer_toString(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 }
 
 extern int Integer_times(vmctx *ctx, vmfrm *lex, vmvar *r, int ac);
+extern int Integer_upto(vmctx *ctx, vmfrm *lex, vmvar *r, int ac);
 
 int Integer(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
@@ -966,6 +967,7 @@ int Integer(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     ctx->i = o;
     KL_SET_METHOD(o, toString, Integer_toString, lex, 2)
     KL_SET_METHOD(o, times, Integer_times, lex, 2)
+    KL_SET_METHOD(o, upto, Integer_upto, lex, 2)
     KL_SET_METHOD(o, next, Integer_next, lex, 2)
 
     KL_SET_METHOD(o, acos, Math_acos, lex, 1)

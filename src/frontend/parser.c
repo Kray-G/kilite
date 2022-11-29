@@ -1344,11 +1344,11 @@ static kl_stmt *parse_expression_stmt(kl_context *ctx, kl_lexer *l)
         s = m;
     }
     if (l->tok == TK_COLON) {
-        s->nodetype = TK_LABEL;
         if (s->e1->nodetype != TK_VAR) {
             parse_error(ctx, __LINE__, l, "Invalid label name");
             return panic_mode_exprstmt(s, ';', ctx, l);
         }
+        s->nodetype = TK_LABEL;
         ctx->scope->idxmax--;   // cancelled the index.
         s->sym = s->e1->sym;
         lexer_fetch(l);
@@ -1509,6 +1509,73 @@ static kl_expr *parse_def_arglist(kl_context *ctx, kl_lexer *l, kl_symbol *func)
         }
     } while (l->tok == TK_COMMA);
     return e;
+}
+
+static kl_stmt *parse_switch(kl_context *ctx, kl_lexer *l)
+{
+    kl_stmt *s = make_stmt(ctx, l, TK_SWITCH);
+    kl_stmt *prev = ctx->switchstmt;
+    s->sym = make_symbol(ctx, l, TK_VAR, 0);
+    s->sym->name = parse_const_varidname(ctx, l, s->sym->index);
+    ctx->switchstmt = s;
+    if (l->tok != TK_LSBR) {
+        parse_error(ctx, __LINE__, l, "Invalid switch value");
+        return panic_mode_exprstmt(s, '}', ctx, l);
+    }
+    lexer_fetch(l);
+    s->e1 = parse_expression(ctx, l);
+    if (l->tok != TK_RSBR) {
+        parse_error(ctx, __LINE__, l, "The ')' is missing");
+        return panic_mode_exprstmt(s, '}', ctx, l);
+    }
+    lexer_fetch(l);
+    if (l->tok != TK_LXBR) {
+        parse_error(ctx, __LINE__, l, "Invalid switch statement");
+        return panic_mode_exprstmt(s, '}', ctx, l);
+    }
+    s->s1 = parse_statement(ctx, l);
+    ctx->switchstmt = prev;
+    return s;
+}
+
+static void add_case(kl_stmt *sw, kl_stmt *cs)
+{
+    cs->ncase = sw->ncase;
+    sw->ncase = cs;
+}
+
+static kl_stmt *parse_case(kl_context *ctx, kl_lexer *l)
+{
+    kl_stmt *s = make_stmt(ctx, l, TK_CASE);
+    if (!ctx->switchstmt) {
+        parse_error(ctx, __LINE__, l, "No switch for case statement");
+        return s;
+    }
+    add_case(ctx->switchstmt, s);
+    s->e1 = parse_expression(ctx, l);
+    if (l->tok != TK_COLON) {
+        parse_error(ctx, __LINE__, l, "Invalid case label");
+        return panic_mode_exprstmt(s, ';', ctx, l);
+    }
+    lexer_fetch(l);
+    return s;
+}
+
+static kl_stmt *parse_default(kl_context *ctx, kl_lexer *l)
+{
+    kl_stmt *s = make_stmt(ctx, l, TK_DEFAULT);
+    if (!ctx->switchstmt) {
+        parse_error(ctx, __LINE__, l, "No switch for case statement");
+        return s;
+    }
+    add_case(ctx->switchstmt, s);
+    ctx->switchstmt->defcase = s;
+    if (l->tok != TK_COLON) {
+        parse_error(ctx, __LINE__, l, "Invalid default label");
+        return panic_mode_exprstmt(s, ';', ctx, l);
+    }
+    lexer_fetch(l);
+    return s;
 }
 
 static kl_stmt *parse_if(kl_context *ctx, kl_lexer *l)
@@ -2387,6 +2454,18 @@ static kl_stmt *parse_statement(kl_context *ctx, kl_lexer *l)
         lexer_fetch(l);
         r = parse_module(ctx, l);
         break;
+    case TK_SWITCH:
+        lexer_fetch(l);
+        r = parse_switch(ctx, l);
+        break;
+    case TK_CASE:
+        lexer_fetch(l);
+        r = parse_case(ctx, l);
+        break;
+    case TK_DEFAULT:
+        lexer_fetch(l);
+        r = parse_default(ctx, l);
+        break;
     case TK_IF:
         lexer_fetch(l);
         r = parse_if(ctx, l);
@@ -2480,6 +2559,9 @@ static kl_stmt *parse_statement_list(kl_context *ctx, kl_lexer *l)
     kl_stmt *s1 = NULL, *s2 = NULL;
     for ( ; ; ) {
         s2 = parse_statement(ctx, l);
+        if (s2 == NULL) {
+            break;
+        }
         if (!s1) {
             head = s2;
         }
@@ -2497,7 +2579,7 @@ static kl_stmt *parse_statement_list(kl_context *ctx, kl_lexer *l)
             /* Skip semicolons because it means no statement. */
             lexer_fetch(l);
         }
-        if (s2 == NULL || l->tok == TK_RXBR) {
+        if (l->tok == TK_RXBR) {
             break;
         }
     }

@@ -710,6 +710,38 @@ static void translate_idx(func_context *fctx, xstr *code, kl_kir_inst *i, int r3
     }
 }
 
+static void translate_casev(func_context *fctx, xstr *code, kl_kir_inst *i)
+{
+    kl_kir_opr *r1 = &(i->r1);
+    kl_kir_opr *r2 = &(i->r2);
+    char buf1[256] = {0};
+    char buf2[256] = {0};
+    var_value(buf1, r1);
+
+    xstra_inst(code, "{ vmvar sv = {0};\n");
+    switch (i->r2.t) {
+    case TK_VDBL:
+        xstra_inst(code, "  vmvar cv = {0}; SET_DBL(&cv, %s);\n", i->r2.dbl);
+        xstra_inst(code, "  OP_EQEQ(ctx, &sv, %s, &cv, L%d, \"%s\", \"%s\", %d);\n",
+            buf1, i->catchid, i->funcname, escape(&(fctx->str), i->filename), i->line);
+        break;
+    case TK_VSTR:
+        xstra_inst(code, "  vmvar cv = {0}; SET_STR(&cv, \"%s\");\n", escape(&(fctx->str), i->r2.str));
+        xstra_inst(code, "  OP_EQEQ(ctx, &sv, %s, &cv, L%d, \"%s\", \"%s\", %d);\n",
+            buf1, i->catchid, i->funcname, escape(&(fctx->str), i->filename), i->line);
+        break;
+    case TK_VAR:
+        var_value(buf2, r2);
+        xstra_inst(code, "  OP_EQEQ(ctx, &sv, %s, %s, L%d, \"%s\", \"%s\", %d);\n",
+            buf1, buf2, i->catchid, i->funcname, escape(&(fctx->str), i->filename), i->line);
+        break;
+    default:
+        ;
+    }
+    xstra_inst(code, "  OP_JMP_IF_TRUE(&sv, L%d);\n", i->labelid);
+    xstra_inst(code, "}\n");
+}
+
 static void translate_op3(func_context *fctx, xstr *code, const char *op, const char *sop, kl_kir_inst *i)
 {
     kl_kir_opr *r1 = &(i->r1);
@@ -1525,6 +1557,23 @@ static void translate_inst(xstr *code, kl_kir_func *f, kl_kir_inst *i, func_cont
     case KIR_JMPIFNE:
         xstra_inst(code, "OP_JMP_IF_NOTEND(ctx, lex, %s, L%d, \"%s\", \"%s\", %d);\n", var_value(buf1, &(i->r1)),
             i->labelid, i->funcname, escape(&(fctx->str), i->filename), i->line);
+        break;
+    case KIR_SWITCHS:
+        xstra_inst(code, "COPY_VAR_TO(ctx, %s, %s);\n", var_value(buf1, &(i->r1)), var_value(buf2, &(i->r2)));
+        xstra_inst(code, "if ((%s)->t != VAR_INT64) goto L%d;\n", var_value(buf1, &(i->r1)), i->labelid);
+        xstra_inst(code, "switch ((%s)->i) {\n", var_value(buf1, &(i->r1)));
+        break;
+    case KIR_SWITCHE:
+        xstra_inst(code, "}\n");
+        break;
+    case KIR_CASEI:
+        xstra_inst(code, "case %d:;\n", i->r1.i64);
+        break;
+    case KIR_CASEV:
+        translate_casev(fctx, code, i);
+        break;
+    case KIR_DEFAULT:
+        xstra_inst(code, "default:;\n");
         break;
     }
 }
