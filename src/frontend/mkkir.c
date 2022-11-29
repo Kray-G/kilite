@@ -1695,6 +1695,17 @@ static kl_kir_inst *gen_forin(kl_context *ctx, kl_symbol *sym, kl_stmt *s)
         return new_inst_label(ctx->program, s->line, s->pos, l1, NULL, 0);
     }
 
+    /* for break/continue */
+    int l3 = get_next_label(ctx);
+    int blabel = ctx->blabel;
+    int clabel = ctx->clabel;
+    ctx->blabel = l3;
+    ctx->clabel = l1;
+    if (s->sym) {
+        s->sym->blabel = l3;
+        s->sym->clabel = l1;
+    }
+
     /* prologue */
     kl_kir_opr r1 = make_var_index(ctx, s->sym->index, s->sym->level, TK_TANY);
     int l2 = get_next_label(ctx);
@@ -1726,7 +1737,13 @@ static kl_kir_inst *gen_forin(kl_context *ctx, kl_symbol *sym, kl_stmt *s)
     last = get_last(last);
 
     last->next = new_inst_jumpifne(ctx->program, s->line, s->pos, &r1, l2);
-    set_file_func(ctx, sym, last->next);
+    last = last->next;
+    set_file_func(ctx, sym, last);
+
+    last->next = new_inst_label(ctx->program, s->line, s->pos, l3, last, 0);
+
+    ctx->clabel = clabel;
+    ctx->blabel = blabel;
     return head;
 }
 
