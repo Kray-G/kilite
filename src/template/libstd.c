@@ -963,7 +963,7 @@ static int Integer_toString(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
         }
         case 16: {
             char buf[31] = {0};
-            sprintf(buf, "%llx", a0->i);
+            sprintf(buf, "%" PRIx64, a0->i);
             r->s = alcstr_str(ctx, buf);
             break;
         }
