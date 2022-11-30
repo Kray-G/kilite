@@ -8,11 +8,11 @@ Looks like JavaScript, feels like Ruby, and it is a script language fitting in C
 
 # Kilite
 
-Lightweight Kinx but more flexible, portable, and faster.
+This is like a lightweight Kinx but more flexible, portable, and faster.
 Mainly, we will provide the following features for your help.
 
 * To make it flexible, portable, and faster than Kinx.
-  * This program is a successors of Kinx project, so we're sure to make it like as Kinx features.
+  * This program is a successor of the Kinx project, so I'll support most of Kinx features.
   * Moreover, the performance or various points will be improved.
 * To output a C source code to make an executable from that.
   * This is a new feature not in Kinx.
@@ -69,29 +69,29 @@ Now, I did benchmark with some script languages because the current version of k
 That's why I'll show it below.
 The target program is the 38th result of a fibonacci as usual.
 
-|              | Version     | Time  | Result   |
-| ------------ | ----------- | ----- | -------- |
-| luajit       | 2.1.0-beta3 | 0.42s | 39088169 |
-| PyPy         | 7.3.9       | 0.42s | 39088169 |
-| Kinx(native) | 1.1.1       | 0.57s | 39088169 |
-| Kilite       | (beta-x)    | 0.60s | 39088169 |
-| Kilite       | (beta)      | 1.67s | 39088169 |
-| Lua          | 5.4.4       | 2.78s | 39088169 |
-| Ruby         | 3.1.2p20    | 3.30s | 39088169 |
-| Kinx         | 1.1.1       | 5.63s | 39088169 |
-| Python       | 3.11.0      | 6.28s | 39088169 |
+|                    | Version     | Time  | Result   |
+| ------------------ | ----------- | ----- | -------- |
+| C (-O2)            | VS2019      | 0.18s | 39088169 |
+| Kilite(C compiled) | (beta)      | 0.22s | 39088169 |
+| luajit             | 2.1.0-beta3 | 0.35s | 39088169 |
+| PyPy               | 7.3.9       | 0.42s | 39088169 |
+| Kinx(native)       | 1.1.1       | 0.57s | 39088169 |
+| Kilite             | (beta)      | 0.75s | 39088169 |
+| Lua                | 5.4.4       | 2.62s | 39088169 |
+| Ruby               | 3.1.2p20    | 4.14s | 39088169 |
+| Kinx               | 1.1.1       | 5.41s | 39088169 |
+| Python             | 3.11.0      | 6.28s | 39088169 |
 
-luajit and PyPy was very fast. That's exactly JIT as expected.
-Kilite(beta-x) will create a specialized method for 64bit integers and it will automtically work, so it's very fast when it's using only a 64bit integer.
-Even with Kilite(beta) that turned this optimization off, it's been 2x faster than Ruby, and 3.3x faster than Kinx.
-This is the result as I wanted, but it could be slower by increasing the code in the future.
+luajit and PyPy was very fast and amazing. That's exactly JIT as expected.
+As for Kilite, this is almost the result as I wanted, but it could be slower by increasing the code in the future.
 I will try to keep the perfrmance even if the code would be more complex.
 
 The source code for each language is shown below.
 
 #### Kinx/Kilite
 
-Kilite has already supported `System.println` method as well as Kinx.
+Kilite is now already supported the `System.println` method as well as Kinx.
+And when I outputted the C source code and compiled it, that was super fast.
 
     function fib(n) {
         if (n < 2) return n;
@@ -108,6 +108,22 @@ Kinx `native` was super fast, but we have to specify the `native` everytime.
         return fib(n - 2) + fib(n - 1);
     }
     System.println(fib(38));
+
+#### C
+
+This is just a simple C code.
+
+    #include <stdio.h>
+
+    int fib(int n) {
+        if (n < 2) return n;
+        return fib(n - 2) + fib(n - 1);
+    }
+
+    int main()
+    {
+        printf("%d\n", fib(38));
+    }
 
 #### Ruby
 
