@@ -44,8 +44,7 @@ gcc -Wno-unused-result -O2 -I ../mir \
 cp -f kilite ../kilite
 
 mkdir -p lib
-echo "#define KILITE_AMALGAMATION" > %TEMPF%
-echo "#define KILITE_AMALGAMATION" >> %TEMPF%
+echo "#define KILITE_AMALGAMATION" > $TEMPF
 cat ../src/template/lib/bign.h >> $TEMPF
 cat ../src/template/lib/bigz.h >> $TEMPF
 echo "#ifdef __MIRC__" >> %TEMPF%

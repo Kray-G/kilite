@@ -18,8 +18,10 @@
 
 #if defined(_WIN32) || defined(_WIN64)
 #define alloca _alloca
+#define unlink _unlink
 #define SEP '\\'
 #else
+#include <unistd.h>
 #define SEP '/'
 #endif
 
