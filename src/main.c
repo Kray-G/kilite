@@ -298,22 +298,21 @@ int make_executable(kl_argopts *opts, const char *s)
         if (ch == 0) {
             break;
         }
-        #if !defined(_WIN32) && !defined(_WIN64)
-        if (ch == '.') {
-            break;
-        }
-        #endif
         name[i] = srcf[i] = ch;
-        #if defined(_WIN32) || defined(_WIN64)
         if (ch == '.') {
             ++i;
             break;
         }
-        #endif
     }
+    if (i == 0) {
+        return 1;
+    }
+
     srcf[i] = 'c';
     #if defined(_WIN32) || defined(_WIN64)
     name[i] = 'e'; name[++i] = 'x'; name[++i] = 'e';
+    #else
+    name[i-1] = 0;
     #endif
 
     int len = (strlen(temppath) + i) * 3;
