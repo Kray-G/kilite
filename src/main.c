@@ -298,14 +298,23 @@ int make_executable(kl_argopts *opts, const char *s)
         if (ch == 0) {
             break;
         }
+        #if !defined(_WIN32) && !defined(_WIN64)
+        if (ch == '.') {
+            break;
+        }
+        #endif
         name[i] = srcf[i] = ch;
+        #if defined(_WIN32) || defined(_WIN64)
         if (ch == '.') {
             ++i;
             break;
         }
+        #endif
     }
     srcf[i] = 'c';
+    #if defined(_WIN32) || defined(_WIN64)
     name[i] = 'e'; name[++i] = 'x'; name[++i] = 'e';
+    #endif
 
     int len = (strlen(temppath) + i) * 3;
     char *fname = (char *)calloc(len, sizeof(char));
