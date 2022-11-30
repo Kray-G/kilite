@@ -158,9 +158,9 @@ I will note the followings as I don't forget it.
     * [x] Make the factorial recursive function work with big integer.
     * [x] All basic comparisons including `<=>`.
     * [x] `&&` and `||` as a shortcut operator.
-      * [ ] `&&=` and `||=` as a shortcut operator.
-      * [ ] `??` as a shortcut operator.
-      * [ ] `??=` as a shortcut operator.
+      * [x] `&&=` and `||=` as a shortcut operator.
+      * [x] `??` as a shortcut operator.
+      * [x] `??=` as a shortcut operator.
     * [x] String operations.
     * [x] Array operations.
     * [x] Object operations.
@@ -170,14 +170,17 @@ I will note the followings as I don't forget it.
         * [x] Return value from `yield`.
       * [ ] Enumerator module.
       * [ ] Range class.
+        * [x] Range for integer.
+        * [ ] Range for string.
+        * [ ] Range for others.
       * [ ] Range index for String, Binary, Array, and Range.
       * [ ] Range at the case value.
-      * [ ] Range in `for-in`.
-    * [ ] Support a `switch-case` statement.
+      * [x] Range in `for-in`.
+    * [x] Support a `switch-case` statement.
     * [x] Support the loop like `for`, `while`, and `do-while`.
-    * [ ] `for-in` for Array.
-    * [ ] `for-in` for Object.
-    * [ ] `for-in` for Range.
+    * [x] `for-in` for Array.
+    * [x] `for-in` for Object.
+    * [x] `for-in` for Range.
     * [x] `if` modifier.
     * [x] `break` and `continue`.
       * [x] with label.
@@ -220,7 +223,7 @@ In addition, the followings are the task list for the current implementation.
 * [ ] Remaining items.
   * [ ] Error recovery during parsing like a panic mode.
   * [ ] Error report for reassigning a value into a variable of `const`.
-  * [ ] `isDefined` property.
+  * [x] `isDefined` property.
 
 ## Others
 
