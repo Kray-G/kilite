@@ -74,7 +74,7 @@ cd ../src/template/std
 $BIN/kilite --makelib callbacks.klt >> $TEMPF
 cd $BIN
 
-gcc -O2 -DUSE_INT64 -o ${TEMPF/.c/.o} -I lib -Wunused-result -c $TEMPF
+gcc -O2 -DUSE_INT64 -o ${TEMPF/.c/.o} -I lib -Wno-unused-result -c $TEMPF
 ar rcs libkilite.a ${TEMPF/.c/.o}
 cp -f libkilite.a ../libkilite.a
 ./c2m -DUSE_INT64 -I lib -c $TEMPF
