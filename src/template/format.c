@@ -1,4 +1,6 @@
+#ifndef KILITE_AMALGAMATION
 #include "common.h"
+#endif
 #include <limits.h>
 
 #define KBUF (1024)

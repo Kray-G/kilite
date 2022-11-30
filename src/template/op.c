@@ -1,4 +1,6 @@
+#ifndef KILITE_AMALGAMATION
 #include "common.h"
+#endif
 extern double fmod(double, double);
 extern double pow(double, double);
 extern double fabs(double);

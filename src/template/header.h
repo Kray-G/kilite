@@ -16,6 +16,9 @@ extern BigZ i64minm1;
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#if defined(_WIN32) || defined(_WIN64)
+#define alloca _alloca
+#endif
 #else
 #define INLINE inline
 int printf(const char *, ...);
@@ -2853,6 +2856,7 @@ INLINE extern vmstr *format(vmctx *ctx, vmobj *v);
 
 INLINE extern void bi_initialize(void);
 INLINE extern void bi_finalize(void);
+INLINE extern void bi_normalize(vmvar *v);
 INLINE extern vmbgi *bi_copy(vmctx *ctx, vmbgi *src);
 INLINE extern void bi_print(vmbgi *b);
 INLINE extern void bi_str(char *buf, int max, vmbgi *b);

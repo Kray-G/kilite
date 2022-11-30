@@ -1,4 +1,6 @@
+#ifndef KILITE_AMALGAMATION
 #include "common.h"
+#endif
 
 /* check argument's type if it's specified */
 #define DEF_ARG(a0, n, type) \
@@ -341,6 +343,7 @@ static int System_print(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
         print_obj(ctx, an);
     }
     r->t = VAR_UNDEF;
+    return 0;
 }
 
 static int System_println(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
@@ -351,6 +354,7 @@ static int System_println(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     }
     printf("\n");
     r->t = VAR_UNDEF;
+    return 0;
 }
 
 int System(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
@@ -724,6 +728,7 @@ static int IteratorArray_isEnded(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     } else {
         SET_I64(r, 1);
     }
+    return 0;
 }
 
 static int IteratorObject_next(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)

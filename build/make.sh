@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 CUR=$PWD
 cd `dirname $0`
@@ -44,14 +44,19 @@ gcc -Wno-unused-result -O2 -I ../mir \
 cp -f kilite ../kilite
 
 mkdir -p lib
-cp -f ../src/template/lib/bign.h ./lib/bign.h
-cp -f ../src/template/lib/bigz.h ./lib/bigz.h
-cp -f ../src/template/lib/printf.h ./lib/printf.h
-cp -f ../src/template/common.h ./common.h
-cp -f ../src/template/header.h ./header.h
-cat ../src/template/lib/bign.c > $TEMPF
+echo "#define KILITE_AMALGAMATION" > %TEMPF%
+echo "#define KILITE_AMALGAMATION" >> %TEMPF%
+cat ../src/template/lib/bign.h >> $TEMPF
+cat ../src/template/lib/bigz.h >> $TEMPF
+echo "#ifdef __MIRC__" >> %TEMPF%
+cat ../src/template/lib/printf.h >> $TEMPF
+echo "#endif" >> %TEMPF%
+cat ../src/template/header.h >> $TEMPF
+cat ../src/template/lib/bign.c >> $TEMPF
 cat ../src/template/lib/bigz.c >> $TEMPF
+echo "#ifdef __MIRC__" >> %TEMPF%
 cat ../src/template/lib/printf.c >> $TEMPF
+echo "#endif" >> %TEMPF%
 cat ../src/template/alloc.c >> $TEMPF
 cat ../src/template/gc.c >> $TEMPF
 cat ../src/template/init.c >> $TEMPF
@@ -67,6 +72,9 @@ cd ../src/template/std
 $BIN/kilite --makelib callbacks.klt >> $TEMPF
 cd $BIN
 
+gcc -O2 -DUSE_INT64 -o ${TEMPF/.c/.o} -I lib -c $TEMPF
+ar rcs libkilite.a ${TEMPF/.c/.o}
+cp /y libkilite.a ../libkilite.a
 ./c2m -DUSE_INT64 -I lib -c $TEMPF
 rm kilite.bmir
 mv h.bmir kilite.bmir

@@ -1,4 +1,6 @@
+#ifndef KILITE_AMALGAMATION
 #include "common.h"
+#endif
 
 static inline char str_head_ch(vmstr *vs)
 {

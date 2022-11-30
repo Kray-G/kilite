@@ -62,7 +62,9 @@
  * $Date: 2019/12/21 08:22:54 $
  */
 
+#if !defined(__BIGN_H)
 #include "bign.h"
+#endif
 
 static void
 BnnDivideHelper(BigNum nn, BigNumLength nl, BigNum dd, BigNumLength dl);

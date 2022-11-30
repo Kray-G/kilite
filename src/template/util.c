@@ -1,4 +1,6 @@
+#ifndef KILITE_AMALGAMATION
 #include "common.h"
+#endif
 
 #define DEF_COUNT(type, idx)\
     void count_##idx(vmctx *ctx)\

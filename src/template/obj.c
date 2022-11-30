@@ -1,4 +1,6 @@
+#ifndef KILITE_AMALGAMATION
 #include "common.h"
+#endif
 
 static vmobj *hashmap_extend(vmctx *ctx, vmobj *obj);
 

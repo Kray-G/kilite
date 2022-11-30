@@ -15,7 +15,7 @@ if not exist mir_static.lib goto ERROR
 set TEMPF=%BIN%\h.c
 
 @REM Create a header source code.
-cl -O2 ..\build\makecstr.c
+cl /nologo /O2 /MT ..\build\makecstr.c
 type ..\src\template\lib\bign.h > %TEMPF%
 type ..\src\template\lib\bigz.h >> %TEMPF%
 type ..\src\template\lib\printf.h >> %TEMPF%
@@ -23,7 +23,7 @@ type ..\src\template\header.h >> %TEMPF%
 makecstr.exe %TEMPF% > ..\src\backend\header.c
 del %TEMPF%
 
-cl -O2 -I ..\..\mir ^
+cl /nologo /O2 /I ..\..\mir /MT ^
     /Fekilite.exe ^
     ..\src\main.c ^
     ..\src\frontend\lexer.c ^
@@ -43,14 +43,18 @@ copy /y kilite.exe ..\kilite.exe
 
 @REM Create a basic library.
 if not exist lib mkdir lib
-copy /y ..\src\template\lib\bign.h .\lib\bign.h
-copy /y ..\src\template\lib\bigz.h .\lib\bigz.h
-copy /y ..\src\template\lib\printf.h .\lib\printf.h
-copy /y ..\src\template\common.h .\common.h
-copy /y ..\src\template\header.h .\header.h
-type ..\src\template\lib\bign.c > %TEMPF%
+echo #define KILITE_AMALGAMATION > %TEMPF%
+type ..\src\template\lib\bign.h >> %TEMPF%
+type ..\src\template\lib\bigz.h >> %TEMPF%
+echo #ifdef __MIRC__ >> %TEMPF%
+type ..\src\template\lib\printf.h >> %TEMPF%
+echo #endif >> %TEMPF%
+type ..\src\template\header.h >> %TEMPF%
+type ..\src\template\lib\bign.c >> %TEMPF%
 type ..\src\template\lib\bigz.c >> %TEMPF%
+echo #ifdef __MIRC__ >> %TEMPF%
 type ..\src\template\lib\printf.c >> %TEMPF%
+echo #endif >> %TEMPF%
 type ..\src\template\alloc.c >> %TEMPF%
 type ..\src\template\gc.c >> %TEMPF%
 type ..\src\template\init.c >> %TEMPF%
@@ -66,6 +70,9 @@ pushd ..\src\template\std
 kilite.exe --makelib callbacks.klt >> %TEMPF%
 popd
 
+cl /nologo /O2 /DUSE_INT64 /I lib /c %TEMPF%
+lib /nologo /out:kilite.lib %TEMPF:.c=.obj%
+copy /y kilite.lib ..\kilite.lib
 c2m -DUSE_INT64 -I lib -c %TEMPF%
 del kilite.bmir
 ren %TEMPF:.c=.bmir% kilite.bmir
@@ -83,8 +90,6 @@ exit /b 0
 del *.h *.obj
 del makecstr.exe
 rmdir /s /q lib
-
-
 
 :END
 popd

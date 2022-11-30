@@ -21,6 +21,7 @@ typedef struct kl_argopts {
     int out_kir;
     int out_lib;
     int out_csrc;
+    int out_cfull;
     int out_cdebug;
     int out_ast;
     int out_stdout;
@@ -49,10 +50,11 @@ static void usage(void)
     printf("    -c                  Output .bmir for library.\n");
     printf("    -x                  Execute the code and print the result.\n");
     printf("    -S                  Output .mir code.\n");
-    printf("    -S --ast            Output AST.\n");
-    printf("    -S --kir            Output low level compiled code.\n");
-    printf("    -S --csrc           Output the C code of the script code.\n");
-    printf("    -S --cdebug         Output the full C code to debug the script code.\n");
+    printf("    --ast               Output AST.\n");
+    printf("    --kir               Output low level compiled code.\n");
+    printf("    --csrc              Output the C code of the script code.\n");
+    printf("    --cfull             Output the full C code to build the executable.\n");
+    printf("    --cdebug            Output the full C code to debug the script code.\n");
     printf("    --stdout            Change the distination of the output to stdout.\n");
     printf("    --verbose           Show some infrmation when running.\n");
     printf("    --disable-pure      Disable the code optimization for a pure function.\n");
@@ -96,16 +98,23 @@ static int parse_long_options(int ac, char **av, int *i, kl_argopts *opts)
     } else if (strcmp(av[*i], "--verbose") == 0) {
         opts->verbose = 1;
     } else if (strcmp(av[*i], "--ast") == 0) {
+        opts->out_src = 1;
         opts->out_ast = 1;
     } else if (strcmp(av[*i], "--kir") == 0) {
+        opts->out_src = 1;
         opts->out_kir = 1;
     } else if (strcmp(av[*i], "--makelib") == 0) {
         opts->out_src = 1;
         opts->out_lib = 1;
         opts->disable_pure = 1;
     } else if (strcmp(av[*i], "--csrc") == 0) {
+        opts->out_src = 1;
         opts->out_csrc = 1;
+    } else if (strcmp(av[*i], "--cfull") == 0) {
+        opts->out_src = 1;
+        opts->out_cfull = 1;
     } else if (strcmp(av[*i], "--cdebug") == 0) {
+        opts->out_src = 1;
         opts->out_cdebug = 1;
     } else if (strcmp(av[*i], "--stdout") == 0) {
         opts->out_stdout = 1;
@@ -171,7 +180,7 @@ static int parse_arg_options(int ac, char **av, kl_argopts *opts)
         }
     }
     if (opts->out_src) {
-        opts->out_mir = !(opts->out_ast || opts->out_kir || opts->out_csrc);
+        opts->out_mir = !(opts->out_ast || opts->out_kir || opts->out_csrc || opts->out_cdebug || opts->out_cfull);
     }
 
     return 0;
@@ -238,18 +247,23 @@ int main(int ac, char **av)
     }
     ctx->program->print_result = opts.print_result;
     ctx->program->verbose = opts.verbose;
-    if (opts.out_src && (opts.out_csrc || opts.out_cdebug)) {
+    if (opts.out_src && (opts.out_csrc || opts.out_cdebug || opts.out_cfull)) {
         s = translate(ctx->program, opts.out_cdebug ? TRANS_DEBUG : TRANS_SRC);
-        if (opts.out_cdebug) {
+        if (opts.out_cfull) {
+            printf("#define _PRINTF_H_\n");
+        }
+        if (opts.out_cdebug || opts.out_cfull) {
             printf("%s", vmheader());
         }
         printf("%s\n", s);
-        if (opts.out_cdebug) {
+        if (opts.out_cdebug || opts.out_cfull) {
             printf("void setup_context(vmctx *ctx)\n{\n");
-            printf("    ctx->print_result = 1;\n");
-            printf("    ctx->verbose = 0;\n");
+            printf("    ctx->print_result = %d;\n", opts.out_cdebug ? 1 : opts.print_result);
+            printf("    ctx->verbose = %d;\n", opts.verbose);
             printf("}\n\n");
-            printf("void _putchar(char ch) { putchar(ch); }\n");
+            if (opts.out_cdebug) {
+                printf("void _putchar(char ch) { putchar(ch); }\n");
+            }
             printf("uint32_t Math_random_impl(void) { return 0; }\n");
             printf("void *SystemTimer_init(void) { return NULL; }\n");
             printf("void SystemTimer_restart_impl(void *p) {}\n");

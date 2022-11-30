@@ -82,7 +82,9 @@
 // #include <ctype.h>
 #include <float.h>
 
+#if !defined(__BIGZ_H)
 #include "bigz.h"
+#endif
 
 /** @cond */
 #define BzMaxInt(a, b)          (((a) < (b)) ? (b) : (a))

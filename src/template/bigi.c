@@ -1,4 +1,6 @@
+#ifndef KILITE_AMALGAMATION
 #include "common.h"
+#endif
 
 BigZ i64maxp1 = BZNULL;
 BigZ i64minm1 = BZNULL;
