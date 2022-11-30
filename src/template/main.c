@@ -28,6 +28,6 @@ int main(void)
         count(ctx);
     }
 
-    finalize(ctx);
+    finalize_context(ctx);
     return ri;
 }

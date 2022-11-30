@@ -1652,6 +1652,9 @@ char *translate(kl_kir_program *p, int mode)
         xstra_inst(&str, "ctx->print_result = %d;\n", p->print_result);
         xstra_inst(&str, "ctx->verbose = %d;\n", p->verbose);
         xstraf(&str, "}\n");
+        xstraf(&str, "void finalize_context(vmctx *ctx)\n{\n");
+        xstra_inst(&str, "finalize(ctx);\n");
+        xstraf(&str, "}\n");
     }
 
     return str.s;   /* this should be freed by the caller. */

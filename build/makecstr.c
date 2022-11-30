@@ -3,10 +3,11 @@
 int main(int ac, char **av)
 {
     if (ac < 2) {
-        printf("Usage: makecstr [file]\n");
+        printf("Usage: makecstr <file> [<name>]\n");
         return 1;
     }
     const char *file = av[1];
+    const char *name = ac > 2 ? av[2] : "header";
     FILE *f = fopen(file, "r");
     if (!f) {
         printf("File open failed.\n");
@@ -14,7 +15,7 @@ int main(int ac, char **av)
     }
 
     int ch;
-    printf("static const char *header = \"");
+    printf("static const char *%s = \"", name);
     while ((ch = fgetc(f)) != EOF) {
         if (ch == '"') {
             printf("\\\"");
@@ -31,9 +32,9 @@ int main(int ac, char **av)
         }
     }
     printf("\\n\";\n\n");
-    printf("const char *vmheader(void)\n");
+    printf("const char *vm%s(void)\n", name);
     printf("{\n");
-    printf("    return header;\n");
+    printf("    return %s;\n", name);
     printf("}\n\n");
     fclose(f);
 

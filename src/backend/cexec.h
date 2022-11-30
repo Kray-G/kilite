@@ -18,5 +18,6 @@ typedef int (*main_t)(int ac, char **av, char **ev);
 
 extern int run(int *ret, const char *filename, const char *src, int ac, char **av, char **ev, kl_opts *opts);
 extern int output(const char *fname, const char *src, int isbmir, const char *ext);
+extern int genexec(char *cmd);
 
 #endif /* KILITE_EXEC_H */

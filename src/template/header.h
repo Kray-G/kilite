@@ -2821,6 +2821,7 @@ typedef struct vmctx {
 INLINE extern vmctx *initialize(void);
 INLINE extern void finalize(vmctx *ctx);
 INLINE extern void setup_context(vmctx *ctx);
+INLINE extern void finalize_context(vmctx *ctx);
 
 INLINE extern vmfnc *alcfnc(vmctx *ctx, void *f, vmfrm *lex, const char *name, int args);
 INLINE extern void pbakfnc(vmctx *ctx, vmfnc *p);

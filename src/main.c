@@ -15,6 +15,21 @@
 #define OPT_PRINT_HELP (2)
 #define OPT_DISPLAY_VERSION (3)
 
+#if defined(_WIN32) || defined(_WIN64)
+#define alloca _alloca
+#define CC "cl"
+#define ARGS "/O2 /MT /nologo"
+#define OUTF "/Fe"
+#define SEP '\\'
+#define KILITELIB "kilite.lib"
+#else
+#define CC "gcc"
+#define ARGS "-O2"
+#define OUTF "-o "
+#define SEP '/'
+#define KILITELIB "libkilite.a"
+#endif
+
 typedef struct kl_argopts {
     int out_bmir;
     int out_mir;
@@ -32,6 +47,7 @@ typedef struct kl_argopts {
     int error_limit;
     int print_result;
     int verbose;
+    const char *cc;
     const char *ext;
     const char *file;
 } kl_argopts;
@@ -50,6 +66,7 @@ static void usage(void)
     printf("    -c                  Output .bmir for library.\n");
     printf("    -x                  Execute the code and print the result.\n");
     printf("    -S                  Output .mir code.\n");
+    printf("    -X                  Generate an executable.\n");
     printf("    --ast               Output AST.\n");
     printf("    --kir               Output low level compiled code.\n");
     printf("    --csrc              Output the C code of the script code.\n");
@@ -58,6 +75,7 @@ static void usage(void)
     printf("    --stdout            Change the distination of the output to stdout.\n");
     printf("    --verbose           Show some infrmation when running.\n");
     printf("    --disable-pure      Disable the code optimization for a pure function.\n");
+    // printf("    --cc <cc>           Change the compiler to make an executable.\n");
     printf("    --ext <ext>         Change the extension of the output file.\n");
     printf("    --error-stdout      Output error messages to stdout instead of stderr.\n");
     printf("    --error-limit <n>   Change the limitation of errors. (default: 100)\n");
@@ -126,6 +144,8 @@ static int parse_long_options(int ac, char **av, int *i, kl_argopts *opts)
         return 0;
     } else if (parse_long_options_with_sparam(ac, av, i, "--ext", &(opts->ext))) {
         return 0;
+    } else if (parse_long_options_with_sparam(ac, av, i, "--cc", &(opts->cc))) {
+        return 0;
     } else {
         fprintf(stderr, "Error unknown option: %s\n", av[*i]);
         return OPT_ERROR_USAGE;
@@ -166,6 +186,11 @@ static int parse_arg_options(int ac, char **av, kl_argopts *opts)
                 case 'x':
                     opts->print_result = 1;
                     break;
+                case 'X':
+                    if (!opts->cc) {
+                        opts->cc = CC;
+                    }
+                    break;
                 case 'v':
                     return OPT_DISPLAY_VERSION;
                 case 'h':
@@ -184,6 +209,91 @@ static int parse_arg_options(int ac, char **av, kl_argopts *opts)
     }
 
     return 0;
+}
+
+void output_source(FILE *f, int cdebug, int cfull, int print_result, int verbose, const char *s)
+{
+    if (cfull) {
+        fprintf(f, "#define _PRINTF_H_\n");
+    }
+    if (cdebug || cfull) {
+        fprintf(f, "%s", vmheader());
+    }
+    fprintf(f, "%s\n", s);
+    if (cdebug || cfull) {
+        if (cdebug) {
+            fprintf(f, "void _putchar(char ch) { putchar(ch); }\n");
+            fprintf(f, "uint32_t Math_random_impl(void) { return 0; }\n");
+            fprintf(f, "void *SystemTimer_init(void) { return NULL; }\n");
+            fprintf(f, "void SystemTimer_restart_impl(void *p) {}\n");
+            fprintf(f, "double SystemTimer_elapsed_impl(void *p) { return 0.0; }\n");
+        } else {
+        }
+
+        fprintf(f, "void setup_context(vmctx *ctx)\n{\n");
+        fprintf(f, "    ctx->print_result = %d;\n", cdebug ? 1 : print_result);
+        fprintf(f, "    ctx->verbose = %d;\n", verbose);
+        if (cfull) {
+            fprintf(f, "    Math_initialize();\n");
+        }
+        fprintf(f, "}\n\n");
+        fprintf(f, "void finalize_context(vmctx *ctx)\n{\n");
+        if (cfull) {
+            fprintf(f, "    Math_finalize();\n");
+        }
+        fprintf(f, "    finalize(ctx);\n");
+        fprintf(f, "}\n\n");
+    }
+}
+
+void make_executable(kl_argopts *opts, const char *s)
+{
+    const char *temppath = getenv("TEMP");
+    if (!temppath) {
+        temppath = ".";
+    }
+    int i = 0, j = 0;
+    char srcf[128] = {0};
+    char name[128] = {0};
+    for ( ; i < 120; ++i) {
+        int ch = opts->file[i];
+        if (ch == 0) {
+            break;
+        }
+        if (ch == SEP) {
+            j = i + 1;
+        }
+    }
+    for (i = 0; i < 120; ++i) {
+        int ch = opts->file[i+j];
+        if (ch == 0) {
+            break;
+        }
+        name[i] = srcf[i] = ch;
+        if (ch == '.') {
+            ++i;
+            break;
+        }
+    }
+    srcf[i] = 'c';
+    name[i] = 'e'; name[++i] = 'x'; name[++i] = 'e';
+
+    int len = (strlen(temppath) + i) * 3;
+    char *fname = (char *)calloc(len, sizeof(char));
+    char *cmd = (char *)calloc(len, sizeof(char));
+    sprintf(fname, "%s%c%s", temppath, SEP, srcf);
+    FILE *fp = fopen(fname, "w");
+    output_source(fp, 0, 1, 0, 0, s);
+    fclose(fp);
+
+    sprintf(cmd, "%s %s %s%s %s%c%s %s", opts->cc, ARGS, OUTF, name, temppath, SEP, srcf, KILITELIB);
+    // printf("[%d] %s\n", len, cmd);
+    int r = genexec(cmd);
+    // printf("r = [%d]\n", r);
+
+    unlink(fname);
+    free(cmd);
+    free(fname);
 }
 
 int main(int ac, char **av)
@@ -249,29 +359,14 @@ int main(int ac, char **av)
     ctx->program->verbose = opts.verbose;
     if (opts.out_src && (opts.out_csrc || opts.out_cdebug || opts.out_cfull)) {
         s = translate(ctx->program, opts.out_cdebug ? TRANS_DEBUG : TRANS_SRC);
-        if (opts.out_cfull) {
-            printf("#define _PRINTF_H_\n");
-        }
-        if (opts.out_cdebug || opts.out_cfull) {
-            printf("%s", vmheader());
-        }
-        printf("%s\n", s);
-        if (opts.out_cdebug || opts.out_cfull) {
-            printf("void setup_context(vmctx *ctx)\n{\n");
-            printf("    ctx->print_result = %d;\n", opts.out_cdebug ? 1 : opts.print_result);
-            printf("    ctx->verbose = %d;\n", opts.verbose);
-            printf("}\n\n");
-            if (opts.out_cdebug) {
-                printf("void _putchar(char ch) { putchar(ch); }\n");
-            }
-            printf("uint32_t Math_random_impl(void) { return 0; }\n");
-            printf("void *SystemTimer_init(void) { return NULL; }\n");
-            printf("void SystemTimer_restart_impl(void *p) {}\n");
-            printf("double SystemTimer_elapsed_impl(void *p) { return 0.0; }\n");
-        }
+        output_source(stdout, opts.out_cdebug, opts.out_cfull, opts.print_result, opts.verbose, s);
         goto END;
     } else {
-        s = translate(ctx->program, opts.out_lib ? TRANS_LIB : TRANS_FULL);
+        s = translate(ctx->program, opts.out_lib ? TRANS_LIB : (opts.cc ? TRANS_SRC : TRANS_FULL));
+        if (opts.cc) {
+            make_executable(&opts, s);
+            goto END;
+        }
     }
 
     if (opts.out_lib) {
