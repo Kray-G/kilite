@@ -30,14 +30,15 @@ typedef struct clcmd {
     char *args;
     char *outf;
     char *lib;
+    char *link;
 } clcmd;
 
 static clcmd cclist[] = {
     { .cc = "dummy" },
 #if defined(_WIN32) || defined(_WIN64)
-    { .cc = "cl", .args = "/O2 /MT /nologo", .outf = "/Fe", .lib = "kilite.lib" },
+    { .cc = "cl", .args = "/O2 /MT /nologo", .outf = "/Fe", .lib = "kilite.lib", .link = "" },
 #endif
-    { .cc = "gcc", .args = "-O2", .outf = "-o ", .lib = "libkilite.a" },
+    { .cc = "gcc", .args = "-O2", .outf = "-o ", .lib = "libkilite.a", .link = "-lm" },
 };
 
 typedef struct kl_argopts {
@@ -314,8 +315,9 @@ int make_executable(kl_argopts *opts, const char *s)
     output_source(fp, 0, 1, 0, 0, s);
     fclose(fp);
 
-    sprintf(cmd, "%s %s %s%s %s%c%s %s",
-        cclist[opts->cc].cc, cclist[opts->cc].args, cclist[opts->cc].outf, name, temppath, SEP, srcf, cclist[opts->cc].lib);
+    sprintf(cmd, "%s %s %s%s %s%c%s %s %s",
+        cclist[opts->cc].cc, cclist[opts->cc].args, cclist[opts->cc].outf,
+        name, temppath, SEP, srcf, cclist[opts->cc].lib, cclist[opts->cc].link);
     // printf("[%d] %s\n", len, cmd);
     int r = genexec(cmd);
     // printf("r = [%d]\n", r);
