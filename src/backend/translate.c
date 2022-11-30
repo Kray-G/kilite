@@ -1176,7 +1176,7 @@ static void translate_resume_hook(func_context *fctx, xstr *code, kl_kir_func *f
     for (int idx = 1; idx <= yield; ++idx) {
         xstra_inst(code, "case %d: goto Y%d;\n", idx, idx);
     }
-    xstra_inst(code, "default: e = throw_system_exception(__LINE__, ctx, EXCEPT_INVALID_FIBER_STATE, NULL); goto L%d;\n", f->funcend);
+    xstra_inst(code, "default: e = throw_system_exception(__LINE__, ctx, EXCEPT_INVALID_FIBER_STATE, \"Unknown yield number\"); goto L%d;\n", f->funcend);
     xstra_inst(code, "}\n");
     xstraf(code, "\nHEAD:;\n");
 }

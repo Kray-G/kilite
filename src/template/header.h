@@ -257,7 +257,7 @@ typedef struct vmctx {
 
 #define push_frm(ctx, e, frm, label, func, file, line) do { \
     if ((ctx)->fstksz <= (ctx)->fstkp) { \
-        e = throw_system_exception(__LINE__, ctx, EXCEPT_STACK_OVERFLOW, NULL); \
+        e = throw_system_exception(__LINE__, ctx, EXCEPT_STACK_OVERFLOW, "The frame stack was overflow"); \
         exception_addtrace(ctx, ctx->except, func, file, line); \
         goto label; \
     } \
@@ -348,7 +348,7 @@ typedef struct vmctx {
         (v)->t = VAR_INT64; \
         (v)->i = (int64_t)((v)->d); \
     } else if ((v)->t != VAR_INT64) { \
-        return throw_system_exception(__LINE__, ctx, EXCEPT_TYPE_MISMATCH, NULL); \
+        return throw_system_exception(__LINE__, ctx, EXCEPT_TYPE_MISMATCH, "Can't cast to integer"); \
     } \
 } \
 /**/
@@ -361,7 +361,7 @@ typedef struct vmctx {
         (v)->t = VAR_DBL; \
         (v)->d = (double)((v)->i); \
     } else if ((v)->t != VAR_DBL) { \
-        return throw_system_exception(__LINE__, ctx, EXCEPT_TYPE_MISMATCH, NULL); \
+        return throw_system_exception(__LINE__, ctx, EXCEPT_TYPE_MISMATCH, "Can't cast to double"); \
     } \
 } \
 /**/
