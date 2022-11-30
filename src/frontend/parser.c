@@ -1047,6 +1047,11 @@ static kl_expr *parse_expr_prefix(kl_context *ctx, kl_lexer *l)
         return lhs;
     }
 
+    if (tok == TK_ADD) {
+        lexer_fetch(l); // ignore this.
+        return parse_expr_postfix(ctx, l, 0);
+    }
+
     if (tok == TK_SUB) {
         lexer_fetch(l);
         lhs = parse_expr_postfix(ctx, l, 0);
@@ -1066,6 +1071,7 @@ static kl_expr *parse_expr_prefix(kl_context *ctx, kl_lexer *l)
         e->typeid = lhs->typeid;
         return e;
     }
+
     if (tok == TK_INC || tok == TK_DEC) {
         lhs = make_expr(ctx, l, tok);
         lexer_fetch(l);
@@ -1252,14 +1258,14 @@ static kl_expr *parse_expr_ternary(kl_context *ctx, kl_lexer *l)
     tk_token tok = l->tok;
     if (tok == TK_QES) {
         lexer_fetch(l);
-        kl_expr *rhs = parse_expr_null_coalescing(ctx, l);
+        kl_expr *rhs = parse_expr_ternary(ctx, l);  // Right recursion.
         lhs = make_bin_expr(ctx, l, tok, lhs, rhs);
         if (l->tok != TK_COLON) {
             parse_error(ctx, __LINE__, l, "The ':' is missing in ternary expression");
             return panic_mode_expr(lhs, ';', ctx, l);
         }
         lexer_fetch(l);
-        lhs->xhs = parse_expr_null_coalescing(ctx, l);
+        lhs->xhs = parse_expr_ternary(ctx, l);      // Right recursion.
     }
     return lhs;
 }

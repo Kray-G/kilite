@@ -314,6 +314,24 @@ int throw_system_exception(int line, vmctx *ctx, int id, const char *msg)
     return FLOW_EXCEPTION;
 }
 
+/* True/False */
+
+int True(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    vmobj *o = alcobj(ctx);
+    KL_SET_PROPERTY_I(o, _False, 0)
+    SET_OBJ(r, o);
+    return 0;
+}
+
+int False(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    vmobj *o = alcobj(ctx);
+    KL_SET_PROPERTY_I(o, _False, 1)
+    SET_OBJ(r, o);
+    return 0;
+}
+
 /* System */
 
 static int System_print(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)

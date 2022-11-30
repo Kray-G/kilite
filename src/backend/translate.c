@@ -661,10 +661,12 @@ static void translate_incdec(func_context *fctx, xstr *code, const char *op, con
 
     var_value(buf2, r2);
     if (r1->prevent) {
-        xstra_inst(code, "OP_%s_SAME(ctx, %s);\n", op, buf2);
+        xstra_inst(code, "OP_%s_SAME(ctx, %s, L%d, \"%s\", \"%s\", %d);\n", op, buf2,
+            i->catchid, i->funcname, escape(&(fctx->str), i->filename), i->line);
     } else {
         var_value(buf1, r1);
-        xstra_inst(code, "OP_%s(ctx, %s, %s);\n", op, buf1, buf2);
+        xstra_inst(code, "OP_%s(ctx, %s, %s, L%d, \"%s\", \"%s\", %d);\n", op, buf1, buf2,
+            i->catchid, i->funcname, escape(&(fctx->str), i->filename), i->line);
     }
 }
 
@@ -900,7 +902,7 @@ static void translate_not(func_context *fctx, xstr *code, kl_kir_inst *i)
     var_value(buf1, &(i->r1));
     if (i->r2.t == TK_VSINT) {
         int_value(buf2, &(i->r2));
-        xstra_inst(code, "OP_NOT_I(ctx, %s, %d, L%d, \"%s\", \"%s\", %d);\n", buf1, buf2,
+        xstra_inst(code, "OP_NOT_I(ctx, %s, %s, L%d, \"%s\", \"%s\", %d);\n", buf1, buf2,
             i->catchid, i->funcname, escape(&(fctx->str), i->filename), i->line);
     } else {
         var_value(buf2, &(i->r2));
@@ -1491,7 +1493,8 @@ static void translate_inst(xstr *code, kl_kir_func *f, kl_kir_inst *i, func_cont
         translate_incdec(fctx, code, "DECP", NULL, i);
         break;
     case KIR_MINUS:
-        xstra_inst(code, "OP_UMINUS(ctx, %s, %s);\n", var_value(buf1, &(i->r1)), var_value(buf2, &(i->r2)));
+        xstra_inst(code, "OP_UMINUS(ctx, %s, %s, L%d, \"%s\", \"%s\", %d);\n", var_value(buf1, &(i->r1)), var_value(buf2, &(i->r2)),
+            i->catchid, i->funcname, escape(&(fctx->str), i->filename), i->line);
         break;
 
     case KIR_NEWOBJ:

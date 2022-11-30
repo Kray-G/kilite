@@ -214,6 +214,9 @@ void disp_inst(kl_kir_program *p, kl_kir_inst *i)
         printf("  L%d:\n", i->labelid);
         break;
 
+    case KIR_NOT:
+        disp_2op("not", i);
+        break;
     case KIR_MOV:
         disp_mov("mov", i);
         break;

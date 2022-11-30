@@ -1061,20 +1061,28 @@ typedef struct vmctx {
 } \
 /**/
 
-#define OP_INC_SAME(ctx, r) { \
+#define OP_INC_SAME(ctx, r, label, func, file, line) { \
     if ((r)->t == VAR_INT64) { \
         OP_INC_SAME_I(ctx, r) \
     } else { \
-        /* TODO */ \
+        e = inc_v(ctx, r); \
+        if (e == FLOW_EXCEPTION) { \
+            exception_addtrace(ctx, ctx->except, func, file, line); \
+            goto label; \
+        } \
     } \
 } \
 /**/
 
-#define OP_INCP_SAME(ctx, r) { \
+#define OP_INCP_SAME(ctx, r, label, func, file, line) { \
     if ((r)->t == VAR_INT64) { \
         OP_INC_SAME_I(ctx, r) \
     } else { \
-        /* TODO */ \
+        e = inc_v(ctx, r); \
+        if (e == FLOW_EXCEPTION) { \
+            exception_addtrace(ctx, ctx->except, func, file, line); \
+            goto label; \
+        } \
     } \
 } \
 /**/
@@ -1092,73 +1100,101 @@ typedef struct vmctx {
     } \
 } \
 
-#define OP_DEC_SAME(ctx, r) { \
+#define OP_DEC_SAME(ctx, r, label, func, file, line) { \
     if ((r)->t == VAR_INT64) { \
         OP_DEC_SAME_I(ctx, r) \
     } else { \
-        /* TODO */ \
+        e = dec_v(ctx, r); \
+        if (e == FLOW_EXCEPTION) { \
+            exception_addtrace(ctx, ctx->except, func, file, line); \
+            goto label; \
+        } \
     } \
 } \
 /**/
 
-#define OP_DECP_SAME(ctx, r) { \
+#define OP_DECP_SAME(ctx, r, label, func, file, line) { \
     if ((r)->t == VAR_INT64) { \
         OP_DEC_SAME_I(ctx, r) \
     } else { \
-        /* TODO */ \
+        e = dec_v(ctx, r); \
+        if (e == FLOW_EXCEPTION) { \
+            exception_addtrace(ctx, ctx->except, func, file, line); \
+            goto label; \
+        } \
     } \
 } \
 /**/
 
-#define OP_INC(ctx, r, v) { \
+#define OP_INC(ctx, r, v, label, func, file, line) { \
     vmvar *t1 = (v); \
     if ((t1)->t == VAR_INT64) { \
         OP_INC_SAME_I(ctx, t1) \
         SHCOPY_VAR_TO(ctx, r, t1) \
     } else { \
-        /* TODO */ \
+        e = inc_v(ctx, t1); \
+        if (e == FLOW_EXCEPTION) { \
+            exception_addtrace(ctx, ctx->except, func, file, line); \
+            goto label; \
+        } \
+        COPY_VAR_TO(ctx, r, t1) \
     } \
 } \
 /**/
 
-#define OP_INCP(ctx, r, v) { \
+#define OP_INCP(ctx, r, v, label, func, file, line) { \
     vmvar *t1 = (v); \
     if ((t1)->t == VAR_INT64) { \
         (r)->t = VAR_INT64; \
         (r)->i = ((t1)->i); \
         OP_INC_SAME_I(ctx, t1) \
     } else { \
-        /* TODO */ \
+        COPY_VAR_TO(ctx, r, t1) \
+        e = inc_v(ctx, t1); \
+        if (e == FLOW_EXCEPTION) { \
+            exception_addtrace(ctx, ctx->except, func, file, line); \
+            goto label; \
+        } \
     } \
 } \
 /**/
 
-#define OP_DEC(ctx, r, v) { \
+#define OP_DEC(ctx, r, v, label, func, file, line) { \
     vmvar *t1 = (v); \
     if ((t1)->t == VAR_INT64) { \
         OP_DEC_SAME_I(ctx, t1) \
         SHCOPY_VAR_TO(ctx, r, t1) \
     } else { \
-        /* TODO */ \
+        e = dec_v(ctx, t1); \
+        if (e == FLOW_EXCEPTION) { \
+            exception_addtrace(ctx, ctx->except, func, file, line); \
+            goto label; \
+        } \
+        COPY_VAR_TO(ctx, r, t1) \
     } \
 } \
 /**/
 
-#define OP_DECP(ctx, r, v) { \
+#define OP_DECP(ctx, r, v, label, func, file, line) { \
     vmvar *t1 = (v); \
     if ((t1)->t == VAR_INT64) { \
         (r)->t = VAR_INT64; \
         (r)->i = ((t1)->i); \
         OP_DEC_SAME_I(ctx, t1) \
     } else { \
-        /* TODO */ \
+        COPY_VAR_TO(ctx, r, t1) \
+        e = dec_v(ctx, t1); \
+        if (e == FLOW_EXCEPTION) { \
+            exception_addtrace(ctx, ctx->except, func, file, line); \
+            goto label; \
+        } \
     } \
 } \
 /**/
 
 /* Unary minus */
 
-#define OP_UMINUS(ctx, r, v) { \
+#define OP_UMINUS(ctx, r, v, label, func, file, line) { \
     vmvar *t1 = (v); \
     if ((t1)->t == VAR_INT64) { \
         (r)->t = VAR_INT64; \
@@ -1167,7 +1203,11 @@ typedef struct vmctx {
         (r)->t = VAR_DBL; \
         (r)->d = -((t1)->d); \
     } else { \
-        /* TODO */ \
+        e = uminus_v(ctx, r, t1); \
+        if (e == FLOW_EXCEPTION) { \
+            exception_addtrace(ctx, ctx->except, func, file, line); \
+            goto label; \
+        } \
     } \
 } \
 /**/
@@ -2859,6 +2899,8 @@ INLINE extern int exception_printtrace(vmctx *ctx, vmvar *e);
 INLINE extern int exception_uncaught(vmctx *ctx, vmvar *e);
 INLINE extern int Fiber_yield(vmctx *ctx, int yield);
 
+INLINE extern int bnot_v(vmctx *ctx, vmvar *r, vmvar *v);
+INLINE extern int not_v(vmctx *ctx, vmvar *r, vmvar *v);
 INLINE extern int add_v_i(vmctx *ctx, vmvar *r, vmvar *v, int64_t i);
 INLINE extern int add_i_v(vmctx *ctx, vmvar *r, int64_t i, vmvar *v);
 INLINE extern int add_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1);
@@ -2905,6 +2947,9 @@ INLINE extern int bor_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1);
 INLINE extern int bxor_v_i(vmctx *ctx, vmvar *r, vmvar *v, int64_t i);
 INLINE extern int bxor_i_v(vmctx *ctx, vmvar *r, int64_t i, vmvar *v);
 INLINE extern int bxor_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1);
+INLINE extern int inc_v(vmctx *ctx, vmvar *v);
+INLINE extern int dec_v(vmctx *ctx, vmvar *v);
+INLINE extern int uminus_v(vmctx *ctx, vmvar *r, vmvar *v);
 
 INLINE extern int iRange_create_i(vmctx *ctx, vmfrm *lex, vmvar *r, int *beg, int *end, int excl);
 INLINE extern int Range_create(vmctx *ctx, vmfrm *lex, vmvar *r, int ac);

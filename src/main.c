@@ -196,6 +196,7 @@ int main(int ac, char **av)
 
     kl_lexer *l = lexer_new_file(opts.in_stdin ? NULL : opts.file);
     l->precode = "const undefined; const null = undefined;"
+        "extern True; extern False;"
         "extern System; extern SystemTimer; extern Math; extern Fiber; extern Range;"
         "extern RuntimeException();"
         "extern Integer; extern Double; extern String; extern Binary; extern Array;"

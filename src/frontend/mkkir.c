@@ -522,6 +522,7 @@ static kl_kir_inst *gen_incdec(kl_context *ctx, kl_symbol *sym, kl_kir op, kl_ki
     kl_kir_inst *r2l = get_last(r2i);
 
     kl_kir_inst *inst = new_inst_op2(ctx->program, e->line, e->pos, op, r1, &r2);
+    set_file_func(ctx, sym, inst);
     if (r2i) {
         r2l->next = inst;
         inst = r2i;
@@ -1389,7 +1390,7 @@ static kl_kir_inst *gen_ternary_expr(kl_context *ctx, kl_symbol *sym, kl_kir_opr
     last = last->next;
 
     last->next = gen_expr(ctx, sym, r1, e->rhs);
-    last = last->next;
+    last = get_last(last);
 
     last->next = new_inst_jump(ctx->program, e->line, e->pos, l1, last);
     last = last->next;
@@ -2331,6 +2332,7 @@ static kl_kir_inst *gen_expr(kl_context *ctx, kl_symbol *sym, kl_kir_opr *r1, kl
         kl_kir_opr rr = make_var(ctx, sym, TK_TANY);
         head = gen_expr(ctx, sym, &rr, e->lhs);
         head->next = new_inst_op2(ctx->program, e->line, e->pos, KIR_MINUS, r1, &rr);
+        set_file_func(ctx, sym, head->next);
         break;
     }
 

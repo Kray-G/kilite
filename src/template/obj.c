@@ -157,7 +157,12 @@ void hashmap_objprint(vmctx *ctx, vmobj *obj)
             printf("%s", s->s);
         }
     } else {
-        hashmap_objprint_impl(obj, -1);
+        vmvar *f = hashmap_search(obj, "_False");
+        if (f) {
+            printf("%s", (f->t == VAR_INT64 && f->i == 0) ? "true" : "false");
+        } else {
+            hashmap_objprint_impl(obj, -1);
+        }
     }
 }
 

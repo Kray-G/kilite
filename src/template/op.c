@@ -44,10 +44,17 @@ int not_v(vmctx *ctx, vmvar *r, vmvar *v)
         break;
     case VAR_FNC:
         return throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION, NULL);
-    case VAR_OBJ:
-        r->t = VAR_INT64;
-        r->i = v->o->idxsz == 0;
+    case VAR_OBJ: {
+        vmvar *f = hashmap_search(v->o, "_False");
+        if (f) {
+            r->t = VAR_INT64;
+            r->i = f->t == VAR_INT64 ? f->i : 0;
+        } else {
+            r->t = VAR_INT64;
+            r->i = v->o->idxsz == 0;
+        }
         break;
+    }
     default:
         return throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION, NULL);
     }
@@ -2247,4 +2254,86 @@ int bshr_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
         return throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION, NULL);
     }
     return e;
+}
+
+/* INC */
+
+int inc_v(vmctx *ctx, vmvar *v)
+{
+    switch (v->t) {
+    case VAR_UNDEF:
+        v->t = VAR_INT64;
+        v->i = 1;
+        break;
+    case VAR_DBL:
+        v->d += 1.0;
+        break;
+    case VAR_BIG: {
+        BigZ b2 = BzFromInteger(1);
+        BigZ b1 = v->bi->b;
+        v->bi->b = BzAdd(b1, b2);
+        BzFree(b1);
+        BzFree(b2);
+        bi_normalize(v);
+        break;
+    }
+    case VAR_STR:
+    case VAR_FNC:
+    case VAR_OBJ:
+    default:
+        return throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION, NULL);
+    }
+    return 0;
+}
+
+/* DEC */
+
+int dec_v(vmctx *ctx, vmvar *v)
+{
+    switch (v->t) {
+    case VAR_UNDEF:
+        v->i = -1;
+        break;
+    case VAR_DBL:
+        v->d -= 1.0;
+        break;
+    case VAR_BIG: {
+        BigZ b2 = BzFromInteger(1);
+        BigZ b1 = v->bi->b;
+        v->bi->b = BzSubtract(b1, b2);
+        BzFree(b1);
+        BzFree(b2);
+        bi_normalize(v);
+        break;
+    }
+    case VAR_STR:
+    case VAR_FNC:
+    case VAR_OBJ:
+    default:
+        return throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION, NULL);
+    }
+    return 0;
+}
+
+/* Unary minux */
+
+int uminus_v(vmctx *ctx, vmvar *r, vmvar *v)
+{
+    switch (v->t) {
+    case VAR_UNDEF:
+        r->t = VAR_INT64;
+        r->i = 0;
+        break;
+    case VAR_BIG:
+        r->t = VAR_BIG;
+        r->bi = alcbgi_bigz(ctx, BzNegate(v->bi->b));
+        bi_normalize(r);
+        break;
+    case VAR_STR:
+    case VAR_FNC:
+    case VAR_OBJ:
+    default:
+        return throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION, NULL);
+    }
+    return 0;
 }
