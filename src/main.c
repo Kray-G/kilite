@@ -11,24 +11,32 @@
 #define VER_MINOR "0"
 #define VER_PATCH "1"
 
-#define OPT_ERROR_USAGE (1)
-#define OPT_PRINT_HELP (2)
-#define OPT_DISPLAY_VERSION (3)
+#define OPT_ERROR (1)
+#define OPT_ERROR_USAGE (2)
+#define OPT_PRINT_HELP (3)
+#define OPT_DISPLAY_VERSION (4)
 
 #if defined(_WIN32) || defined(_WIN64)
 #define alloca _alloca
-#define CC "cl"
-#define ARGS "/O2 /MT /nologo"
-#define OUTF "/Fe"
 #define SEP '\\'
-#define KILITELIB "kilite.lib"
 #else
-#define CC "gcc"
-#define ARGS "-O2"
-#define OUTF "-o "
 #define SEP '/'
-#define KILITELIB "libkilite.a"
 #endif
+
+typedef struct clcmd {
+    char *cc;
+    char *args;
+    char *outf;
+    char *lib;
+} clcmd;
+
+static clcmd cclist[] = {
+    { .cc = "dummy" },
+#if defined(_WIN32) || defined(_WIN64)
+    { .cc = "cl", .args = "/O2 /MT /nologo", .outf = "/Fe", .lib = "kilite.lib" },
+#endif
+    { .cc = "gcc", .args = "-O2", .outf = "-o ", .lib = "libkilite.a" },
+};
 
 typedef struct kl_argopts {
     int out_bmir;
@@ -47,7 +55,8 @@ typedef struct kl_argopts {
     int error_limit;
     int print_result;
     int verbose;
-    const char *cc;
+    int cc;
+    const char *ccname;
     const char *ext;
     const char *file;
 } kl_argopts;
@@ -140,11 +149,28 @@ static int parse_long_options(int ac, char **av, int *i, kl_argopts *opts)
         opts->disable_pure = 1;
     } else if (strcmp(av[*i], "--error-stdout") == 0) {
         opts->error_stdout = 1;
+    } else if (parse_long_options_with_sparam(ac, av, i, "--cc", &(opts->ccname))) {
+        opts->cc = 0;
+        int count = sizeof(cclist) / sizeof(cclist[0]);
+        for (int i = 1; i < count; ++i) {
+            if (strcmp(cclist[i].cc, opts->ccname) == 0) {
+                opts->cc = i;
+                break;
+            }
+        }
+        if (opts->cc == 0) {
+            fprintf(stderr, "Error unsupported compiler: %s\n", opts->ccname);
+            fprintf(stderr, "    supported: %s", cclist[1].cc);
+            for (int i = 2; i < count; ++i) {
+                fprintf(stderr, ", %s\n", cclist[i].cc);
+            }
+            fprintf(stderr, "\n");
+            return OPT_ERROR;
+        }
+        return 0;
     } else if (parse_long_options_with_iparam(ac, av, i, "--error-limit", &(opts->error_limit))) {
         return 0;
     } else if (parse_long_options_with_sparam(ac, av, i, "--ext", &(opts->ext))) {
-        return 0;
-    } else if (parse_long_options_with_sparam(ac, av, i, "--cc", &(opts->cc))) {
         return 0;
     } else {
         fprintf(stderr, "Error unknown option: %s\n", av[*i]);
@@ -188,7 +214,7 @@ static int parse_arg_options(int ac, char **av, kl_argopts *opts)
                     break;
                 case 'X':
                     if (!opts->cc) {
-                        opts->cc = CC;
+                        opts->cc = 1;
                     }
                     break;
                 case 'v':
@@ -246,7 +272,7 @@ void output_source(FILE *f, int cdebug, int cfull, int print_result, int verbose
     }
 }
 
-void make_executable(kl_argopts *opts, const char *s)
+int make_executable(kl_argopts *opts, const char *s)
 {
     const char *temppath = getenv("TEMP");
     if (!temppath) {
@@ -286,7 +312,8 @@ void make_executable(kl_argopts *opts, const char *s)
     output_source(fp, 0, 1, 0, 0, s);
     fclose(fp);
 
-    sprintf(cmd, "%s %s %s%s %s%c%s %s", opts->cc, ARGS, OUTF, name, temppath, SEP, srcf, KILITELIB);
+    sprintf(cmd, "%s %s %s%s %s%c%s %s",
+        cclist[opts->cc].cc, cclist[opts->cc].args, cclist[opts->cc].outf, name, temppath, SEP, srcf, cclist[opts->cc].lib);
     // printf("[%d] %s\n", len, cmd);
     int r = genexec(cmd);
     // printf("r = [%d]\n", r);
@@ -294,6 +321,8 @@ void make_executable(kl_argopts *opts, const char *s)
     unlink(fname);
     free(cmd);
     free(fname);
+
+    return r;
 }
 
 int main(int ac, char **av)
@@ -302,6 +331,8 @@ int main(int ac, char **av)
     char *s = NULL;
     kl_argopts opts = {0};
     switch (parse_arg_options(ac, av, &opts)) {
+    case OPT_ERROR:
+        return 1;
     case OPT_ERROR_USAGE:
         usage();
         return 1;
@@ -364,7 +395,9 @@ int main(int ac, char **av)
     } else {
         s = translate(ctx->program, opts.out_lib ? TRANS_LIB : (opts.cc ? TRANS_SRC : TRANS_FULL));
         if (opts.cc) {
-            make_executable(&opts, s);
+            if (make_executable(&opts, s) != 0) {
+                fprintf(stderr, "Error: compilation failed, check your compiler path.\n");
+            }
             goto END;
         }
     }
