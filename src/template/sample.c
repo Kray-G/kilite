@@ -237,7 +237,7 @@ int run_global(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     //     restore_vstackp(ctx, p);
 
     //     if (r->t == VAR_INT64) {
-    //         printf("fib(%d) = %lld\n", c, r->i);
+    //         printf("fib(%d) = %" PRId64 "\n", c, r->i);
     //     } else if (r->t == VAR_BIG) {
     //         char s1[1024] = {0};
     //         bi_str(s1, 1024, r->bi);
@@ -254,7 +254,7 @@ int run_global(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 
     //     vmvar *r = alcvar(ctx, VAR_INT64, 1);
     //     ((fib_t)(f1->f))(ctx, lex, &(r->i), c);
-    //     printf("fib(%d) = %lld\n", c, r->i);
+    //     printf("fib(%d) = %" PRId64 "\n", c, r->i);
     //     pbakvar(ctx, r);
     // }
 

@@ -61,7 +61,7 @@ void print_obj(vmctx *ctx, vmvar *v)
         printf("null");
         break;
     case VAR_INT64:
-        printf("%lld", v->i);
+        printf("%" PRId64, v->i);
         break;
     case VAR_DBL:
         printf("%.16g", v->d);

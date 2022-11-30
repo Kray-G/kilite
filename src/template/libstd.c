@@ -79,9 +79,9 @@ int exception_printtrace(vmctx *ctx, vmvar *e)
         vmvar *line = hashmap_search(trace->o, "_line");
         if (func && func->t == VAR_STR && file && file->t == VAR_STR && line && line->t == VAR_INT64) {
             if (func->s->s[0] == '<') {
-                printf("        at %s(%s:%lld)\n", func->s->s, file->s->s, line->i);
+                printf("        at %s(%s:%" PRId64 ")\n", func->s->s, file->s->s, line->i);
             } else {
-                printf("        at function %s(%s:%lld)\n", func->s->s, file->s->s, line->i);
+                printf("        at function %s(%s:%" PRId64 ")\n", func->s->s, file->s->s, line->i);
             }
         }
     }
@@ -957,7 +957,7 @@ static int Integer_toString(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
         switch (radix) {
         case 10: {
             char buf[31] = {0};
-            sprintf(buf, "%lld", a0->i);
+            sprintf(buf, "%" PRId64, a0->i);
             r->s = alcstr_str(ctx, buf);
             break;
         }

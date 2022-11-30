@@ -1101,7 +1101,7 @@ int eqeq_v_i(vmctx *ctx, vmvar *r, vmvar *v, int64_t i)
         break;
     case VAR_STR: {
         char buf[32] = {0};
-        sprintf(buf, "%lld", i);
+        sprintf(buf, "%" PRId64, i);
         r->t = VAR_INT64;
         r->i = strcmp(v->s->s, buf) == 0;
         break;
@@ -1151,7 +1151,7 @@ int eqeq_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
             break;
         case VAR_STR: {
             char buf[32] = {0};
-            sprintf(buf, "%lld", v0->i);
+            sprintf(buf, "%" PRId64, v0->i);
             r->t = VAR_INT64;
             r->i = strcmp(v1->s->s, buf) == 0;
             break;
@@ -1213,7 +1213,7 @@ int eqeq_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
             break;
         case VAR_INT64: {
             char buf[32] = {0};
-            sprintf(buf, "%lld", v1->i);
+            sprintf(buf, "%" PRId64, v1->i);
             r->t = VAR_INT64;
             r->i = strcmp(v0->s->s, buf) == 0;
             break;

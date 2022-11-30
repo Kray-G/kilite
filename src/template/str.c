@@ -131,7 +131,7 @@ vmstr *str_append_fmt_dbl(vmctx *ctx, vmstr *vs, const char *fmt, double *d)
 
 vmstr *str_append_i64(vmctx *ctx, vmstr *vs, int64_t i)
 {
-    return str_append_fmt(ctx, vs, "%lld", i);
+    return str_append_fmt(ctx, vs, "%" PRId64, i);
 }
 
 vmstr *str_clear(vmstr *vs)
@@ -235,14 +235,14 @@ vmstr *str_make_path_i64(vmctx *ctx, vmstr *v0, int64_t i)
 {
     str_rtrim(ctx, v0, "/");
     char buf[32] = {0};
-    snprintf(buf, 31, "/%lld", i);
+    snprintf(buf, 31, "/%" PRId64, i);
     return str_append(ctx, v0, buf, strlen(buf));
 }
 
 vmstr *str_make_i64_path(vmctx *ctx, int64_t i, vmstr *v0)
 {
     char buf[32] = {0};
-    snprintf(buf, 31, "%lld/", i);
+    snprintf(buf, 31, "%" PRId64 "/", i);
 
     int nlen = v0->len + strlen(buf);
     char *str = (char *)calloc(nlen + 1, sizeof(char));

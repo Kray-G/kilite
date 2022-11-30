@@ -16,10 +16,17 @@ extern BigZ i64minm1;
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <inttypes.h>
 #if defined(_WIN32) || defined(_WIN64)
 #define alloca _alloca
 #endif
 #else
+#ifndef PRId64
+#define PRId64 "lld"
+#endif
+#ifndef PRIx64
+#define PRIx64 "llx"
+#endif
 #define INLINE inline
 int printf(const char *, ...);
 int sprintf(const char *, const char *, ...);

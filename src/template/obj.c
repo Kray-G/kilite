@@ -38,7 +38,7 @@ static void hashmap_objprint_impl(vmobj *obj, int indent)
                     if (i < lsz) printf(", ");
                     break;
                 case VAR_INT64:
-                    printf("%lld", v->i);
+                    printf("%" PRId64, v->i);
                     if (i < lsz) printf(", ");
                     break;
                 case VAR_DBL:
@@ -111,7 +111,7 @@ static void hashmap_objprint_impl(vmobj *obj, int indent)
                         printf("null");
                         break;
                     case VAR_INT64:
-                        printf("%lld", va->i);
+                        printf("%" PRId64, va->i);
                         break;
                     case VAR_DBL:
                         printf("%.16g", va->d);
