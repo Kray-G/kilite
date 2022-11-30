@@ -1,3 +1,11 @@
+<p align="right">
+    <img src="http://img.shields.io/badge/License-MIT-blue.svg?style=flat"/>
+</p>
+<p align="center"><img src="docs/kilite.png" height="84px" /></p>
+<p align="center">
+Looks like JavaScript, feels like Ruby, and it is a script language fitting in C programmers.
+</p>
+
 # Kilite
 
 Lightweight Kinx but more flexible, portable, and faster.
