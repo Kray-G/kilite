@@ -32,7 +32,8 @@ It would be roughly 4 patterns as below.
 
 1.  To run the script as it is on the fly.
 2.  To output C source code to make an executable.
-3.  To compile the script separatedly and to run the code with those precompiled codes.
+3.  To generate the executable from your script directly by calling another compiler intrnally.
+4.  To compile the script separatedly and to run the code with those precompiled codes.
 
 ### Running the Script
 
@@ -42,16 +43,24 @@ This will work with the current version.
 
 ### Outputting C Code and Making the Executable
 
-*Note that this is not implemented yet.*
-
     $ ./kilite --cfull file.kl > file.c
     (file.c)
-    $ gcc -o file file.c -L. -lkilite
+    $ gcc -o file file.c -L. -lkilite -lm
     (file)
     $ ./file
 
 Note that you need the actual compiler like gcc on Linux, cl.exe on Windows, or something to make an actual executable.
 Instead, you can use the compiler you want.
+
+### Generating the Executable Directly
+
+    $ ./kilite -X file.kl
+    (file)
+    $ ./file
+
+Note that, also in this case, you need the actual compiler like gcc on Linux, cl.exe on Windows.
+By default, it's cl.exe on Windows and gcc on Linux.
+But if you want, tcc is also available.
 
 ### Compiling the Script Separatedly
 
