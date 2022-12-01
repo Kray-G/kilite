@@ -78,7 +78,7 @@ static clcmd cclist[] = {
     #if defined(_WIN32) || defined(_WIN64)
     { .cc = "cl", .args = "/O2 /MT /nologo", .outf = "/Fe", .libname = "kilite", .libext = ".lib", .link = "" },
     #endif
-    { .cc = "gcc", .args = "-O2", .outf = "-o ", .libname = "libkilite", .libext = ".a", .link = "-lm" },
+    { .cc = "gcc", .args = "-O3", .outf = "-o ", .libname = "libkilite", .libext = ".a", .link = "-lm" },
     { .cc = "tcc", .args = "", .outf = "-o ", .libname = "libkilite", .libext = ".a", .link = "" },
 };
 
