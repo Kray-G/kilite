@@ -39,14 +39,16 @@ It would be roughly 4 patterns as below.
 
 This will work with the current version.
 
-    $ ./kilite file.kl
+    $ ./kilite file.klt
 
 ### Outputting C Code and Making the Executable
 
-    $ ./kilite --cfull file.kl > file.c
+    $ ./kilite --cfull file.klt > file.c
     (file.c)
     $ gcc -o file file.c -L. -lkilite -lm
     (file)
+    $ cl /Fefile.exe file.c kilite.lib
+    (file.exe)
     $ ./file
 
 Note that you need the actual compiler like gcc on Linux, cl.exe on Windows, or something to make an actual executable.
@@ -54,8 +56,8 @@ Instead, you can use the compiler you want.
 
 ### Generating the Executable Directly
 
-    $ ./kilite -X file.kl
-    (file)
+    $ ./kilite -X file.klt
+    (file or file.exe)
     $ ./file
 
 Note that, also in this case, you need the actual compiler like gcc on Linux, cl.exe on Windows.
@@ -66,9 +68,9 @@ But if you want, tcc is also available.
 
 *Note that this is not implemented yet.*
 
-    $ ./kilite -c file1.kl
+    $ ./kilite -c file1.klt
     (file1.kc)
-    $ ./kilite -c file2.kl
+    $ ./kilite -c file2.klt
     (file2.kc)
     $ ./kilite file1.kc file2.kc
 
