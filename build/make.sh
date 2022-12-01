@@ -18,7 +18,7 @@ TEMPF=$BIN/libkilite.c
 
 # Create a header source code.
 echo Generating a header source code...
-gcc -O2 -o makecstr ../build/makecstr.c
+gcc -O3 -o makecstr ../build/makecstr.c
 cat ../src/template/lib/bign.h > $TEMPF
 cat ../src/template/lib/bigz.h >> $TEMPF
 cat ../src/template/lib/printf.h >> $TEMPF
@@ -27,7 +27,7 @@ cat ../src/template/header.h >> $TEMPF
 rm $TEMPF
 
 echo Building a Kilite binary...
-gcc -Wno-unused-result -O2 -I ../mir \
+gcc -Wno-unused-result -O3 -I ../mir \
     -DUSE_INT64 -o kilite \
     ../src/main.c \
     ../src/frontend/lexer.c \
@@ -77,7 +77,7 @@ $BIN/kilite --makelib callbacks.klt >> $TEMPF
 cd $BIN
 
 echo Generating a static library file for gcc...
-gcc -O2 -DUSE_INT64 -o ${TEMPF/.c/.o} -I lib -Wno-unused-result -c $TEMPF
+gcc -O3 -DUSE_INT64 -o ${TEMPF/.c/.o} -I lib -Wno-unused-result -c $TEMPF
 ar rcs libkilite.a ${TEMPF/.c/.o}
 cp -f libkilite.a ../libkilite.a
 ./c2m -DUSE_INT64 -I lib -c $TEMPF

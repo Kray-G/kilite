@@ -123,7 +123,7 @@ exit /b 0
 
 :gcc
 @echo Generating a static library file for gcc...
-gcc -O2 -o libkilite.o -DUSE_INT64 -I lib -c %1%
+gcc -O3 -o libkilite.o -DUSE_INT64 -I lib -c %1%
 ar rcs libkilite_gcc.a libkilite.o
 copy /y libkilite_gcc.a ..\libkilite_gcc.a > NUL
 exit /b 0
