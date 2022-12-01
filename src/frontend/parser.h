@@ -141,6 +141,7 @@ typedef struct kl_context {
     kl_stmt *fincode;               //  The statement list of finally clause.
     kl_stmt *switchstmt;            //  The reference of a current `switch` statement.
     kl_stmt *casestmt;              //  The reference of a current `case` statement.
+    void *timer;                    //  Timer object to measure various things in compilation.
 
     kl_symbol *symchn;              //  For memory allocation control.
     kl_expr *exprchn;               //  For memory allocation control.

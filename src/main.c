@@ -25,21 +25,19 @@
 #define SEP '/'
 #endif
 
-typedef struct clcmd {
-    char *cc;
-    char *args;
-    char *outf;
-    char *lib;
-    char *link;
-} clcmd;
-
-static clcmd cclist[] = {
-    { .cc = "dummy" },
-#if defined(_WIN32) || defined(_WIN64)
-    { .cc = "cl", .args = "/O2 /MT /nologo", .outf = "/Fe", .lib = "kilite.lib", .link = "" },
-#endif
-    { .cc = "gcc", .args = "-O2", .outf = "-o ", .lib = "libkilite.a", .link = "-lm" },
-};
+extern void *SystemTimer_init(void);
+extern void SystemTimer_restart_impl(void *p);
+extern double SystemTimer_elapsed_impl(void *p);
+#define timer_init SystemTimer_init
+#define timer_restart SystemTimer_restart_impl
+#define timer_elapsed SystemTimer_elapsed_impl
+#define SHOW_TIMER(msg) { \
+    if (opts.cctime) { \
+        printf(">> %-25s: %f\n", msg, timer_elapsed(ctx->timer)); \
+        timer_restart(ctx->timer); \
+    } \
+} \
+/**/
 
 typedef struct kl_argopts {
     int out_bmir;
@@ -57,12 +55,93 @@ typedef struct kl_argopts {
     int error_stdout;
     int error_limit;
     int print_result;
+    int cctime;
     int verbose;
     int cc;
     const char *ccname;
     const char *ext;
     const char *file;
 } kl_argopts;
+
+typedef struct clcmd {
+    char *cc;
+    char *args;
+    char *outf;
+    char *libname;
+    char *libext;
+    char *link;
+} clcmd;
+
+static clcmd cclist[] = {
+    { .cc = "dummy" },
+    #if defined(_WIN32) || defined(_WIN64)
+    { .cc = "cl", .args = "/O2 /MT /nologo", .outf = "/Fe", .libname = "kilite", .libext = ".lib", .link = "" },
+    #endif
+    { .cc = "gcc", .args = "-O2", .outf = "-o ", .libname = "libkilite", .libext = ".a", .link = "-lm" },
+    { .cc = "tcc", .args = "", .outf = "-o ", .libname = "libkilite", .libext = ".a", .link = "" },
+};
+
+#if defined(_WIN32) || defined(_WIN64)
+#include <windows.h>
+
+static int gen_executble(char *cmd)
+{
+    STARTUPINFO si = {0};
+    PROCESS_INFORMATION pi = {0};
+    si.cb = sizeof(si);
+    si.dwFlags = STARTF_USESHOWWINDOW;
+    si.wShowWindow = SW_HIDE;
+ 
+    DWORD ret = CreateProcess(NULL, cmd, NULL, NULL, FALSE,
+        CREATE_DEFAULT_ERROR_MODE | NORMAL_PRIORITY_CLASS | CREATE_NO_WINDOW, NULL, NULL, &si, &pi);
+    if (ret == 0) {
+        return 1;
+    }
+
+    HANDLE h = pi.hProcess;
+    CloseHandle(pi.hThread);
+    WaitForSingleObject(h, INFINITE);
+    DWORD code;
+    GetExitCodeProcess(h, &code); 
+    CloseHandle(h);
+
+    return code;
+}
+
+char* get_actual_exe_path(void)
+{
+    static char result[2048] = {0};
+    if (result[0] == 0) {
+        char* p;
+        int len = GetModuleFileNameA(NULL, result, 2048);
+        if (len > 0) {
+            p = strrchr(result, '\\');
+            if (p) *p = 0;
+        }
+    }
+    return result;
+}
+
+#else
+
+static int gen_executble(char *cmd)
+{
+    return system(cmd);
+}
+
+char* get_actual_exe_path(void)
+{
+    static char result[2048] = {0};
+    if (result[0] == 0) {
+        char* p;
+        readlink("/proc/self/exe", result, 2040);
+        p = strrchr(result, '/');
+        if (p) *p = 0;
+    }
+    return result;
+}
+
+#endif
 
 static void version(void)
 {
@@ -71,24 +150,29 @@ static void version(void)
 
 static void usage(void)
 {
-    printf("Usage: " PROGNAME " -[hvcxS]\n");
+    printf("Usage: " PROGNAME " -[hvcxSX]\n");
     printf("Main options:\n");
     printf("    -h                  Display this help.\n");
     printf("    -v, --version       Display the version number.\n");
     printf("    -c                  Output .bmir for library.\n");
     printf("    -x                  Execute the code and print the result.\n");
     printf("    -S                  Output .mir code.\n");
-    printf("    -X                  Generate an executable.\n");
+    printf("    -X                  Generate an executable. (need another compiler)\n");
     printf("    --ast               Output AST.\n");
     printf("    --kir               Output low level compiled code.\n");
     printf("    --csrc              Output the C code of the script code.\n");
     printf("    --cfull             Output the full C code to build the executable.\n");
+    #ifdef KILITE_SHOW_HIDDEN_OPTIONS
     printf("    --cdebug            Output the full C code to debug the script code.\n");
+    #endif
     printf("    --stdout            Change the distination of the output to stdout.\n");
     printf("    --verbose           Show some infrmation when running.\n");
     printf("    --disable-pure      Disable the code optimization for a pure function.\n");
-    // printf("    --cc <cc>           Change the compiler to make an executable.\n");
+    #ifdef KILITE_SHOW_HIDDEN_OPTIONS
+    printf("    --cc <cc>           Change the compiler to make an executable.\n");
+    #endif
     printf("    --ext <ext>         Change the extension of the output file.\n");
+    printf("    --cctime            Display various time in compilation.\n");
     printf("    --error-stdout      Output error messages to stdout instead of stderr.\n");
     printf("    --error-limit <n>   Change the limitation of errors. (default: 100)\n");
 }
@@ -127,6 +211,7 @@ static int parse_long_options(int ac, char **av, int *i, kl_argopts *opts)
         return OPT_DISPLAY_VERSION;
     } else if (strcmp(av[*i], "--verbose") == 0) {
         opts->verbose = 1;
+        opts->cctime = 1;
     } else if (strcmp(av[*i], "--ast") == 0) {
         opts->out_src = 1;
         opts->out_ast = 1;
@@ -148,6 +233,8 @@ static int parse_long_options(int ac, char **av, int *i, kl_argopts *opts)
         opts->out_cdebug = 1;
     } else if (strcmp(av[*i], "--stdout") == 0) {
         opts->out_stdout = 1;
+    } else if (strcmp(av[*i], "--cctime") == 0) {
+        opts->cctime = 1;
     } else if (strcmp(av[*i], "--disable-pure") == 0) {
         opts->disable_pure = 1;
     } else if (strcmp(av[*i], "--error-stdout") == 0) {
@@ -277,6 +364,7 @@ void output_source(FILE *f, int cdebug, int cfull, int print_result, int verbose
 
 int make_executable(kl_argopts *opts, const char *s)
 {
+    const char *exepath = get_actual_exe_path();
     const char *temppath = getenv("TEMP");
     if (!temppath) {
         temppath = ".";
@@ -315,20 +403,44 @@ int make_executable(kl_argopts *opts, const char *s)
     name[i-1] = 0;
     #endif
 
-    int len = (strlen(temppath) + i) * 3;
-    char *fname = (char *)calloc(len, sizeof(char));
-    char *cmd = (char *)calloc(len, sizeof(char));
+    int tlen = strlen(temppath);
+    char *fname = (char *)calloc((tlen + i) * 2, sizeof(char));
     sprintf(fname, "%s%c%s", temppath, SEP, srcf);
+
+    int elen = strlen(exepath);
+    char *cmd = (char *)calloc((elen + tlen + i) * 2, sizeof(char));
+
     FILE *fp = fopen(fname, "w");
     output_source(fp, 0, 1, 0, 0, s);
     fclose(fp);
 
-    sprintf(cmd, "%s %s %s%s %s%c%s %s %s",
-        cclist[opts->cc].cc, cclist[opts->cc].args, cclist[opts->cc].outf,
-        name, temppath, SEP, srcf, cclist[opts->cc].lib, cclist[opts->cc].link);
-    // printf("[%d] %s\n", len, cmd);
-    int r = genexec(cmd);
-    // printf("r = [%d]\n", r);
+    int r = 0;
+    char libsuf[32] = {0};
+    printf("Temp path: %s\n", temppath);
+    for (int i = 0; i < 2; ++i) {
+        #if defined(_WIN32) || defined(_WIN64)
+        sprintf(cmd, "%s %s %s%s \"%s\\%s\" \"%s\\%s%s%s\" %s",
+            cclist[opts->cc].cc, cclist[opts->cc].args, cclist[opts->cc].outf,
+            name, temppath, srcf, exepath, cclist[opts->cc].libname, libsuf, cclist[opts->cc].libext, cclist[opts->cc].link);
+        #else
+        sprintf(cmd, "%s %s %s%s %s/%s %s/%s%s%s %s",
+            cclist[opts->cc].cc, cclist[opts->cc].args, cclist[opts->cc].outf,
+            name, temppath, srcf, exepath, cclist[opts->cc].libname, libsuf, cclist[opts->cc].libext, cclist[opts->cc].link);
+        #endif
+        r = gen_executble(cmd);
+        if (r == 0) {
+            printf("Command: %s\n", cmd);
+            printf("Creating executable successful: %s\n", name);
+            break;
+        }
+        if (i == 0) {
+            libsuf[0] = '_';
+            strcpy(libsuf + 1, cclist[opts->cc].cc);
+            continue;
+        }
+        printf("Creating executable failed.\n");
+        break;
+    }
 
     unlink(fname);
     free(cmd);
@@ -381,7 +493,9 @@ int main(int ac, char **av)
         ctx->error_limit = opts.error_limit;
     }
 
+    ctx->timer = timer_init();
     int r = parse(ctx, l);
+    SHOW_TIMER("Parsing source code");
     if (r > 0) {
         goto END;
     }
@@ -391,6 +505,7 @@ int main(int ac, char **av)
         goto END;
     }
     r = make_kir(ctx);
+    SHOW_TIMER("Generating KIR");
     if (r > 0) {
         goto END;
     }
@@ -402,22 +517,25 @@ int main(int ac, char **av)
     ctx->program->verbose = opts.verbose;
     if (opts.out_src && (opts.out_csrc || opts.out_cdebug || opts.out_cfull)) {
         s = translate(ctx->program, opts.out_cdebug ? TRANS_DEBUG : TRANS_SRC);
+        SHOW_TIMER("Translating from KIR to C");
         output_source(stdout, opts.out_cdebug, opts.out_cfull, opts.print_result, opts.verbose, s);
         goto END;
-    } else {
-        s = translate(ctx->program, opts.out_lib ? TRANS_LIB : (opts.cc ? TRANS_SRC : TRANS_FULL));
-        if (opts.cc) {
-            if (make_executable(&opts, s) != 0) {
-                fprintf(stderr, "Error: compilation failed, check your compiler path.\n");
-            }
-            goto END;
+    } else if (opts.cc) {
+        s = translate(ctx->program, TRANS_SRC);
+        SHOW_TIMER("Translating from KIR to C");
+        if (make_executable(&opts, s) != 0) {
+            fprintf(stderr, "Error: compilation failed, check your compiler path.\n");
         }
-    }
-
-    if (opts.out_lib) {
+        goto END;
+    } else if (opts.out_lib) {
+        s = translate(ctx->program, TRANS_LIB);
+        SHOW_TIMER("Translating from KIR to C");
         printf("%s\n", s);
         goto END;
     }
+
+    s = translate(ctx->program, TRANS_FULL);
+    SHOW_TIMER("Translating from KIR to C");
     if (opts.out_mir || opts.out_bmir) {
         ri = output(opts.file, s, opts.out_bmir, (opts.out_stdout || opts.out_lib) ? NULL : (opts.out_mir ? ".mir" : ".bmir"));
         goto END;
@@ -425,17 +543,22 @@ int main(int ac, char **av)
 
     /* run the code */
     if (!opts.out_src) {
+        char kilite[256] = {0};
+        snprintf(kilite, 240, "%s%ckilite.bmir", get_actual_exe_path(), SEP);
         const char *modules[] = {
-            "kilite.bmir",
+            kilite,
             NULL,   /* must be ended by NULL */
         };
         kl_opts runopts = {
             .modules = modules,
+            .timer = ctx->timer,
+            .cctime = opts.cctime
         };
         run(&ri, opts.file, s, 0, NULL, NULL, &runopts);
     }
 
 END:
+    SHOW_TIMER("Finalization");
     if (s) free(s);
     free_context(ctx);
     lexer_free(l);

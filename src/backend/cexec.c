@@ -5,42 +5,16 @@
 #include <string.h>
 
 #include "../template/inc/platform.c"
-
-#if defined(_WIN32) || defined(_WIN64)
-#include <windows.h>
-
-static int gen_executble(char *cmd)
-{
-    STARTUPINFO si = {0};
-    PROCESS_INFORMATION pi = {0};
-     si.cb = sizeof(si);
-    si.dwFlags = STARTF_USESHOWWINDOW;
-    si.wShowWindow = SW_HIDE;
- 
-    DWORD ret = CreateProcess(NULL, cmd, NULL, NULL, TRUE,
-        CREATE_DEFAULT_ERROR_MODE | NORMAL_PRIORITY_CLASS | CREATE_NO_WINDOW, NULL, NULL, &si, &pi);
-    if (ret == 0) {
-        return 1;
-    }
-
-    HANDLE h = pi.hProcess;
-    CloseHandle(pi.hThread);
-    WaitForSingleObject(h, INFINITE);
-    DWORD code;
-    GetExitCodeProcess(h, &code); 
-    CloseHandle(h);
-
-    return code;
-}
-
-#else
-
-static int gen_executble(char *cmd)
-{
-    return system(cmd);
-}
-
-#endif
+#define timer_init SystemTimer_init
+#define timer_restart SystemTimer_restart_impl
+#define timer_elapsed SystemTimer_elapsed_impl
+#define SHOW_TIMER(msg) { \
+    if (opts->cctime) { \
+        printf(">> %-25s: %f\n", msg, timer_elapsed(opts->timer)); \
+        timer_restart(opts->timer); \
+    } \
+} \
+/**/
 
 struct data {
     const char *p;
@@ -134,10 +108,12 @@ int run(int *ret, const char *fname, const char *src, int ac, char **av, char **
         }
     }
     c2mir_init(ctx);
+    SHOW_TIMER("Run init");
     if (!c2mir_compile(ctx, &options, getc_func, &getc_data, fname, outf)) {
-        printf("Compile error\n");
+        fprintf(stderr, "Compile error\n");
         goto END;
     }
+    SHOW_TIMER("Compilation from C");
 
     if (options.asm_p || options.object_p) {
         r = 0;  /* successful */
@@ -153,9 +129,10 @@ int run(int *ret, const char *fname, const char *src, int ac, char **av, char **
         MIR_load_external(ctx, "Math_random_impl", Math_random_impl);
         MIR_item_t main_func = load_main_modules(ctx);
         if (main_func == NULL || main_func->addr == NULL) {
-            printf("Can't find the 'main'\n");
+            fprintf(stderr, "Can't find the 'main'\n");
             goto END;
         }
+        SHOW_TIMER("Load modules");
 
         Math_initialize();
         MIR_gen_init(ctx, 1);
@@ -166,6 +143,7 @@ int run(int *ret, const char *fname, const char *src, int ac, char **av, char **
         Math_finalize();
         if (ret) *ret = rc;
         r = 0;  /* successful */
+        SHOW_TIMER("Run the program");
     }
 
 END:
@@ -190,9 +168,4 @@ int output(const char *fname, const char *src, int isbmir, const char *ext)
         }
     }
     return run(NULL, fname, src, 0, NULL, NULL, &opts);
-}
-
-int genexec(char *cmd)
-{
-    return gen_executble(cmd);
 }

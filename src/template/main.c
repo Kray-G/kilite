@@ -2,7 +2,7 @@
 #include "common.h"
 #endif
 
-int main(void)
+int main(int ac, char **av)
 {
     vmctx *ctx = initialize();
     setup_context(ctx);

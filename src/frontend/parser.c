@@ -529,6 +529,7 @@ void free_context(kl_context *ctx)
             p = n;
         }
     }
+    free(ctx->timer);
     free(ctx);
 }
 

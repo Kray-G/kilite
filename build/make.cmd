@@ -12,10 +12,10 @@ set PATH=%PATH%;%BIN%
 if not exist mir_static.lib call ..\build\mir_vs2019.cmd
 if not exist mir_static.lib goto ERROR
 
-set TEMPF=%BIN%\h.c
+set TEMPF=%BIN%\libkilite.c
 
-@REM Create a header source code.
-cl /nologo /O2 /MT ..\build\makecstr.c
+@echo Generating a header source code...
+cl /nologo /O2 /MT ..\build\makecstr.c > NUL
 type ..\src\template\lib\bign.h > %TEMPF%
 type ..\src\template\lib\bigz.h >> %TEMPF%
 type ..\src\template\lib\printf.h >> %TEMPF%
@@ -23,6 +23,7 @@ type ..\src\template\header.h >> %TEMPF%
 makecstr.exe %TEMPF% > ..\src\backend\header.c
 del %TEMPF%
 
+@echo Building a Kilite binary...
 cl /nologo /O2 /I ..\..\mir /MT ^
     /Fekilite.exe ^
     ..\src\main.c ^
@@ -39,10 +40,9 @@ cl /nologo /O2 /I ..\..\mir /MT ^
     ..\src\backend\cexec.c ^
     ..\bin\mir_static.lib
 
-copy /y kilite.exe ..\kilite.exe
+copy /y kilite.exe ..\kilite.exe > NUL
 
-@REM Create a basic library.
-if not exist lib mkdir lib
+@echo Creating a basic library...
 echo #define KILITE_AMALGAMATION > %TEMPF%
 type ..\src\template\lib\bign.h >> %TEMPF%
 type ..\src\template\lib\bigz.h >> %TEMPF%
@@ -73,14 +73,28 @@ pushd ..\src\template\std
 kilite.exe --makelib callbacks.klt >> %TEMPF%
 popd
 
-cl /nologo /O2 /DUSE_INT64 /I lib /c %TEMPF%
+@echo Generating a static library file for cl...
+cl /nologo /O2 /DUSE_INT64 /c %TEMPF%
 lib /nologo /out:kilite.lib %TEMPF:.c=.obj%
-copy /y kilite.lib ..\kilite.lib
+copy /y kilite.lib ..\kilite.lib > NUL
 c2m -DUSE_INT64 -I lib -c %TEMPF%
-del kilite.bmir
+if exist kilite.bmir del kilite.bmir
 ren %TEMPF:.c=.bmir% kilite.bmir
-copy /y kilite.bmir ..\kilite.bmir
-@REM del %TEMPF%
+copy /y kilite.bmir ..\kilite.bmir > NUL
+
+:TCC_CHK
+@tcc -v > NUL 2>&1
+if ERRORLEVEL 1 goto GCC_CHK
+call :tcc %TEMPF%
+:GCC_CHK
+@gcc -v > NUL 2>&1
+if ERRORLEVEL 1 goto CHK_END
+call :gcc %TEMPF%
+
+:CHK_END
+if not exist libkilite.a @copy /y libkilite_tcc.a libkilite.a > NUL 2>&1
+if not exist libkilite.a @copy /y libkilite_gcc.a libkilite.a > NUL 2>&1
+copy /y libkilite.a ..\libkilite.a > NUL
 
 goto CLEANUP
 
@@ -90,11 +104,26 @@ endlocal
 exit /b 0
 
 :CLEANUP
-del *.h *.obj
+@REM del %TEMPF%
+del *.h *.o *.obj
 del makecstr.exe
-rmdir /s /q lib
+@echo Building Kilite modules successfully ended.
 
 :END
 popd
 endlocal
+exit /b 0
+
+:tcc
+@echo Generating a static library file for tcc...
+tcc -o libkilite.o -DUSE_INT64 -I lib -c %1%
+tcc -ar rcs libkilite_tcc.a libkilite.o
+copy /y libkilite_tcc.a ..\libkilite_tcc.a > NUL
+exit /b 0
+
+:gcc
+@echo Generating a static library file for gcc...
+gcc -O2 -o libkilite.o -DUSE_INT64 -I lib -c %1%
+ar rcs libkilite_gcc.a libkilite.o
+copy /y libkilite_gcc.a ..\libkilite_gcc.a > NUL
 exit /b 0

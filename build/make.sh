@@ -14,9 +14,10 @@ cp -f libmir_static.a ../
 cd ..
 
 BIN=$PWD
-TEMPF=$BIN/h.c
+TEMPF=$BIN/libkilite.c
 
 # Create a header source code.
+echo Generating a header source code...
 gcc -O2 -o makecstr ../build/makecstr.c
 cat ../src/template/lib/bign.h > $TEMPF
 cat ../src/template/lib/bigz.h >> $TEMPF
@@ -25,6 +26,7 @@ cat ../src/template/header.h >> $TEMPF
 ./makecstr $TEMPF > ../src/backend/header.c
 rm $TEMPF
 
+echo Building a Kilite binary...
 gcc -Wno-unused-result -O2 -I ../mir \
     -DUSE_INT64 -o kilite \
     ../src/main.c \
@@ -43,7 +45,7 @@ gcc -Wno-unused-result -O2 -I ../mir \
 
 cp -f kilite ../kilite
 
-mkdir -p lib
+echo Creating a basic library...
 echo "#define KILITE_AMALGAMATION" > $TEMPF
 cat ../src/template/lib/bign.h >> $TEMPF
 cat ../src/template/lib/bigz.h >> $TEMPF
@@ -74,17 +76,18 @@ cd ../src/template/std
 $BIN/kilite --makelib callbacks.klt >> $TEMPF
 cd $BIN
 
+echo Generating a static library file for gcc...
 gcc -O2 -DUSE_INT64 -o ${TEMPF/.c/.o} -I lib -Wno-unused-result -c $TEMPF
 ar rcs libkilite.a ${TEMPF/.c/.o}
 cp -f libkilite.a ../libkilite.a
 ./c2m -DUSE_INT64 -I lib -c $TEMPF
-rm kilite.bmir
-mv h.bmir kilite.bmir
+rm -f kilite.bmir
+mv libkilite.bmir kilite.bmir
 cp -f kilite.bmir ../kilite.bmir
-rm $TEMPF
 
+# rm $TEMPF
 rm -f *.h
 rm -f makecstr
-rm -rf lib
+echo Building Kilite modules successfully ended.
 
 cd $CUR

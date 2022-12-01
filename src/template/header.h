@@ -18,7 +18,9 @@ extern BigZ i64minm1;
 #include <string.h>
 #include <inttypes.h>
 #if defined(_WIN32) || defined(_WIN64)
+#if defined(_MSC_VER)
 #define alloca _alloca
+#endif
 #endif
 #else
 #ifndef PRId64
