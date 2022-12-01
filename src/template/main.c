@@ -7,6 +7,10 @@ int main(int ac, char **av)
     vmctx *ctx = initialize();
     setup_context(ctx);
     ctx->except = alcvar_initial(ctx);
+    ctx->args = alcobj(ctx);
+    for (int i = 0; i < ac; ++i) {
+        array_push(ctx, ctx->args, alcvar_str(ctx, av[i]));
+    }
 
     int ri = 0;
     vmvar r = {0};
@@ -23,6 +27,7 @@ int main(int ac, char **av)
         }
     }
 
+    ctx->except = NULL;
     if (ctx->verbose) {
         mark_and_sweep(ctx);
         count(ctx);

@@ -265,12 +265,12 @@ static inline int is_whitespace(int ch)
 
 static inline int is_name_head(int ch)
 {
-    return isalpha(ch) || ch == '_';
+    return isalpha(ch) || ch == '_' || ch == '$';
 }
 
 static inline int is_name_char(int ch)
 {
-    return isalnum(ch) || ch == '_';
+    return isalnum(ch) || ch == '_' || ch == '$';
 }
 
 static inline int isbdigit(int ch)

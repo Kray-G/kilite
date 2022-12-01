@@ -229,6 +229,7 @@ typedef struct vmctx {
     vmvar *except;          /* Current exception that was thrown. */
     int exceptl;            /* The line where the exception occurred. */
 
+    vmobj *args;            /* Holder of the program arguments. */
     vmobj *i;               /* Special object for integer. */
     vmobj *d;               /* Special object for double. */
     vmobj *s;               /* Special object for string. */
@@ -262,6 +263,15 @@ typedef struct vmctx {
         int obj;
     } fre;
 } vmctx;
+
+/***************************************************************************
+ * Setup arguments
+*/
+#define SETUP_PROGRAM_ARGS(nv) { \
+    SET_OBJ(nv, ctx->args); \
+    ctx->args = NULL; \
+} \
+/**/
 
 /***************************************************************************
  * Stack operations

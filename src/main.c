@@ -55,8 +55,9 @@ typedef struct kl_argopts {
     int error_stdout;
     int error_limit;
     int print_result;
-    int cctime;
     int verbose;
+    int argstart;
+    int cctime;
     int cc;
     const char *ccname;
     const char *ext;
@@ -318,6 +319,8 @@ static int parse_arg_options(int ac, char **av, kl_argopts *opts)
             }
         } else {
             opts->file = av[i];
+            opts->argstart = i;
+            break;
         }
     }
     if (opts->out_src) {
@@ -469,7 +472,7 @@ int main(int ac, char **av)
     }
 
     kl_lexer *l = lexer_new_file(opts.in_stdin ? NULL : opts.file);
-    l->precode = "const undefined; const null = undefined;"
+    l->precode = "let $$; const undefined; const null = undefined;"
         "extern True; extern False;"
         "extern System; extern SystemTimer; extern Math; extern Fiber; extern Range;"
         "extern RuntimeException();"
@@ -552,9 +555,9 @@ int main(int ac, char **av)
         kl_opts runopts = {
             .modules = modules,
             .timer = ctx->timer,
-            .cctime = opts.cctime
+            .cctime = opts.cctime,
         };
-        run(&ri, opts.file, s, 0, NULL, NULL, &runopts);
+        run(&ri, opts.file, s, ac - opts.argstart, av + opts.argstart, NULL, &runopts);
     }
 
 END:

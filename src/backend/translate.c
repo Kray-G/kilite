@@ -1277,6 +1277,9 @@ static void translate_mkfrm(func_context *fctx, xstr *code, kl_kir_func *f, kl_k
             xstra_inst(code, "n%d = local_var(ctx, %d);\n", idx, idx - fctx->local_vars);
         }
     }
+    if (f->is_global) {
+        xstra_inst(code, "SETUP_PROGRAM_ARGS(n0)\n");
+    }
 }
 
 static void translate_rlocal(func_context *fctx, xstr *code)
