@@ -111,10 +111,10 @@ static int gen_executble(char *cmd)
 
 char* get_actual_exe_path(void)
 {
-    static char result[2048] = {0};
+    static char result[260] = {0};
     if (result[0] == 0) {
         char* p;
-        int len = GetModuleFileNameA(NULL, result, 2048);
+        int len = GetModuleFileNameA(NULL, result, 256);
         if (len > 0) {
             p = strrchr(result, '\\');
             if (p) *p = 0;
@@ -132,10 +132,10 @@ static int gen_executble(char *cmd)
 
 char* get_actual_exe_path(void)
 {
-    static char result[2048] = {0};
+    static char result[260] = {0};
     if (result[0] == 0) {
         char* p;
-        readlink("/proc/self/exe", result, 2040);
+        readlink("/proc/self/exe", result, 256);
         p = strrchr(result, '/');
         if (p) *p = 0;
     }
@@ -546,8 +546,8 @@ int main(int ac, char **av)
 
     /* run the code */
     if (!opts.out_src) {
-        char kilite[256] = {0};
-        snprintf(kilite, 240, "%s%ckilite.bmir", get_actual_exe_path(), SEP);
+        char kilite[384] = {0};
+        snprintf(kilite, 380, "%s%ckilite.bmir", get_actual_exe_path(), SEP);
         const char *modules[] = {
             kilite,
             NULL,   /* must be ended by NULL */
