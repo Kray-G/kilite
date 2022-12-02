@@ -60,12 +60,15 @@ typedef struct kl_argopts {
     int cctime;
     int cc;
     const char *ccname;
+    const char *ccopt;
     const char *ext;
     const char *file;
 } kl_argopts;
 
 typedef struct clcmd {
+    int optch;
     char *cc;
+    char *opt;
     char *args;
     char *outf;
     char *libname;
@@ -76,10 +79,10 @@ typedef struct clcmd {
 static clcmd cclist[] = {
     { .cc = "dummy" },
     #if defined(_WIN32) || defined(_WIN64)
-    { .cc = "cl", .args = "/O2 /MT /nologo", .outf = "/Fe", .libname = "kilite", .libext = ".lib", .link = "" },
+    { .optch = '/', .cc = "cl", .opt = "O2", .args = "/MT /nologo", .outf = "/Fe", .libname = "kilite", .libext = ".lib", .link = "" },
     #endif
-    { .cc = "gcc", .args = "-O3", .outf = "-o ", .libname = "libkilite", .libext = ".a", .link = "-lm" },
-    { .cc = "tcc", .args = "", .outf = "-o ", .libname = "libkilite", .libext = ".a", .link = "" },
+    { .optch = '-', .cc = "gcc", .opt = "O3", .args = "", .outf = "-o ", .libname = "libkilite", .libext = ".a", .link = "-lm" },
+    { .optch = '-', .cc = "tcc", .opt = "", .args = "", .outf = "-o ", .libname = "libkilite", .libext = ".a", .link = "" },
 };
 
 #if defined(_WIN32) || defined(_WIN64)
@@ -152,30 +155,35 @@ static void version(void)
 static void usage(void)
 {
     printf("Usage: " PROGNAME " -[hvcxSX]\n");
-    printf("Main options:\n");
+    printf("Main Options:\n");
     printf("    -h                  Display this help.\n");
     printf("    -v, --version       Display the version number.\n");
     printf("    -c                  Output .bmir for library.\n");
     printf("    -x                  Execute the code and print the result.\n");
     printf("    -S                  Output .mir code.\n");
     printf("    -X                  Generate an executable. (need another compiler)\n");
+    printf("    --stdout            Change the distination of the output to stdout.\n");
+    printf("    --verbose           Show some infrmation when running.\n");
+    printf("    --disable-pure      Disable the code optimization for a pure function.\n");
+    printf("    --ext=<ext>         Change the extension of the output file.\n");
+    printf("\n");
+    printf("Show Process:\n");
+    printf("    --cctime            Display various time in compilation.\n");
     printf("    --ast               Output AST.\n");
-    printf("    --kir               Output low level compiled code.\n");
+    printf("    --kir               Output internal temporary compiled code.\n");
     printf("    --csrc              Output the C code of the script code.\n");
     printf("    --cfull             Output the full C code to build the executable.\n");
     #ifdef KILITE_SHOW_HIDDEN_OPTIONS
     printf("    --cdebug            Output the full C code to debug the script code.\n");
     #endif
-    printf("    --stdout            Change the distination of the output to stdout.\n");
-    printf("    --verbose           Show some infrmation when running.\n");
-    printf("    --disable-pure      Disable the code optimization for a pure function.\n");
-    #ifdef KILITE_SHOW_HIDDEN_OPTIONS
-    printf("    --cc <cc>           Change the compiler to make an executable.\n");
-    #endif
-    printf("    --ext <ext>         Change the extension of the output file.\n");
-    printf("    --cctime            Display various time in compilation.\n");
+    printf("\n");
+    printf("Compiler Options:\n");
+    printf("    --cc=<cc>           Change the compiler to make an executable.\n");
+    printf("    --ccopt=<level>     Change the compiler optimization level like 'O3'.\n");
+    printf("\n");
+    printf("Error Control:\n");
     printf("    --error-stdout      Output error messages to stdout instead of stderr.\n");
-    printf("    --error-limit <n>   Change the limitation of errors. (default: 100)\n");
+    printf("    --error-limit=<n>   Change the limitation of errors. (default: 100)\n");
 }
 
 static int parse_long_options_with_iparam(int ac, char **av, int *i, const char *name, int *param)
@@ -240,6 +248,8 @@ static int parse_long_options(int ac, char **av, int *i, kl_argopts *opts)
         opts->disable_pure = 1;
     } else if (strcmp(av[*i], "--error-stdout") == 0) {
         opts->error_stdout = 1;
+    } else if (parse_long_options_with_sparam(ac, av, i, "--ccopt", &(opts->ccopt))) {
+        return 0;
     } else if (parse_long_options_with_sparam(ac, av, i, "--cc", &(opts->ccname))) {
         opts->cc = 0;
         int count = sizeof(cclist) / sizeof(cclist[0]);
@@ -418,17 +428,25 @@ int make_executable(kl_argopts *opts, const char *s)
     fclose(fp);
 
     int r = 0;
+    char ccopt[32] = {0};
+    snprintf(ccopt, 30, "%c%s", cclist[opts->cc].optch,
+        opts->ccopt ? opts->ccopt : cclist[opts->cc].opt);
+
     char libsuf[32] = {0};
     printf("Temp path: %s\n", temppath);
     for (int i = 0; i < 2; ++i) {
         #if defined(_WIN32) || defined(_WIN64)
-        sprintf(cmd, "%s %s %s%s \"%s\\%s\" \"%s\\%s%s%s\" %s",
-            cclist[opts->cc].cc, cclist[opts->cc].args, cclist[opts->cc].outf,
-            name, temppath, srcf, exepath, cclist[opts->cc].libname, libsuf, cclist[opts->cc].libext, cclist[opts->cc].link);
+        sprintf(cmd, "%s %s %s %s%s \"%s\\%s\" \"%s\\%s%s%s\" %s",
+            cclist[opts->cc].cc, ccopt, cclist[opts->cc].args, cclist[opts->cc].outf,
+            name, temppath, srcf,
+            exepath, cclist[opts->cc].libname, libsuf, cclist[opts->cc].libext,
+            cclist[opts->cc].link);
         #else
-        sprintf(cmd, "%s %s %s%s %s/%s %s/%s%s%s %s",
-            cclist[opts->cc].cc, cclist[opts->cc].args, cclist[opts->cc].outf,
-            name, temppath, srcf, exepath, cclist[opts->cc].libname, libsuf, cclist[opts->cc].libext, cclist[opts->cc].link);
+        sprintf(cmd, "%s %s %s %s%s %s/%s %s/%s%s%s %s",
+            cclist[opts->cc].cc, ccopt, cclist[opts->cc].args, cclist[opts->cc].outf,
+            name, temppath, srcf,
+            exepath, cclist[opts->cc].libname, libsuf, cclist[opts->cc].libext,
+            cclist[opts->cc].link);
         #endif
         r = gen_executble(cmd);
         if (r == 0) {
