@@ -204,8 +204,8 @@ I will note the followings as I don't forget it.
       * [x] with label.
     * [x] Anonymous function in an expression.
     * [x] Easy print method.
-  * [ ] Namespaces, classes, modules, functions, inheritance, and mix-in mechanism.
-    * [ ] Namespace works.
+  * [x] Namespaces, classes, modules, functions, inheritance, and mix-in mechanism.
+    * [x] Namespace works.
     * [x] Class definition.
       * [x] Call `initialize` method when creating the instance if the method exists.
       * [x] Support the `instanceOf` method.
@@ -225,7 +225,7 @@ I will note the followings as I don't forget it.
     * [ ] Binary
     * [ ] Array/Object
 * [ ] Notes for a special specifications of the language.
-  * [ ] The last argument of function call could be outside arguments list if it's a block.
+  * [x] The last argument of function call could be outside arguments list if it's a block.
   * [x] Destructuring assignment.
     * [x] Pattern matching in assignment.
     * [x] Destructuring assignment in function arguments.
