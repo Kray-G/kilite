@@ -374,7 +374,7 @@ static kl_expr *gen_specialized_call(kl_context *ctx, kl_lexer *l, tk_token tk, 
         kl_expr *ll = lhs->lhs;
         kl_expr *lr = lhs->rhs;
         if (ll && lr && ll->nodetype == TK_VAR && ll->typeid == TK_TOBJ && lr->nodetype == TK_VSTR) {
-            if (strcmp(lr->val.str, "size") == 0) {
+            if (strcmp(lr->val.str, "size") == 0 || strcmp(lr->val.str, "length") == 0) {
                 sp = make_expr(ctx, l, TK_ARYSIZE);
                 sp->lhs = ll;
             }

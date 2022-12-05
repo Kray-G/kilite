@@ -1205,6 +1205,7 @@ int Array(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     KL_SET_METHOD(o, keys, Object_keys, lex, 1)
     KL_SET_METHOD(o, keySet, Object_keys, lex, 1)
     KL_SET_METHOD(o, size, Array_size, lex, 1)
+    KL_SET_METHOD(o, length, Array_size, lex, 1)
     SET_OBJ(r, o);
     return 0;
 }
