@@ -36,6 +36,7 @@
 extern void *SystemTimer_init(void);
 extern void SystemTimer_restart_impl(void *p);
 extern double SystemTimer_elapsed_impl(void *p);
+extern int Array_sort(vmctx *ctx, vmfrm *lex, vmvar *r, int ac);
 
 /* Basic functions */
 
@@ -617,6 +618,52 @@ static int iRange_includes(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     return 0;
 }
 
+static int iRange_sort(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    vmvar *a0 = local_var(ctx, 0);
+    DEF_ARG(a1, 1, VAR_FNC);
+    vmvar *beg = a0->o->ary[0];
+    vmvar *end = a0->o->ary[1];
+    vmvar *ex = a0->o->ary[2];
+    if (ex->t != VAR_INT64) {
+        return throw_system_exception(__LINE__, ctx, EXCEPT_RANGE_ERROR, NULL);
+    }
+    if (beg->t == VAR_UNDEF || end->t == VAR_UNDEF) {
+        return throw_system_exception(__LINE__, ctx, EXCEPT_RANGE_ERROR, NULL);
+    }
+
+    int e = 0;
+    int bi = beg->i;
+    int excl = ex->i;
+    int ei = end->i - excl;
+
+    vmobj *a = alcobj(ctx);
+    for (int i = bi; i <= ei; ++i) {
+        array_push(ctx, a, alcvar_int64(ctx, i, 0));
+    }
+
+    vmfnc *f = a1->f;
+
+    int pp = vstackp(ctx);
+    push_var_f(ctx, f, L0, "iRange_sort", __FILE__, 0);
+    push_var_o(ctx, a, L0, "iRange_sort", __FILE__, 0);
+
+    vmvar *sort = hashmap_search(ctx->o, "sort");
+    if (!sort || sort->t != VAR_FNC || !sort->f || !sort->f->f) {
+        return throw_system_exception(__LINE__, ctx, EXCEPT_TYPE_MISMATCH, NULL);
+    }
+    vmfnc *f1 = sort->f;
+
+    vmfnc *callee = ctx->callee;
+    ctx->callee = f1;
+    e = ((vmfunc_t)(f1->f))(ctx, f1->lex, r, 2);
+    ctx->callee = callee;
+
+L0:;
+    restore_vstackp(ctx, pp);
+    return e;
+}
+
 int Range_create_i(vmctx *ctx, vmfrm *lex, vmvar *r, int *beg, int *end, int excl)
 {
     vmvar *n0 = beg ? alcvar_int64(ctx, *beg, 0) : alcvar_initial(ctx);
@@ -638,6 +685,7 @@ int Range_create_i(vmctx *ctx, vmfrm *lex, vmvar *r, int *beg, int *end, int exc
     KL_SET_METHOD(o, isEnded, iRange_isEnded, lex, 0)
     KL_SET_METHOD(o, includes, iRange_includes, lex, 1)
     KL_SET_METHOD(o, isEndExcluded, iRange_isEndExcluded, lex, 0)
+    KL_SET_METHOD(o, sort, iRange_sort, lex, 0)
     SET_OBJ(r, o);
     o->is_sysobj = 1;
 
@@ -1175,7 +1223,6 @@ extern int Array_take(vmctx *ctx, vmfrm *lex, vmvar *r, int ac);
 extern int Array_takeWhile(vmctx *ctx, vmfrm *lex, vmvar *r, int ac);
 extern int Array_drop(vmctx *ctx, vmfrm *lex, vmvar *r, int ac);
 extern int Array_dropWhile(vmctx *ctx, vmfrm *lex, vmvar *r, int ac);
-extern int Array_sort(vmctx *ctx, vmfrm *lex, vmvar *r, int ac);
 
 int Array(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {

@@ -311,6 +311,9 @@ static void check_autoset_flag(kl_context *ctx, kl_symbol *sym)
     if (!sym->ref && sym->is_autoset) {
         mkkir_error(ctx, __LINE__, sym, "Symbol(%s) is not found", sym->name);
     }
+    if (sym->ref && sym->ref->is_autoset) {
+        mkkir_error(ctx, __LINE__, sym, "Symbol(%s) is not found", sym->name);
+    }
 }
 
 static kl_kir_inst *get_last(kl_kir_inst *i)
@@ -629,7 +632,11 @@ static kl_kir_inst *gen_check_type(kl_context *ctx, kl_symbol *sym, kl_kir_opr *
     kl_kir_inst *inst = NULL;
     kl_kir_inst *r2i = NULL;
     kl_kir_opr r2 = {0};
-    KL_KIR_CHECK_LVALUE(l, r2, r2i);
+    if (ctx->in_lvalue) {
+        KL_KIR_CHECK_LVALUE(l, r2, r2i);
+    } else {
+        KL_KIR_CHECK_LITERAL(l, r2, r2i);
+    }
 
     if (strcmp(str, "isUndefined") == 0) {
         kl_kir_opr r3 = make_lit_str(ctx, "VAR_UNDEF");

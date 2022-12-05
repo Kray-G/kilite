@@ -236,7 +236,7 @@ function Array_sort(a:object, f:func) {
     }
     a = a.clone();
     if (a.size() > 1) {
-        _quicksort(a, 0, a.size() - 1, comp.isDefined ? comp : { => _1 <=> _2 });
+        _quicksort(a, 0, a.size() - 1, f.isDefined ? f : { => _1 <=> _2 });
     }
     return a;
 }

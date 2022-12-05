@@ -241,24 +241,26 @@ vmobj *hashmap_remove(vmctx *ctx, vmobj *obj, const char *s)
     }
 
     int hsz = obj->hsz;
-    unsigned int h = hashcode(s, hsz);
-    for (int i = 0; i < hsz; ++i) {
-        vmvar *v = &(obj->map[h]);
-        if (IS_HASHITEM_EXIST(v)) {
-            if (strcmp(v->s->s, s) == 0) {
-                v->i = 0;
-                v->s = NULL;
-                v->a = NULL;
-                HASHITEM_REMVD(v);
-                if (strcmp(s, "_False") == 0) {
-                    obj->is_false = 0;
+    if (hsz > 0) {
+        unsigned int h = hashcode(s, hsz);
+        for (int i = 0; i < hsz; ++i) {
+            vmvar *v = &(obj->map[h]);
+            if (IS_HASHITEM_EXIST(v)) {
+                if (strcmp(v->s->s, s) == 0) {
+                    v->i = 0;
+                    v->s = NULL;
+                    v->a = NULL;
+                    HASHITEM_REMVD(v);
+                    if (strcmp(s, "_False") == 0) {
+                        obj->is_false = 0;
+                    }
+                    return obj;
                 }
-                return obj;
             }
-        }
-        ++h;
-        if (h >= hsz) {
-            h = 0;
+            ++h;
+            if (h >= hsz) {
+                h = 0;
+            }
         }
     }
     return obj;
@@ -266,27 +268,29 @@ vmobj *hashmap_remove(vmctx *ctx, vmobj *obj, const char *s)
 
 vmvar *hashmap_search(vmobj *obj, const char *s)
 {
-    if (!obj->map) {
+    if (!obj || !obj->map) {
         return NULL;
     }
 
     int hsz = obj->hsz;
-    unsigned int h = hashcode(s, hsz);
-    unsigned int hc = h;
-    vmvar *map = obj->map;
-    for (int i = 0; i < hsz; ++i) {
-        vmvar *v = &(obj->map[h]);
-        if (IS_HASHITEM_EMPTY(v)) {
-            return NULL;
-        }
-        if (IS_HASHITEM_EXIST(v)) {
-            if (v->i == hc && strcmp(v->s->s, s) == 0) {
-                return v->a;
+    if (hsz > 0) {
+        unsigned int h = hashcode(s, hsz);
+        unsigned int hc = h;
+        vmvar *map = obj->map;
+        for (int i = 0; i < hsz; ++i) {
+            vmvar *v = &(obj->map[h]);
+            if (IS_HASHITEM_EMPTY(v)) {
+                return NULL;
             }
-        }
-        ++h;
-        if (h >= hsz) {
-            h = 0;
+            if (IS_HASHITEM_EXIST(v)) {
+                if (v->i == hc && strcmp(v->s->s, s) == 0) {
+                    return v->a;
+                }
+            }
+            ++h;
+            if (h >= hsz) {
+                h = 0;
+            }
         }
     }
     return NULL;
@@ -421,7 +425,11 @@ vmobj *object_copy(vmctx *ctx, vmobj *src)
     }
     obj->idxsz = idxsz;
     for (int i = 0; i < idxsz; ++i) {
-        obj->ary[i] = copy_var(ctx, src->ary[i], 0);
+        if (src->ary[i]) {
+            obj->ary[i] = copy_var(ctx, src->ary[i], 0);
+        } else {
+            obj->ary[i] = NULL;
+        }
     }
     return obj;
 }

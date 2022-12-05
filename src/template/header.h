@@ -318,7 +318,8 @@ typedef struct vmctx {
 #define push_var_b(ctx, v, label, func, file, line) push_var_def(ctx, label, func, file, line, { px->t = VAR_BIG; px->bi = alcbgi_bigz(ctx, BzFromString((v), 10, BZ_UNTIL_END)); })
 #define push_var_d(ctx, v, label, func, file, line) push_var_def(ctx, label, func, file, line, { px->t = VAR_DBL; px->d = (v); })
 #define push_var_s(ctx, v, label, func, file, line) push_var_def(ctx, label, func, file, line, { px->t = VAR_STR; px->s = alcstr_str(ctx, v); })
-#define push_var_f(ctx, v, label, func, file, line) push_var_def(ctx, label, func, file, line, { px->t = VAR_FNC; px->f = v; })
+#define push_var_f(ctx, v, label, func, file, line) push_var_def(ctx, label, func, file, line, { px->t = VAR_FNC; px->f = (v); })
+#define push_var_o(ctx, v, label, func, file, line) push_var_def(ctx, label, func, file, line, { px->t = VAR_OBJ; px->o = (v); })
 #define push_var_sys(ctx, v, fn, label, func, file, line) \
     if (v->t == VAR_OBJ && v->o->is_sysobj) { \
         if ((ctx)->vstksz <= (ctx)->vstkp) { \

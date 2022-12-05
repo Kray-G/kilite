@@ -165,6 +165,9 @@ static void disp_expr(kl_expr *e, int indent)
 
     case TK_VAR:
         if (e->sym) {
+            if (e->sym->is_autoset) {
+                printf("<*>");
+            }
             kl_symbol *ref = e->sym->ref;
             kl_symbol *sym = e->sym;
             int index = sym->index;

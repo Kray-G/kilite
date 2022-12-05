@@ -287,6 +287,7 @@ void sweep(vmctx *ctx)
             free(h->ary);
             h->ary = NULL;
             h->asz = 0;
+            h->idxsz = 0;
             pbakobj(ctx, h);
         }
         h = n;
