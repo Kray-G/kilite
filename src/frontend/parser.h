@@ -130,6 +130,7 @@ typedef struct kl_context {
     kl_nsstack *ns;                 //  Namespace stack.
     kl_symbol *scope;               //  The symbol of a current scope.
     kl_symbol *global;              //  The symbol of the global scope.
+    kl_symbol *nsym;                //  The symbol of the current namespace.
     kl_conststr *hash[HASHSIZE];    //  Hashtable of constant string.
 
     int tmpnum;                     //  Multi purpose use with incremented.

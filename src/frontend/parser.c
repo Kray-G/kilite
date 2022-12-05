@@ -2077,6 +2077,22 @@ static kl_expr *parse_class_base_expression(kl_context *ctx, kl_lexer *l)
     return lhs;
 }
 
+static kl_stmt *add_sym2namespace(kl_context *ctx, kl_lexer *l, const char *classname)
+{
+    if (ctx->nsym->name) {        
+        kl_stmt *s = make_stmt(ctx, l, TK_EXPR);
+        s->e1 = make_bin_expr(ctx, l, TK_EQ,
+            make_bin_expr(ctx, l, TK_DOT,
+                parse_expr_varname(ctx, l, ctx->nsym->name, 0),
+                make_str_expr(ctx, l, classname)
+            ),
+            parse_expr_varname(ctx, l, classname, 0)
+        );
+        return s;
+    }
+    return NULL;
+}
+
 static kl_stmt *parse_class(kl_context *ctx, kl_lexer *l)
 {
     DEBUG_PARSER_PHASE();
@@ -2100,7 +2116,6 @@ static kl_stmt *parse_class(kl_context *ctx, kl_lexer *l)
     /* Push the scope */
     kl_nsstack *n = make_nsstack(ctx, l, sym->name, TK_CLASS);
     push_nsstack(ctx, n);
-
     lexer_fetch(l);
 
     /* Constructor arguments if exists */
@@ -2180,6 +2195,12 @@ static kl_stmt *parse_class(kl_context *ctx, kl_lexer *l)
     ctx->scope = sym->scope;
     pop_nsstack(ctx);
     lexer_fetch(l);
+
+    /* append the class to namespace  */
+    kl_stmt *classns = add_sym2namespace(ctx, l, sym->name);
+    if (classns) {
+        connect_stmt(s, classns);
+    }
 
     /* set a class id  */
     kl_stmt *classobj = make_stmt(ctx, l, TK_LET);
@@ -2468,20 +2489,36 @@ static kl_stmt *parse_namespace(kl_context *ctx, kl_lexer *l)
         lexer_fetch(l);
     }
 
+    kl_symbol *nsym = ctx->nsym;
+    ctx->nsym = make_symbol(ctx, l, TK_VAR, 0);
+    ctx->nsym->name = parse_const_str(ctx, l, sym->name ? sym->name : "_$ns");
+
     /* Namespace statement */
     if (l->tok != TK_LXBR) {
         parse_error(ctx, __LINE__, l, "The '{' is missing");
         return s;
     }
     lexer_fetch(l);
+    kl_stmt *ns;
     if (l->tok != TK_RXBR) {
-        sym->body = s->s1 = parse_statement_list(ctx, l);
+        kl_stmt *st = parse_statement_list(ctx, l);
         if (l->tok != TK_RXBR) {
             parse_error(ctx, __LINE__, l, "The '}' is missing");
             return s;
         }
+        ns = make_stmt(ctx, l, TK_EXPR);
+        ns->e1 = make_bin_expr(ctx, l, TK_EQ, parse_expr_varname(ctx, l, ctx->nsym->name, 0), make_expr(ctx, l, TK_VOBJ));
+        connect_stmt(ns, st);
+    } else {
+        ns = make_stmt(ctx, l, TK_EXPR);
+        ns->e1 = make_bin_expr(ctx, l, TK_EQ, parse_expr_varname(ctx, l, ctx->nsym->name, 0), make_expr(ctx, l, TK_VOBJ));
     }
+    kl_stmt *ret = make_stmt(ctx, l, TK_RETURN);
+    ret->e1 = parse_expr_varname(ctx, l, ctx->nsym->name, 0);
+    connect_stmt(ns, ret);
+    sym->body = s->s1 = ns;
 
+    ctx->nsym = nsym;
     ctx->scope = sym->scope;
     pop_nsstack(ctx);
     lexer_fetch(l);
@@ -2532,10 +2569,21 @@ static kl_stmt *parse_statement(kl_context *ctx, kl_lexer *l)
         }
         lexer_fetch(l);
         break;
-    case TK_NAMESPACE:
+    case TK_NAMESPACE: {
         lexer_fetch(l);
         r = parse_namespace(ctx, l);
+        kl_expr *e = make_expr(ctx, l, TK_FUNC);
+        kl_symbol *nsym = e->sym = r->sym;
+        e->s = r;
+        e = make_bin_expr(ctx, l, TK_CALL, e, NULL);
+        r = make_stmt(ctx, l, TK_EXPR);
+        if (nsym) {
+            kl_expr *v = parse_expr_varname(ctx, l, nsym->name, 0);
+            e = make_bin_expr(ctx, l, TK_EQ, v, e);
+        }
+        r->e1 = e;
         break;
+    }
     case TK_PRIVATE:
     case TK_PROTECTED:
     case TK_PUBLIC:

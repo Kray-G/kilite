@@ -1,4 +1,6 @@
 
+#ifndef __MIRC__
+
 #if (defined(_WIN32) || defined(_WIN64)) && !defined(__GNUC__)
 #include <stdint.h>
 
@@ -141,11 +143,28 @@ double SystemTimer_elapsed_impl(void *p)
 
 #endif
 
+#endif  /* !__MIRC__ */
+
 #if !defined(MATH_SYSTIME_DEFINED)
 
+#include <stdint.h>
+#include <stddef.h>
+
+#ifndef __MIRC__
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+#else
+#ifndef NULL
+#define NULL ((void*)0)
+#endif
+extern void srand(unsigned);
+extern int rand(void);
+extern void *calloc(size_t, size_t);
+typedef long clock_t;
+extern clock_t clock(void);
+#define CLOCKS_PER_SEC  ((clock_t)1000)
+#endif
 
 typedef struct timer_ {
     clock_t s;

@@ -10,6 +10,7 @@ static kl_kir_inst *gen_assign_object(kl_context *ctx, kl_symbol *sym, kl_kir_op
 static kl_kir_inst *gen_expr(kl_context *ctx, kl_symbol *sym, kl_kir_opr *r1, kl_expr *e);
 static kl_kir_inst *gen_stmt(kl_context *ctx, kl_symbol *sym, kl_stmt *s);
 static kl_kir_func *gen_function(kl_context *ctx, kl_symbol *sym, kl_stmt *s, kl_symbol *initer);
+static kl_kir_func *gen_namespace(kl_context *ctx, kl_symbol *sym, kl_stmt *s);
 
 static int mkkir_error(kl_context *ctx, int sline, kl_symbol *sym, const char *fmt, ...)
 {
@@ -269,12 +270,25 @@ static void add_func(kl_kir_program *prog, kl_kir_func *func)
         (rni) = gen_expr(ctx, sym, &(rn), e->lhs); \
         break; \
     case TK_FUNC: \
-        kl_symbol *f = e->sym; \
-        kl_kir_func *func = gen_function(ctx, f, (e)->s, NULL); \
-        add_func(ctx->program, func); \
-        kl_kir_opr rfnc = make_lit_func(ctx, (e)->sym); \
-        if ((rn).index == 0) (rn) = make_var(ctx, sym, TK_TANY); \
-        (rni) = new_inst_op2(ctx->program, e->line, e->pos, KIR_MOV, &(rn), &(rfnc)); \
+        if ((e)->s && (e)->s->nodetype == TK_NAMESPACE) { \
+            if ((rn).index == 0) (rn) = make_var(ctx, sym, e->typeid); \
+            kl_symbol *f = (e)->s->sym; \
+            (rni) = gen_stmt(ctx, sym, (e)->s); \
+            kl_kir_opr rfnc = make_lit_func(ctx, f); \
+            if (!rni) { \
+                rni = new_inst_op2(ctx->program, (e)->line, (e)->pos, KIR_MOV, &(rn), &(rfnc)); \
+            } else { \
+                kl_kir_inst *last = get_last(rni); \
+                last->next = new_inst_op2(ctx->program, (e)->line, (e)->pos, KIR_MOV, &(rn), &(rfnc)); \
+            } \
+        } else { \
+            kl_symbol *f = e->sym; \
+            kl_kir_func *func = gen_function(ctx, f, (e)->s, NULL); \
+            add_func(ctx->program, func); \
+            kl_kir_opr rfnc = make_lit_func(ctx, (e)->sym); \
+            if ((rn).index == 0) (rn) = make_var(ctx, sym, TK_TANY); \
+            (rni) = new_inst_op2(ctx->program, (e)->line, (e)->pos, KIR_MOV, &(rn), &(rfnc)); \
+        } \
         break; \
     default: \
         if ((rn).index == 0) (rn) = make_var(ctx, sym, e->typeid); \
@@ -2190,11 +2204,29 @@ static kl_kir_inst *gen_expr(kl_context *ctx, kl_symbol *sym, kl_kir_opr *r1, kl
 
     case TK_FUNC:
         if (e->s) {
-            kl_symbol *f = e->sym;
-            kl_kir_func *func = gen_function(ctx, f, e->s, NULL);
-            add_func(ctx->program, func);
-            kl_kir_opr r2 = make_lit_func(ctx, f);
-            head = new_inst_op2(ctx->program, e->line, e->pos, KIR_MOV, r1, &r2);
+            kl_stmt *s = e->s;
+            if (s && s->nodetype == TK_NAMESPACE) {
+                kl_symbol *f = s->sym;
+                kl_kir_opr rx = {0};
+                head = gen_stmt(ctx, sym, s);
+                if (!r1) {
+                    rx = make_var(ctx, sym, TK_TANY);
+                    r1 = &rx;
+                }
+                kl_kir_opr r2 = make_lit_func(ctx, f);
+                if (!head) {
+                    head = new_inst_op2(ctx->program, e->line, e->pos, KIR_MOV, r1, &r2);
+                } else {
+                    kl_kir_inst *last = get_last(head);
+                    last->next = new_inst_op2(ctx->program, e->line, e->pos, KIR_MOV, r1, &r2);
+                }
+            } else {
+                kl_symbol *f = e->sym;
+                kl_kir_func *func = gen_function(ctx, f, (e)->s, NULL);
+                add_func(ctx->program, func);
+                kl_kir_opr r2 = make_lit_func(ctx, f);
+                head = new_inst_op2(ctx->program, e->line, e->pos, KIR_MOV, r1, &r2);
+            }
         }
         break;
 
@@ -2618,6 +2650,8 @@ static kl_kir_func *gen_namespace(kl_context *ctx, kl_symbol *sym, kl_stmt *s)
     func->has_frame = 1;
     func->is_global = sym->is_global;
     func->funcend = sym->funcend = get_next_label(ctx);
+    int tclabel = ctx->tclabel;
+    ctx->tclabel = func->funcend;
     func->head = last = new_inst(ctx->program, sym->line, sym->pos, KIR_MKFRM);
     set_file_func(ctx, sym, last);
 
@@ -2654,6 +2688,7 @@ static kl_kir_func *gen_namespace(kl_context *ctx, kl_symbol *sym, kl_stmt *s)
     last->next = out;
     out->next = new_inst_ret(ctx->program, sym->line, sym->pos);
 
+    ctx->tclabel = tclabel;
     return func;
 }
 

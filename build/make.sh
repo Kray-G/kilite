@@ -69,9 +69,7 @@ cat ../src/template/str.c >> $TEMPF
 cat ../src/template/obj.c >> $TEMPF
 cat ../src/template/op.c >> $TEMPF
 cat ../src/template/libstd.c >> $TEMPF
-echo "#ifndef __MIRC__" >> %TEMPF%
 cat ../src/template/inc/platform.c >> $TEMPF
-echo "#endif" >> %TEMPF%
 cd ../src/template/std
 $BIN/kilite --makelib callbacks.klt >> $TEMPF
 cd $BIN

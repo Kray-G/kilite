@@ -66,9 +66,7 @@ type ..\src\template\str.c >> %TEMPF%
 type ..\src\template\obj.c >> %TEMPF%
 type ..\src\template\op.c >> %TEMPF%
 type ..\src\template\libstd.c >> %TEMPF%
-echo #ifndef __MIRC__ >> %TEMPF%
 type ..\src\template\inc\platform.c >> %TEMPF%
-echo #endif >> %TEMPF%
 pushd ..\src\template\std
 kilite.exe --makelib callbacks.klt >> %TEMPF%
 popd
