@@ -176,7 +176,7 @@ function test(a) {
 #### Code
 
 ```javascript
-var array = [1,2,3,4,5,6,7,8,9,10];
+var ary = [1,2,3,4,5,6,7,8,9,10];
 function switchTest(n) {
     switch (n) {
     when 1:     System.println(n);
@@ -193,8 +193,8 @@ function switchTest(n) {
         fallthrough;
     when 100:
         System.println(n);
-    when array.length():
-        System.println("array-length:%{n}");
+    when ary.size():
+        System.println("ary-size:%{n}");
     when "aaa":
         System.println(n);
     when "bbb":
@@ -223,7 +223,7 @@ function switchTest(n) {
 7 => 7
 8 => 8
 9 => default - 9
-10 => array-length:10
+10 => ary-size:10
 11 => default - 11
 12 => default - 12
 98 => default - 98

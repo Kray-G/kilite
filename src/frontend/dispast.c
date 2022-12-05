@@ -426,8 +426,17 @@ static void disp_stmt(kl_stmt *s, int indent)
             disp_expr(s->e1, indent + 1);
         }
         break;
+    case TK_WHEN:
+        printf("* when\n");
+        if (s->e1) {
+            disp_expr(s->e1, indent + 1);
+        }
+        break;
     case TK_DEFAULT:
         printf("* default\n");
+        break;
+    case TK_OTHERWISE:
+        printf("* otherwise\n");
         break;
     case TK_IF:
         printf("if\n");
@@ -528,6 +537,9 @@ static void disp_stmt(kl_stmt *s, int indent)
         if (s->s1) {
             disp_stmt(s->s1, indent + 1);
         }
+        break;
+    case TK_FALLTHROUGH:
+        printf("fallthrough\n");
         break;
     case TK_BREAK:
         if (s->sym) {

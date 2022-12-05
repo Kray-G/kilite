@@ -294,7 +294,11 @@ typedef struct vmctx {
         exception_addtrace(ctx, ctx->except, func, file, line); \
         goto label; \
     } \
-    (((ctx)->vstkp) += (n)); \
+    int ntp = (ctx)->vstkp + (n); \
+    for (int i = (ctx)->vstkp; i < ntp; ++i) { \
+        (ctx)->vstk[i].t = VAR_UNDEF; \
+    } \
+    ((ctx)->vstkp) = ntp; \
 } while (0) \
 /**/
 #define vstackp(ctx) ((ctx)->vstkp)

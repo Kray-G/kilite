@@ -1551,9 +1551,9 @@ static void add_case(kl_stmt *sw, kl_stmt *cs)
     sw->ncase = cs;
 }
 
-static kl_stmt *parse_case(kl_context *ctx, kl_lexer *l)
+static kl_stmt *parse_case_when(kl_context *ctx, kl_lexer *l, tk_token tok)
 {
-    kl_stmt *s = make_stmt(ctx, l, TK_CASE);
+    kl_stmt *s = make_stmt(ctx, l, tok);
     if (!ctx->switchstmt) {
         parse_error(ctx, __LINE__, l, "No switch for case statement");
         return s;
@@ -1568,9 +1568,9 @@ static kl_stmt *parse_case(kl_context *ctx, kl_lexer *l)
     return s;
 }
 
-static kl_stmt *parse_default(kl_context *ctx, kl_lexer *l)
+static kl_stmt *parse_default_otherwise(kl_context *ctx, kl_lexer *l, tk_token tok)
 {
-    kl_stmt *s = make_stmt(ctx, l, TK_DEFAULT);
+    kl_stmt *s = make_stmt(ctx, l, tok);
     if (!ctx->switchstmt) {
         parse_error(ctx, __LINE__, l, "No switch for case statement");
         return s;
@@ -2467,11 +2467,19 @@ static kl_stmt *parse_statement(kl_context *ctx, kl_lexer *l)
         break;
     case TK_CASE:
         lexer_fetch(l);
-        r = parse_case(ctx, l);
+        r = parse_case_when(ctx, l, TK_CASE);
+        break;
+    case TK_WHEN:
+        lexer_fetch(l);
+        r = parse_case_when(ctx, l, TK_WHEN);
         break;
     case TK_DEFAULT:
         lexer_fetch(l);
-        r = parse_default(ctx, l);
+        r = parse_default_otherwise(ctx, l, TK_DEFAULT);
+        break;
+    case TK_OTHERWISE:
+        lexer_fetch(l);
+        r = parse_default_otherwise(ctx, l, TK_OTHERWISE);
         break;
     case TK_IF:
         lexer_fetch(l);
@@ -2492,6 +2500,15 @@ static kl_stmt *parse_statement(kl_context *ctx, kl_lexer *l)
     case TK_TRY:
         lexer_fetch(l);
         r = parse_try(ctx, l);
+        break;
+    case TK_FALLTHROUGH:
+        r = make_stmt(ctx, l, TK_FALLTHROUGH);
+        lexer_fetch(l);
+        if (l->tok != TK_SEMICOLON) {
+            parse_error(ctx, __LINE__, l, "The ';' is missing");
+            return panic_mode_stmt(r, ';', ctx, l);
+        }
+        lexer_fetch(l);
         break;
     case TK_CONTINUE:
     case TK_BREAK:

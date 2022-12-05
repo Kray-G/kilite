@@ -1495,7 +1495,7 @@ static kl_kir_inst *gen_case_others(kl_context *ctx, kl_symbol *sym, kl_stmt *s)
     if (s->ncase) {
         head = gen_case_others(ctx, sym, s->ncase);
     }
-    if (s->nodetype == TK_DEFAULT) {
+    if (s->nodetype == TK_DEFAULT || s->nodetype == TK_OTHERWISE) {
         return head;
     }
 
@@ -1544,8 +1544,8 @@ static kl_kir_inst *gen_switch(kl_context *ctx, kl_symbol *sym, kl_stmt *s)
 
     kl_stmt *prev = ctx->switchstmt;
     ctx->switchstmt = s;
-    kl_stmt *ccase = ctx->casestmt;
-    ctx->casestmt = NULL;
+    kl_stmt *ccase = ctx->whenstmt;
+    ctx->whenstmt = NULL;
 
     kl_kir_opr r1 = {0};
     KL_KIR_CHECK_LITERAL(s->e1, r1, head);
@@ -1590,7 +1590,7 @@ static kl_kir_inst *gen_switch(kl_context *ctx, kl_symbol *sym, kl_stmt *s)
         last = last->next;
     }
 
-    ctx->casestmt = ccase;
+    ctx->whenstmt = ccase;
     ctx->switchstmt = prev;
     last->next = new_inst_label(ctx->program, s->line, s->pos, l1, last, 0);
     ctx->blabel = blabel;
@@ -1599,6 +1599,10 @@ static kl_kir_inst *gen_switch(kl_context *ctx, kl_symbol *sym, kl_stmt *s)
 
 static kl_kir_inst *gen_case(kl_context *ctx, kl_symbol *sym, kl_stmt *s)
 {
+    kl_kir_inst *when = NULL;
+    if (ctx->whenstmt) {
+        when = new_inst_jump(ctx->program, s->line, s->pos, ctx->blabel, NULL);
+    }
     kl_kir_inst *head, *last;
     kl_expr *v = s->e1;
     if (v && v->nodetype != TK_VSINT) {
@@ -1610,14 +1614,68 @@ static kl_kir_inst *gen_case(kl_context *ctx, kl_symbol *sym, kl_stmt *s)
         last = get_last(head);
     }
 
-    ctx->casestmt = s;
+    ctx->whenstmt = NULL;
+    if (when) {
+        when->next = head;
+        return when;
+    }
+    return head;
+}
+
+static kl_kir_inst *gen_when(kl_context *ctx, kl_symbol *sym, kl_stmt *s)
+{
+    kl_kir_inst *when = NULL;
+    if (ctx->whenstmt) {
+        when = new_inst_jump(ctx->program, s->line, s->pos, ctx->blabel, NULL);
+    }
+    kl_kir_inst *head, *last;
+    kl_expr *v = s->e1;
+    if (v && v->nodetype != TK_VSINT) {
+        head = new_inst_label(ctx->program, s->line, s->pos, s->labelno, NULL, 0);
+    } else {
+        kl_kir_opr r1 = make_lit_i64(ctx, s->e1->val.i64);
+        head = new_inst_op1(ctx->program, s->line, s->pos, KIR_CASEI, &r1);
+        head->next = new_inst_label(ctx->program, s->line, s->pos, s->labelno, NULL, 0);
+        last = get_last(head);
+    }
+
+    ctx->whenstmt = s;
+    if (when) {
+        when->next = head;
+        return when;
+    }
     return head;
 }
 
 static kl_kir_inst *gen_default(kl_context *ctx, kl_symbol *sym, kl_stmt *s)
 {
+    kl_kir_inst *when = NULL;
+    if (ctx->whenstmt) {
+        when = new_inst_jump(ctx->program, s->line, s->pos, ctx->blabel, NULL);
+    }
     kl_kir_inst *head = new_inst_label(ctx->program, s->line, s->pos, s->labelno, NULL, 0);
-    ctx->casestmt = s;
+
+    ctx->whenstmt = NULL;
+    if (when) {
+        when->next = head;
+        return when;
+    }
+    return head;
+}
+
+static kl_kir_inst *gen_otherwise(kl_context *ctx, kl_symbol *sym, kl_stmt *s)
+{
+    kl_kir_inst *when = NULL;
+    if (ctx->whenstmt) {
+        when = new_inst_jump(ctx->program, s->line, s->pos, ctx->blabel, NULL);
+    }
+    kl_kir_inst *head = new_inst_label(ctx->program, s->line, s->pos, s->labelno, NULL, 0);
+
+    ctx->whenstmt = s;
+    if (when) {
+        when->next = head;
+        return when;
+    }
     return head;
 }
 
@@ -2712,8 +2770,14 @@ static kl_kir_inst *gen_stmt(kl_context *ctx, kl_symbol *sym, kl_stmt *s)
     case TK_CASE:
         head = gen_case(ctx, sym, s);
         break;
+    case TK_WHEN:
+        head = gen_when(ctx, sym, s);
+        break;
     case TK_DEFAULT:
         head = gen_default(ctx, sym, s);
+        break;
+    case TK_OTHERWISE:
+        head = gen_otherwise(ctx, sym, s);
         break;
     case TK_IF:
         if (s->e1) {
@@ -2741,6 +2805,9 @@ static kl_kir_inst *gen_stmt(kl_context *ctx, kl_symbol *sym, kl_stmt *s)
         break;
     case TK_LABEL:
         head = gen_label(ctx, sym, s);
+        break;
+    case TK_FALLTHROUGH:
+        ctx->whenstmt = NULL;
         break;
     case TK_BREAK:
         if (s->sym) {

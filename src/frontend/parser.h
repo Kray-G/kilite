@@ -140,7 +140,7 @@ typedef struct kl_context {
     int tclabel;                    //  The label to the destination of catch clause.
     kl_stmt *fincode;               //  The statement list of finally clause.
     kl_stmt *switchstmt;            //  The reference of a current `switch` statement.
-    kl_stmt *casestmt;              //  The reference of a current `case` statement.
+    kl_stmt *whenstmt;              //  The reference of a previous `when` statement.
     void *timer;                    //  Timer object to measure various things in compilation.
 
     kl_symbol *symchn;              //  For memory allocation control.
