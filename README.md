@@ -80,20 +80,42 @@ Now, I did benchmark with some script languages because the current version of k
 That's why I'll show it below.
 The target program is the 38th result of a fibonacci as usual.
 
-|                    | Version     | Time  | Result   |
-| ------------------ | ----------- | ----- | -------- |
-| C (-O2)            | VS2019      | 0.18s | 39088169 |
-| Kilite(C compiled) | (beta)      | 0.22s | 39088169 |
-| luajit             | 2.1.0-beta3 | 0.35s | 39088169 |
-| PyPy               | 7.3.9       | 0.42s | 39088169 |
-| Kinx(native)       | 1.1.1       | 0.57s | 39088169 |
-| Kilite             | (beta)      | 0.75s | 39088169 |
-| Lua                | 5.4.4       | 2.62s | 39088169 |
-| Ruby               | 3.1.2p20    | 4.14s | 39088169 |
-| Kinx               | 1.1.1       | 5.41s | 39088169 |
-| Python             | 3.11.0      | 6.28s | 39088169 |
+### On Windows
 
-luajit and PyPy was very fast and amazing. That's exactly JIT as expected.
+|                    | Version     | Time  | Result   | Remark                           |
+| ------------------ | ----------- | ----- | -------- | -------------------------------- |
+| C (-O2)            | VS2019      | 0.18s | 39088169 | Simple C code.                   |
+| Kilite(C compiled) | (beta)      | 0.22s | 39088169 | Compiled the output from Kilite. |
+| luajit             | 2.1.0-beta3 | 0.35s | 39088169 | -                                |
+| PyPy               | 7.3.9       | 0.42s | 39088169 | -                                |
+| Kinx(native)       | 1.1.1       | 0.57s | 39088169 | -                                |
+| Kilite             | (beta)      | 0.75s | 39088169 | -                                |
+| Lua                | 5.4.4       | 2.62s | 39088169 | -                                |
+| Ruby               | 3.1.2p20    | 4.14s | 39088169 | -                                |
+| Kinx               | 1.1.1       | 5.41s | 39088169 | -                                |
+| Python             | 3.11.0      | 6.28s | 39088169 | -                                |
+
+### On Linux
+
+Now, I did benchmark with some script languages because even the current version of kilite can run the code like a fibonacci.
+That's why I'll show it below. The target program is the 38th result of a fibonacci as usual.
+
+|                    | Version           | Time   | Result   | Remark                           |
+| ------------------ | ----------------- | ------ | -------- | -------------------------------- |
+| C (-O3)            | gcc 11.2.0        | 0.062s | 39088169 | Simple C code.                   |
+| Kilite(C compiled) | (beta/gcc 11.2.0) | 0.125s | 39088169 | Compiled the output from Kilite. |
+| luajit             | 2.1.0-beta3       | 0.318s | 39088169 | -                                |
+| PyPy               | 7.3.9             | 0.330s | 39088169 | -                                |
+| Kinx(native)       | 1.1.1             | 0.389s | 39088169 | -                                |
+| Kilite             | (beta)            | 0.622s | 39088169 | -                                |
+| Lua                | 5.4.4             | 2.526s | 39088169 | -                                |
+| Ruby               | 3.0.2p107         | 2.576s | 39088169 | -                                |
+| Kinx               | 1.1.1             | 4.657s | 39088169 | -                                |
+| Python             | 3.10.6            | 7.461s | 39088169 | -                                |
+
+### Result
+
+There is some differences between on Windows and on Linux, but luajit and PyPy was very fast and amazing. That's exactly JIT as expected.
 As for Kilite, this is almost the result as I wanted, but it could be slower by increasing the code in the future.
 I will try to keep the perfrmance even if the code would be more complex.
 
