@@ -2079,7 +2079,7 @@ static kl_expr *parse_class_base_expression(kl_context *ctx, kl_lexer *l)
 
 static kl_stmt *add_sym2namespace(kl_context *ctx, kl_lexer *l, const char *classname)
 {
-    if (ctx->nsym->name) {        
+    if (ctx->nsym && ctx->nsym->name) {        
         kl_stmt *s = make_stmt(ctx, l, TK_EXPR);
         s->e1 = make_bin_expr(ctx, l, TK_EQ,
             make_bin_expr(ctx, l, TK_DOT,
