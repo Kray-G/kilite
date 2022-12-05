@@ -1286,6 +1286,23 @@ static kl_expr *parse_expr_yield(kl_context *ctx, kl_lexer *l, kl_expr *lhs)
     return lhs;
 }
 
+static void set_constant_value(kl_context *ctx, kl_lexer *l, kl_expr *lhs, kl_expr *rhs)
+{
+    if (lhs->sym && lhs->sym->is_const) {
+        kl_symbol *ls = lhs->sym;
+        if (rhs->nodetype == TK_VSINT) {
+            ls->has_i64 = 1;
+            ls->i64 = rhs->val.i64;
+        } else if (rhs->nodetype == TK_VAR && rhs->sym) {
+            kl_symbol *chk = search_symbol_in_scope(ctx, l, ctx->ns, rhs->sym->name);
+            if (chk) {
+                ls->has_i64 = 1;
+                ls->i64 = chk->i64;
+            }
+        }
+    }
+}
+
 static kl_expr *parse_expr_assignment(kl_context *ctx, kl_lexer *l)
 {
     DEBUG_PARSER_PHASE();
@@ -1301,6 +1318,7 @@ static kl_expr *parse_expr_assignment(kl_context *ctx, kl_lexer *l)
         }
         kl_expr *rhs = parse_expr_assignment(ctx, l);   // Right recursion.
         check_assigned(ctx, l, lhs);
+        set_constant_value(ctx, l, lhs, rhs);
         lhs = make_bin_expr(ctx, l, tok, lhs, rhs);
     }
     return lhs;
@@ -1830,6 +1848,83 @@ static kl_expr *parse_decl_expr(kl_context *ctx, kl_lexer *l, int decltype)
         }
     }
     return e1;
+}
+
+static kl_stmt *parse_enum(kl_context *ctx, kl_lexer *l)
+{
+    kl_stmt *s = make_stmt(ctx, l, TK_ENUM);
+    if (l->tok != TK_LXBR) {
+        parse_error(ctx, __LINE__, l, "The '{' is missing");
+        return panic_mode_exprstmt(s, '}', ctx, l);
+    }
+    lexer_fetch(l);
+
+    kl_expr *val = NULL;
+    kl_expr *e = NULL;
+    for ( ; ; ) {
+        if (l->tok != TK_NAME) {
+            parse_error(ctx, __LINE__, l, "The constant variable name is needed in enum");
+            return panic_mode_exprstmt(s, ';', ctx, l);
+        }
+        check_symbol(ctx, l, l->str);
+        kl_expr *lhs = make_expr(ctx, l, TK_VAR);
+        kl_symbol *sym = make_symbol(ctx, l, TK_VAR, 0);
+        sym->is_const = 1;
+        sym->name = parse_const_str(ctx, l, l->str);
+        lhs->sym = sym;
+
+        lexer_fetch(l);
+        if (l->tok != TK_EQ) {
+            if (!val) {
+                val = make_i64_expr(ctx, l, 0);
+            } else {
+                int64_t v = val->val.i64;
+                val = make_i64_expr(ctx, l, v + 1);
+            }
+            sym->has_i64 = 1;
+            sym->i64 = val->val.i64;
+            lhs = make_bin_expr(ctx, l, TK_EQ, lhs, val);
+        } else {
+            lexer_fetch(l);
+            kl_expr *rhs = parse_expr_assignment(ctx, l);
+            if (rhs->nodetype == TK_VSINT) {
+                val = make_i64_expr(ctx, l, rhs->val.i64);
+                sym->has_i64 = 1;
+                sym->i64 = val->val.i64;
+            } else if (rhs->nodetype == TK_VAR) {
+                kl_symbol *rs = rhs->sym;
+                if (rs) {
+                    kl_symbol *chk = search_symbol_in_scope(ctx, l, ctx->ns, rs->name);
+                    if (chk && chk->has_i64) {
+                        val = make_i64_expr(ctx, l, chk->i64);
+                        sym->has_i64 = 1;
+                        sym->i64 = val->val.i64;
+                    } else {
+                        parse_error(ctx, __LINE__, l, "The symbol(%s) was not found in the scope", rs->name);
+                    }
+                }
+            } else {
+                parse_error(ctx, __LINE__, l, "The constant value in enum must be the literal integer value");
+            }
+            lhs = make_bin_expr(ctx, l, TK_EQ, lhs, rhs);
+        }
+        e = make_bin_expr(ctx, l, TK_COMMA, e, lhs);
+        if (l->tok == TK_COMMA) {
+            lexer_fetch(l);
+        }
+        if (l->tok != TK_NAME) {
+            break;
+        }
+    }
+    s->e1 = e;
+
+    if (l->tok != TK_RXBR) {
+        parse_error(ctx, __LINE__, l, "The '}' is missing");
+        return s;
+    }
+
+    lexer_fetch(l);
+    return s;
 }
 
 static kl_stmt *parse_declaration(kl_context *ctx, kl_lexer *l, int decltype)
@@ -2560,6 +2655,10 @@ static kl_stmt *parse_statement(kl_context *ctx, kl_lexer *l)
             return panic_mode_stmt(r, ';', ctx, l);
         }
         lexer_fetch(l);
+        break;
+    case TK_ENUM:
+        lexer_fetch(l);
+        r = parse_enum(ctx, l);
         break;
     case TK_LET:
     case TK_CONST:

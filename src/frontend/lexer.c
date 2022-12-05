@@ -19,10 +19,10 @@ static const char *tkname[] = {
     "TK_EOF", "TK_UNKNOWN",
     "TK_VSINT", "TK_VBIGINT", "TK_VDBL", "TK_VSTR", "TK_VBIN", "TK_VARY", "TK_VOBJ", "TK_VKV",
 
-    "TK_EXTERN", "TK_CONST", "TK_LET", "TK_NEW", "TK_IMPORT", "TK_NAMESPACE", "TK_MODULE", "TK_CLASS", "TK_PRIVATE",
-    "TK_PROTECTED", "TK_PUBLIC", "TK_MIXIN", "TK_FUNC", "TK_NATIVE", "TK_SWITCH", "TK_CASE", "TK_DEFAULT", "TK_IF",
-    "TK_ELSE", "TK_DO", "TK_WHILE", "TK_FOR", "TK_IN", "TK_FORIN", "TK_RETURN", "TK_WHEN", "TK_BREAK",
-    "TK_CONTINUE", "TK_OTHERWISE", "TK_FALLTHROUGH", "TK_YIELD", "TK_TRY", "TK_CATCH", "TK_FINALLY", "TK_THROW",
+    "TK_EXTERN", "TK_ENUM", "TK_CONST", "TK_LET", "TK_NEW", "TK_IMPORT", "TK_NAMESPACE", "TK_MODULE", "TK_CLASS", "TK_PRIVATE",
+    "TK_PROTECTED", "TK_PUBLIC", "TK_MIXIN", "TK_FUNC", "TK_NATIVE", "TK_SWITCH", "TK_CASE", "TK_DEFAULT", "TK_OTHERWISE",
+    "TK_IF", "TK_ELSE", "TK_DO", "TK_WHILE", "TK_FOR", "TK_IN", "TK_FORIN", "TK_RETURN", "TK_WHEN", "TK_FALLTHROUGH",
+    "TK_BREAK", "TK_CONTINUE", "TK_YIELD", "TK_TRY", "TK_CATCH", "TK_FINALLY", "TK_THROW",
 
     "TK_BNOT", "TK_NOT",
 
@@ -336,6 +336,7 @@ static inline int check_keyword(kl_lexer *l)
         break;
     case 'e':
         if (strcmp(l->str, "else") == 0) return TK_ELSE;
+        if (strcmp(l->str, "enum") == 0) return TK_ENUM;
         if (strcmp(l->str, "extern") == 0) return TK_EXTERN;
         break;
     case 'f':

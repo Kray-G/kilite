@@ -177,6 +177,9 @@ static void disp_expr(kl_expr *e, int indent)
             } else {
                 printf("[$%d] %s%s:%s", index, sym->is_dot3 ? "..." : "", sym->name, typeidname(e->typeid));
             }
+            if (sym->has_i64) {
+                printf(", (i64:%" PRId64 ")", sym->i64);
+            }
             if (sym->typetree) {
                 printf(", ");
                 print_typenode(sym->typetree);
@@ -578,6 +581,12 @@ static void disp_stmt(kl_stmt *s, int indent)
             printf("()");
         }
         printf("\n");
+        break;
+    case TK_ENUM:
+        printf("enum\n");
+        if (s->e1) {
+            disp_expr(s->e1, indent + 1);
+        }
         break;
     case TK_CONST:
         printf("const\n");

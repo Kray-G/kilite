@@ -42,6 +42,7 @@ typedef enum tk_token {
 
     // Keywords
     TK_EXTERN,              //    extern
+    TK_ENUM,                //  * enum
     TK_CONST,               //  * const
     TK_LET,                 //  * let/var, and var is same as let. So it's different from JavaScript.
     TK_NEW,                 //    new
@@ -55,27 +56,27 @@ typedef enum tk_token {
     TK_MIXIN,               //    mixin
     TK_FUNC,                //  * func/function, which one you can choose as you like.
     TK_NATIVE,              //    native
-    TK_SWITCH,              //    switch
-    TK_CASE,                //    case
-    TK_DEFAULT,             //    default
+    TK_SWITCH,              //  * switch
+    TK_CASE,                //  * case
+    TK_DEFAULT,             //  * default
+    TK_OTHERWISE,           //  * otherwise
     TK_IF,                  //  * if
     TK_ELSE,                //  * else
     TK_DO,                  //  * do
     TK_WHILE,               //  * while
     TK_FOR,                 //  * for
-    TK_IN,                  //    in
-    TK_FORIN,               //    for-in
+    TK_IN,                  //  * in
+    TK_FORIN,               //  * for-in
     TK_RETURN,              //  * return
     TK_WHEN,                //    when
-    TK_BREAK,               //    break
-    TK_CONTINUE,            //    continue
-    TK_OTHERWISE,           //    otherwise
-    TK_FALLTHROUGH,         //    fallthrough
-    TK_YIELD,               //    yield
-    TK_TRY,                 //    try
-    TK_CATCH,               //    catch
-    TK_FINALLY,             //    finally
-    TK_THROW,               //    throw
+    TK_FALLTHROUGH,         //  * fallthrough
+    TK_BREAK,               //  * break
+    TK_CONTINUE,            //  * continue
+    TK_YIELD,               //  * yield
+    TK_TRY,                 //  * try
+    TK_CATCH,               //  * catch
+    TK_FINALLY,             //  * finally
+    TK_THROW,               //  * throw
 
     // Operators
         // Unary operators

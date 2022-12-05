@@ -2852,6 +2852,7 @@ static kl_kir_inst *gen_stmt(kl_context *ctx, kl_symbol *sym, kl_stmt *s)
         }
         break;
     }
+    case TK_ENUM:
     case TK_CONST:
     case TK_LET:
         if (s->e1) {

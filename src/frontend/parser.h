@@ -45,6 +45,8 @@ typedef struct kl_symbol {
     int pos;                        //  The pos in the source code.
     int blabel;                     //  The label to the destination of the end of the label.
     int clabel;                     //  The label to the destination of the continue point of the label.
+    int has_i64;                    //  true if the symbol is a literal constant value of 64 bit integer.
+    int64_t i64;                    //  The value when the symbol is a literal constant value of 64 bit integer.
     tk_token symtoken;              //  TK_VAR, TK_NAMESPACE, TK_CLASS, TK_MODULE, TK_FUNC, TK_PRIVATE, TK_PROTECTED, or TK_PUBLIC.
     tk_typeid typeid;               //  The variable type if this is a variable.
     tk_typeid rettype;              //  Return type if this is a function.
