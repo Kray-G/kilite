@@ -97,9 +97,6 @@ The target program is the 38th result of a fibonacci as usual.
 
 ### On Linux
 
-Now, I did benchmark with some script languages because even the current version of kilite can run the code like a fibonacci.
-That's why I'll show it below. The target program is the 38th result of a fibonacci as usual.
-
 |                    | Version           | Time   | Result   | Remark                           |
 | ------------------ | ----------------- | ------ | -------- | -------------------------------- |
 | C (-O3)            | gcc 11.2.0        | 0.062s | 39088169 | Simple C code.                   |
