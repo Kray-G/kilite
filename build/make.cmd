@@ -16,6 +16,7 @@ set TEMPF=%BIN%\libkilite.c
 
 @echo Generating a header source code...
 cl /nologo /O2 /MT ..\build\makecstr.c > NUL
+cl /nologo /O2 /MT ..\build\clockspersec.c > NUL
 type ..\src\template\lib\bign.h > %TEMPF%
 type ..\src\template\lib\bigz.h >> %TEMPF%
 type ..\src\template\lib\printf.h >> %TEMPF%
@@ -44,6 +45,7 @@ copy /y kilite.exe ..\kilite.exe > NUL
 
 @echo Creating a basic library...
 echo #define KILITE_AMALGAMATION > %TEMPF%
+clockspersec.exe >> %TEMPF%
 type ..\src\template\lib\bign.h >> %TEMPF%
 type ..\src\template\lib\bigz.h >> %TEMPF%
 echo #ifdef __MIRC__ >> %TEMPF%

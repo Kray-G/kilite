@@ -158,12 +158,14 @@ double SystemTimer_elapsed_impl(void *p)
 #ifndef NULL
 #define NULL ((void*)0)
 #endif
+#ifndef CLOCKS_PER_SEC
+#define CLOCKS_PER_SEC ((clock_t)1000)
+#endif
 extern void srand(unsigned);
 extern int rand(void);
 extern void *calloc(size_t, size_t);
 typedef long clock_t;
 extern clock_t clock(void);
-#define CLOCKS_PER_SEC  ((clock_t)1000)
 #endif
 
 typedef struct timer_ {
