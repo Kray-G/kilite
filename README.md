@@ -84,11 +84,13 @@ That's why I'll show it below. The target program is the 38th result of a fibona
 |                    | Version                | Time  | Result   | Remark                           |
 | ------------------ | ---------------------- | ----- | -------- | -------------------------------- |
 | C (-O3)            | gcc 8.1.0              | 0.14s | 39088169 | Simple C code.                   |
-| C (-O2)            | VS2019                 | 0.17s | 39088169 | Simple C code.                   |
 | Kilite(C compiled) | (beta/gcc MinGW 8.1.0) | 0.17s | 39088169 | Compiled the output from Kilite. |
+| C (-O2)            | VS2019                 | 0.18s | 39088169 | Simple C code.                   |
+| C (-O2)            | tcc 0.9.27             | 0.22s | 39088169 | Simple C code.                   |
 | Kilite(C compiled) | (beta/cl VS2019)       | 0.22s | 39088169 | Compiled the output from Kilite. |
 | luajit             | 2.1.0-beta3            | 0.35s | 39088169 | -                                |
 | PyPy               | 7.3.9                  | 0.40s | 39088169 | -                                |
+| Kilite(C compiled) | (beta/tcc 0.9.27)      | 0.53s | 39088169 | Compiled the output from Kilite. |
 | Kinx(native)       | 1.1.1                  | 0.57s | 39088169 | -                                |
 | Kilite             | (beta)                 | 0.68s | 39088169 | -                                |
 | Lua                | 5.4.4                  | 2.59s | 39088169 | -                                |
@@ -117,7 +119,9 @@ There is some differences between on Windows and on Linux, but luajit and PyPy w
 As for Kilite, this is almost the result that I wanted, but it could be slower by increasing the code in the future.
 I will try to keep the perfrmance even if the code would be more complex.
 
-The source code for each language is shown below.
+### Source Code
+
+The source codes for each language are shown below.
 
 #### Kinx/Kilite
 
