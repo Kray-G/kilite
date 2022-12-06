@@ -81,18 +81,20 @@ That's why I'll show it below. The target program is the 38th result of a fibona
 
 ### On Windows
 
-|                    | Version     | Time  | Result   | Remark                           |
-| ------------------ | ----------- | ----- | -------- | -------------------------------- |
-| C (-O2)            | VS2019      | 0.18s | 39088169 | Simple C code.                   |
-| Kilite(C compiled) | (beta)      | 0.22s | 39088169 | Compiled the output from Kilite. |
-| luajit             | 2.1.0-beta3 | 0.35s | 39088169 | -                                |
-| PyPy               | 7.3.9       | 0.42s | 39088169 | -                                |
-| Kinx(native)       | 1.1.1       | 0.57s | 39088169 | -                                |
-| Kilite             | (beta)      | 0.75s | 39088169 | -                                |
-| Lua                | 5.4.4       | 2.62s | 39088169 | -                                |
-| Ruby               | 3.1.2p20    | 4.14s | 39088169 | -                                |
-| Kinx               | 1.1.1       | 5.41s | 39088169 | -                                |
-| Python             | 3.11.0      | 6.28s | 39088169 | -                                |
+|                    | Version                | Time  | Result   | Remark                           |
+| ------------------ | ---------------------- | ----- | -------- | -------------------------------- |
+| C (-O3)            | gcc 8.1.0              | 0.14s | 39088169 | Simple C code.                   |
+| C (-O2)            | VS2019                 | 0.17s | 39088169 | Simple C code.                   |
+| Kilite(C compiled) | (beta/gcc MinGW 8.1.0) | 0.17s | 39088169 | Compiled the output from Kilite. |
+| Kilite(C compiled) | (beta/cl VS2019)       | 0.22s | 39088169 | Compiled the output from Kilite. |
+| luajit             | 2.1.0-beta3            | 0.35s | 39088169 | -                                |
+| PyPy               | 7.3.9                  | 0.40s | 39088169 | -                                |
+| Kinx(native)       | 1.1.1                  | 0.57s | 39088169 | -                                |
+| Kilite             | (beta)                 | 0.68s | 39088169 | -                                |
+| Lua                | 5.4.4                  | 2.59s | 39088169 | -                                |
+| Ruby               | 3.1.2p20               | 4.02s | 39088169 | -                                |
+| Kinx               | 1.1.1                  | 5.18s | 39088169 | -                                |
+| Python             | 3.11.0                 | 5.94s | 39088169 | -                                |
 
 ### On Linux
 
@@ -112,7 +114,7 @@ That's why I'll show it below. The target program is the 38th result of a fibona
 ### Result
 
 There is some differences between on Windows and on Linux, but luajit and PyPy was very fast and amazing. That's exactly JIT as expected.
-As for Kilite, this is almost the result as I wanted, but it could be slower by increasing the code in the future.
+As for Kilite, this is almost the result that I wanted, but it could be slower by increasing the code in the future.
 I will try to keep the perfrmance even if the code would be more complex.
 
 The source code for each language is shown below.

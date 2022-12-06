@@ -2077,16 +2077,16 @@ static kl_expr *parse_class_base_expression(kl_context *ctx, kl_lexer *l)
     return lhs;
 }
 
-static kl_stmt *add_sym2namespace(kl_context *ctx, kl_lexer *l, const char *classname)
+static kl_stmt *add_sym2namespace(kl_context *ctx, kl_lexer *l, const char *symname)
 {
     if (ctx->nsym && ctx->nsym->name) {        
         kl_stmt *s = make_stmt(ctx, l, TK_EXPR);
         s->e1 = make_bin_expr(ctx, l, TK_EQ,
             make_bin_expr(ctx, l, TK_DOT,
                 parse_expr_varname(ctx, l, ctx->nsym->name, 0),
-                make_str_expr(ctx, l, classname)
+                make_str_expr(ctx, l, symname)
             ),
-            parse_expr_varname(ctx, l, classname, 0)
+            parse_expr_varname(ctx, l, symname, 0)
         );
         return s;
     }
@@ -2264,6 +2264,12 @@ static kl_stmt *parse_module(kl_context *ctx, kl_lexer *l)
     ctx->scope = sym->scope;
     pop_nsstack(ctx);
     lexer_fetch(l);
+
+    /* append the module to namespace  */
+    kl_stmt *modulens = add_sym2namespace(ctx, l, sym->name);
+    if (modulens) {
+        connect_stmt(s, modulens);
+    }
     return s;
 }
 
@@ -2513,6 +2519,8 @@ static kl_stmt *parse_namespace(kl_context *ctx, kl_lexer *l)
         ns = make_stmt(ctx, l, TK_EXPR);
         ns->e1 = make_bin_expr(ctx, l, TK_EQ, parse_expr_varname(ctx, l, ctx->nsym->name, 0), make_expr(ctx, l, TK_VOBJ));
     }
+
+    /* return the namespace object. */
     kl_stmt *ret = make_stmt(ctx, l, TK_RETURN);
     ret->e1 = parse_expr_varname(ctx, l, ctx->nsym->name, 0);
     connect_stmt(ns, ret);
@@ -2580,6 +2588,10 @@ static kl_stmt *parse_statement(kl_context *ctx, kl_lexer *l)
         if (nsym) {
             kl_expr *v = parse_expr_varname(ctx, l, nsym->name, 0);
             e = make_bin_expr(ctx, l, TK_EQ, v, e);
+            kl_stmt *namespcns = add_sym2namespace(ctx, l, nsym->name);
+            if (namespcns) {
+                connect_stmt(r, namespcns);
+            }
         }
         r->e1 = e;
         break;
