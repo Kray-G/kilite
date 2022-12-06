@@ -224,7 +224,9 @@ typedef struct vmctx {
     int fstkp;
     vmfrm **fstk;
 
-    vmfnc *methodmissing;   /* Global methodMissing method. */
+    const char *lastapply;  /* For a class methodMissing method. */
+    vmobj *hostObject;      /* For a class methodMissing method. */
+    vmfnc *methodmissing;   /* For a global methodMissing method. */
     vmfnc *callee;          /* Callee function to manage a pure function. */
     vmvar *except;          /* Current exception that was thrown. */
     int exceptl;            /* The line where the exception occurred. */
@@ -321,15 +323,18 @@ typedef struct vmctx {
 #define push_var_f(ctx, v, label, func, file, line) push_var_def(ctx, label, func, file, line, { px->t = VAR_FNC; px->f = (v); })
 #define push_var_o(ctx, v, label, func, file, line) push_var_def(ctx, label, func, file, line, { px->t = VAR_OBJ; px->o = (v); })
 #define push_var_sys(ctx, v, fn, label, func, file, line) \
-    if (v->t == VAR_OBJ && v->o->is_sysobj) { \
-        if ((ctx)->vstksz <= (ctx)->vstkp) { \
-            e = throw_system_exception(__LINE__, ctx, EXCEPT_STACK_OVERFLOW, NULL); \
-            exception_addtrace(ctx, ctx->except, func, file, line); \
-            goto label; \
+    if (v->t == VAR_OBJ) { \
+        ctx->hostObject = v->o; \
+        if (v->o->is_sysobj) { \
+            if ((ctx)->vstksz <= (ctx)->vstkp) { \
+                e = throw_system_exception(__LINE__, ctx, EXCEPT_STACK_OVERFLOW, NULL); \
+                exception_addtrace(ctx, ctx->except, func, file, line); \
+                goto label; \
+            } \
+            vmvar *px = &(((ctx)->vstk)[((ctx)->vstkp)++]); \
+            SHCOPY_VAR_TO(ctx, px, v); \
+            ++fn; \
         } \
-        vmvar *px = &(((ctx)->vstk)[((ctx)->vstkp)++]); \
-        SHCOPY_VAR_TO(ctx, px, v); \
-        ++fn; \
     } \
     if (v->push) { \
         ++fn; \
@@ -435,16 +440,32 @@ typedef struct vmctx {
 
 /* Check if it's a function, exception. */
 #define CHECK_CALL(ctx, v, label, r, ac, func, file, line) { \
+    const char *lastapply = ctx->lastapply; \
+    ctx->lastapply = NULL; \
+    vmobj *host = ctx->hostObject; \
+    ctx->hostObject = NULL; \
     if ((v)->t == VAR_FNC) { \
         CALL((v)->f, ((v)->f)->lex, r, ac) \
     } else { \
-        if (ctx->methodmissing) { \
-             { push_var_s(ctx, "<global>", label, func, file, line); } \
-            CALL((ctx->methodmissing), (ctx->methodmissing)->lex, r, ac + 1) \
-        } else { \
-            e = throw_system_exception(__LINE__, ctx, EXCEPT_METHOD_MISSING, NULL); \
-            exception_addtrace(ctx, ctx->except, func, file, line); \
-            goto label; \
+        int done = 0; \
+        if (host && lastapply) { \
+            vmvar *mm = hashmap_search(host, "methodMissing"); \
+            if (mm && mm->t == VAR_FNC) { \
+                { push_var_s(ctx, lastapply, label, func, file, line); } \
+                { push_var_o(ctx, host, label, func, file, line); } \
+                CALL((mm->f), (mm->f)->lex, r, ac + 2) \
+                done = 1; \
+            } \
+        } \
+        if (!done) { \
+            if (ctx->methodmissing) { \
+                { push_var_s(ctx, "<global>", label, func, file, line); } \
+                CALL((ctx->methodmissing), (ctx->methodmissing)->lex, r, ac + 1) \
+            } else { \
+                e = throw_system_exception(__LINE__, ctx, EXCEPT_METHOD_MISSING, NULL); \
+                exception_addtrace(ctx, ctx->except, func, file, line); \
+                goto label; \
+            } \
         } \
     } \
 } \
@@ -869,6 +890,7 @@ typedef struct vmctx {
 /* Object control */
 
 #define OP_HASH_APPLY_OBJ(ctx, r, t1, str) { \
+    ctx->lastapply = str; \
     if ((t1)->o) { \
         vmvar *t2 = hashmap_search((t1)->o, str); \
         if (!t2) { \
@@ -900,6 +922,7 @@ typedef struct vmctx {
     case VAR_BIN: \
         break; \
     case VAR_OBJ: \
+        ctx->lastapply = str; \
         if (t1->o) { \
             t2 = hashmap_search(t1->o, str); \
             if (t2) { \

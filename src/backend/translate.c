@@ -947,7 +947,7 @@ static void translate_mov(func_context *fctx, xstr *code, kl_kir_inst *i)
     case TK_FUNC:
         xstra_inst(code, "vmfnc *f%d = alcfnc(ctx, %s, frm, \"%s\", 0);\n", i->r2.funcid, i->r2.name, i->r2.str);
         xstra_inst(code, "SET_FNC(%s, f%d);\n", buf1, i->r2.funcid);
-        if (strcmp(i->r2.name, "methodMissing") == 0) {
+        if (strcmp(i->r2.name, "methodMissing") == 0 || strcmp(i->r2.name, "kl_methodMissing") == 0) {
             xstra_inst(code, "ctx->methodmissing = f%d;\n", i->r2.funcid);
         }
         break;
