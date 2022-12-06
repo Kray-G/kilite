@@ -67,7 +67,9 @@ type ..\src\template\bigi.c >> %TEMPF%
 type ..\src\template\str.c >> %TEMPF%
 type ..\src\template\obj.c >> %TEMPF%
 type ..\src\template\op.c >> %TEMPF%
+type ..\src\template\lib.h >> %TEMPF%
 type ..\src\template\libstd.c >> %TEMPF%
+type ..\src\template\libxml.c >> %TEMPF%
 type ..\src\template\inc\platform.c >> %TEMPF%
 pushd ..\src\template\std
 kilite.exe --makelib callbacks.klt >> %TEMPF%

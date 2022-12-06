@@ -765,7 +765,8 @@ static inline int translate_escape(kl_lexer *l)
     state 2:    returns '+' and state -> 3
     state 3:    returns '(' and state -> 9
     state 4:    returns '+' and state -> 1
-    state 5:    returns ')' and state -> 0
+    state 5:    returns ')' and state -> (next-ch == '"') ? 6 : 0
+    state 6:    return '+' and state -> 0
     state 9:    parsing normally with counting '{', and if finding '}' and counted == 0 then returns ')' and state -> 4
 */
 static int get_string(kl_lexer *l)
@@ -816,8 +817,11 @@ static int get_string(kl_lexer *l)
         return TK_ADD;
 
     case 5:
-        l->strstate = 0;
         lexer_getch(l);
+        while (is_whitespace(l->ch)) {
+            lexer_getch(l); // skip a whitespace.
+        }
+        l->strstate = (l->ch == '"') ? 6 : 0;
         return TK_RSBR;
     }
 
@@ -829,7 +833,10 @@ static tk_token lexer_fetch_token(kl_lexer *l)
 {
     l->str[0] = 0;
 
-    if (l->strstate != 9 && l->strstate > 0) {
+    if (l->strstate == 6) {
+        l->strstate = 0;
+        return TK_ADD;
+    } else if (l->strstate != 9 && l->strstate > 0) {
         return get_string(l);
     }
 

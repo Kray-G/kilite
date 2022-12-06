@@ -70,7 +70,9 @@ cat ../src/template/bigi.c >> $TEMPF
 cat ../src/template/str.c >> $TEMPF
 cat ../src/template/obj.c >> $TEMPF
 cat ../src/template/op.c >> $TEMPF
+cat ../src/template/lib.h >> $TEMPF
 cat ../src/template/libstd.c >> $TEMPF
+cat ../src/template/libxml.c >> $TEMPF
 cat ../src/template/inc/platform.c >> $TEMPF
 cd ../src/template/std
 $BIN/kilite --makelib callbacks.klt >> $TEMPF

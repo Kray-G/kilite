@@ -498,6 +498,7 @@ int main(int ac, char **av)
         "extern RuntimeException();"
         "extern Integer; extern Double; extern String; extern Binary; extern Array;"
         "const Object = Array;"
+        "extern XmlDom;"
         "\n";
 
     kl_context *ctx = parser_new_context();

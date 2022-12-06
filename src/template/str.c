@@ -48,6 +48,21 @@ void print_escape_str(vmstr *vs)
     }
 
     while (*s) {
+        if (*s == '\n') {
+            printf("\\n");
+            ++s;
+            continue;
+        }
+        if (*s == '\r') {
+            printf("\\r");
+            ++s;
+            continue;
+        }
+        if (*s == '\t') {
+            printf("\\t");
+            ++s;
+            continue;
+        }
         if (*s == '"' || *s == '\\') {
             printf("\\");
         }

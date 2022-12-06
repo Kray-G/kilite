@@ -1,35 +1,7 @@
 #ifndef KILITE_AMALGAMATION
 #include "common.h"
+#include "lib.h"
 #endif
-
-/* check argument's type if it's specified */
-#define DEF_ARG(a0, n, type) \
-    if (ac < (n+1)) { \
-        return throw_system_exception(__LINE__, ctx, EXCEPT_TOO_FEW_ARGUMENTS, NULL); \
-    } \
-    vmvar *a0 = local_var(ctx, n); \
-    if (a0->t != type) { \
-        return throw_system_exception(__LINE__, ctx, EXCEPT_TYPE_MISMATCH, NULL); \
-    } \
-/**/
-#define DEF_ARG_ANY(a0, n) \
-    vmvar *a0 = (ac > n) ? local_var(ctx, n) : alcvar_initial(ctx); \
-/**/
-#define DEF_ARG_INT(a0, n) \
-    if (ac < (n+1)) { \
-        return throw_system_exception(__LINE__, ctx, EXCEPT_TOO_FEW_ARGUMENTS, NULL); \
-    } \
-    vmvar *a0 = local_var(ctx, n); \
-    if (a0->t != VAR_INT64 && a0->t != VAR_BIG) { \
-        return throw_system_exception(__LINE__, ctx, EXCEPT_TYPE_MISMATCH, NULL); \
-    } \
-/**/
-#define DEF_ARG_OR_UNDEF(a0, n, type) \
-    vmvar *a0 = (ac > n) ? local_var(ctx, n) : alcvar_initial(ctx); \
-    if (a0->t != type && a0->t != VAR_UNDEF) { \
-        return throw_system_exception(__LINE__, ctx, EXCEPT_TYPE_MISMATCH, NULL); \
-    } \
-/**/
 
 /* This is the prototype that the functions written here will need. */
 
@@ -258,6 +230,12 @@ int TooDeepException(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     return 0;
 }
 
+int XmlErrorException(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    RuntimeException_create(ctx, lex, r, "XmlErrorException", ctx->msgbuf ? ctx->msgbuf : "Xml error");
+    return 0;
+}
+
 /* Make exception */
 
 int throw_system_exception(int line, vmctx *ctx, int id, const char *msg)
@@ -306,6 +284,9 @@ int throw_system_exception(int line, vmctx *ctx, int id, const char *msg)
         break;
     case EXCEPT_TOO_DEEP:
         TooDeepException(ctx, NULL, r, 0);
+        break;
+    case EXCEPT_XML_ERROR:
+        XmlErrorException(ctx, NULL, r, 0);
         break;
     default:
         RuntimeException_create(ctx, NULL, r, "SystemException", msg ? msg : "Unknown exception");
@@ -1201,7 +1182,7 @@ static int Array_flatten(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     return Array_flatten_impl(ctx, r, a0, 0);
 }
 
-int Object_keys(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+static int Object_keys(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     DEF_ARG(a0, 0, VAR_OBJ);
     vmobj *keys = object_get_keys(ctx, a0->o);

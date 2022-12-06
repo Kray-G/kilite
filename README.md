@@ -231,7 +231,7 @@ I will note the followings as I don't forget it.
   * [x] Namespaces, classes, modules, functions, inheritance, and mix-in mechanism.
     * [x] Namespace works.
     * [x] Class definition.
-      * [x] Call `initialize` method when creating the instance if the method exists.
+      * [x] Call the `initialize` method when creating the instance if the method exists.
       * [x] Support the `instanceOf` method.
     * [x] The `new` operator.
     * [x] Module definition.
@@ -242,21 +242,35 @@ I will note the followings as I don't forget it.
     * [x] Stack trace.
     * [x] `try`, `catch`, and `finally`.
     * [x] MethodMissing for global scope.
-    * [ ] MethodMissing for class methods.
+    * [x] MethodMissing for class methods.
   * [ ] Special object.
     * [ ] Integer
     * [ ] String
     * [ ] Binary
     * [ ] Array/Object
 * [ ] Notes for a special specifications of the language.
+  * [x] Formatter object.
   * [x] The last argument of function call could be outside arguments list if it's a block.
   * [x] Destructuring assignment.
     * [x] Pattern matching in assignment.
     * [x] Destructuring assignment in function arguments.
   * [ ] `case-when` expression.
-  * [x] Formatter object.
+  * [ ] Pipeline operators like `|>`.
+  * [x] `__FILE__`, `__LINE__`, `__FUNC__`.
+  * [ ] `__END__`.
+  * [ ] Here document.
 * [ ] Libraries support.
-  * [ ] Useful Libraries like Zip, Xml, PDF, or something.
+  * [ ] Useful Libraries like below.
+    * [ ] Zip
+    * [ ] Xml
+    * [ ] PDF
+* [ ] Others.
+  * [ ] Direct calling a C code.
+  * [ ] REPL.
+    * [ ] `eval()`.
+      * *Note that this method can be used only in the scripting mode.
+        It means it will be difficult to use in the translated C code and compile it.*
+    * [ ] REPL environment itself.
 
 There could be something I've forgotten. I'll add it when I remember it.
 
