@@ -263,7 +263,7 @@ static int parse_long_options(int ac, char **av, int *i, kl_argopts *opts)
             fprintf(stderr, "Error unsupported compiler: %s\n", opts->ccname);
             fprintf(stderr, "    supported: %s", cclist[1].cc);
             for (int i = 2; i < count; ++i) {
-                fprintf(stderr, ", %s\n", cclist[i].cc);
+                fprintf(stderr, ", %s", cclist[i].cc);
             }
             fprintf(stderr, "\n");
             return OPT_ERROR;
@@ -429,8 +429,10 @@ int make_executable(kl_argopts *opts, const char *s)
 
     int r = 0;
     char ccopt[32] = {0};
-    snprintf(ccopt, 30, "%c%s", cclist[opts->cc].optch,
-        opts->ccopt ? opts->ccopt : cclist[opts->cc].opt);
+    const char *optlevel = opts->ccopt ? opts->ccopt : cclist[opts->cc].opt;
+    if (optlevel && optlevel[0] != 0) {
+        snprintf(ccopt, 30, "%c%s", cclist[opts->cc].optch, optlevel);
+    }
 
     char libsuf[32] = {0};
     printf("Temp path: %s\n", temppath);
