@@ -313,6 +313,20 @@ static inline int check_keyword(kl_lexer *l)
 {
     int hc = l->str[0];
     switch (hc) {
+    case '_':
+        if (strcmp(l->str, "__LINE__") == 0) {
+            l->i64 = l->tokline;
+            return TK_VSINT;
+        }
+        if (strcmp(l->str, "__FILE__") == 0) {
+            strncpy(l->str, l->filename, LEXER_STRBUF_SZ-2);
+            return TK_VSTR;
+        }
+        if (strcmp(l->str, "__FUNC__") == 0) {
+            strncpy(l->str, l->funcname ? l->funcname : "_$unknown", LEXER_STRBUF_SZ-2);
+            return TK_VSTR;
+        }
+        break;
     case 'a':
         if (strcmp(l->str, "array") == 0) return set_type(l, TK_TYPEID, TK_TOBJ);
         break;

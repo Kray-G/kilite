@@ -242,6 +242,7 @@ static void disp_expr(kl_expr *e, int indent)
     case TK_RSHEQ:
     case TK_LANDEQ:
     case TK_LOREQ:
+    case TK_NULLCEQ:
     case TK_REGEQ:
     case TK_REGNE:
     case TK_EQEQ:
@@ -264,6 +265,7 @@ static void disp_expr(kl_expr *e, int indent)
     case TK_RSH:
     case TK_LAND:
     case TK_LOR:
+    case TK_NULLC:
     case TK_IDX:
     case TK_DOT:
     case TK_COMMA:

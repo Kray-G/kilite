@@ -123,7 +123,7 @@ static inline int append_constructor_name(char *buf, int pos)
     return pos;
 }
 
-static char *make_func_name(kl_context *ctx, kl_lexer *l, const char *str, tk_token type)
+static char *make_func_name(kl_context *ctx, kl_lexer *l, const char *str, tk_token type, int id)
 {
     char buf[1024] = {0};
     int pos = 0;
@@ -133,8 +133,8 @@ static char *make_func_name(kl_context *ctx, kl_lexer *l, const char *str, tk_to
     } else {
         kl_nsstack *n = ctx->ns;
         if ((ctx->options & PARSER_OPT_MAKELIB) == 0) {
-            strcpy(buf + pos, "kl_");
-            pos += 3;
+            sprintf(buf, "kl%03d_", id);
+            pos = 6;
         }
         strcpy(buf + pos, str);
         pos += len;
@@ -271,6 +271,20 @@ static inline void add_sym2method(kl_symbol *scope, kl_symbol *sym)
     }
 }
 
+static inline const char *make_class_func_name(kl_context *ctx, kl_lexer *l, const char *name)
+{
+    kl_symbol *sym = ctx->scope;
+    if (sym) {
+        sym = sym->scope;
+        if (sym && sym->symtoken == TK_CLASS) {
+            char buf[1024] = {0};
+            sprintf(buf, "%s#%s", sym->name, name);
+            return parse_const_str(ctx, l, buf);
+        }
+    }
+    return parse_const_str(ctx, l, name);
+}
+
 static inline kl_symbol *search_symbol_in_scope(kl_context *ctx, kl_lexer *l, kl_nsstack *ns, const char *name)
 {
     kl_symbol *ref = ns->list;
@@ -298,6 +312,7 @@ static inline kl_symbol *make_ref_symbol(kl_context *ctx, kl_lexer *l, tk_token 
             sym->line = l->tokline;
             sym->pos = l->tokpos;
             sym->ref = ref;
+            sym->name = ref->name;
             sym->index = ref->index;
             sym->level = level;
             sym->typeid = ref->typeid;
@@ -1999,7 +2014,7 @@ static kl_stmt *make_instanceof(kl_context *ctx, kl_lexer *l, const char *cname,
 
     /* The name is not needed for function */
     sym->name = parse_const_str(ctx, l, "instanceOf");
-    sym->funcname = make_func_name(ctx, l, "instanceOf", 0);
+    sym->funcname = make_func_name(ctx, l, "instanceOf", 0, sym->funcid);
     add_sym2method(ctx->scope, sym);
 
     /* Push the scope */
@@ -2077,13 +2092,16 @@ static kl_expr *parse_class_base_expression(kl_context *ctx, kl_lexer *l)
     return lhs;
 }
 
-static kl_stmt *add_sym2namespace(kl_context *ctx, kl_lexer *l, const char *symname)
+static kl_stmt *add_sym2namespace(kl_context *ctx, kl_lexer *l, kl_symbol *nsym, const char *symname)
 {
-    if (ctx->nsym && ctx->nsym->name) {        
+    if (!nsym) {
+        nsym = ctx->nsym;
+    }
+    if (nsym && nsym->name) {        
         kl_stmt *s = make_stmt(ctx, l, TK_EXPR);
-        s->e1 = make_bin_expr(ctx, l, TK_EQ,
+        s->e1 = make_bin_expr(ctx, l, TK_NULLCEQ,
             make_bin_expr(ctx, l, TK_DOT,
-                parse_expr_varname(ctx, l, ctx->nsym->name, 0),
+                parse_expr_varname(ctx, l, nsym->name, 0),
                 make_str_expr(ctx, l, symname)
             ),
             parse_expr_varname(ctx, l, symname, 0)
@@ -2111,7 +2129,7 @@ static kl_stmt *parse_class(kl_context *ctx, kl_lexer *l)
         return s;
     }
     sym->name = parse_const_str(ctx, l, l->str);
-    sym->funcname = make_func_name(ctx, l, sym->name, TK_CLASS);
+    sym->funcname = make_func_name(ctx, l, sym->name, TK_CLASS, sym->funcid);
 
     /* Push the scope */
     kl_nsstack *n = make_nsstack(ctx, l, sym->name, TK_CLASS);
@@ -2197,7 +2215,7 @@ static kl_stmt *parse_class(kl_context *ctx, kl_lexer *l)
     lexer_fetch(l);
 
     /* append the class to namespace  */
-    kl_stmt *classns = add_sym2namespace(ctx, l, sym->name);
+    kl_stmt *classns = add_sym2namespace(ctx, l, NULL, sym->name);
     if (classns) {
         connect_stmt(s, classns);
     }
@@ -2231,7 +2249,7 @@ static kl_stmt *parse_module(kl_context *ctx, kl_lexer *l)
         return s;
     }
     sym->name = parse_const_str(ctx, l, l->str);
-    sym->funcname = make_func_name(ctx, l, sym->name, TK_MODULE);
+    sym->funcname = make_func_name(ctx, l, sym->name, TK_MODULE, sym->funcid);
 
     /* Push the scope */
     kl_nsstack *n = make_nsstack(ctx, l, sym->name, TK_CLASS);
@@ -2266,7 +2284,7 @@ static kl_stmt *parse_module(kl_context *ctx, kl_lexer *l)
     lexer_fetch(l);
 
     /* append the module to namespace  */
-    kl_stmt *modulens = add_sym2namespace(ctx, l, sym->name);
+    kl_stmt *modulens = add_sym2namespace(ctx, l, NULL, sym->name);
     if (modulens) {
         connect_stmt(s, modulens);
     }
@@ -2281,15 +2299,17 @@ static kl_expr *parse_block_function(kl_context *ctx, kl_lexer *l, int is_block)
     sym->funcid = ++ctx->funcid;
     sym->is_callable = 1;
     sym->name = parse_const_funcidname(ctx, l, sym->funcid);
-    sym->funcname = make_func_name(ctx, l, sym->name, 0);
+    sym->funcname = make_func_name(ctx, l, sym->name, 0, sym->funcid);
     add_sym2method(ctx->scope, sym);
 
     /* Push the scope */
-    kl_nsstack *n = make_nsstack(ctx, l, sym->name ? sym->name : "anonymous func", TK_FUNC);
+    kl_nsstack *n = make_nsstack(ctx, l, sym->name, TK_FUNC);
     push_nsstack(ctx, n);
     ctx->scope->has_func = 1;
     sym->scope = ctx->scope;
     ctx->scope = sym;
+    const char *prevfunc = l->funcname;
+    l->funcname = make_class_func_name(ctx, l, sym->name);
 
     if (l->tok == TK_AND) {
         lexer_fetch(l);
@@ -2335,6 +2355,7 @@ static kl_expr *parse_block_function(kl_context *ctx, kl_lexer *l, int is_block)
         lexer_fetch(l);
     }
 
+    l->funcname = prevfunc;
     sym->prototype = create_prototype(ctx, l, sym);
     ctx->scope = sym->scope;
     pop_nsstack(ctx);
@@ -2349,15 +2370,17 @@ static kl_expr *parse_anonymous_function(kl_context *ctx, kl_lexer *l)
     sym->funcid = ++ctx->funcid;
     sym->is_callable = 1;
     sym->name = parse_const_funcidname(ctx, l, sym->funcid);
-    sym->funcname = make_func_name(ctx, l, sym->name, 0);
+    sym->funcname = make_func_name(ctx, l, sym->name, 0, sym->funcid);
     add_sym2method(ctx->scope, sym);
 
     /* Push the scope */
-    kl_nsstack *n = make_nsstack(ctx, l, sym->name ? sym->name : "anonymous func", TK_FUNC);
+    kl_nsstack *n = make_nsstack(ctx, l, sym->name, TK_FUNC);
     push_nsstack(ctx, n);
     ctx->scope->has_func = 1;
     sym->scope = ctx->scope;
     ctx->scope = sym;
+    const char *prevfunc = l->funcname;
+    l->funcname = make_class_func_name(ctx, l, sym->name);
 
     /* Function arguments */
     if (l->tok != TK_LSBR) {
@@ -2390,6 +2413,7 @@ static kl_expr *parse_anonymous_function(kl_context *ctx, kl_lexer *l)
         }
     }
 
+    l->funcname = prevfunc;
     sym->prototype = create_prototype(ctx, l, sym);
     ctx->scope = sym->scope;
     pop_nsstack(ctx);
@@ -2411,14 +2435,14 @@ static kl_stmt *parse_function(kl_context *ctx, kl_lexer *l, tk_token funcscope)
     /* The name is not needed for function */
     if (l->tok == TK_NAME) {
         sym->name = parse_const_str(ctx, l, l->str);
-        sym->funcname = make_func_name(ctx, l, l->str, 0);
+        sym->funcname = make_func_name(ctx, l, l->str, 0, sym->funcid);
         if (ctx->scope->symtoken == TK_CLASS && strcmp(sym->name, "initialize") == 0) {
             ctx->scope->initer = sym;
         }
         lexer_fetch(l);
     } else {
         sym->name = parse_const_funcidname(ctx, l, sym->funcid);
-        sym->funcname = make_func_name(ctx, l, sym->name, 0);
+        sym->funcname = make_func_name(ctx, l, sym->name, 0, sym->funcid);
     }
     add_sym2method(ctx->scope, sym);
 
@@ -2428,6 +2452,8 @@ static kl_stmt *parse_function(kl_context *ctx, kl_lexer *l, tk_token funcscope)
     ctx->scope->has_func = 1;
     sym->scope = ctx->scope;
     ctx->scope = sym;
+    const char *prevfunc = l->funcname;
+    l->funcname = make_class_func_name(ctx, l, sym->name);
 
     /* Function arguments */
     if (l->tok != TK_LSBR) {
@@ -2466,6 +2492,7 @@ static kl_stmt *parse_function(kl_context *ctx, kl_lexer *l, tk_token funcscope)
         }
     }
 
+    l->funcname = prevfunc;
     sym->prototype = create_prototype(ctx, l, sym);
     ctx->scope = sym->scope;
     pop_nsstack(ctx);
@@ -2480,24 +2507,38 @@ static kl_stmt *parse_namespace(kl_context *ctx, kl_lexer *l)
 {
     DEBUG_PARSER_PHASE();
     kl_stmt *s = make_stmt(ctx, l, TK_NAMESPACE);
-    kl_symbol *sym = make_symbol(ctx, l, TK_NAMESPACE, 0);
-    s->sym = sym;
 
-    kl_nsstack *n = make_nsstack(ctx, l, l->tok == TK_NAME ? l->str : "anonymous ns", TK_NAMESPACE);
+    /* No name is okay for namespace */
+    const char *nsname;
+    if (l->tok == TK_NAME) {
+        nsname = parse_const_str(ctx, l, l->str);
+        lexer_fetch(l);
+    } else {
+        nsname = parse_const_str(ctx, l, "_anonymousns");
+    }
+
+    /* Check if the namespace was declared before. */
+    int ns_already = 1;
+    kl_symbol *sym = make_ref_symbol(ctx, l, TK_VAR, nsname);
+    if (!sym) {
+        ns_already = 0;
+        sym = make_symbol(ctx, l, TK_NAMESPACE, 0);
+    }
+    s->sym = sym;
+    sym->funcid = ++ctx->funcid;
+    sym->name = nsname;
+    sym->funcname = make_func_name(ctx, l, sym->name, 0, sym->funcid);
+
+    kl_symbol *nsym = ctx->nsym;
+    ctx->nsym = make_ref_symbol(ctx, l, TK_VAR, sym->name);
+    /* ctx->nsym must not be NULL. */
+
+    /* Scope in */
+    kl_nsstack *n = make_nsstack(ctx, l, sym->name, TK_NAMESPACE);
     push_nsstack(ctx, n);
     ctx->scope->has_func = 1;
     sym->scope = ctx->scope;
     ctx->scope = sym;
-
-    /* No name is okay for namespace */
-    if (l->tok == TK_NAME) {
-        sym->name = parse_const_str(ctx, l, l->str);
-        lexer_fetch(l);
-    }
-
-    kl_symbol *nsym = ctx->nsym;
-    ctx->nsym = make_symbol(ctx, l, TK_VAR, 0);
-    ctx->nsym->name = parse_const_str(ctx, l, sym->name ? sym->name : "_$ns");
 
     /* Namespace statement */
     if (l->tok != TK_LXBR) {
@@ -2505,31 +2546,45 @@ static kl_stmt *parse_namespace(kl_context *ctx, kl_lexer *l)
         return s;
     }
     lexer_fetch(l);
+    kl_stmt *namespcns = (ns_already || !nsym) ? NULL : add_sym2namespace(ctx, l, nsym, sym->name);
     kl_stmt *ns;
     if (l->tok != TK_RXBR) {
         kl_stmt *st = parse_statement_list(ctx, l);
+        if (namespcns) {
+            connect_stmt(namespcns, st);
+            st = namespcns;
+        }
         if (l->tok != TK_RXBR) {
             parse_error(ctx, __LINE__, l, "The '}' is missing");
             return s;
         }
-        ns = make_stmt(ctx, l, TK_EXPR);
-        ns->e1 = make_bin_expr(ctx, l, TK_EQ, parse_expr_varname(ctx, l, ctx->nsym->name, 0), make_expr(ctx, l, TK_VOBJ));
-        connect_stmt(ns, st);
+        if (ns_already) {
+            ns = st;
+        } else {
+            ns = make_stmt(ctx, l, TK_EXPR);
+            ns->e1 = make_bin_expr(ctx, l, TK_NULLCEQ, parse_expr_varname(ctx, l, ctx->nsym->name, 0), make_expr(ctx, l, TK_VOBJ));
+            connect_stmt(ns, st);
+        }
     } else {
-        ns = make_stmt(ctx, l, TK_EXPR);
-        ns->e1 = make_bin_expr(ctx, l, TK_EQ, parse_expr_varname(ctx, l, ctx->nsym->name, 0), make_expr(ctx, l, TK_VOBJ));
+        if (ns_already) {
+            ns = namespcns;
+        } else {
+            ns = make_stmt(ctx, l, TK_EXPR);
+            ns->e1 = make_bin_expr(ctx, l, TK_NULLCEQ, parse_expr_varname(ctx, l, ctx->nsym->name, 0), make_expr(ctx, l, TK_VOBJ));
+            if (namespcns) {
+                connect_stmt(ns, namespcns);
+            }
+        }
     }
 
-    /* return the namespace object. */
-    kl_stmt *ret = make_stmt(ctx, l, TK_RETURN);
-    ret->e1 = parse_expr_varname(ctx, l, ctx->nsym->name, 0);
-    connect_stmt(ns, ret);
+    /* namespace statements */
     sym->body = s->s1 = ns;
 
-    ctx->nsym = nsym;
     ctx->scope = sym->scope;
     pop_nsstack(ctx);
     lexer_fetch(l);
+    ctx->nsym = nsym;
+
     return s;
 }
 
@@ -2585,14 +2640,6 @@ static kl_stmt *parse_statement(kl_context *ctx, kl_lexer *l)
         e->s = r;
         e = make_bin_expr(ctx, l, TK_CALL, e, NULL);
         r = make_stmt(ctx, l, TK_EXPR);
-        if (nsym) {
-            kl_expr *v = parse_expr_varname(ctx, l, nsym->name, 0);
-            e = make_bin_expr(ctx, l, TK_EQ, v, e);
-            kl_stmt *namespcns = add_sym2namespace(ctx, l, nsym->name);
-            if (namespcns) {
-                connect_stmt(r, namespcns);
-            }
-        }
         r->e1 = e;
         break;
     }

@@ -18,6 +18,7 @@
  */
 typedef struct kl_lexer {
     const char *filename;
+    const char *funcname;
     FILE *f;
     char *s;
     char *p;

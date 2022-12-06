@@ -69,10 +69,10 @@ namespace B {
     var x = new A.B.X();    // A.B.X is an available symbol in this scope.
     x.x();
 
-    var x = new B.X();      // B.X is an available symbol in this scope.
+    x = new B.X();      // B.X is an available symbol in this scope.
     x.x();
 
-    var x = new X();        // X is an available symbol in this scope.
+    x = new X();        // X is an available symbol in this scope.
     x.x();
 
 } /* namespace B */
