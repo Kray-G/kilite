@@ -108,11 +108,11 @@ Kinx goal is to become a glue between libraries, and Kinx will include many of u
 This is not a library but basic methods for a primitive data type,
 but the description is included in this section because its feature is near a library.
 
-*   [Integer](spec/lib/primitive/integer.md)
-*   [Double](spec/lib/primitive/double.md)
-*   [String](spec/lib/primitive/string.md)
-*   [Binary](spec/lib/primitive/binary.md)
-*   [Array](spec/lib/primitive/array.md)
+*   [Integer](lib/primitive/integer.md)
+*   [Double](lib/primitive/double.md)
+*   [String](lib/primitive/string.md)
+*   [Binary](lib/primitive/binary.md)
+*   [Array](lib/primitive/array.md)
 
 #### Functions
 
