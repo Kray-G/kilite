@@ -11,6 +11,7 @@ set BIN=%CD%
 set PATH=%PATH%;%BIN%
 if not exist mir_static.lib call ..\build\mir_vs2019.cmd
 if not exist mir_static.lib goto ERROR
+del libkilite.a
 
 set TEMPF=%BIN%\libkilite.c
 
@@ -57,19 +58,33 @@ type ..\src\template\lib\bigz.c >> %TEMPF%
 echo #ifdef __MIRC__ >> %TEMPF%
 type ..\src\template\lib\printf.c >> %TEMPF%
 echo #endif >> %TEMPF%
+echo #line 1 "alloc.c" >> %TEMPF%
 type ..\src\template\alloc.c >> %TEMPF%
+echo #line 1 "gc.c" >> %TEMPF%
 type ..\src\template\gc.c >> %TEMPF%
+echo #line 1 "init.c" >> %TEMPF%
 type ..\src\template\init.c >> %TEMPF%
+echo #line 1 "main.c" >> %TEMPF%
 type ..\src\template\main.c >> %TEMPF%
+echo #line 1 "util.c" >> %TEMPF%
 type ..\src\template\util.c >> %TEMPF%
+echo #line 1 "format.c" >> %TEMPF%
 type ..\src\template\format.c >> %TEMPF%
+echo #line 1 "bigi.c" >> %TEMPF%
 type ..\src\template\bigi.c >> %TEMPF%
+echo #line 1 "str.c" >> %TEMPF%
 type ..\src\template\str.c >> %TEMPF%
+echo #line 1 "obj.c" >> %TEMPF%
 type ..\src\template\obj.c >> %TEMPF%
+echo #line 1 "op.c" >> %TEMPF%
 type ..\src\template\op.c >> %TEMPF%
+echo #line 1 "lib.h" >> %TEMPF%
 type ..\src\template\lib.h >> %TEMPF%
+echo #line 1 "libstd.c" >> %TEMPF%
 type ..\src\template\libstd.c >> %TEMPF%
+echo #line 1 "libxml.c" >> %TEMPF%
 type ..\src\template\libxml.c >> %TEMPF%
+echo #line 1 "inc/platform.c" >> %TEMPF%
 type ..\src\template\inc\platform.c >> %TEMPF%
 pushd ..\src\template\std
 kilite.exe --makelib callbacks.klt >> %TEMPF%
