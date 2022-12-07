@@ -4,3 +4,6 @@
 [submodule "submodules/minizip-ng"]
 	path = submodules/minizip-ng
 	url = https://github.com/Kray-G/minizip-ng.git
+[submodule "submodules/zlib"]
+	path = submodules/zlib
+	url = https://github.com/Kray-G/zlib.git
