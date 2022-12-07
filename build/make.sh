@@ -104,7 +104,7 @@ $BIN/kilite --makelib callbacks.klt >> $TEMPF
 cd $BIN
 
 echo Generating a static library file for gcc...
-gcc -O3 -DUSE_INT64 -o ${TEMPF/.c/.o} -I lib -Wno-unused-result -c $TEMPF
+gcc -O3 -D_LARGEFILE64_SOURCE=1 -DUSE_INT64 -o ${TEMPF/.c/.o} -I lib -Wno-unused-result -c $TEMPF
 ar rcs libkilite.a ${TEMPF/.c/.o}
 cp -f libkilite.a ../libkilite.a
 ./c2m -DUSE_INT64 -I lib -c $TEMPF
