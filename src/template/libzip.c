@@ -478,7 +478,6 @@ static int Zip_open(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 int Zip(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     vmobj *o = alcobj(ctx);
-    ctx->s = o;
     KL_SET_METHOD(o, open, Zip_open, lex, 1);
     KL_SET_METHOD(o, create, Zip_open, lex, 1);
     KL_SET_METHOD(o, zip, Zip_create, lex, 1)

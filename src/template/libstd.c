@@ -1019,6 +1019,13 @@ static int Integer_toString(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     return 0;
 }
 
+int Integer_abs(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    DEF_ARG(v1, 0, VAR_INT64)
+    SET_I64((r), v1->i < 0 ? -(v1->i) : v1->i);
+    return 0;
+}
+
 extern int Integer_times(vmctx *ctx, vmfrm *lex, vmvar *r, int ac);
 extern int Integer_upto(vmctx *ctx, vmfrm *lex, vmvar *r, int ac);
 extern int Integer_downto(vmctx *ctx, vmfrm *lex, vmvar *r, int ac);
@@ -1050,6 +1057,7 @@ int Integer(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     KL_SET_METHOD(o, pow, Math_pow, lex, 2)
     KL_SET_METHOD(o, sqrt, Math_sqrt, lex, 1)
     KL_SET_METHOD(o, ceil, Math_ceil, lex, 1)
+    KL_SET_METHOD(o, abs, Integer_abs, lex, 1)
     KL_SET_METHOD(o, fabs, Math_fabs, lex, 1)
     KL_SET_METHOD(o, floor, Math_floor, lex, 1)
     KL_SET_METHOD(o, fmod, Math_fmod, lex, 2)
@@ -1081,6 +1089,7 @@ int Double(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     KL_SET_METHOD(o, pow, Math_pow, lex, 2)
     KL_SET_METHOD(o, sqrt, Math_sqrt, lex, 1)
     KL_SET_METHOD(o, ceil, Math_ceil, lex, 1)
+    KL_SET_METHOD(o, abs, Math_fabs, lex, 1)
     KL_SET_METHOD(o, fabs, Math_fabs, lex, 1)
     KL_SET_METHOD(o, floor, Math_floor, lex, 1)
     KL_SET_METHOD(o, fmod, Math_fmod, lex, 2)
@@ -1104,7 +1113,7 @@ int String(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 int Binary(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     vmobj *o = alcobj(ctx);
-    ctx->s = o;
+    ctx->b = o;
     SET_OBJ(r, o);
     return 0;
 }

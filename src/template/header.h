@@ -1000,12 +1000,24 @@ typedef struct vmctx {
 /**/
 
 #define OP_ARRAY_REF_I(ctx, r, v, idx) { \
-    if ((v)->t == VAR_OBJ) { \
+    if ((v)->t == VAR_STR) { \
         int ii = idx; \
+        int xlen = (v)->s->len; \
         if (ii < 0) { \
-            do { ii += (v)->o->idxsz; } while (ii < 0); \
+            do { ii += xlen; } while (ii < 0); \
         } \
-        if (0 <= ii && ii < (v)->o->idxsz && (v)->o->ary[ii]) { \
+        if (0 <= ii && ii < xlen && (v)->s->s[ii]) { \
+            SET_I64(r, (v)->s->s[ii]); \
+        } else { \
+            (r)->t = VAR_UNDEF; \
+        } \
+    } else if ((v)->t == VAR_OBJ) { \
+        int ii = idx; \
+        int xlen = (v)->o->idxsz; \
+        if (ii < 0) { \
+            do { ii += xlen; } while (ii < 0); \
+        } \
+        if (0 <= ii && ii < xlen && (v)->o->ary[ii]) { \
             COPY_VAR_TO(ctx, r, (v)->o->ary[ii]); \
         } else { \
             (r)->t = VAR_UNDEF; \

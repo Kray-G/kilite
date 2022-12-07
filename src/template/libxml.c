@@ -501,7 +501,6 @@ static int XmlDom_parseString(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 int XmlDom(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     vmobj *o = alcobj(ctx);
-    ctx->s = o;
     KL_SET_METHOD(o, parseString, XmlDom_parseString, lex, 1);
     KL_SET_PROPERTY_I(o, XMLDECL_NODE,                              XMLDOM_XMLDECL_NODE);
     KL_SET_PROPERTY_I(o, ATTRIBUTE_NODE,                            XMLDOM_ATTRIBUTE_NODE);
