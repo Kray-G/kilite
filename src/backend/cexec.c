@@ -1,6 +1,6 @@
 #include "cexec.h"
-#include "../../mir/c2mir/c2mir.h"
-#include "../../mir/mir-gen.h"
+#include "../../submodules/mir/c2mir/c2mir.h"
+#include "../../submodules/mir/mir-gen.h"
 #include <stdio.h>
 #include <string.h>
 
