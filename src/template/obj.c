@@ -319,16 +319,15 @@ static vmobj *hashmap_extend(vmctx *ctx, vmobj *obj)
 vmobj *hashmap_copy(vmctx *ctx, vmobj *src)
 {
     vmobj *obj = alcobj(ctx);
-    hashmap_create(obj, HASH_SIZE);
     int hsz = src->hsz;
-    vmvar *map = src->map;
-
-    obj->hsz = hsz;
-    obj->map = (vmvar *)calloc(hsz, sizeof(vmvar));
-    for (int i = 0; i < hsz; ++i) {
-        vmvar *v = &(map[i]);
-        if (IS_HASHITEM_EXIST(v)) {
-            hashmap_set(ctx, obj, v->s->s, v->a);
+    if (hsz > 0) {
+        hashmap_create(obj, hsz);
+        vmvar *map = src->map;
+        for (int i = 0; i < hsz; ++i) {
+            vmvar *v = &(map[i]);
+            if (IS_HASHITEM_EXIST(v)) {
+                hashmap_set(ctx, obj, v->s->s, v->a);
+            }
         }
     }
 
@@ -338,20 +337,19 @@ vmobj *hashmap_copy(vmctx *ctx, vmobj *src)
 vmobj *hashmap_copy_method(vmctx *ctx, vmobj *src)
 {
     vmobj *obj = alcobj(ctx);
-    hashmap_create(obj, HASH_SIZE);
     int hsz = src->hsz;
-    vmvar *map = src->map;
-
-    obj->hsz = hsz;
-    obj->map = (vmvar *)calloc(hsz, sizeof(vmvar));
-    for (int i = 0; i < hsz; ++i) {
-        vmvar *v = &(map[i]);
-        if (IS_HASHITEM_EXIST(v)) {
-            if (v->s && v->s->s) {
-                vmvar *va = v->a;
-                if (va->t == VAR_FNC) {
-                    vmvar *nv = alcvar_fnc(ctx, v->a->f);
-                    hashmap_set(ctx, obj, v->s->s, nv);
+    if (hsz > 0) {
+        hashmap_create(obj, hsz);
+        vmvar *map = src->map;
+        for (int i = 0; i < hsz; ++i) {
+            vmvar *v = &(map[i]);
+            if (IS_HASHITEM_EXIST(v)) {
+                if (v->s && v->s->s) {
+                    vmvar *va = v->a;
+                    if (va->t == VAR_FNC) {
+                        vmvar *nv = alcvar_fnc(ctx, v->a->f);
+                        hashmap_set(ctx, obj, v->s->s, nv);
+                    }
                 }
             }
         }
