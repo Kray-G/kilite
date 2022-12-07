@@ -38,7 +38,15 @@ void finalize(vmctx *ctx)
         }\
     }\
     /**/
-    FREELIST(var, {});
+    FREELIST(var, {
+        if (v->p) {
+            if (v->freep) {
+                v->freep(v->p);
+            } else {
+                free(v->p);
+            }
+        }
+    });
     FREELIST(str, { if (v->s) free(v->s); });
     FREELIST(bgi, { if (v->b) BzFree(v->b); });
     FREELIST(fnc, {});

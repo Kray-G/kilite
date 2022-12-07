@@ -64,6 +64,7 @@ enum {
     EXCEPT_RANGE_ERROR,
     EXCEPT_TOO_DEEP,
     EXCEPT_XML_ERROR,
+    EXCEPT_ZIP_ERROR,
     EXCEPT_MAX,
 };
 
@@ -153,6 +154,7 @@ typedef struct vmobj {
     struct vmvar *map;  /* Hashmap holder */
 } vmobj;
 
+typedef void (*freep_func)(void *);
 typedef struct vmvar {
     struct vmvar *prv;  /* The link to the previous item in alive list. */
     struct vmvar *liv;  /* The link to the next item in alive list. */
@@ -169,6 +171,7 @@ typedef struct vmvar {
     vmstr *s;
     vmobj *o;           /* The hashmap from string to object */
     void *p;            /* almighty holder */
+    freep_func freep;   /* if set this, freep(p) will be called instead of free(). */
     struct vmfnc *f;
     struct vmvar *a;    /* an object */
 } vmvar;
@@ -2877,6 +2880,7 @@ INLINE extern vmfnc *alcfnc(vmctx *ctx, void *f, vmfrm *lex, const char *name, i
 INLINE extern void pbakfnc(vmctx *ctx, vmfnc *p);
 INLINE extern vmfrm *alcfrm(vmctx *ctx, vmfrm *lex, int args);
 INLINE extern void pbakfrm(vmctx *ctx, vmfrm *p);
+INLINE extern vmstr *alcstr_allocated_str(vmctx *ctx, char *s, int alloclen);
 INLINE extern vmstr *alcstr_str(vmctx *ctx, const char *s);
 INLINE extern void pbakstr(vmctx *ctx, vmstr *p);
 INLINE extern vmbgi *alcbgi_bigz(vmctx *ctx, BigZ bz);

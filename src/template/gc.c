@@ -136,7 +136,12 @@ void mark_var(vmvar *v)
     }
     if (v->p) {
         if (v->t != VAR_VOIDP) {
-            free(v->p);
+            if (v->freep) {
+                v->freep(v->p);
+                v->freep = NULL;
+            } else {
+                free(v->p);
+            }
             v->p = NULL;
         }
     }
@@ -304,7 +309,12 @@ void sweep(vmctx *ctx)
                 v->o = NULL;
             }
             if (v->p) {
-                free(v->p);
+                if (v->freep) {
+                    v->freep(v->p);
+                    v->freep = NULL;
+                } else {
+                    free(v->p);
+                }
                 v->p = NULL;
             }
             pbakvar(ctx, v);

@@ -163,6 +163,17 @@ static vmstr *alcstr_pure(vmctx *ctx)
     return v;
 }
 
+vmstr *alcstr_allocated_str(vmctx *ctx, char *s, int alloclen)
+{
+    /* Caution!
+        If you want to use this function, `s` should be allocated by malloc() or calloc() because it will be freed by free()!
+    */
+    vmstr *v = alcstr_pure(ctx);
+    v->cap = v->len = alloclen;
+    v->s = v->hd = s;
+    return v;
+}
+
 vmstr *alcstr_str(vmctx *ctx, const char *s)
 {
     vmstr *v = alcstr_pure(ctx);
