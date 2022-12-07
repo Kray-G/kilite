@@ -203,6 +203,7 @@ I will note the followings as I don't forget it.
       * [x] `&&=` and `||=` as a shortcut operator.
       * [x] `??` as a shortcut operator.
       * [x] `??=` as a shortcut operator.
+    * [ ] Binary operations.
     * [x] String operations.
     * [x] Array operations.
     * [x] Object operations.
@@ -262,6 +263,9 @@ I will note the followings as I don't forget it.
 * [ ] Libraries support.
   * [ ] Useful Libraries like below.
     * [ ] Zip
+      * [x] Simple Zip operation.
+      * [ ] Load data into binary. (Currently it is being stored to String temporarily)
+      * [ ] Encryption? *- Do you want to use it? ... miniz doesn't support it.*
     * [ ] Xml
       * [x] Simple XML Parser & Simple DOM operation.
       * [ ] Node insertion, deletion, or modification to DOM.
