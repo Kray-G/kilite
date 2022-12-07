@@ -40,6 +40,7 @@ cl /nologo /O2 /I ..\..\mir /MT ^
     ..\src\backend\resolver.c ^
     ..\src\backend\header.c ^
     ..\src\backend\cexec.c ^
+    ..\src\template\lib\zip.c ^
     ..\bin\mir_static.lib
 
 copy /y kilite.exe ..\kilite.exe > NUL
@@ -86,6 +87,16 @@ echo #line 1 "libxml.c" >> %TEMPF%
 type ..\src\template\libxml.c >> %TEMPF%
 echo #line 1 "inc/platform.c" >> %TEMPF%
 type ..\src\template\inc\platform.c >> %TEMPF%
+echo #ifndef __MIRC__ >> %TEMPF%
+echo #line 1 "miniz.h" >> %TEMPF%
+type ..\src\template\lib\miniz.h >> %TEMPF%
+echo #line 1 "zip.h" >> %TEMPF%
+type ..\src\template\lib\zip.h >> %TEMPF%
+echo #line 1 "zip.c" >> %TEMPF%
+type ..\src\template\lib\zip.c >> %TEMPF%
+echo #endif >> %TEMPF%
+echo #line 1 "libzip.c" >> %TEMPF%
+type ..\src\template\libzip.c >> %TEMPF%
 pushd ..\src\template\std
 kilite.exe --makelib callbacks.klt >> %TEMPF%
 popd

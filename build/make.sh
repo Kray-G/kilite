@@ -42,6 +42,7 @@ gcc -Wno-unused-result -O3 -I ../mir \
     ../src/backend/resolver.c \
     ../src/backend/header.c \
     ../src/backend/cexec.c \
+    ../src/template/lib/zip.c ^
     ../bin/libmir_static.a
 
 cp -f kilite ../kilite
@@ -88,6 +89,16 @@ echo "#line 1 \"libxml.c\"" >> %TEMPF%
 cat ../src/template/libxml.c >> $TEMPF
 echo "#line 1 \"inc/platform.c\"" >> %TEMPF%
 cat ../src/template/inc/platform.c >> $TEMPF
+echo "#ifndef __MIRC__" >> %TEMPF%
+echo "#line 1 \"miniz.h\"" >> %TEMPF%
+cat ../src/template/lib/miniz.h >> %TEMPF%
+echo "#line 1 \"zip.h\"" >> %TEMPF%
+cat ../src/template/lib/zip.h >> %TEMPF%
+echo "#line 1 \"zip.c\"" >> %TEMPF%
+cat ../src/template/lib/zip.c >> %TEMPF%
+echo "#endif" >> %TEMPF%
+echo "#line 1 \"libzip.c\"" >> %TEMPF%
+cat ../src/template/libzip.c >> %TEMPF%
 cd ../src/template/std
 $BIN/kilite --makelib callbacks.klt >> $TEMPF
 cd $BIN
