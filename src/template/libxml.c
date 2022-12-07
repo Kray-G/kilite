@@ -14,15 +14,15 @@ enum {
 };
 
 enum {
-    XMLDOM_ELEMENT_NODE                 = 1,
-    XMLDOM_ATTRIBUTE_NODE               = 2,
-    XMLDOM_TEXT_NODE                    = 3,
-    XMLDOM_CDATA_SECTION_NODE           = 4,
-    XMLDOM_ENTITY_REFERENCE_NODE        = 5,
-    XMLDOM_ENTITY_NODE                  = 6,
-    XMLDOM_PROCESSING_INSTRUCTION_NODE  = 7,
-    XMLDOM_COMMENT_NODE                 = 8,
-    XMLDOM_DOCUMENT_NODE                = 9,
+    XMLDOM_ELEMENT_NODE                 =  1,
+    XMLDOM_ATTRIBUTE_NODE               =  2,
+    XMLDOM_TEXT_NODE                    =  3,
+    XMLDOM_CDATA_SECTION_NODE           =  4,
+    XMLDOM_ENTITY_REFERENCE_NODE        =  5,
+    XMLDOM_ENTITY_NODE                  =  6,
+    XMLDOM_PROCESSING_INSTRUCTION_NODE  =  7,
+    XMLDOM_COMMENT_NODE                 =  8,
+    XMLDOM_DOCUMENT_NODE                =  9,
     XMLDOM_DOCUMENT_TYPE_NODE           = 10,
     XMLDOM_DOCUMENT_FRAGMENT_NODE       = 11,
     XMLDOM_NOTATION_NODE                = 12,
@@ -36,11 +36,13 @@ enum {
     XMLDOM_DOCUMENT_POSITION_PRECEDING,
 };
 
-#define errset_wuth_ret(err, msg) { *err = msg; if (0) { printf("[%d] err set %s\n", __LINE__, #msg); } return p; }
-#define chk_esyntx(p, err) if (*p == 0) { errset_wuth_ret(err, XMLDOM_ESYNTAX); }
+#define errset_wuth_ret(err, msg) do { *err = msg; if (0) { printf("[%d] err set %s\n", __LINE__, #msg); } return p; } while (0)
 #define is_whitespace(x) ((x) == ' ' || (x) == '\t' || (x) == '\r' || (x) == '\n')
-#define skip_whitespace(p) while (is_whitespace(*p)) { if (*p == '\n') { ++*line; *pos = -1; } ++p; ++*pos; }
-#define move_next(p) { if (*p == '\n') { ++*line, *pos = -1;} ++p; ++*pos; }
+#define skip_whitespace(p) do { while (is_whitespace(*p)) { if (*p == '\n') { ++*line; *pos = -1; } ++p; ++*pos; } } while (0)
+#define move_next(p) do { if (*p == '\n') { ++*line, *pos = -1;} ++p; ++*pos; } while (0)
+#define check_error(err, condition, code) do { if (condition) { errset_wuth_ret(err, code); } } while (0)
+#define syntax_error(err, condition) check_error(err, condition, XMLDOM_ESYNTAX)
+#define end_of_text_error(err, p) syntax_error(err, *p == 0)
 static const char *parse_doc(vmctx *ctx, vmfrm *lex, vmobj *nsmap, vmvar *r, const char *p, int *err, int *line, int *pos, int depth);
 
 static int xmldom_error(vmctx *ctx, int err, int line, int pos)
@@ -133,26 +135,17 @@ static vmvar *make_str_obj(vmctx *ctx, int *err, const char *s, int len)
             *p++ = v;
             continue;
         }
-        if (*s == 'a' && *(s+1) == 'm' && *(s+2) == 'p' && *(s+3) == ';') {
-            *p++ = '&'; s += 4; len -= 4;
-            continue;
-        }
-        if (*s == 'l' && *(s+1) == 't' && *(s+2) == ';') {
-            *p++ = '<'; s += 3; len -= 3;
-            continue;
-        }
-        if (*s == 'g' && *(s+1) == 't' && *(s+2) == ';') {
-            *p++ = '>'; s += 3; len -= 3;
-            continue;
-        }
-        if (*s == 'q' && *(s+1) == 'u' && *(s+2) == 'o' && *(s+3) == 't' && *(s+4) == ';') {
-            *p++ = '"'; s += 5; len -= 5;
-            continue;
-        }
-        if (*s == 'a' && *(s+1) == 'p' && *(s+2) == 'o' && *(s+3) == 's' && *(s+4) == ';') {
-            *p++ = '\''; s += 5; len -= 5;
-            continue;
-        }
+        #define xml_make_ref(condition, ch, count) if (condition) { \
+            *p++ = ch; s += count; len -= count; \
+            continue; \
+        } \
+        /**/
+        xml_make_ref((*s == 'a' && *(s+1) == 'm' && *(s+2) == 'p' && *(s+3) == ';'), '&', 4);
+        xml_make_ref((*s == 'l' && *(s+1) == 't' && *(s+2) == ';'), '<', 3);
+        xml_make_ref((*s == 'g' && *(s+1) == 't' && *(s+2) == ';'), '>', 3);
+        xml_make_ref((*s == 'q' && *(s+1) == 'u' && *(s+2) == 'o' && *(s+3) == 't' && *(s+4) == ';'), '"', 5);
+        xml_make_ref((*s == 'a' && *(s+1) == 'p' && *(s+2) == 'o' && *(s+3) == 's' && *(s+4) == ';'), '\'', 5);
+        #undef xml_make_ref
         *err = XMLDOM_EREF;
         break;
     }
@@ -174,21 +167,21 @@ static const char *parse_attrs(vmctx *ctx, vmobj *nsmap, vmobj *attrs, const cha
 {
     const char *attrn = p;
     while (!is_whitespace(*p)) {
-        chk_esyntx(p, err);
+        end_of_text_error(err, p);
         if (*p == '=') break;
         move_next(p);
     }
     int attrnlen = p - attrn;
     skip_whitespace(p);
-    if (*p != '=') { errset_wuth_ret(err, XMLDOM_ESYNTAX); }
+    syntax_error(err, (*p != '='));
     move_next(p);
     skip_whitespace(p);
-    if (*p != '"' && *p != '\'') { errset_wuth_ret(err, XMLDOM_ESYNTAX); }
+    syntax_error(err, (*p != '"' && *p != '\''));
     char br = *p;
     move_next(p);
     const char *attrv = p;
     while (*p != br) {
-        chk_esyntx(p, err);
+        end_of_text_error(err, p);
         if (*p == '\\') { move_next(p); }
         move_next(p);
     }
@@ -215,7 +208,7 @@ static const char *parse_comment(vmctx *ctx, vmvar *r, const char *p, int *err, 
             break;
         }
     }
-    if (*p != '>') { errset_wuth_ret(err, XMLDOM_ESYNTAX); }
+    syntax_error(err, (*p != '>'));
     vmvar *comment = make_pure_str_obj(ctx, err, s, p - s - 2);
     hashmap_set(ctx, r->o, "nodeName", alcvar_str(ctx, "#comment"));
     hashmap_set(ctx, r->o, "nodeValue", comment);
@@ -227,7 +220,7 @@ static const char *parse_pi(vmctx *ctx, vmobj *nsmap, vmvar *doc, vmvar *r, cons
 {
     const char *s = p;
     while (!is_whitespace(*p)) {
-        chk_esyntx(p, err);
+        end_of_text_error(err, p);
         move_next(p);
     }
     if (s != p) {
@@ -242,13 +235,13 @@ static const char *parse_pi(vmctx *ctx, vmobj *nsmap, vmvar *doc, vmvar *r, cons
     skip_whitespace(p);
     if (*p == '?') {
         move_next(p);
-        if (*p != '>') { errset_wuth_ret(err, XMLDOM_ESYNTAX); }
+        syntax_error(err, (*p != '>'));
         return p;
     }
     vmobj *attrs = alcobj(ctx);
     while (1) {
         skip_whitespace(p);
-        chk_esyntx(p, err);
+        end_of_text_error(err, p);
         if (*p == '?') break;
         p = parse_attrs(ctx, nsmap, attrs, p, err, line, pos);
         if (*err < 0) return p;
@@ -291,14 +284,14 @@ static const char *get_namespace_uri(vmctx *ctx, vmobj *nsmap, const char *prefi
 static const char *parse_node(vmctx *ctx, vmfrm *lex, vmobj *nsmap, vmvar *r, const char *p, int *err, int *line, int *pos, int depth)
 {
     skip_whitespace(p);
-    chk_esyntx(p, err);
+    end_of_text_error(err, p);
 
     const char *tag = p;
     int taglen = 0;
     const char *ns = p;
     int nslen = 0;
     while (!is_whitespace(*p)) {
-        chk_esyntx(p, err);
+        end_of_text_error(err, p);
         if (*p == '/' || *p == '>') break;
         if (*p == ':') {
             ns = tag; nslen = taglen;
@@ -309,7 +302,7 @@ static const char *parse_node(vmctx *ctx, vmfrm *lex, vmobj *nsmap, vmvar *r, co
             ++taglen;
         }
     }
-    if (taglen == 0) { errset_wuth_ret(err, XMLDOM_ESYNTAX); }
+    syntax_error(err, (taglen == 0));
 
     KL_SET_PROPERTY_I(r->o, "isXmlNode", 1);
     vmvar *lname = make_str_obj(ctx, err, tag, taglen);
@@ -335,7 +328,7 @@ static const char *parse_node(vmctx *ctx, vmfrm *lex, vmobj *nsmap, vmvar *r, co
     if (*p != '/' && *p != '>') {
         while (1) {
             skip_whitespace(p);
-            chk_esyntx(p, err);
+            end_of_text_error(err, p);
             if (*p == '/' || *p == '>') break;
             p = parse_attrs(ctx, nsmap, attrs, p, err, line, pos);
             if (*err < 0) return p;
@@ -355,7 +348,7 @@ static const char *parse_node(vmctx *ctx, vmfrm *lex, vmobj *nsmap, vmvar *r, co
     if (*p == '>') { move_next(p); }
     p = parse_doc(ctx, lex, nsmap, r, p, err, line, pos, depth + 1);
     if (*err < 0) return p;
-    if (*p != '/') { errset_wuth_ret(err, XMLDOM_ESYNTAX); }
+    syntax_error(err, (*p != '/'));
     move_next(p);
 
     const char *ctag = p;
@@ -363,7 +356,7 @@ static const char *parse_node(vmctx *ctx, vmfrm *lex, vmobj *nsmap, vmvar *r, co
     const char *cns = p;
     int cnslen = 0;
     while (!is_whitespace(*p)) {
-        chk_esyntx(p, err);
+        end_of_text_error(err, p);
         if (*p == '>') break;
         if (*p == ':') {
             cns = ctag; cnslen = ctaglen;
@@ -456,8 +449,8 @@ static const char *parse_doc(vmctx *ctx, vmfrm *lex, vmobj *nsmap, vmvar *r, con
             if (*p == '/') return p;
             vmvar *n = alcvar_obj(ctx, alcobj(ctx));
             if (*p == '!') {
-                if (*++p != '-') { errset_wuth_ret(err, XMLDOM_ESYNTAX); }
-                if (*++p != '-') { errset_wuth_ret(err, XMLDOM_ESYNTAX); }
+                syntax_error(err, (*++p != '-'));
+                syntax_error(err, (*++p != '-'));
                 p = parse_comment(ctx, n, p+1, err, line, pos);
                 setup_xmlnode_props(ctx, lex, n, r, r->o->idxsz, XMLDOM_COMMENT_NODE);
             } else if (*p == '?') {
@@ -477,7 +470,7 @@ static const char *parse_doc(vmctx *ctx, vmfrm *lex, vmobj *nsmap, vmvar *r, con
             array_push(ctx, r->o, n);
         }
         if (*p == 0) break;
-        if (*p != '>') { errset_wuth_ret(err, XMLDOM_ESYNTAX); }
+        syntax_error(err, (*p != '>'));
         move_next(p);
     }
     return p;
