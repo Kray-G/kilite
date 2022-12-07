@@ -9,7 +9,7 @@ cd bin
 
 if not exist mir mkdir mir
 set CMKFILE=CMakeLists.txt
-set ORGDIR=..\..\mir
+set ORGDIR=..\..\submodules\mir
 set ORGFILE=%ORGDIR%\%CMKFILE%
 cd mir
 copy /y %ORGFILE% .\

@@ -7,7 +7,7 @@ cd ..
 
 mkdir -p bin/mir
 cd bin/mir
-cmake ../../mir
+cmake ../../submodules/mir
 make
 cp -f c2m ../
 cp -f libmir_static.a ../
@@ -97,8 +97,8 @@ cat ../src/template/lib/zip.h >> %TEMPF%
 echo "#line 1 \"zip.c\"" >> %TEMPF%
 cat ../src/template/lib/zip.c >> %TEMPF%
 echo "#endif" >> %TEMPF%
-echo "#line 1 \"libzip.c\"" >> %TEMPF%
-cat ../src/template/libzip.c >> %TEMPF%
+echo "#line 1 \"libtzip.c\"" >> %TEMPF%
+cat ../src/template/libtzip.c >> %TEMPF%
 cd ../src/template/std
 $BIN/kilite --makelib callbacks.klt >> $TEMPF
 cd $BIN

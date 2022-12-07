@@ -95,8 +95,8 @@ type ..\src\template\lib\zip.h >> %TEMPF%
 echo #line 1 "zip.c" >> %TEMPF%
 type ..\src\template\lib\zip.c >> %TEMPF%
 echo #endif >> %TEMPF%
-echo #line 1 "libzip.c" >> %TEMPF%
-type ..\src\template\libzip.c >> %TEMPF%
+echo #line 1 "libtzip.c" >> %TEMPF%
+type ..\src\template\libtzip.c >> %TEMPF%
 pushd ..\src\template\std
 kilite.exe --makelib callbacks.klt >> %TEMPF%
 popd
