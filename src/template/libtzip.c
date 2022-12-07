@@ -11,10 +11,10 @@ static int zip_error(vmctx *ctx, int err, const char *text)
         char buf[256] = {0};
         switch (err) {
         case ZIP_EOPNFILE:
-            sprintf("Cannot open file: %s", text);
+            sprintf(buf, "Cannot open file: %s", text);
             break;
         case ZIP_ENOFILE:
-            sprintf("File not found: %s", text);
+            sprintf(buf, "File not found: %s", text);
             break;
         }
         return throw_system_exception(__LINE__, ctx, EXCEPT_ZIP_ERROR, buf);
