@@ -6,41 +6,65 @@
 /* XmlDom */
 
 enum {
-    XMLDOM_EDECL = -4,
-    XMLDOM_EREF = -3,
-    XMLDOM_ECLOSE = -2,
-    XMLDOM_ESYNTAX = -1,
-    XMLDOM_OK = 0,
+    XMLDOM_EDECL    = -4,
+    XMLDOM_EREF     = -3,
+    XMLDOM_ECLOSE   = -2,
+    XMLDOM_ESYNTAX  = -1,
+    XMLDOM_OK       =  0,
 };
 
 enum {
-    XMLDOM_XMLDECL_NODE = 1,
-    XMLDOM_ATTRIBUTE_NODE,
-    XMLDOM_CDATA_SECTION_NODE,
-    XMLDOM_COMMENT_NODE,
-    XMLDOM_DOCUMENT_FRAGMENT_NODE,
-    XMLDOM_DOCUMENT_NODE,
+    XMLDOM_ELEMENT_NODE                 = 1,
+    XMLDOM_ATTRIBUTE_NODE               = 2,
+    XMLDOM_TEXT_NODE                    = 3,
+    XMLDOM_CDATA_SECTION_NODE           = 4,
+    XMLDOM_ENTITY_REFERENCE_NODE        = 5,
+    XMLDOM_ENTITY_NODE                  = 6,
+    XMLDOM_PROCESSING_INSTRUCTION_NODE  = 7,
+    XMLDOM_COMMENT_NODE                 = 8,
+    XMLDOM_DOCUMENT_NODE                = 9,
+    XMLDOM_DOCUMENT_TYPE_NODE           = 10,
+    XMLDOM_DOCUMENT_FRAGMENT_NODE       = 11,
+    XMLDOM_NOTATION_NODE                = 12,
+
+    XMLDOM_XMLDECL_NODE,
     XMLDOM_DOCUMENT_POSITION_CONTAINED_BY,
     XMLDOM_DOCUMENT_POSITION_CONTAINS,
     XMLDOM_DOCUMENT_POSITION_DISCONNECTED,
     XMLDOM_DOCUMENT_POSITION_FOLLOWING,
     XMLDOM_DOCUMENT_POSITION_IMPLEMENTATION_SPECIFIC,
     XMLDOM_DOCUMENT_POSITION_PRECEDING,
-    XMLDOM_DOCUMENT_TYPE_NODE,
-    XMLDOM_ELEMENT_NODE,
-    XMLDOM_ENTITY_NODE,
-    XMLDOM_ENTITY_REFERENCE_NODE,
-    XMLDOM_NOTATION_NODE,
-    XMLDOM_PROCESSING_INSTRUCTION_NODE,
-    XMLDOM_TEXT_NODE,
 };
 
-#define errset_wuth_ret(err, msg) { *err = msg; /* printf("[%d] err set %s\n", __LINE__, #msg); */ return p; }
+#define errset_wuth_ret(err, msg) { *err = msg; if (0) { printf("[%d] err set %s\n", __LINE__, #msg); } return p; }
 #define chk_esyntx(p, err) if (*p == 0) { errset_wuth_ret(err, XMLDOM_ESYNTAX); }
 #define is_whitespace(x) ((x) == ' ' || (x) == '\t' || (x) == '\r' || (x) == '\n')
 #define skip_whitespace(p) while (is_whitespace(*p)) { if (*p == '\n') { ++*line; *pos = -1; } ++p; ++*pos; }
 #define move_next(p) { if (*p == '\n') { ++*line, *pos = -1;} ++p; ++*pos; }
-static const char *parse_doc(vmctx *ctx, vmfrm *lex, vmvar *r, const char *p, int *err, int *line, int *pos, int depth);
+static const char *parse_doc(vmctx *ctx, vmfrm *lex, vmobj *nsmap, vmvar *r, const char *p, int *err, int *line, int *pos, int depth);
+
+static int xmldom_error(vmctx *ctx, int err, int line, int pos)
+{
+    char buf[256] = {0};
+    switch (err) {
+    case XMLDOM_EDECL:
+        sprintf(buf, "Xml declaration location error at %d:%d", line, pos);
+        break;
+    case XMLDOM_EREF:
+        sprintf(buf, "Xml invalid reference error at %d:%d", line, pos);
+        break;
+    case XMLDOM_ECLOSE:
+        sprintf(buf, "Xml invalid close tag error at %d:%d", line, pos);
+        break;
+    case XMLDOM_ESYNTAX:
+        sprintf(buf, "Xml syntax error at %d:%d", line, pos);
+        break;
+    default:
+        sprintf(buf, "Xml parse error at %d:%d", line, pos);
+        break;
+    }
+    return throw_system_exception(__LINE__, ctx, EXCEPT_XML_ERROR, buf);
+}
 
 static int is_same_tagname(const char *t, int tlen, const char *c, int clen)
 {
@@ -55,7 +79,34 @@ static int is_same_tagname(const char *t, int tlen, const char *c, int clen)
     return 1;
 }
 
-static vmvar *make_str_obj(vmctx *ctx, const char *s, int len)
+static const char *gen_intval(int *v, int *err, const char *s, int radix)
+{
+    int vv = 0;
+    while (*s && *s != ';') {
+        int add = 0;
+        if ('0' <= *s && *s <= '9') {
+            add = (*s - '0');
+        } else if ('a' <= *s && *s <= 'f') {
+            add = (*s - 'a' + 10);
+        } else if ('A' <= *s && *s <= 'F') {
+            add = (*s - 'A' + 10);
+        } else {
+            *err = XMLDOM_EREF;
+            break;
+        }
+        if (radix <= add) {
+            *err = XMLDOM_EREF;
+            break;
+        }
+        vv = vv * radix + add;
+        ++s;
+    }
+    if (*s == ';') ++s;
+    *v = vv;
+    return s;
+}
+
+static vmvar *make_pure_str_obj(vmctx *ctx, int *err, const char *s, int len)
 {
     char *buf = alloca(len + 2);
     strncpy(buf, s, len);
@@ -63,16 +114,63 @@ static vmvar *make_str_obj(vmctx *ctx, const char *s, int len)
     return alcvar_str(ctx, buf);
 }
 
-static void set_attrs(vmctx *ctx, vmobj *attrs, const char *n, int nlen, const char *v, int vlen)
+static vmvar *make_str_obj(vmctx *ctx, int *err, const char *s, int len)
 {
-    vmvar *value = make_str_obj(ctx, v, vlen);
+    char *buf = alloca(len + 2);
+    char *p = buf;
+    for (int i = 0; i < len; ++i) {
+        if (*s != '&') {
+            *p++ = *s++;
+            continue;
+        }
+        ++s;
+        if (*s == '#') {
+            const char *ss = s;
+            int v, x = (*++s == 'x');
+            s = gen_intval(&v, err, x ? s+1 : s, x ? 16 : 10);
+            if (*err < 0) break;
+            len -= (s - ss);
+            *p++ = v;
+            continue;
+        }
+        if (*s == 'a' && *(s+1) == 'm' && *(s+2) == 'p' && *(s+3) == ';') {
+            *p++ = '&'; s += 4; len -= 4;
+            continue;
+        }
+        if (*s == 'l' && *(s+1) == 't' && *(s+2) == ';') {
+            *p++ = '<'; s += 3; len -= 3;
+            continue;
+        }
+        if (*s == 'g' && *(s+1) == 't' && *(s+2) == ';') {
+            *p++ = '>'; s += 3; len -= 3;
+            continue;
+        }
+        if (*s == 'q' && *(s+1) == 'u' && *(s+2) == 'o' && *(s+3) == 't' && *(s+4) == ';') {
+            *p++ = '"'; s += 5; len -= 5;
+            continue;
+        }
+        if (*s == 'a' && *(s+1) == 'p' && *(s+2) == 'o' && *(s+3) == 's' && *(s+4) == ';') {
+            *p++ = '\''; s += 5; len -= 5;
+            continue;
+        }
+        *err = XMLDOM_EREF;
+        break;
+    }
+    *p = 0;
+    return alcvar_str(ctx, buf);
+}
+
+static void set_attrs(vmctx *ctx, int *err, vmobj *attrs, const char *n, int nlen, const char *v, int vlen)
+{
+    vmvar *value = make_str_obj(ctx, err, v, vlen);
+    if (*err < 0) return;
     char *key = alloca(nlen + 2);
     strncpy(key, n, nlen);
     key[nlen] = 0;
     hashmap_set(ctx, attrs, key, value);
 }
 
-static const char *patse_attrs(vmctx *ctx, vmobj *attrs, const char *p, int *err, int *line, int *pos)
+static const char *parse_attrs(vmctx *ctx, vmobj *nsmap, vmobj *attrs, const char *p, int *err, int *line, int *pos)
 {
     const char *attrn = p;
     while (!is_whitespace(*p)) {
@@ -82,31 +180,50 @@ static const char *patse_attrs(vmctx *ctx, vmobj *attrs, const char *p, int *err
     }
     int attrnlen = p - attrn;
     skip_whitespace(p);
-    if (*p != '=') {
-        errset_wuth_ret(err, XMLDOM_ESYNTAX);
-    }
+    if (*p != '=') { errset_wuth_ret(err, XMLDOM_ESYNTAX); }
     move_next(p);
     skip_whitespace(p);
-    if (*p != '"') {
-        errset_wuth_ret(err, XMLDOM_ESYNTAX);
-    }
-    const char *attrv = p;
+    if (*p != '"' && *p != '\'') { errset_wuth_ret(err, XMLDOM_ESYNTAX); }
+    char br = *p;
     move_next(p);
-    while (*p != '"') {
+    const char *attrv = p;
+    while (*p != br) {
         chk_esyntx(p, err);
-        if (*p == '\\') {
-            move_next(p);
-        }
+        if (*p == '\\') { move_next(p); }
         move_next(p);
     }
-    if (*p == '"') {
-        move_next(p);
+    if (strncmp(attrn, "xmlns", 5) == 0 && (*(attrn + 5) == '=' || is_whitespace(*(attrn+5)))) {
+        vmvar *value = make_str_obj(ctx, err, attrv, p - attrv);
+        array_set(ctx, nsmap, 0, value);
+    } else if (strncmp(attrn, "xmlns:", 6) == 0) {
+        set_attrs(ctx, err, nsmap, attrn + 6, attrnlen - 6, attrv, p - attrv);
+    } else {
+        set_attrs(ctx, err, attrs, attrn, attrnlen, attrv, p - attrv);
     }
-    set_attrs(ctx, attrs, attrn, attrnlen, attrv, p - attrv);
+    if (*err < 0) return p;
+    if (*p == br) { move_next(p); }
     return p;
 }
 
-static const char *patse_pi(vmctx *ctx, vmvar *r, const char *p, int *err, int *line, int *pos, int *xmldecl)
+static const char *parse_comment(vmctx *ctx, vmvar *r, const char *p, int *err, int *line, int *pos)
+{
+    const char *s = p;
+    while (*p) {
+        move_next(p);
+        if (*p == '-' && *(p+1) == '-' && *(p+2) == '>') {
+            p += 2;
+            break;
+        }
+    }
+    if (*p != '>') { errset_wuth_ret(err, XMLDOM_ESYNTAX); }
+    vmvar *comment = make_pure_str_obj(ctx, err, s, p - s - 2);
+    hashmap_set(ctx, r->o, "nodeName", alcvar_str(ctx, "#comment"));
+    hashmap_set(ctx, r->o, "nodeValue", comment);
+    hashmap_set(ctx, r->o, "comment", comment);
+    return p;
+}
+
+static const char *parse_pi(vmctx *ctx, vmobj *nsmap, vmvar *doc, vmvar *r, const char *p, int *err, int *line, int *pos, int *xmldecl)
 {
     const char *s = p;
     while (!is_whitespace(*p)) {
@@ -114,19 +231,18 @@ static const char *patse_pi(vmctx *ctx, vmvar *r, const char *p, int *err, int *
         move_next(p);
     }
     if (s != p) {
-        vmvar *target = make_str_obj(ctx, s, p - s);
+        vmvar *target = make_str_obj(ctx, err, s, p - s);
+        if (*err < 0) return p;
         if (strcmp(target->s->s, "xml") == 0) {
             *xmldecl = 1;
         }
-        hashmap_set(ctx, r->o, "_$target", target);
-        KL_SET_PROPERTY_I(r->o, "isProcessingInstructionNode", 1);
+        hashmap_set(ctx, r->o, "target", target);
+        hashmap_set(ctx, r->o, "nodeName", target);
     }
     skip_whitespace(p);
     if (*p == '?') {
         move_next(p);
-        if (*p != '>') {
-            errset_wuth_ret(err, XMLDOM_ESYNTAX);
-        }
+        if (*p != '>') { errset_wuth_ret(err, XMLDOM_ESYNTAX); }
         return p;
     }
     vmobj *attrs = alcobj(ctx);
@@ -134,18 +250,45 @@ static const char *patse_pi(vmctx *ctx, vmvar *r, const char *p, int *err, int *
         skip_whitespace(p);
         chk_esyntx(p, err);
         if (*p == '?') break;
-        p = patse_attrs(ctx, attrs, p, err, line, pos);
-        if (*err < 0) {
-            return p;
-        }
+        p = parse_attrs(ctx, nsmap, attrs, p, err, line, pos);
+        if (*err < 0) return p;
+    }
+    if (*xmldecl) {
+        vmvar *version = hashmap_search(attrs, "version");
+        if (!version) version = alcvar_str(ctx, "1.0");
+        hashmap_set(ctx, doc->o, "xmlVersion", version);
+        vmvar *encoding = hashmap_search(attrs, "encoding");
+        if (!encoding) encoding = alcvar_str(ctx, "UTF-8");
+        hashmap_set(ctx, doc->o, "xmlEncoding", encoding);
+        vmvar *standalone = hashmap_search(attrs, "standalone");
+        int sv = !standalone || (standalone->t == VAR_STR && strcmp(standalone->s->s, "yes") == 0);
+        standalone = alcvar_int64(ctx, sv, 0);
+        hashmap_set(ctx, doc->o, "xmlStandalone", standalone);
     }
 
-    hashmap_set(ctx, r->o, "_$data", alcvar_obj(ctx, attrs));
+    vmvar *data = alcvar_obj(ctx, attrs);
+    hashmap_set(ctx, r->o, "data", data);
+    hashmap_set(ctx, r->o, "nodeValue", data);
     move_next(p);
     return p;
 }
 
-static const char *patse_node(vmctx *ctx, vmfrm *lex, vmvar *r, const char *p, int *err, int *line, int *pos, int depth)
+static const char *get_namespace_uri(vmctx *ctx, vmobj *nsmap, const char *prefix)
+{
+    vmvar *ns = NULL;
+    if (prefix) {
+        ns = hashmap_search(nsmap, prefix);
+    }
+    if (!ns && nsmap->ary) {
+        ns = nsmap->ary[0];
+    }
+    if (ns && ns->t == VAR_STR) {
+        return ns->s->s;
+    }
+    return "";
+}
+
+static const char *parse_node(vmctx *ctx, vmfrm *lex, vmobj *nsmap, vmvar *r, const char *p, int *err, int *line, int *pos, int depth)
 {
     skip_whitespace(p);
     chk_esyntx(p, err);
@@ -166,16 +309,25 @@ static const char *patse_node(vmctx *ctx, vmfrm *lex, vmvar *r, const char *p, i
             ++taglen;
         }
     }
-    if (taglen == 0) {
-        errset_wuth_ret(err, XMLDOM_ESYNTAX);
-    }
+    if (taglen == 0) { errset_wuth_ret(err, XMLDOM_ESYNTAX); }
 
     KL_SET_PROPERTY_I(r->o, "isXmlNode", 1);
-    vmvar *tagname = make_str_obj(ctx, tag, taglen);
-    hashmap_set(ctx, r->o, "name", tagname);
+    vmvar *lname = make_str_obj(ctx, err, tag, taglen);
+    if (*err < 0) return p;
+    hashmap_set(ctx, r->o, "localName", lname);
+    vmvar *nsname = NULL;
     if (nslen > 0) {
-        vmvar *nsname = make_str_obj(ctx, ns, nslen);
-        hashmap_set(ctx, r->o, "_$ns", nsname);
+        nsname = make_str_obj(ctx, err, ns, nslen);
+        if (*err < 0) return p;
+        hashmap_set(ctx, r->o, "prefix", nsname);
+        vmvar *tname = make_str_obj(ctx, err, ns, nslen + taglen + 1);
+        if (*err < 0) return p;
+        hashmap_set(ctx, r->o, "tagName", tname);
+        hashmap_set(ctx, r->o, "nodeName", tname);
+    } else {
+        hashmap_set(ctx, r->o, "prefix", alcvar_str(ctx, ""));
+        hashmap_set(ctx, r->o, "tagName", lname);
+        hashmap_set(ctx, r->o, "nodeName", lname);
     }
     skip_whitespace(p);
 
@@ -185,29 +337,25 @@ static const char *patse_node(vmctx *ctx, vmfrm *lex, vmvar *r, const char *p, i
             skip_whitespace(p);
             chk_esyntx(p, err);
             if (*p == '/' || *p == '>') break;
-            p = patse_attrs(ctx, attrs, p, err, line, pos);
-            if (*err < 0) {
-                return p;
-            }
+            p = parse_attrs(ctx, nsmap, attrs, p, err, line, pos);
+            if (*err < 0) return p;
         }
     }
-    hashmap_set(ctx, r->o, "_$attrs", alcvar_obj(ctx, attrs));
+    hashmap_set(ctx, r->o, "attributes", alcvar_obj(ctx, attrs));
 
-    if (*p == '/') {
-        move_next(p);
-        return p;
+    if (nsname) {
+        const char *uri = get_namespace_uri(ctx, nsmap, nsname->s->s);
+        hashmap_set(ctx, r->o, "namespaceURI", alcvar_str(ctx, uri));
+    } else {
+        const char *uri = get_namespace_uri(ctx, nsmap, NULL);
+        hashmap_set(ctx, r->o, "namespaceURI", alcvar_str(ctx, uri));
     }
 
-    if (*p == '>') {
-        move_next(p);
-    }
-    p = parse_doc(ctx, lex, r, p, err, line, pos, depth + 1);
-    if (*err < 0) {
-        return p;
-    }
-    if (*p != '/') {
-        errset_wuth_ret(err, XMLDOM_ESYNTAX);
-    }
+    if (*p == '/') { move_next(p); return p; }
+    if (*p == '>') { move_next(p); }
+    p = parse_doc(ctx, lex, nsmap, r, p, err, line, pos, depth + 1);
+    if (*err < 0) return p;
+    if (*p != '/') { errset_wuth_ret(err, XMLDOM_ESYNTAX); }
     move_next(p);
 
     const char *ctag = p;
@@ -239,139 +387,51 @@ static const char *patse_node(vmctx *ctx, vmfrm *lex, vmvar *r, const char *p, i
     return p;
 }
 
-static int XmlDom_documentElement(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
-{
-    DEF_ARG(a0, 0, VAR_OBJ);
-    vmvar **ary = a0->o->ary;
-    int n = a0->o->idxsz;
-    for (int i = 0; i < n; i++) {
-        vmvar *v = hashmap_search(ary[i]->o, "type");
-        if (v && v->t == VAR_INT64 && v->i == XMLDOM_ELEMENT_NODE) {
-            COPY_VAR_TO(ctx, r, ary[i]);
-            return 0;
-        }
-    }
-    SET_UNDEF(r);
-    return 0;
-}
-
-static int XmlDom_tagName(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
-{
-    DEF_ARG(a0, 0, VAR_OBJ);
-    vmvar *v = hashmap_search(a0->o, "name");
-    COPY_VAR_TO(ctx, r, v);
-    return 0;
-}
-
-static int XmlDom_text(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
-{
-    DEF_ARG(a0, 0, VAR_OBJ);
-    vmvar *v = hashmap_search(a0->o, "_$text");
-    COPY_VAR_TO(ctx, r, v);
-    return 0;
-}
-
-static int XmlDom_attributes(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
-{
-    DEF_ARG(a0, 0, VAR_OBJ);
-    vmvar *v = hashmap_search(a0->o, "_$attrs");
-    COPY_VAR_TO(ctx, r, v);
-    return 0;
-}
-
-static int XmlDom_hasChildNodes(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
-{
-    DEF_ARG(a0, 0, VAR_OBJ);
-    SET_I64(r, (a0->o->idxsz > 0 ? 1 : 0))
-    return 0;
-}
-
-static int XmlDom_parentNode(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
-{
-    DEF_ARG(a0, 0, VAR_OBJ);
-    vmvar *v = hashmap_search(a0->o, "_$parent");
-    COPY_VAR_TO(ctx, r, v);
-    return 0;
-}
-
-static int XmlDom_childNodes(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
-{
-    DEF_ARG(a0, 0, VAR_OBJ);
-    r->t = VAR_OBJ;
-    r->o = alcobj(ctx);
-    int n = a0->o->idxsz;
-    for (int i = 0; i < n; i++) {
-        vmvar *v = alcvar_initial(ctx);
-        COPY_VAR_TO(ctx, v, a0->o->ary[i]);
-        array_push(ctx, r->o, v);
-    }
-    return 0;
-}
-
-static int XmlDom_firstChild(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
-{
-    DEF_ARG(a0, 0, VAR_OBJ);
-    if (0 < a0->o->idxsz) {
-        COPY_VAR_TO(ctx, r, a0->o->ary[0]);
-    } else {
-        SET_UNDEF(r);
-    }
-    return 0;
-}
-
-static int XmlDom_nextSibling(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
-{
-    DEF_ARG(a0, 0, VAR_OBJ);
-    int i = -1;
-    vmvar *index = hashmap_search(a0->o, "_$index");
-    if (index->t == VAR_INT64) {
-        i = index->i + 1;
-    }
-    vmvar *v = hashmap_search(a0->o, "_$parent");
-    if (v && v->t == VAR_OBJ && 0 < i && i < v->o->idxsz) {
-        COPY_VAR_TO(ctx, r, v->o->ary[i]);
-    } else {
-        SET_UNDEF(r);
-    }
-    return 0;
-}
-
-static int XmlDom_prevSibling(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
-{
-    DEF_ARG(a0, 0, VAR_OBJ);
-    int i = -1;
-    vmvar *index = hashmap_search(a0->o, "_$index");
-    if (index->t == VAR_INT64) {
-        i = index->i - 1;
-    }
-    vmvar *v = hashmap_search(a0->o, "_$parent");
-    if (v && v->t == VAR_OBJ && 0 <= i && i < v->o->idxsz) {
-        COPY_VAR_TO(ctx, r, v->o->ary[i]);
-    } else {
-        SET_UNDEF(r);
-    }
-    return 0;
-}
-
-static void setup_xmlnode_method(vmctx *ctx, vmfrm *lex, vmvar *r, vmvar *parent, int index, int type)
+static void setup_xmlnode_props(vmctx *ctx, vmfrm *lex, vmvar *r, vmvar *parent, int index, int type)
 {
     vmobj *o = r->o;
-    KL_SET_PROPERTY(o, _$parent, parent);
-    KL_SET_PROPERTY_I(o, _$index, index);
-    KL_SET_PROPERTY_I(o, type, type);
-    KL_SET_METHOD(o, tagName, XmlDom_tagName, lex, 1);
-    KL_SET_METHOD(o, text, XmlDom_text, lex, 1);
-    KL_SET_METHOD(o, attributes, XmlDom_attributes, lex, 1);
-    KL_SET_METHOD(o, hasChildNodes, XmlDom_hasChildNodes, lex, 1);
-    KL_SET_METHOD(o, parentNode, XmlDom_parentNode, lex, 1);
-    KL_SET_METHOD(o, childNodes, XmlDom_childNodes, lex, 1);
-    KL_SET_METHOD(o, firstChild, XmlDom_firstChild, lex, 1);
-    KL_SET_METHOD(o, nextSibling, XmlDom_nextSibling, lex, 1);
-    KL_SET_METHOD(o, prevSibling, XmlDom_prevSibling, lex, 1);
+    KL_SET_PROPERTY_I(o, nodeType, type);
+    KL_SET_PROPERTY_I(o, hasChildNodes, o->idxsz > 0 ? 1 : 0);
+    vmobj *children = alcobj(ctx);
+    for (int i = 0, n = o->idxsz; i < n; i++) {
+        array_push(ctx, children, o->ary[i]);
+    }
+    KL_SET_PROPERTY(o, children, alcvar_obj(ctx, children));
+    KL_SET_PROPERTY(o, parentNode, parent);
+    if (o->idxsz > 0) {
+        KL_SET_PROPERTY(o, firstChild, o->ary[0]);
+        KL_SET_PROPERTY(o, lastChild, o->ary[o->idxsz - 1]);
+    } else {
+        KL_SET_PROPERTY(o, firstChild, NULL);
+        KL_SET_PROPERTY(o, lastChild, NULL);
+    }
+    if (index > 0) {
+        vmobj *p = parent->o;
+        vmvar *prev = p->ary[index - 1];
+        KL_SET_PROPERTY(o, previousSibling, prev);
+        KL_SET_PROPERTY(prev->o, nextSibling, r);
+    }
     o->is_sysobj = 1;
 }
 
-static const char *parse_doc(vmctx *ctx, vmfrm *lex, vmvar *r, const char *p, int *err, int *line, int *pos, int depth)
+static void setup_xmldoc_props(vmctx *ctx, vmfrm *lex, vmvar *r)
+{
+    vmobj *o = r->o;
+    vmvar **ary = o->ary;
+    int n = o->idxsz;
+    for (int i = 0; i < n; i++) {
+        vmobj *vo = ary[i]->o;
+        vmvar *v = hashmap_search(vo, "nodeType");
+        if (v && v->t == VAR_INT64) {
+            if (v->i == XMLDOM_ELEMENT_NODE) {
+                KL_SET_PROPERTY(o, documentElement, ary[i]);
+            }
+        }
+    }
+    KL_SET_PROPERTY(o, nodeName, alcvar_str(ctx, "#document"));
+}
+
+static const char *parse_doc(vmctx *ctx, vmfrm *lex, vmobj *nsmap, vmvar *r, const char *p, int *err, int *line, int *pos, int depth)
 {
     while (*p != 0) {
         const char *s = p;
@@ -380,40 +440,44 @@ static const char *parse_doc(vmctx *ctx, vmfrm *lex, vmvar *r, const char *p, in
             move_next(p);
         }
         if (s != p) {
-            vmvar *vs = make_str_obj(ctx, s, p - s);
+            vmvar *vs = make_str_obj(ctx, err, s, p - s);
+            if (*err < 0) return p;
             vmvar *vo = alcvar_obj(ctx, alcobj(ctx));
-            KL_SET_PROPERTY(vo->o, _$text, vs);
-            setup_xmlnode_method(ctx, lex, vo, r, r->o->idxsz, XMLDOM_TEXT_NODE);
+            KL_SET_PROPERTY(vo->o, text, vs);
+            KL_SET_PROPERTY(vo->o, nodeValue, vs);
+            KL_SET_PROPERTY(vo->o, nodeName, alcvar_str(ctx, "#text"));
+            setup_xmlnode_props(ctx, lex, vo, r, r->o->idxsz, XMLDOM_TEXT_NODE);
             array_push(ctx, r->o, vo);
         }
         if (*p == 0) break;
         if (*p == '<') {
+            vmobj *cnsmap = object_copy(ctx, nsmap);
             move_next(p);
-            if (*p == '/') {
-                return p;
-            }
+            if (*p == '/') return p;
             vmvar *n = alcvar_obj(ctx, alcobj(ctx));
-            if (*p == '?') {
+            if (*p == '!') {
+                if (*++p != '-') { errset_wuth_ret(err, XMLDOM_ESYNTAX); }
+                if (*++p != '-') { errset_wuth_ret(err, XMLDOM_ESYNTAX); }
+                p = parse_comment(ctx, n, p+1, err, line, pos);
+                setup_xmlnode_props(ctx, lex, n, r, r->o->idxsz, XMLDOM_COMMENT_NODE);
+            } else if (*p == '?') {
                 move_next(p);
                 int xmldecl = 0;
-                p = patse_pi(ctx, r, p, err, line, pos, &xmldecl);
+                p = parse_pi(ctx, cnsmap, r, n, p, err, line, pos, &xmldecl);
                 if (xmldecl && (depth > 0 || r->o->idxsz > 0)) {
                     errset_wuth_ret(err, XMLDOM_EDECL);
                 }
-                setup_xmlnode_method(ctx, lex, n, r, r->o->idxsz, xmldecl ? XMLDOM_XMLDECL_NODE : XMLDOM_PROCESSING_INSTRUCTION_NODE);
+                setup_xmlnode_props(ctx, lex, n, r, r->o->idxsz,
+                    xmldecl ? XMLDOM_XMLDECL_NODE : XMLDOM_PROCESSING_INSTRUCTION_NODE);
             } else {
-                p = patse_node(ctx, lex, n, p, err, line, pos, depth);
-                setup_xmlnode_method(ctx, lex, n, r, r->o->idxsz, XMLDOM_ELEMENT_NODE);
+                p = parse_node(ctx, lex, cnsmap, n, p, err, line, pos, depth);
+                setup_xmlnode_props(ctx, lex, n, r, r->o->idxsz, XMLDOM_ELEMENT_NODE);
             }
-            if (*err < 0) {
-                return p;
-            }
+            if (*err < 0) return p;
             array_push(ctx, r->o, n);
         }
         if (*p == 0) break;
-        if (*p != '>') {
-            errset_wuth_ret(err, XMLDOM_ESYNTAX);
-        }
+        if (*p != '>') { errset_wuth_ret(err, XMLDOM_ESYNTAX); }
         move_next(p);
     }
     return p;
@@ -424,6 +488,7 @@ static int XmlDom_parseString(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     DEF_ARG(a0, 0, VAR_STR);
     vmstr *s = a0->s;
     const char *str = s->s;
+    vmobj *nsmap = alcobj(ctx);
     r->t = VAR_OBJ;
     r->o = alcobj(ctx);
     r->o->is_sysobj = 1;
@@ -431,12 +496,10 @@ static int XmlDom_parseString(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
         int err = 0;
         int line = 1;
         int pos = 0;
-        parse_doc(ctx, lex, r, str, &err, &line, &pos, 0);
-        KL_SET_METHOD(r->o, documentElement, XmlDom_documentElement, lex, 1);
+        parse_doc(ctx, lex, nsmap, r, str, &err, &line, &pos, 0);
+        setup_xmldoc_props(ctx, lex, r);
         if (err < 0) {
-            char buf[256] = {0};
-            sprintf(buf, "Xml parse error at %d:%d", line, pos);
-            return throw_system_exception(__LINE__, ctx, EXCEPT_XML_ERROR, buf);
+            return xmldom_error(ctx, err, line, pos);
         }
     }
     return 0;
@@ -447,7 +510,7 @@ int XmlDom(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     vmobj *o = alcobj(ctx);
     ctx->s = o;
     KL_SET_METHOD(o, parseString, XmlDom_parseString, lex, 1);
-    KL_SET_PROPERTY_I(o, XMLDOM_XMLDECL_NODE,                       XMLDOM_XMLDECL_NODE);
+    KL_SET_PROPERTY_I(o, XMLDECL_NODE,                              XMLDOM_XMLDECL_NODE);
     KL_SET_PROPERTY_I(o, ATTRIBUTE_NODE,                            XMLDOM_ATTRIBUTE_NODE);
     KL_SET_PROPERTY_I(o, CDATA_SECTION_NODE,                        XMLDOM_CDATA_SECTION_NODE);
     KL_SET_PROPERTY_I(o, COMMENT_NODE,                              XMLDOM_COMMENT_NODE);
