@@ -28,7 +28,7 @@ cat ../src/template/header.h >> $TEMPF
 rm $TEMPF
 
 echo Building a Kilite binary...
-gcc -D_LARGEFILE64_SOURCE=1 -Wno-unused-result -O3 -I ../submodules/mir \
+gcc -Wno-unused-result -O3 -I ../submodules/mir \
     -DUSE_INT64 -o kilite \
     ../src/main.c \
     ../src/frontend/lexer.c \
@@ -104,7 +104,7 @@ $BIN/kilite --makelib callbacks.klt >> $TEMPF
 cd $BIN
 
 echo Generating a static library file for gcc...
-gcc -O3 -D_LARGEFILE64_SOURCE=1 -DUSE_INT64 -o ${TEMPF/.c/.o} -I lib -Wno-unused-result -c $TEMPF
+gcc -O3 -DUSE_INT64 -o ${TEMPF/.c/.o} -I lib -Wno-unused-result -c $TEMPF
 ar rcs libkilite.a ${TEMPF/.c/.o}
 cp -f libkilite.a ../libkilite.a
 ./c2m -DUSE_INT64 -I lib -c $TEMPF
