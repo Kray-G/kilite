@@ -3,7 +3,7 @@
 #include "lib.h"
 #endif
 
-/* Zip */
+/* TinyZip */
 
 static int zip_error(vmctx *ctx, int err, const char *text)
 {
@@ -58,7 +58,7 @@ static int zip_error(vmctx *ctx, int err, const char *text)
     return throw_system_exception(__LINE__, ctx, EXCEPT_ZIP_ERROR, msg);
 }
 
-static int Zip_entry_close(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+static int TinyZip_entry_close(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     DEF_ARG(a0, 0, VAR_OBJ);
     struct zip_t *z = NULL;
@@ -76,7 +76,7 @@ static int Zip_entry_close(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     return 0;
 }
 
-static int Zip_entry_name(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+static int TinyZip_entry_name(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     DEF_ARG(a0, 0, VAR_OBJ);
     struct zip_t *z = NULL;
@@ -94,7 +94,7 @@ static int Zip_entry_name(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     return 0;
 }
 
-static int Zip_entry_index(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+static int TinyZip_entry_index(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     DEF_ARG(a0, 0, VAR_OBJ);
     struct zip_t *z = NULL;
@@ -112,7 +112,7 @@ static int Zip_entry_index(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     return 0;
 }
 
-static int Zip_entry_isdir(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+static int TinyZip_entry_isdir(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     DEF_ARG(a0, 0, VAR_OBJ);
     struct zip_t *z = NULL;
@@ -130,7 +130,7 @@ static int Zip_entry_isdir(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     return 0;
 }
 
-static int Zip_entry_size(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+static int TinyZip_entry_size(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     DEF_ARG(a0, 0, VAR_OBJ);
     struct zip_t *z = NULL;
@@ -145,7 +145,7 @@ static int Zip_entry_size(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     return 0;
 }
 
-static int Zip_entry_uncomp_size(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+static int TinyZip_entry_uncomp_size(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     DEF_ARG(a0, 0, VAR_OBJ);
     struct zip_t *z = NULL;
@@ -160,7 +160,7 @@ static int Zip_entry_uncomp_size(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     return 0;
 }
 
-static int Zip_entry_comp_size(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+static int TinyZip_entry_comp_size(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     DEF_ARG(a0, 0, VAR_OBJ);
     struct zip_t *z = NULL;
@@ -175,7 +175,7 @@ static int Zip_entry_comp_size(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     return 0;
 }
 
-static int Zip_entry_crc32(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+static int TinyZip_entry_crc32(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     DEF_ARG(a0, 0, VAR_OBJ);
     struct zip_t *z = NULL;
@@ -190,7 +190,7 @@ static int Zip_entry_crc32(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     return 0;
 }
 
-static int Zip_entry_write(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+static int TinyZip_entry_write(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     DEF_ARG(a0, 0, VAR_OBJ);
     DEF_ARG2(a1, 1, VAR_STR, VAR_BIN);
@@ -218,7 +218,7 @@ static int Zip_entry_write(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     return 0;
 }
 
-static int Zip_entry_fwrite(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+static int TinyZip_entry_fwrite(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     DEF_ARG(a0, 0, VAR_OBJ);
     DEF_ARG(a1, 1, VAR_STR);
@@ -238,7 +238,7 @@ static int Zip_entry_fwrite(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     return 0;
 }
 
-static int Zip_entry_read(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+static int TinyZip_entry_read(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     DEF_ARG(a0, 0, VAR_OBJ);
     struct zip_t *z = NULL;
@@ -264,7 +264,7 @@ static int Zip_entry_read(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     return 0;
 }
 
-static int Zip_entry_fread(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+static int TinyZip_entry_fread(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     DEF_ARG(a0, 0, VAR_OBJ);
     DEF_ARG(a1, 1, VAR_STR);
@@ -286,21 +286,21 @@ static int Zip_entry_fread(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 
 static void set_entry_methods(vmctx *ctx, vmfrm *lex, vmobj *entry)
 {
-    KL_SET_METHOD(entry, close, Zip_entry_close, lex, 1)
-    KL_SET_METHOD(entry, name, Zip_entry_name, lex, 1)
-    KL_SET_METHOD(entry, index, Zip_entry_index, lex, 1)
-    KL_SET_METHOD(entry, isdir, Zip_entry_isdir, lex, 1)
-    KL_SET_METHOD(entry, size, Zip_entry_size, lex, 1)
-    KL_SET_METHOD(entry, uncompSize, Zip_entry_uncomp_size, lex, 1)
-    KL_SET_METHOD(entry, compSize, Zip_entry_comp_size, lex, 1)
-    KL_SET_METHOD(entry, crc32, Zip_entry_crc32, lex, 1)
-    KL_SET_METHOD(entry, write, Zip_entry_write, lex, 1)
-    KL_SET_METHOD(entry, writeTo, Zip_entry_fwrite, lex, 1)
-    KL_SET_METHOD(entry, read, Zip_entry_read, lex, 1)
-    KL_SET_METHOD(entry, readTo, Zip_entry_fread, lex, 1)
+    KL_SET_METHOD(entry, close, TinyZip_entry_close, lex, 1)
+    KL_SET_METHOD(entry, name, TinyZip_entry_name, lex, 1)
+    KL_SET_METHOD(entry, index, TinyZip_entry_index, lex, 1)
+    KL_SET_METHOD(entry, isdir, TinyZip_entry_isdir, lex, 1)
+    KL_SET_METHOD(entry, size, TinyZip_entry_size, lex, 1)
+    KL_SET_METHOD(entry, uncompSize, TinyZip_entry_uncomp_size, lex, 1)
+    KL_SET_METHOD(entry, compSize, TinyZip_entry_comp_size, lex, 1)
+    KL_SET_METHOD(entry, crc32, TinyZip_entry_crc32, lex, 1)
+    KL_SET_METHOD(entry, write, TinyZip_entry_write, lex, 1)
+    KL_SET_METHOD(entry, writeTo, TinyZip_entry_fwrite, lex, 1)
+    KL_SET_METHOD(entry, read, TinyZip_entry_read, lex, 1)
+    KL_SET_METHOD(entry, readTo, TinyZip_entry_fread, lex, 1)
 }
 
-static int Zip_entry_open(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+static int TinyZip_entry_open(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     DEF_ARG(a0, 0, VAR_OBJ);
     DEF_ARG(a1, 1, VAR_STR);
@@ -327,7 +327,7 @@ static int Zip_entry_open(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     return 0;
 }
 
-static int Zip_entry_openbyindex(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+static int TinyZip_entry_openbyindex(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     DEF_ARG(a0, 0, VAR_OBJ);
     DEF_ARG(a1, 1, VAR_INT64);
@@ -359,7 +359,7 @@ static void zip_close_hook(void *p)
     zip_close(p);
 }
 
-static int Zip_close(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+static int TinyZip_close(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     DEF_ARG(a0, 0, VAR_OBJ);
     struct zip_t *z = NULL;
@@ -376,7 +376,7 @@ static int Zip_close(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     return 0;
 }
 
-static int Zip_entries_total(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+static int TinyZip_entries_total(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     DEF_ARG(a0, 0, VAR_OBJ);
     struct zip_t *z = NULL;
@@ -395,7 +395,7 @@ static int Zip_entries_total(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     return 0;
 }
 
-static int Zip_is64(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+static int TinyZip_is64(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     DEF_ARG(a0, 0, VAR_OBJ);
     struct zip_t *z = NULL;
@@ -414,7 +414,7 @@ static int Zip_is64(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     return 0;
 }
 
-static int Zip_create(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+static int TinyZip_create(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     DEF_ARG(a0, 0, VAR_STR);
     DEF_ARG2(a1, 1, VAR_STR, VAR_OBJ);
@@ -445,7 +445,7 @@ static int Zip_create(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     return 0;
 }
 
-static int Zip_open(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+static int TinyZip_open(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     DEF_ARG(a0, 0, VAR_STR);
     DEF_ARG_OR_UNDEF(a1, 1, VAR_INT64);
@@ -465,22 +465,22 @@ static int Zip_open(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 
     vmobj *o = alcobj(ctx);
     array_set(ctx, o, 0, zip);
-    KL_SET_METHOD(o, close, Zip_close, lex, 1)
-    KL_SET_METHOD(o, entry, Zip_entry_open, lex, 1)
-    KL_SET_METHOD(o, entryByIndex, Zip_entry_openbyindex, lex, 1)
-    KL_SET_METHOD(o, entryCount, Zip_entries_total, lex, 1)
-    KL_SET_METHOD(o, is64, Zip_is64, lex, 1)
+    KL_SET_METHOD(o, close, TinyZip_close, lex, 1)
+    KL_SET_METHOD(o, entry, TinyZip_entry_open, lex, 1)
+    KL_SET_METHOD(o, entryByIndex, TinyZip_entry_openbyindex, lex, 1)
+    KL_SET_METHOD(o, entryCount, TinyZip_entries_total, lex, 1)
+    KL_SET_METHOD(o, is64, TinyZip_is64, lex, 1)
     SET_OBJ(r, o);
     o->is_sysobj = 1;
     return 0;
 }
 
-int Zip(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+int TinyZip(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     vmobj *o = alcobj(ctx);
-    KL_SET_METHOD(o, open, Zip_open, lex, 1);
-    KL_SET_METHOD(o, create, Zip_open, lex, 1);
-    KL_SET_METHOD(o, zip, Zip_create, lex, 1)
+    KL_SET_METHOD(o, open, TinyZip_open, lex, 1);
+    KL_SET_METHOD(o, create, TinyZip_open, lex, 1);
+    KL_SET_METHOD(o, zip, TinyZip_create, lex, 1)
     SET_OBJ(r, o);
     return 0;
 }
