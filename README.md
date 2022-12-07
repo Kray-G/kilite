@@ -263,6 +263,8 @@ I will note the followings as I don't forget it.
   * [ ] Useful Libraries like below.
     * [ ] Zip
     * [ ] Xml
+      * [x] Simple XML Parser & Simple DOM operation.
+      * [ ] Node insertion, deletion, or modification to DOM.
     * [ ] PDF
 * [ ] Others.
   * [ ] Direct calling a C code.
