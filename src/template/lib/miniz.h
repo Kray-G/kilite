@@ -136,7 +136,6 @@
    stat64(), etc. Otherwise you won't be able to process large files (i.e.
    32-bit stat() fails for me on files > 0x7FFFFFFF bytes).
 */
-#pragma once
 
 /* Defines to completely disable specific portions of miniz.c:
    If all macros here are defined the only functionality remaining will be
@@ -572,7 +571,6 @@ typedef void *const voidpc;
 }
 #endif
 
-#pragma once
 #include <assert.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -674,7 +672,6 @@ extern MINIZ_EXPORT void *miniz_def_realloc_func(void *opaque, void *address,
 #ifdef __cplusplus
 }
 #endif
-#pragma once
 
 #ifdef __cplusplus
 extern "C" {
@@ -921,7 +918,6 @@ MINIZ_EXPORT void tdefl_compressor_free(tdefl_compressor *pComp);
 #ifdef __cplusplus
 }
 #endif
-#pragma once
 
 /* ------------------- Low-level Decompression API Definitions */
 
@@ -1119,8 +1115,6 @@ struct tinfl_decompressor_tag {
 #ifdef __cplusplus
 }
 #endif
-
-#pragma once
 
 /* ------------------- ZIP archive reading/writing */
 

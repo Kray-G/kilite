@@ -36,8 +36,10 @@
 #include <unistd.h>
 #endif
 
+#ifndef KILITE_AMALGAMATION
 #include "miniz.h"
 #include "zip.h"
+#endif
 
 #ifdef _MSC_VER
 #include <io.h>

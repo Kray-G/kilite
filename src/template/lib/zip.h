@@ -8,7 +8,6 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#pragma once
 #ifndef ZIP_H
 #define ZIP_H
 
