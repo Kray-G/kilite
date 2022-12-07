@@ -28,7 +28,7 @@ cat ../src/template/header.h >> $TEMPF
 rm $TEMPF
 
 echo Building a Kilite binary...
-gcc -D_LARGEFILE64_SOURCE=1 -Wno-unused-result -O3 -I ../mir \
+gcc -D_LARGEFILE64_SOURCE=1 -Wno-unused-result -O3 -I ../submodules/mir \
     -DUSE_INT64 -o kilite \
     ../src/main.c \
     ../src/frontend/lexer.c \
