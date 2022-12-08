@@ -15,6 +15,11 @@ void unmark_all(vmctx *ctx)
         UNMARK(s);
         s = s->liv;
     }
+    vmbin *bn = ctx->alc.bin.liv;
+    while (bn) {
+        UNMARK(bn);
+        bn = bn->liv;
+    }
     vmbgi *bi = ctx->alc.bgi.liv;
     while (bi) {
         UNMARK(bi);
@@ -127,6 +132,13 @@ void mark_var(vmvar *v)
             v->s = NULL;
         }
     }
+    if (v->bn) {
+        if (v->t == VAR_BIN) {
+            MARK(v->bn);
+        } else {
+            v->bn = NULL;
+        }
+    }
     if (v->bi) {
         if (v->t == VAR_BIG) {
             MARK(v->bi);
@@ -180,6 +192,14 @@ void premark_all(vmctx *ctx)
             MARK(s);
         }
         s = n;
+    }
+    vmbin *bn = ctx->alc.bin.liv;
+    while (bn) {
+        vmbin *n = bn->liv;
+        if (IS_HELD(bn)) {
+            MARK(bn);
+        }
+        bn = n;
     }
     vmbgi *bi = ctx->alc.bgi.liv;
     while (bi) {
@@ -263,6 +283,23 @@ void sweep(vmctx *ctx)
             pbakstr(ctx, s);
         }
         s = n;
+    }
+    int bnliv = 0;
+    int bnc = 0;
+    vmbin *bn = ctx->alc.bin.liv;
+    while (bn) {
+        ++bnliv;
+        vmbin *n = bn->liv;
+        if (!IS_MARKED(bn)) {
+            ++bnc;
+            if (BIN_UNIT < bn->cap) {
+                free(bn->s);
+                bn->s = bn->hd = NULL;
+                bn->len = bn->cap = 0;
+            }
+            pbakbin(ctx, bn);
+        }
+        bn = n;
     }
     int biliv = 0;
     int bic = 0;
@@ -356,6 +393,9 @@ void sweep(vmctx *ctx)
         printf("GC %d done, vstk(%d), ", ctx->gccnt, ctx->vstkp);
         if (sc > 0) {
             printf("(str:%d,scan:%d)", sc, sliv);
+        }
+        if (bnc > 0) {
+            printf("(bin:%d,scan:%d)", bnc, bnliv);
         }
         if (bic > 0) {
             printf("(bgi:%d,scan:%d)", bic, biliv);

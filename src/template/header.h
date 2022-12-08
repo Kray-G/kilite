@@ -74,6 +74,7 @@ enum {
 #define ALC_UNIT_FRM (1024)
 #define TICK_UNIT (1024*64)
 #define STR_UNIT (32)
+#define BIN_UNIT (32)
 #define HASH_SIZE (23)
 #define ARRAY_UNIT (64)
 #define HASHITEM_EMPTY(h) ((h)->hasht = 0x00)
@@ -137,6 +138,19 @@ typedef struct vmstr {
     char *hd;
 } vmstr;
 
+typedef struct vmbin {
+    struct vmbin *prv;  /* The link to the previous item in alive list. */
+    struct vmbin *liv;  /* The link to the next item in alive list. */
+    struct vmbin *nxt;  /* The link to the next item in free list. */
+    struct vmbin *chn;  /* The link in allocated object list */
+
+    int32_t flags;
+    int cap;
+    int len;
+    uint8_t *s;
+    uint8_t *hd;
+} vmbin;
+
 typedef struct vmobj {
     struct vmobj *prv;  /* The link to the previous item in alive list. */
     struct vmobj *liv;  /* The link to the next item in alive list. */
@@ -168,6 +182,7 @@ typedef struct vmvar {
     int64_t i;
     double d;
     vmbgi *bi;
+    vmbin *bn;
     vmstr *s;
     vmobj *o;           /* The hashmap from string to object */
     void *p;            /* almighty holder */
@@ -249,6 +264,7 @@ typedef struct vmctx {
         vmfnc fnc;
         vmfrm frm;
         vmstr str;
+        vmbin bin;
         vmbgi bgi;
         vmobj obj;
     } alc;
@@ -257,6 +273,7 @@ typedef struct vmctx {
         int fnc;
         int frm;
         int str;
+        int bin;
         int bgi;
         int obj;
     } cnt;
@@ -265,6 +282,7 @@ typedef struct vmctx {
         int fnc;
         int frm;
         int str;
+        int bin;
         int bgi;
         int obj;
     } fre;
@@ -324,6 +342,7 @@ typedef struct vmctx {
 #define push_var_b(ctx, v, label, func, file, line) push_var_def(ctx, label, func, file, line, { px->t = VAR_BIG; px->bi = alcbgi_bigz(ctx, BzFromString((v), 10, BZ_UNTIL_END)); })
 #define push_var_d(ctx, v, label, func, file, line) push_var_def(ctx, label, func, file, line, { px->t = VAR_DBL; px->d = (v); })
 #define push_var_s(ctx, v, label, func, file, line) push_var_def(ctx, label, func, file, line, { px->t = VAR_STR; px->s = alcstr_str(ctx, v); })
+#define push_var_n(ctx, v, label, func, file, line) push_var_def(ctx, label, func, file, line, { px->t = VAR_BIN; px->s = (v); })
 #define push_var_f(ctx, v, label, func, file, line) push_var_def(ctx, label, func, file, line, { px->t = VAR_FNC; px->f = (v); })
 #define push_var_o(ctx, v, label, func, file, line) push_var_def(ctx, label, func, file, line, { px->t = VAR_OBJ; px->o = (v); })
 #define push_var_sys(ctx, v, fn, label, func, file, line) \
@@ -404,6 +423,14 @@ typedef struct vmctx {
 
 #define KL_SET_PROPERTY(o, name, vs) \
     hashmap_set(ctx, o, #name, vs); \
+/**/
+
+#define KL_SET_PROPERTY_O(o, name, obj) \
+    hashmap_set(ctx, o, #name, alcvar_obj(ctx, obj)); \
+/**/
+
+#define KL_SET_PROPERTY_S(o, name, str) \
+    hashmap_set(ctx, o, #name, alcvar_str(ctx, str)); \
 /**/
 
 #define KL_SET_PROPERTY_I(o, name, i64) \
@@ -707,13 +734,14 @@ typedef struct vmctx {
 } \
 /**/
 
-#define SET_UNDEF(dst)  { (dst)->t = VAR_UNDEF;                                   }
-#define SET_I64(dst, v) { (dst)->t = VAR_INT64; (dst)->i  = (v);                  }
-#define SET_DBL(dst, v) { (dst)->t = VAR_DBL;   (dst)->d  = (v);                  }
+#define SET_UNDEF(dst)  { (dst)->t = VAR_UNDEF;                                     }
+#define SET_I64(dst, v) { (dst)->t = VAR_INT64; (dst)->i  = (v);                    }
+#define SET_DBL(dst, v) { (dst)->t = VAR_DBL;   (dst)->d  = (v);                    }
 #define SET_BIG(dst, v) { (dst)->t = VAR_BIG;   (dst)->bi = alcbgi_bigz(ctx, BzFromString((v), 10, BZ_UNTIL_END)); }
-#define SET_STR(dst, v) { (dst)->t = VAR_STR;   (dst)->s  = alcstr_str(ctx, (v)); }
-#define SET_FNC(dst, v) { (dst)->t = VAR_FNC;   (dst)->f  = (v);                  }
-#define SET_OBJ(dst, v) { (dst)->t = VAR_OBJ;   (dst)->o  = (v);                  }
+#define SET_STR(dst, v) { (dst)->t = VAR_STR;   (dst)->s  = alcstr_str(ctx, (v));   }
+#define SET_BIN(dst, v) { (dst)->t = VAR_BIN;   (dst)->s  = (v);                    }
+#define SET_FNC(dst, v) { (dst)->t = VAR_FNC;   (dst)->f  = (v);                    }
+#define SET_OBJ(dst, v) { (dst)->t = VAR_OBJ;   (dst)->o  = (v);                    }
 
 #define SHCOPY_VAR_TO(ctx, dst, src) { \
     if (!src) { \
@@ -737,6 +765,10 @@ typedef struct vmctx {
     case VAR_STR: \
         (dst)->t = VAR_STR; \
         (dst)->s = (src)->s; \
+        break; \
+    case VAR_BIN: \
+        (dst)->t = VAR_BIN; \
+        (dst)->bn = (src)->bn; \
         break; \
     case VAR_FNC: \
         (dst)->t = VAR_FNC; \
@@ -777,6 +809,10 @@ typedef struct vmctx {
     case VAR_STR: \
         (dst)->t = VAR_STR; \
         (dst)->s = str_dup(ctx, (src)->s); \
+        break; \
+    case VAR_BIN: \
+        (dst)->t = VAR_BIN; \
+        (dst)->bn = (src)->bn; \
         break; \
     case VAR_FNC: \
         (dst)->t = VAR_FNC; \
@@ -852,6 +888,9 @@ typedef struct vmctx {
     case VAR_STR: \
         if ((r)->s->len > 0) goto label; \
         break; \
+    case VAR_BIN: \
+        if ((r)->bn->len > 0) goto label; \
+        break; \
     case VAR_FNC: \
         goto label; \
     case VAR_OBJ: \
@@ -878,6 +917,9 @@ typedef struct vmctx {
         break; \
     case VAR_STR: \
         if ((r)->s->len == 0) goto label; \
+        break; \
+    case VAR_BIN: \
+        if ((r)->bn->len == 0) goto label; \
         break; \
     case VAR_FNC: \
         break; \
@@ -924,6 +966,7 @@ typedef struct vmctx {
         t2 = hashmap_search(ctx->s, str); \
         break; \
     case VAR_BIN: \
+        t2 = hashmap_search(ctx->b, str); \
         break; \
     case VAR_OBJ: \
         ctx->lastapply = str; \
@@ -1008,6 +1051,17 @@ typedef struct vmctx {
         } \
         if (0 <= ii && ii < xlen && (v)->s->s[ii]) { \
             SET_I64(r, (v)->s->s[ii]); \
+        } else { \
+            (r)->t = VAR_UNDEF; \
+        } \
+    } else if ((v)->t == VAR_BIN) { \
+        int ii = idx; \
+        int xlen = (v)->bn->len; \
+        if (ii < 0) { \
+            do { ii += xlen; } while (ii < 0); \
+        } \
+        if (0 <= ii && ii < xlen && (v)->bn->s[ii]) { \
+            SET_I64(r, (v)->bn->s[ii]); \
         } else { \
             (r)->t = VAR_UNDEF; \
         } \

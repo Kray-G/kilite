@@ -219,6 +219,93 @@ void pbakstr(vmctx *ctx, vmstr *p)
     }
 }
 
+// binary
+static void alloc_bins(vmctx *ctx, int n)
+{
+    while (n--) {
+        vmbin *s = (vmbin *)calloc(1, sizeof(vmbin));
+        s->nxt = ctx->alc.bin.nxt;
+        s->chn = ctx->alc.bin.chn;
+        ctx->alc.bin.nxt = ctx->alc.bin.chn = s;
+    }
+}
+
+static vmbin *alcbin_pure(vmctx *ctx)
+{
+    if (ctx->alc.bin.nxt == &(ctx->alc.bin)) {
+        alloc_bins(ctx, ALC_UNIT);
+        ctx->cnt.bin += ALC_UNIT;
+        ctx->fre.bin += ALC_UNIT;
+    }
+    vmbin *v = ctx->alc.bin.nxt;
+    ctx->alc.bin.nxt = v->nxt;
+    v->nxt = NULL;
+    v->prv = NULL;
+    v->liv = ctx->alc.bin.liv;
+    ctx->alc.bin.liv = v;
+    if (v->liv) {
+        v->liv->prv = v;
+    }
+
+    ctx->fre.bin--;
+    return v;
+}
+
+vmbin *alcbin_allocated_bin(vmctx *ctx, uint8_t *s, int alloclen)
+{
+    /* Caution!
+        If you want to use this function, `s` should be allocated by malloc() or calloc() because it will be freed by free()!
+    */
+    vmbin *v = alcbin_pure(ctx);
+    v->cap = v->len = alloclen;
+    v->s = v->hd = s;
+    return v;
+}
+
+vmbin *alcbin_bin(vmctx *ctx, const uint8_t *s, int len)
+{
+    vmbin *v = alcbin_pure(ctx);
+    if (v->cap > 0) {
+        if (0 <= len && len < v->cap) {
+            memcpy(v->s, s, len);
+            v->len = len;
+            v->hd = v->s;
+            return v;
+        }
+        free(v->s);
+    }
+
+    if (len < 0) {
+        v->s = v->hd = (uint8_t *)calloc(BIN_UNIT, sizeof(uint8_t));
+        v->cap = BIN_UNIT;
+        v->len = 0;
+        return v;
+    }
+    v->cap = (len < BIN_UNIT) ? BIN_UNIT : ((len / BIN_UNIT) * (BIN_UNIT << 1)); 
+    v->s = v->hd = (uint8_t *)calloc(v->cap, sizeof(uint8_t));
+    memcpy(v->s, s, len);
+    v->len = len;
+    return v;
+}
+
+void pbakbin(vmctx *ctx, vmbin *p)
+{
+    if (p && !p->nxt) {
+        p->nxt = ctx->alc.bin.nxt;
+        ctx->alc.bin.nxt = p;
+        ctx->fre.bin++;
+
+        if (p->prv) {
+            p->prv->liv = p->liv;
+        } else {
+            ctx->alc.bin.liv = p->liv;
+        }
+        if (p->liv) {
+            p->liv->prv = p->prv;
+        }
+    }
+}
+
 // bgint
 static void alloc_bgis(vmctx *ctx, int n)
 {
@@ -408,6 +495,13 @@ vmvar *alcvar_str(vmctx *ctx, const char *s)
     return v;
 }
 
+vmvar *alcvar_bin(vmctx *ctx, const uint8_t *s, int len)
+{
+    vmvar *v = alcvar_pure(ctx, VAR_BIN);
+    v->bn = alcbin_bin(ctx, s, len);
+    return v;
+}
+
 vmvar *alcvar_bgistr(vmctx *ctx, const char *s, int radix)
 {
     vmvar *v = alcvar_pure(ctx, VAR_BIG);
@@ -467,6 +561,11 @@ vmvar *copy_var(vmctx *ctx, vmvar *src, int hold)
     case VAR_STR:
         v = alcvar_pure(ctx, VAR_STR);
         v->s = alcstr_str(ctx, src->s->s);
+        if (hold) HOLD(v);
+        break;
+    case VAR_BIN:
+        v = alcvar_pure(ctx, VAR_BIN);
+        v->bn = src->bn;
         if (hold) HOLD(v);
         break;
     case VAR_FNC:
