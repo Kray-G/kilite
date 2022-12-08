@@ -79,14 +79,14 @@ static char *parse_const_str(kl_context *ctx, kl_lexer *l, const char *str)
 static char *parse_const_varidname(kl_context *ctx, kl_lexer *l, int id)
 {
     char str[32] = {0};
-    sprintf(str, "v%d", id);
+    snprintf(str, 30, "v%d", id);
     return const_str(ctx, "Compile", l->tokline, l->tokpos, l->toklen, str);
 }
 
 static char *parse_const_funcidname(kl_context *ctx, kl_lexer *l, int id)
 {
     char str[32] = {0};
-    sprintf(str, "anonymous_func%d", id);
+    snprintf(str, 30, "anonymous_func%d", id);
     return const_str(ctx, "Compile", l->tokline, l->tokpos, l->toklen, str);
 }
 
@@ -278,7 +278,7 @@ static inline const char *make_class_func_name(kl_context *ctx, kl_lexer *l, con
         sym = sym->scope;
         if (sym && sym->symtoken == TK_CLASS) {
             char buf[1024] = {0};
-            sprintf(buf, "%s#%s", sym->name, name);
+            snprintf(buf, 1000, "%s#%s", sym->name, name);
             return parse_const_str(ctx, l, buf);
         }
     }
