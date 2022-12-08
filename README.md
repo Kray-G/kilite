@@ -203,7 +203,7 @@ I will note the followings as I don't forget it.
       * [x] `&&=` and `||=` as a shortcut operator.
       * [x] `??` as a shortcut operator.
       * [x] `??=` as a shortcut operator.
-    * [ ] Binary operations.
+    * [x] Binary operations.
     * [x] String operations.
     * [x] Array operations.
     * [x] Object operations.
