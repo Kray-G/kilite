@@ -82,10 +82,10 @@ static clcmd cclist[] = {
     { .optch = '/', .cc = "cl", .opt = "O2", .args = "/MT /nologo", .outf = "/Fe",
         .libpathopt = "/link /LIBPATH:", .link = "kilite.lib zlibstatic.lib libminizip.lib" },
     { .optch = '-', .cc = "gcc", .opt = "O3", .args = "", .outf = "-o ",
-        .libpathopt = "-L", .link = "-lm -lkilite -lminizip -lzlibstatic -lcrypt32" },
+        .libpathopt = "-L", .link = "-lkilite -lminizip -lzlibstatic -lcrypt32" },
     #else
     { .optch = '-', .cc = "gcc", .opt = "O3", .args = "", .outf = "-o ",
-        .libpathopt = "-L", .link = "-lm -lkilite -lminizip -lz" },
+        .libpathopt = "-L", .link = "-lkilite -lminizip -lz -lm" },
     #endif
 };
 

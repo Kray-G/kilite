@@ -13,6 +13,7 @@ make
 cp -f c2m ../
 cp -f libmir_static.a ../
 cd ..
+cp -f libmir_static.a ../
 
 echo Building zlib...
 mkdir -p zlib
@@ -22,6 +23,7 @@ make
 make install
 cp -f libz.a ../
 cd ..
+cp -f libz.a ../
 
 echo Building minizip...
 mkdir -p minizip
@@ -31,6 +33,7 @@ make
 make install
 cp -f libminizip.a ../
 cd ..
+cp -f libminizip.a ../
 
 BIN=$PWD
 TEMPF=$BIN/libkilite.c
