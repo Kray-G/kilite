@@ -31,14 +31,9 @@ for /f "tokens=* delims=0123456789 eol=" %%a in ('findstr /n "^" %CMKFILE%') do 
 call :BUILD cl "Visual Studio 16 2019"
 if exist zlib\Release\zlibstatic.lib copy /y zlib\Release\zlibstatic.lib zlibstatic.lib
 @gcc -v > NUL 2>&1
-if ERRORLEVEL 1 goto TCC
+if ERRORLEVEL 1 goto END
 call :BUILD gcc "MinGW Makefiles" _gcc
-if exist zlib_gcc\libzlibstatic.a copy /y zlib_gcc\libzlibstatic.a libzlibstatic_gcc.a
-:TCC
-@REM @tcc -v > NUL 2>&1
-@REM if ERRORLEVEL 1 goto END
-@REM call :BUILD tcc "MinGW Makefiles" _tcc
-@REM tcc -ar rcs libzlibstatic_tcc.a zlib_tcc\CMakeFiles\zlibstatic.dir\*.obj
+if exist zlib_gcc\libzlibstatic.a copy /y zlib_gcc\libzlibstatic.a libzlibstatic.a
 
 :END
 if exist .\%CMKFILE% copy .\%CMKFILE% %ORGDIR%\
@@ -62,7 +57,7 @@ echo Generating with %CC% and %GEN% ...
 if not exist zlib%TGT% mkdir zlib%TGT%
 cd zlib%TGT%
 
-cmake -DCMAKE_INSTALL_PREFIX=.\install ..\%ORGDIR% -G %GEN%
+cmake -DCMAKE_INSTALL_PREFIX=../../src/template/inc/lib/zlib ..\%ORGDIR% -G %GEN%
 if "%CC%"=="cl" (
     msbuild /p:Configuration=Release zlib.sln
     msbuild /p:Configuration=Release INSTALL.vcxproj

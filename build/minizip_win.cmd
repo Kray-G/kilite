@@ -37,7 +37,7 @@ if exist minizip\Release\libminizip.lib copy /y minizip\Release\libminizip.lib l
 @gcc -v > NUL 2>&1
 if ERRORLEVEL 1 goto END
 call :BUILD gcc "MinGW Makefiles" _gcc
-if exist minizip_gcc\libminizip.a copy /y minizip_gcc\libminizip.a libminizip_gcc.a
+if exist minizip_gcc\libminizip.a copy /y minizip_gcc\libminizip.a libminizip.a
 
 :END
 if exist .\%CMKFILE% copy .\%CMKFILE% %ORGDIR%\
@@ -60,9 +60,10 @@ echo Generating with %CC% and %GEN% ...
 if not exist minizip%TGT% mkdir minizip%TGT%
 cd minizip%TGT%
 
-cmake -DMZ_BZIP2=OFF -DMZ_LZMA=OFF -DMZ_ZSTD=OFF -DZLIB_ROOT=../zlib/install ..\%ORGDIR% -G %GEN%
+cmake -DMZ_BZIP2=OFF -DMZ_LZMA=OFF -DMZ_ZSTD=OFF -DZLIB_ROOT=../../src/template/inc/lib/zlib -DCMAKE_INSTALL_PREFIX=../../src/template/inc/lib/minizip ..\%ORGDIR% -G %GEN%
 if "%CC%"=="cl" (
     msbuild /p:Configuration=Release minizip.sln
+    msbuild /p:Configuration=Release INSTALL.vcxproj
 ) else (
     mingw32-make -f Makefile
 )
