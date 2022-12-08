@@ -17,7 +17,7 @@ cd ..
 echo Building zlib...
 mkdir -p zlib
 cd zlib
-cmake ../../submodules/zlib
+cmake -DCMAKE_INSTALL_PREFIX=../../src/template/inc/lib/zlib ../../submodules/zlib
 make
 make install
 cp -f libz.a ../
@@ -26,8 +26,9 @@ cd ..
 echo Building minizip...
 mkdir -p minizip
 cd minizip
-cmake ../../submodules/minizip-ng
+cmake -DMZ_BZIP2=OFF -DMZ_LZMA=OFF -DMZ_ZSTD=OFF -DZLIB_ROOT=../../src/template/inc/lib/zlib -DCMAKE_INSTALL_PREFIX=../../src/template/inc/lib/minizip ../../submodules/minizip-ng
 make
+make install
 cp -f libminizip.a ../
 cd ..
 
@@ -46,7 +47,7 @@ cat ../src/template/header.h >> $TEMPF
 rm $TEMPF
 
 echo Building a Kilite binary...
-gcc -Wno-unused-result -O3 -I ../submodules/mir \
+gcc -Wno-unused-result -O3 -I../submodules/mir \
     -DUSE_INT64 -o kilite \
     ../src/main.c \
     ../src/frontend/lexer.c \
@@ -60,7 +61,10 @@ gcc -Wno-unused-result -O3 -I ../submodules/mir \
     ../src/backend/resolver.c \
     ../src/backend/header.c \
     ../src/backend/cexec.c \
-    ../bin/libmir_static.a
+    -L../bin \
+    -lmir_static \
+    -lminizip \
+    -lz
 
 cp -f kilite ../kilite
 
@@ -94,6 +98,8 @@ echo "#line 1 \"bigi.c\"" >> $TEMPF
 cat ../src/template/bigi.c >> $TEMPF
 echo "#line 1 \"str.c\"" >> $TEMPF
 cat ../src/template/str.c >> $TEMPF
+echo "#line 1 \"bin.c\"" >> $TEMPF
+cat ../src/template/bin.c >> $TEMPF
 echo "#line 1 \"obj.c\"" >> $TEMPF
 cat ../src/template/obj.c >> $TEMPF
 echo "#line 1 \"op.c\"" >> $TEMPF
@@ -104,6 +110,8 @@ echo "#line 1 \"libstd.c\"" >> $TEMPF
 cat ../src/template/libstd.c >> $TEMPF
 echo "#line 1 \"libxml.c\"" >> $TEMPF
 cat ../src/template/libxml.c >> $TEMPF
+echo "#line 1 \"libzip.c\"" >> $TEMPF
+cat ../src/template/libzip.c >> $TEMPF
 echo "#line 1 \"inc/platform.c\"" >> $TEMPF
 cat ../src/template/inc/platform.c >> $TEMPF
 echo "#ifndef __MIRC__" >> $TEMPF

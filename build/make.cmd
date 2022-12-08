@@ -12,14 +12,21 @@ set PATH=%PATH%;%BIN%
 echo Building MIR...
 if not exist mir_static.lib call ..\build\mir_win.cmd
 if not exist mir_static.lib goto ERROR
+copy /y mir_static.lib ..\mir_static.lib
+
 echo Building zlib...
 if not exist zlibstatic.lib call ..\build\zlib_win.cmd
 if not exist zlibstatic.lib goto ERROR
-echo Building minizip...
-if not exist libminizip.lib call ..\build\zlib_win.cmd
-if not exist libminizip.lib goto ERROR
-del libkilite.a
+copy /y zlibstatic.lib ..\zlibstatic.lib
+if exist libzlibstatic.a copy /y libzlibstatic.a ..\libzlibstatic.a
 
+echo Building minizip...
+if not exist libminizip.lib call ..\build\minizip_win.cmd
+if not exist libminizip.lib goto ERROR
+copy /y libminizip.lib ..\libminizip.lib
+if exist libminizip.a copy /y libminizip.a ..\libminizip.a
+
+del libkilite.a
 set TEMPF=%BIN%\libkilite.c
 
 @echo Generating a header source code...
@@ -33,7 +40,7 @@ makecstr.exe %TEMPF% > ..\src\backend\header.c
 del %TEMPF%
 
 @echo Building a Kilite binary...
-cl /nologo /O2 /I ..\..\mir /MT ^
+cl /nologo /O2 /I..\..\mir  /MT ^
     /Fekilite.exe ^
     ..\src\main.c ^
     ..\src\frontend\lexer.c ^
@@ -47,6 +54,8 @@ cl /nologo /O2 /I ..\..\mir /MT ^
     ..\src\backend\resolver.c ^
     ..\src\backend\header.c ^
     ..\src\backend\cexec.c ^
+    ..\bin\libminizip.lib ^
+    ..\bin\zlibstatic.lib ^
     ..\bin\mir_static.lib
 
 copy /y kilite.exe ..\kilite.exe > NUL
@@ -81,6 +90,8 @@ echo #line 1 "bigi.c" >> %TEMPF%
 type ..\src\template\bigi.c >> %TEMPF%
 echo #line 1 "str.c" >> %TEMPF%
 type ..\src\template\str.c >> %TEMPF%
+echo #line 1 "bin.c" >> %TEMPF%
+type ..\src\template\bin.c >> %TEMPF%
 echo #line 1 "obj.c" >> %TEMPF%
 type ..\src\template\obj.c >> %TEMPF%
 echo #line 1 "op.c" >> %TEMPF%
@@ -91,36 +102,30 @@ echo #line 1 "libstd.c" >> %TEMPF%
 type ..\src\template\libstd.c >> %TEMPF%
 echo #line 1 "libxml.c" >> %TEMPF%
 type ..\src\template\libxml.c >> %TEMPF%
+echo #line 1 "libzip.c" >> %TEMPF%
+type ..\src\template\libzip.c >> %TEMPF%
 echo #line 1 "inc/platform.c" >> %TEMPF%
 type ..\src\template\inc\platform.c >> %TEMPF%
-@REM echo #ifndef __MIRC__ >> %TEMPF%
-@REM ... if you need some additional files, you can put them here.
-@REM echo #endif >> %TEMPF%
 pushd ..\src\template\std
 kilite.exe --makelib callbacks.klt >> %TEMPF%
 popd
 
 @echo Generating a static library file for cl...
-cl /nologo /O2 /DUSE_INT64 /c %TEMPF%
+cl /nologo /O2 /DUSE_INT64 /I..\src\template /I..\src\template\inc /c %TEMPF%
 lib /nologo /out:kilite.lib %TEMPF:.c=.obj%
 copy /y kilite.lib ..\kilite.lib > NUL
-c2m -DUSE_INT64 -I lib -c %TEMPF%
+c2m -DUSE_INT64 -Ilib -c %TEMPF%
 if exist kilite.bmir del kilite.bmir
 ren %TEMPF:.c=.bmir% kilite.bmir
 copy /y kilite.bmir ..\kilite.bmir > NUL
 
 :GCC_CHK
 @gcc -v > NUL 2>&1
-if ERRORLEVEL 1 goto TCC_CHK
+if ERRORLEVEL 1 goto CHK_END
 call :gcc %TEMPF%
-:TCC_CHK
-@REM @tcc -v > NUL 2>&1
-@REM if ERRORLEVEL 1 goto CHK_END
-@REM call :tcc %TEMPF%
 
 :CHK_END
-@REM if not exist libkilite.a @copy /y libkilite_tcc.a libkilite.a > NUL 2>&1
-if not exist libkilite.a @copy /y libkilite_gcc.a libkilite.a > NUL 2>&1
+if not exist libkilite.a @copy /y libkilite.a libkilite.a > NUL 2>&1
 copy /y libkilite.a ..\libkilite.a > NUL
 
 goto CLEANUP
@@ -141,16 +146,9 @@ popd
 endlocal
 exit /b 0
 
-:tcc
-@echo Generating a static library file for tcc...
-tcc -o libkilite.o -DUSE_INT64 -I lib -c %1%
-tcc -ar rcs libkilite_tcc.a libkilite.o
-copy /y libkilite_tcc.a ..\libkilite_tcc.a > NUL
-exit /b 0
-
 :gcc
 @echo Generating a static library file for gcc...
-gcc -O3 -o libkilite.o -DUSE_INT64 -I lib -c %1%
-ar rcs libkilite_gcc.a libkilite.o
-copy /y libkilite_gcc.a ..\libkilite_gcc.a > NUL
+gcc -O3 -o libkilite.o -DUSE_INT64 -Ilib -I../src/template -I../src/template/inc -c %1%
+ar rcs libkilite.a libkilite.o
+copy /y libkilite.a ..\libkilite.a > NUL
 exit /b 0

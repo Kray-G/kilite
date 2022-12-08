@@ -93,6 +93,24 @@ void load_additional_methods(MIR_context_t ctx)
     MIR_load_external(ctx, "SystemTimer_restart_impl", (void *)SystemTimer_restart_impl);
     MIR_load_external(ctx, "SystemTimer_elapsed_impl", (void *)SystemTimer_elapsed_impl);
     MIR_load_external(ctx, "Math_random_impl", (void *)Math_random_impl);
+
+    MIR_load_external(ctx, "mz_zip_fileinfo_filename", (void *)mz_zip_fileinfo_filename);
+    MIR_load_external(ctx, "mz_zip_fileinfo_uncompsize", (void *)mz_zip_fileinfo_uncompsize);
+    MIR_load_external(ctx, "mz_zip_fileinfo_compsize", (void *)mz_zip_fileinfo_compsize);
+    MIR_load_external(ctx, "mz_zip_fileinfo_crc", (void *)mz_zip_fileinfo_crc);
+    MIR_load_external(ctx, "mz_zip_fileinfo_comp_method", (void *)mz_zip_fileinfo_comp_method);
+    MIR_load_external(ctx, "mz_zip_fileinfo_crypt", (void *)mz_zip_fileinfo_crypt);
+    MIR_load_external(ctx, "mz_zip_timeinfo", (void *)mz_zip_timeinfo);
+
+    MIR_load_external(ctx, "mz_zip_reader_create", (void *)mz_zip_reader_create);
+    MIR_load_external(ctx, "mz_zip_reader_open_file", (void *)mz_zip_reader_open_file);
+    MIR_load_external(ctx, "mz_zip_reader_delete", (void *)mz_zip_reader_delete);
+    MIR_load_external(ctx, "mz_zip_reader_goto_first_entry", (void *)mz_zip_reader_goto_first_entry);
+    MIR_load_external(ctx, "mz_zip_reader_goto_next_entry", (void *)mz_zip_reader_goto_next_entry);
+    MIR_load_external(ctx, "mz_zip_reader_locate_entry", (void *)mz_zip_reader_locate_entry);
+    MIR_load_external(ctx, "mz_zip_reader_entry_get_info", (void *)mz_zip_reader_entry_get_info);
+    MIR_load_external(ctx, "mz_zip_reader_entry_is_dir", (void *)mz_zip_reader_entry_is_dir);
+    MIR_load_external(ctx, "mz_zip_reader_set_password", (void *)mz_zip_reader_set_password);
 }
 
 int run(int *ret, const char *fname, const char *src, int ac, char **av, char **ev, kl_opts *opts)
