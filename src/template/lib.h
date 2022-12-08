@@ -50,12 +50,14 @@
 #include "inc/lib/minizip/include/mz_strm_mem.h"
 #include "inc/lib/minizip/include/mz_strm_os.h"
 #include "inc/lib/minizip/include/mz_strm_pkcrypt.h"
-#include "inc/lib/minizip/include/mz_strm_wzaes.h"
 #include "inc/lib/minizip/include/mz_strm_zlib.h"
 #include "inc/lib/minizip/include/mz_zip.h"
 #include "inc/lib/minizip/include/mz_zip_rw.h"
 #include "inc/lib/minizip/include/unzip.h"
 #include "inc/lib/minizip/include/zip.h"
+#if defined(_WIN32) || defined(_WIN64)
+#include "inc/lib/minizip/include/mz_strm_wzaes.h"
+#endif
 
 #else
 

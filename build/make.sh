@@ -114,14 +114,6 @@ echo "#line 1 \"libzip.c\"" >> $TEMPF
 cat ../src/template/libzip.c >> $TEMPF
 echo "#line 1 \"inc/platform.c\"" >> $TEMPF
 cat ../src/template/inc/platform.c >> $TEMPF
-echo "#ifndef __MIRC__" >> $TEMPF
-echo "#line 1 \"miniz.h\"" >> $TEMPF
-cat ../src/template/lib/miniz.h >> $TEMPF
-echo "#line 1 \"zip.h\"" >> $TEMPF
-cat ../src/template/lib/zip.h >> $TEMPF
-echo "#line 1 \"zip.c\"" >> $TEMPF
-cat ../src/template/lib/zip.c >> $TEMPF
-echo "#endif" >> $TEMPF
 cd ../src/template/std
 $BIN/kilite --makelib callbacks.klt >> $TEMPF
 cd $BIN
