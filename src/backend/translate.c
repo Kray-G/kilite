@@ -670,6 +670,35 @@ static void translate_incdec(func_context *fctx, xstr *code, const char *op, con
     }
 }
 
+static void translate_setbin(func_context *fctx, xstr *code, kl_kir_inst *i)
+{
+    char buf1[256] = {0};
+    char buf2[256] = {0};
+    var_value(buf1, &(i->r1));
+
+    switch (i->r3.t) {
+    case TK_VSINT:
+        xstra_inst(code, "SET_BIN_DATA_I(ctx, %s, %d, %" PRId64 ");\n", buf1, i->r2.i64, i->r3.i64);
+        break;
+    case TK_VDBL:
+        xstra_inst(code, "SET_BIN_DATA_I(ctx, %s, %d, %s);\n", buf1, i->r2.i64, i->r3.dbl);
+        break;
+    case TK_VSTR:
+        xstra_inst(code, "SET_BIN_DATA_I(ctx, %s, %d, %d);\n", buf1, i->r2.i64, i->r3.str[0]);
+        break;
+    case TK_VAR:
+        var_value(buf2, &(i->r3));
+        xstra_inst(code, "SET_BIN_DATA(ctx, %s, %d, %s, L%d, \"%s\", \"%s\", %d);\n",
+            buf1, i->r2.i64, buf2,
+            i->catchid, i->funcname, escape(&(fctx->str), i->filename), i->line);
+        break;
+    default:
+        xstra_inst(code, "<ERROR:%d>", __LINE__);
+        /* TODO: error */
+        break;
+    }
+}
+
 static void translate_idxfrm(func_context *fctx, xstr *code, kl_kir_inst *i)
 {
     char buf1[256] = {0};
@@ -966,25 +995,31 @@ static void translate_mova(func_context *fctx, xstr *code, kl_kir_inst *i)
         char buf2[256] = {0};
         if (i->r1.typeid == TK_TSINT64 && i->r2.typeid == TK_TSINT64) {
             int_value(buf2, &(i->r2));
-            xstra_inst(code, "SET_I64((%s)->a, %s);\n", buf1, buf2);
+            xstra_inst(code, "SET_APPLY_I(ctx, (%s), %s, L%d, \"%s\", \"%s\", %d);\n", buf1, buf2,
+                i->catchid, i->funcname, escape(&(fctx->str), i->filename), i->line);
         } else {
             var_value(buf2, &(i->r2));
-            xstra_inst(code, "COPY_VAR_TO(ctx, (%s)->a, %s);\n", buf1, buf2);
+            xstra_inst(code, "SET_APPLY(ctx, (%s), %s, L%d, \"%s\", \"%s\", %d);\n", buf1, buf2,
+                i->catchid, i->funcname, escape(&(fctx->str), i->filename), i->line);
         }
         break;
     }
     case TK_VSINT:
-        xstra_inst(code, "SET_I64((%s)->a, %" PRId64 ");\n", buf1, i->r2.i64);
+        xstra_inst(code, "SET_APPLY_I(ctx, (%s), %" PRId64 ", L%d, \"%s\", \"%s\", %d);\n", buf1, i->r2.i64,
+            i->catchid, i->funcname, escape(&(fctx->str), i->filename), i->line);
         break;
     case TK_VDBL:
-        xstra_inst(code, "SET_DBL((%s)->a, %s);\n", buf1, i->r2.dbl);
+        xstra_inst(code, "SET_APPLY_D(ctx, (%s), %s, L%d, \"%s\", \"%s\", %d);\n", buf1, i->r2.dbl,
+            i->catchid, i->funcname, escape(&(fctx->str), i->filename), i->line);
         break;
     case TK_VSTR:
-        xstra_inst(code, "SET_STR((%s)->a, \"%s\");\n", buf1, escape(&(fctx->str), i->r2.str));
+        xstra_inst(code, "SET_APPLY_S(ctx, (%s), \"%s\", ", buf1, escape(&(fctx->str), i->r2.str));
+        xstra_inst(code, "L%d, \"%s\", \"%s\", %d);\n", i->catchid, i->funcname, escape(&(fctx->str), i->filename), i->line);
         break;
     case TK_FUNC:
         xstra_inst(code, "vmfnc *f%d = alcfnc(ctx, %s, frm, \"%s\", 0);\n", i->r2.funcid, i->r2.name, i->r2.str);
-        xstra_inst(code, "SET_FNC((%s)->a, f%d);\n", buf1, i->r2.funcid);
+        xstra_inst(code, "SET_APPLY_F(ctx, (%s), f%d, L%d, \"%s\", \"%s\", %d);\n", buf1, i->r2.funcid,
+            i->catchid, i->funcname, escape(&(fctx->str), i->filename), i->line);
         if (strcmp(i->r2.name, "methodMissing") == 0) {
             xstra_inst(code, "ctx->methodmissing = f%d;\n", i->r2.funcid);
         }
@@ -992,7 +1027,6 @@ static void translate_mova(func_context *fctx, xstr *code, kl_kir_inst *i)
     default:
         break;
     }
-    xstra_inst(code, "SHMOVE_VAR_TO(ctx, (%s), (%s)->a);\n", buf1, buf1);
 }
 
 static void translate_type(xstr *code, kl_kir_inst *i)
@@ -1501,6 +1535,12 @@ static void translate_inst(xstr *code, kl_kir_func *f, kl_kir_inst *i, func_cont
             i->catchid, i->funcname, escape(&(fctx->str), i->filename), i->line);
         break;
 
+    case KIR_NEWBIN:
+        xstra_inst(code, "SET_BIN(%s, alcbin(ctx));\n", var_value(buf1, &(i->r1)));
+        break;
+    case KIR_SETBIN:
+        translate_setbin(fctx, code, i);
+        break;
     case KIR_NEWOBJ:
         xstra_inst(code, "SET_OBJ(%s, alcobj(ctx));\n", var_value(buf1, &(i->r1)));
         break;

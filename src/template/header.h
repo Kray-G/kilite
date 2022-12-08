@@ -62,6 +62,7 @@ enum {
     EXCEPT_INVALID_FIBER_STATE,
     EXCEPT_DEAD_FIBER_CALLED,
     EXCEPT_RANGE_ERROR,
+    EXCEPT_OUT_OF_RANGE_ERROR,
     EXCEPT_TOO_DEEP,
     EXCEPT_XML_ERROR,
     EXCEPT_ZIP_ERROR,
@@ -107,6 +108,8 @@ typedef enum vartype {
     VAR_BIN,
     VAR_OBJ,
     VAR_FNC,
+    VAR_STRREF,
+    VAR_BINREF,
     VAR_VOIDP,
 } vartype;
 
@@ -739,9 +742,169 @@ typedef struct vmctx {
 #define SET_DBL(dst, v) { (dst)->t = VAR_DBL;   (dst)->d  = (v);                    }
 #define SET_BIG(dst, v) { (dst)->t = VAR_BIG;   (dst)->bi = alcbgi_bigz(ctx, BzFromString((v), 10, BZ_UNTIL_END)); }
 #define SET_STR(dst, v) { (dst)->t = VAR_STR;   (dst)->s  = alcstr_str(ctx, (v));   }
-#define SET_BIN(dst, v) { (dst)->t = VAR_BIN;   (dst)->s  = (v);                    }
+#define SET_BIN(dst, v) { (dst)->t = VAR_BIN;   (dst)->bn = (v);                    }
 #define SET_FNC(dst, v) { (dst)->t = VAR_FNC;   (dst)->f  = (v);                    }
 #define SET_OBJ(dst, v) { (dst)->t = VAR_OBJ;   (dst)->o  = (v);                    }
+#define SET_BIN_DATA(ctx, bin, idx, v, label, func, file, line) { \
+    /* bin should be always binary here by compiler */ \
+    if (!bin_set(bin->bn, idx, v)) { \
+        e = throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION, NULL); \
+        exception_addtrace(ctx, ctx->except, func, file, line); \
+        goto label; \
+    } \
+} \
+/**/
+#define SET_BIN_DATA_I(ctx, bin, idx, v) { \
+    /* bin should be always binary here by compiler */ \
+    bin_set_i(bin->bn, idx, v); \
+} \
+/**/
+#define SET_BIN_DATA_D(ctx, bin, idx, v) { \
+    /* bin should be always binary here by compiler */ \
+    double dv = v; \
+    bin_set_d(bin->bn, idx, &dv); \
+} \
+/**/
+
+#define SET_APPLY_I(ctx, r, iv, label, func, file, line) { \
+    vmvar *dst = (r)->a; \
+    if ((dst)->t == VAR_STRREF) { \
+        vmstr *s = (dst)->s; \
+        int ii = (int)((dst)->i); \
+        if (ii < 0) { \
+            do { ii += s->len; } while (ii < 0); \
+        } \
+        if (ii < s->len) { \
+            s->s[ii] = iv; \
+        } else { \
+            e = throw_system_exception(__LINE__, ctx, EXCEPT_OUT_OF_RANGE_ERROR, NULL); \
+            exception_addtrace(ctx, ctx->except, func, file, line); \
+            goto label; \
+        } \
+        SET_I64(r, iv) \
+        (r)->a = NULL; \
+    } else if ((dst)->t == VAR_BINREF) { \
+        vmbin *bn = (dst)->bn; \
+        int ii = (int)((dst)->i); \
+        if (ii < 0) { \
+            do { ii += bn->len; } while (ii < 0); \
+        } \
+        bin_set_i(bn, ii, iv); \
+        SET_I64(r, iv) \
+        (r)->a = NULL; \
+    } else { \
+        SET_I64(dst, iv) \
+        SHMOVE_VAR_TO(ctx, (r), dst) \
+    } \
+} \
+/**/
+
+#define SET_APPLY_D(ctx, r, dv, label, func, file, line) { \
+    vmvar *dst = (r)->a; \
+    if ((dst)->t == VAR_STRREF) { \
+        vmstr *s = (dst)->s; \
+        int ii = (int)((dst)->i); \
+        if (ii < 0) { \
+            do { ii += s->len; } while (ii < 0); \
+        } \
+        if (ii < s->len) { \
+            s->s[ii] = (int)dv; \
+        } else { \
+            e = throw_system_exception(__LINE__, ctx, EXCEPT_OUT_OF_RANGE_ERROR, NULL); \
+            exception_addtrace(ctx, ctx->except, func, file, line); \
+            goto label; \
+        } \
+        SET_I64(r, (int)dv) \
+        (r)->a = NULL; \
+    } else if ((dst)->t == VAR_BINREF) { \
+        vmbin *bn = (dst)->bn; \
+        int ii = (int)((dst)->i); \
+        if (ii < 0) { \
+            do { ii += bn->len; } while (ii < 0); \
+        } \
+        double dvv = dv; \
+        bin_set_d(bn, ii, &dvv); \
+        SET_I64(r, (int)dv) \
+        (r)->a = NULL; \
+    } else { \
+        SET_DBL(dst, dv) \
+        SHMOVE_VAR_TO(ctx, (r), dst) \
+    } \
+} \
+/**/
+
+#define SET_APPLY_S(ctx, r, str, label, func, file, line) { \
+    vmvar *dst = (r)->a; \
+    if ((dst)->t == VAR_STRREF) { \
+        vmstr *s = (dst)->s; \
+        int ii = (int)((dst)->i); \
+        if (ii < 0) { \
+            do { ii += s->len; } while (ii < 0); \
+        } \
+        if (ii < s->len) { \
+            s->s[ii] = (int)(str[0]); \
+        } else { \
+            e = throw_system_exception(__LINE__, ctx, EXCEPT_OUT_OF_RANGE_ERROR, NULL); \
+            exception_addtrace(ctx, ctx->except, func, file, line); \
+            goto label; \
+        } \
+        SET_I64(r, (int)(str[0])) \
+        (r)->a = NULL; \
+    } else if ((dst)->t == VAR_BINREF) { \
+        vmbin *bn = (dst)->bn; \
+        int ii = (int)((dst)->i); \
+        if (ii < 0) { \
+            do { ii += bn->len; } while (ii < 0); \
+        } \
+        bin_set_i(bn, ii, str[0]); \
+        SET_I64(r, (int)(str[0])) \
+        (r)->a = NULL; \
+    } else { \
+        SET_STR(dst, str) \
+        SHMOVE_VAR_TO(ctx, (r), dst) \
+    } \
+} \
+/**/
+
+#define SET_APPLY_F(ctx, r, f, label, func, file, line) { \
+    vmvar *dst = (r)->a; \
+    if ((dst)->t == VAR_STRREF || (dst)->t == VAR_BINREF) { \
+        e = throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION, NULL); \
+        exception_addtrace(ctx, ctx->except, func, file, line); \
+        goto label; \
+    } else { \
+        SET_FNC(dst, f) \
+        SHMOVE_VAR_TO(ctx, (r), dst) \
+    } \
+} \
+/**/
+
+#define SET_APPLY(ctx, r, v, label, func, file, line) { \
+    if ((v)->t == VAR_INT64) { \
+        int64_t i = (v)->i; \
+        SET_APPLY_I(ctx, r, i, label, func, file, line); \
+    } else if ((v)->t == VAR_DBL) { \
+        double d = (v)->d; \
+        SET_APPLY_D(ctx, r, d, label, func, file, line); \
+    } else if ((v)->t == VAR_STR) { \
+        const char *str = (v)->s->s; \
+        SET_APPLY_S(ctx, r, str, label, func, file, line); \
+    } else { \
+        vmvar *dst = (r)->a; \
+        if ((dst)->t == VAR_STRREF || (dst)->t == VAR_BINREF) { \
+            e = throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION, NULL); \
+            exception_addtrace(ctx, ctx->except, func, file, line); \
+            goto label; \
+        } else if ((v)->t == VAR_FNC) { \
+            SET_FNC(dst, (v)->f) \
+            SHMOVE_VAR_TO(ctx, (r), dst) \
+        } else { \
+            COPY_VAR_TO(ctx, dst, v) \
+            SHMOVE_VAR_TO(ctx, (r), dst) \
+        } \
+    } \
+} \
+/**/
 
 #define SHCOPY_VAR_TO(ctx, dst, src) { \
     if (!src) { \
@@ -1118,21 +1281,33 @@ typedef struct vmctx {
 /**/
 
 #define OP_ARRAY_REFL_I(ctx, r, v, idx) { \
-    OP_ARRAY_REFL_CHKV(ctx, t1, v) \
-    int ii = idx; \
-    if (ii < 0) { \
-        do { ii += (t1)->o->idxsz; } while (ii < 0); \
+    if ((v)->t == VAR_STR) { \
+        (r)->t = VAR_STRREF; \
+        (r)->i = idx; \
+        (r)->s = (v)->s; \
+        (r)->a = r; \
+    } else if ((v)->t == VAR_BIN) { \
+        (r)->t = VAR_BINREF; \
+        (r)->i = idx; \
+        (r)->bn = (v)->bn; \
+        (r)->a = r; \
+    } else { \
+        OP_ARRAY_REFL_CHKV(ctx, t1, v) \
+        int ii = idx; \
+        if (ii < 0) { \
+            do { ii += (t1)->o->idxsz; } while (ii < 0); \
+        } \
+        vmvar *t2 = NULL; \
+        if (0 <= ii && ii < (t1)->o->idxsz) { \
+            t2 = (t1)->o->ary[ii]; \
+        } \
+        if (!t2) { \
+            t2 = alcvar_initial(ctx); \
+            array_set(ctx, (t1)->o, ii, t2); \
+        } \
+        (r)->t = VAR_OBJ; \
+        (r)->a = t2; \
     } \
-    vmvar *t2 = NULL; \
-    if (0 <= ii && ii < (t1)->o->asz) { \
-        t2 = (t1)->o->ary[ii]; \
-    } \
-    if (!t2) { \
-        t2 = alcvar_initial(ctx); \
-        array_set(ctx, (t1)->o, ii, t2); \
-    } \
-    (r)->t = VAR_OBJ; \
-    (r)->a = t2; \
 } \
 /**/
 
@@ -2949,6 +3124,10 @@ INLINE extern void pbakfrm(vmctx *ctx, vmfrm *p);
 INLINE extern vmstr *alcstr_allocated_str(vmctx *ctx, char *s, int alloclen);
 INLINE extern vmstr *alcstr_str(vmctx *ctx, const char *s);
 INLINE extern void pbakstr(vmctx *ctx, vmstr *p);
+INLINE extern vmbin *alcbin_allocated_bin(vmctx *ctx, uint8_t *s, int alloclen);
+INLINE extern vmbin *alcbin_bin(vmctx *ctx, const uint8_t *s, int len);
+INLINE extern vmbin *alcbin(vmctx *ctx);
+INLINE extern void pbakbin(vmctx *ctx, vmbin *p);
 INLINE extern vmbgi *alcbgi_bigz(vmctx *ctx, BigZ bz);
 INLINE extern void pbakbgi(vmctx *ctx, vmbgi *p);
 INLINE extern vmobj *alcobj(vmctx *ctx);
@@ -2959,6 +3138,7 @@ INLINE extern vmvar *alcvar_obj(vmctx *ctx, vmobj *o);
 INLINE extern vmvar *alcvar_fnc(vmctx *ctx, vmfnc *f);
 INLINE extern vmvar *alcvar_int64(vmctx *ctx, int64_t i, int hold);
 INLINE extern vmvar *alcvar_str(vmctx *ctx, const char *s);
+INLINE extern vmvar *alcvar_bin(vmctx *ctx, const uint8_t *s, int len);
 INLINE extern vmvar *alcvar_bgistr(vmctx *ctx, const char *s, int radix);
 INLINE extern void pbakvar(vmctx *ctx, vmvar *p);
 INLINE extern vmvar *copy_var(vmctx *ctx, vmvar *src, int hold);
@@ -3002,6 +3182,16 @@ INLINE extern vmstr *str_make_i64_path(vmctx *ctx, int64_t i, vmstr *v0);
 INLINE extern vmstr *str_trim(vmctx *ctx, vmstr *vs, const char *ch);
 INLINE extern vmstr *str_ltrim(vmctx *ctx, vmstr *vs, const char *ch);
 INLINE extern vmstr *str_rtrim(vmctx *ctx, vmstr *vs, const char *ch);
+
+INLINE extern int bin_set_i(vmbin *vs, int idx, int64_t i);
+INLINE extern int bin_set_d(vmbin *vs, int idx, double *d);
+INLINE extern int bin_set(vmbin *vs, int idx, vmvar *v);
+INLINE extern vmbin *bin_append(vmctx *ctx, vmbin *vs, const uint8_t *s, int len);
+INLINE extern vmbin *bin_append_bin(vmctx *ctx, vmbin *vs, vmbin *s2);
+INLINE extern vmbin *bin_append_ch(vmctx *ctx, vmbin *vs, const uint8_t ch);
+INLINE extern vmbin *bin_clear(vmbin *vs);
+INLINE extern vmbin *bin_dup(vmctx *ctx, vmbin *vs);
+INLINE extern void print_bin(vmctx *ctx, vmbin *vs);
 
 INLINE extern void hashmap_print(vmobj *obj);
 INLINE extern void hashmap_objprint(vmctx *ctx, vmobj *obj);
