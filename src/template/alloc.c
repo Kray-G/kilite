@@ -265,6 +265,12 @@ vmbin *alcbin_allocated_bin(vmctx *ctx, uint8_t *s, int alloclen)
 vmbin *alcbin_bin(vmctx *ctx, const uint8_t *s, int len)
 {
     vmbin *v = alcbin_pure(ctx);
+    if (s == NULL || len == 0) {
+        v->s = v->hd = (uint8_t *)calloc(BIN_UNIT, sizeof(uint8_t));
+        v->cap = BIN_UNIT;
+        v->len = 0;
+        return v;
+    }
     if (v->cap > 0) {
         if (0 <= len && len < v->cap) {
             memcpy(v->s, s, len);
@@ -286,6 +292,11 @@ vmbin *alcbin_bin(vmctx *ctx, const uint8_t *s, int len)
     memcpy(v->s, s, len);
     v->len = len;
     return v;
+}
+
+vmbin *alcbin(vmctx *ctx)
+{
+    return alcbin_bin(ctx, NULL, 0);
 }
 
 void pbakbin(vmctx *ctx, vmbin *p)
@@ -597,6 +608,8 @@ void initialize_allocators(vmctx *ctx)
     HOLD(ctx->alc.frm.nxt);
     ctx->alc.str.nxt = &(ctx->alc.str);
     HOLD(ctx->alc.str.nxt);
+    ctx->alc.bin.nxt = &(ctx->alc.bin);
+    HOLD(ctx->alc.bin.nxt);
     ctx->alc.bgi.nxt = &(ctx->alc.bgi);
     HOLD(ctx->alc.bgi.nxt);
     ctx->alc.obj.nxt = &(ctx->alc.obj);

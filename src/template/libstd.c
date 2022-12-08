@@ -224,6 +224,12 @@ int RangeErrorException(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     return 0;
 }
 
+int OutOfRangeErrorException(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    RuntimeException_create(ctx, lex, r, "OutOfRangeErrorException", ctx->msgbuf ? ctx->msgbuf : "Out of range error");
+    return 0;
+}
+
 int TooDeepException(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     RuntimeException_create(ctx, lex, r, "TooDeepException", ctx->msgbuf ? ctx->msgbuf : "Too deep");
@@ -287,6 +293,9 @@ int throw_system_exception(int line, vmctx *ctx, int id, const char *msg)
         break;
     case EXCEPT_RANGE_ERROR:
         RangeErrorException(ctx, NULL, r, 0);
+        break;
+    case EXCEPT_OUT_OF_RANGE_ERROR:
+        OutOfRangeErrorException(ctx, NULL, r, 0);
         break;
     case EXCEPT_TOO_DEEP:
         TooDeepException(ctx, NULL, r, 0);

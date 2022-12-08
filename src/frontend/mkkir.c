@@ -455,6 +455,42 @@ static kl_kir_opr make_var_index(kl_context *ctx, int index, int level, tk_typei
     return r1;
 }
 
+static kl_kir_inst *gen_binary_literal(kl_context *ctx, kl_symbol *sym, kl_kir_opr *r1, kl_expr *e, int *idx)
+{
+    kl_kir_inst *head = NULL;
+    if (!e) {
+        ++(*idx);
+        return NULL;
+    }
+
+    switch (e->nodetype) {
+    case TK_COMMA:
+        head = gen_binary_literal(ctx, sym, r1, e->lhs, idx);
+        kl_kir_inst *last = get_last(head);
+        if (last) {
+            last->next = gen_binary_literal(ctx, sym, r1, e->rhs, idx);
+        } else {
+            head = gen_binary_literal(ctx, sym, r1, e->rhs, idx);
+        }
+        break;
+    default:
+        kl_kir_opr rs = {0};
+        KL_KIR_CHECK_LITERAL(e, rs, head);
+        kl_kir_opr r2 = make_lit_i64(ctx, *idx);
+        ++(*idx);
+        kl_kir_inst *inst = new_inst_op3(ctx->program, e->line, e->pos, KIR_SETBIN, r1, &r2, &rs);
+        set_file_func(ctx, sym, inst);
+        if (!head) {
+            head = inst;
+        } else {
+            kl_kir_inst *last = get_last(head);
+            last->next = inst;
+        }
+        break;
+    }
+    return head;
+}
+
 static kl_kir_inst *gen_array_literal(kl_context *ctx, kl_symbol *sym, kl_kir_opr *r1, kl_kir_opr *r2, kl_expr *e, int *idx)
 {
     kl_kir_inst *head = NULL;
@@ -486,6 +522,7 @@ static kl_kir_inst *gen_array_literal(kl_context *ctx, kl_symbol *sym, kl_kir_op
             last->next = inst;
         }
         inst->next = new_inst_op2(ctx->program, e->line, e->pos, KIR_MOVA, r2, &rs);
+        set_file_func(ctx, sym, inst->next);
         break;
     }
     return head;
@@ -508,6 +545,7 @@ static kl_kir_inst *gen_object_literal(kl_context *ctx, kl_symbol *sym, kl_kir_o
             last->next = inst;
         }
         inst->next = new_inst_op2(ctx->program, e->line, e->pos, KIR_MOVA, r2, &rs);
+        set_file_func(ctx, sym, inst->next);
         break;
     }
     case TK_COMMA:
@@ -936,6 +974,7 @@ static kl_kir_inst *gen_array_lvalue(kl_context *ctx, kl_symbol *sym, kl_kir_opr
         last->next = gen_apply(ctx, sym, &rs, e);
         last = get_last(head);
         last->next = new_inst_op2(ctx->program, e->line, e->pos, KIR_MOVA, &rs, &r3);
+        set_file_func(ctx, sym, last->next);
         break;
     }
     case TK_RANGE2:
@@ -1256,6 +1295,7 @@ static kl_kir_inst *gen_assign(kl_context *ctx, kl_symbol *sym, kl_kir_opr *r1, 
         kl_kir_inst *r1l = get_last(r1i);
         ctx->in_lvalue = lvalue;
         r1l->next = new_inst_op2(ctx->program, l->line, l->pos, KIR_MOVA, r1, r2);
+        set_file_func(ctx, sym, r1l->next);
         if (!head) {
             head = r1i;
         } else {
@@ -1291,6 +1331,7 @@ static kl_kir_inst *gen_xassign(kl_context *ctx, kl_symbol *sym, kl_kir op, kl_k
         KL_KIR_CHECK_LVALUE(l, r3, r3i);
         ctx->in_lvalue = lvalue;
         kl_kir_inst *inst = new_inst_op2(ctx->program, l->line, l->pos, KIR_MOVA, &r3, r1);
+        set_file_func(ctx, sym, inst);
         if (r3i) {
             kl_kir_inst *r3l = get_last(r3i);
             r3l->next = inst;
@@ -1335,6 +1376,7 @@ static kl_kir_inst *gen_land_lor_assign(kl_context *ctx, kl_symbol *sym, kl_expr
         KL_KIR_CHECK_LVALUE(l, r3, r3i);
         ctx->in_lvalue = lvalue;
         kl_kir_inst *inst = new_inst_op2(ctx->program, l->line, l->pos, KIR_MOVA, &r3, &r2);
+        set_file_func(ctx, sym, inst);
         if (r3i) {
             kl_kir_inst *r3l = get_last(r3i);
             r3l->next = inst;
@@ -1384,6 +1426,7 @@ static kl_kir_inst *gen_nullc_assign(kl_context *ctx, kl_symbol *sym, kl_expr *e
         KL_KIR_CHECK_LVALUE(l, r4, r4i);
         ctx->in_lvalue = lvalue;
         kl_kir_inst *inst = new_inst_op2(ctx->program, l->line, l->pos, KIR_MOVA, &r4, &r1);
+        set_file_func(ctx, sym, inst);
         if (r4i) {
             kl_kir_inst *r4l = get_last(r4i);
             r4l->next = inst;
@@ -2176,6 +2219,14 @@ static kl_kir_inst *gen_expr(kl_context *ctx, kl_symbol *sym, kl_kir_opr *r1, kl
         head = new_inst_op2(ctx->program, e->line, e->pos, KIR_MOV, r1, &rs);
         break;
     }
+    case TK_VBIN: {
+        head = new_inst_op1(ctx->program, e->line, e->pos, KIR_NEWBIN, r1);
+        if (e->lhs) {
+            int idx = 0;
+            head->next = gen_binary_literal(ctx, sym, r1, e->lhs, &idx);
+        }
+        break;
+    }
     case TK_VARY: {
         head = new_inst_op1(ctx->program, e->line, e->pos, KIR_NEWOBJ, r1);
         if (e->lhs) {
@@ -2787,6 +2838,7 @@ static kl_kir_inst *gen_stmt(kl_context *ctx, kl_symbol *sym, kl_stmt *s)
             head = new_inst_op3(ctx->program, s->line, s->pos, KIR_APLYL, &rr, &r1, &r2);
             kl_kir_opr r3 = make_lit_func(ctx, s->sym);
             head->next = new_inst_op2(ctx->program, s->line, s->pos, KIR_MOVA, &rr, &r3);
+            set_file_func(ctx, sym, head->next);
         }
         break;
 
@@ -2801,6 +2853,7 @@ static kl_kir_inst *gen_stmt(kl_context *ctx, kl_symbol *sym, kl_stmt *s)
             head = new_inst_op3(ctx->program, s->line, s->pos, KIR_APLYL, &rr, &r1, &r2);
             kl_kir_opr r3 = make_lit_func(ctx, s->sym);
             head->next = new_inst_op2(ctx->program, s->line, s->pos, KIR_MOVA, &rr, &r3);
+            set_file_func(ctx, sym, head->next);
         }
         break;
 

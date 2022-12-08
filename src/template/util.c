@@ -75,6 +75,9 @@ void print_obj(vmctx *ctx, vmvar *v)
     case VAR_STR:
         printf("%s", v->s->s);
         break;
+    case VAR_BIN:
+        print_bin(ctx, v->bn);
+        break;
     case VAR_OBJ:
         hashmap_objprint(ctx, v->o);
         break;

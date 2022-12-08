@@ -299,6 +299,12 @@ void disp_inst(kl_kir_program *p, kl_kir_inst *i)
         disp_2op("uminus", i);
         break;
 
+    case KIR_NEWBIN:
+        disp_1op("newbin", i);
+        break;
+    case KIR_SETBIN:
+        disp_3op("setbin", i);
+        break;
     case KIR_NEWOBJ:
         disp_1op("newobj", i);
         break;
