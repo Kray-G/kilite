@@ -92,7 +92,11 @@ static void hashmap_objprint_impl(vmobj *obj, int indent)
         for (int i = 0; i < hsz; ++i) {
             vmvar *v = &(map[i]);
             if (IS_HASHITEM_EXIST(v)) {
-                count++;
+                vmvar *va = v->a;
+                // Function information seems not to be needed for users, so now it was made hidden.
+                if (va->t != VAR_FNC) {
+                    count++;
+                }
             }
         }
         if (idt) printf("{\n");
@@ -101,45 +105,44 @@ static void hashmap_objprint_impl(vmobj *obj, int indent)
         for (int i = 0; i < hsz; ++i) {
             vmvar *v = &(map[i]);
             if (IS_HASHITEM_EXIST(v)) {
-                ++c;
-                if (v->s && v->s->s) {
-                    hashmap_print_indent(idt ? indent + 1 : -1);
-                    printf("\"%s\": ", v->s->s);
-                    vmvar *va = v->a;
-                    switch (va->t) {
-                    case VAR_UNDEF:
-                        printf("null");
-                        break;
-                    case VAR_INT64:
-                        printf("%" PRId64, va->i);
-                        break;
-                    case VAR_DBL:
-                        printf("%.16g", va->d);
-                        break;
-                    case VAR_BIG: {
-                        char *bs = BzToString(va->bi->b, 10, 0);
-                        printf("%s", bs);
-                        BzFreeString(bs);
-                        break;
-                    }
-                    case VAR_STR:
-                        printf("\"");
-                        print_escape_str(va->s);
-                        printf("\"");
-                        break;
-                    case VAR_FNC:
-                        printf("func(%p)", va->f);
-                        break;
-                    case VAR_OBJ:
-                        hashmap_objprint_impl(va->o, idt ? indent + 1 : -1);
-                        break;
-                    }
-                    if (idt) {
-                        if (c < count) printf(",\n");
-                        else           printf("\n");
-                    } else {
-                        if (c < count) printf(", ");
-                        else           printf(" ");
+                vmvar *va = v->a;
+                if (va->t != VAR_FNC) {
+                    ++c;
+                    if (v->s && v->s->s) {
+                        hashmap_print_indent(idt ? indent + 1 : -1);
+                        printf("\"%s\": ", v->s->s);
+                        switch (va->t) {
+                        case VAR_UNDEF:
+                            printf("null");
+                            break;
+                        case VAR_INT64:
+                            printf("%" PRId64, va->i);
+                            break;
+                        case VAR_DBL:
+                            printf("%.16g", va->d);
+                            break;
+                        case VAR_BIG: {
+                            char *bs = BzToString(va->bi->b, 10, 0);
+                            printf("%s", bs);
+                            BzFreeString(bs);
+                            break;
+                        }
+                        case VAR_STR:
+                            printf("\"");
+                            print_escape_str(va->s);
+                            printf("\"");
+                            break;
+                        case VAR_OBJ:
+                            hashmap_objprint_impl(va->o, idt ? indent + 1 : -1);
+                            break;
+                        }
+                        if (idt) {
+                            if (c < count) printf(",\n");
+                            else           printf("\n");
+                        } else {
+                            if (c < count) printf(", ");
+                            else           printf(" ");
+                        }
                     }
                 }
             }
