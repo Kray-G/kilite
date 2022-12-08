@@ -8,6 +8,7 @@
 #define MATH_SYSTIME_DEFINED
 #include <windows.h>
 #pragma comment(lib, "advapi32.lib")
+#pragma comment(lib, "crypt32.lib")
 HCRYPTPROV gmathh = (HCRYPTPROV)NULL;
 
 typedef struct systemtimer_t {
@@ -207,6 +208,65 @@ double SystemTimer_elapsed_impl(void *p)
     systemtimer_t *v = (systemtimer_t *)p;
     clock_t e = clock();
     return (double)(e - (v->s)) / CLOCKS_PER_SEC;
+}
+
+#endif
+
+#ifndef __MIRC__
+#include "../lib.h"
+
+const char *mz_zip_fileinfo_filename(mz_zip_file *file_info)
+{
+    return file_info->filename;
+}
+
+int64_t mz_zip_fileinfo_uncompsize(mz_zip_file *file_info)
+{
+    return file_info->uncompressed_size;
+}
+
+int64_t mz_zip_fileinfo_compsize(mz_zip_file *file_info)
+{
+    return file_info->compressed_size;
+}
+
+uint32_t mz_zip_fileinfo_crc(mz_zip_file *file_info)
+{
+    return file_info->crc;
+}
+
+int mz_zip_fileinfo_comp_method(mz_zip_file *file_info)
+{
+    return file_info->compression_method;
+}
+
+int mz_zip_fileinfo_crypt(mz_zip_file *file_info)
+{
+    return file_info->flag & MZ_ZIP_FLAG_ENCRYPTED;
+}
+
+void mz_zip_timeinfo(mz_zip_file *file_info, int type, int *year, int *mon, int *mday, int *hour, int *min, int *sec)
+{
+    struct tm t;
+    switch (type) {
+    case TIMEINFO_TYPE_MODIFIED:
+        mz_zip_time_t_to_tm(file_info->modified_date, &t);
+        break;
+    case TIMEINFO_TYPE_ACCESSED:
+        mz_zip_time_t_to_tm(file_info->accessed_date, &t);
+        break;
+    case TIMEINFO_TYPE_CREATION:
+        mz_zip_time_t_to_tm(file_info->creation_date, &t);
+        break;
+    default:
+        return;
+    }
+    *year = t.tm_year;
+    *mon  = t.tm_mon;
+    *mday = t.tm_mday;
+    *hour = t.tm_hour;
+    *min  = t.tm_min;
+    *sec  = t.tm_sec;
 }
 
 #endif
