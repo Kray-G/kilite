@@ -8,6 +8,11 @@
 #define ZIP_MODE_READ   (1)
 #define ZIP_MODE_WRITE  (2)
 
+typedef struct overwrite_status_t {
+    int overwrite;
+    int skipped;
+} overwrite_status_t;
+
 static vmobj *Zip_get_zip_object(vmobj *o)
 {
     vmvar *holder = hashmap_search(o, "zip");
@@ -34,6 +39,32 @@ static const char *Zip_get_str(vmobj *o, const char *optname)
     vmvar *v = hashmap_search(o, optname);
     if (!v || v->t != VAR_STR) return NULL;
     return v->s->s;
+}
+
+static int Zip_get_fileinfo(void *reader, const char *password, const char *zipfile, const char *filename, mz_zip_file **file_info)
+{
+    int err = MZ_OK;
+    if (password) {
+        mz_zip_reader_set_password(reader, password);
+    }
+    err = mz_zip_reader_open_file(reader, zipfile);
+    if (err != MZ_OK) {
+        return err;
+    }
+    err = mz_zip_reader_locate_entry(reader, filename, 1);
+    if (err != MZ_OK) {
+        return err;
+    }
+    err = mz_zip_reader_entry_get_info(reader, file_info);
+    if (err != MZ_OK) {
+        return err;
+    }
+    return MZ_OK;
+}
+
+static vmvar *Zip_extract_impl(const char *zipname, const char *filename, const char *password, const char *outfile, int isbin)
+{
+    ;
 }
 
 static int Zip_extract_entry(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
@@ -161,27 +192,6 @@ static int Zip_entries(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 
     SET_OBJ(r, files);
     return 0;
-}
-
-static int Zip_get_fileinfo(void *reader, const char *password, const char *zipfile, const char *filename, mz_zip_file **file_info)
-{
-    int err = MZ_OK;
-    if (password) {
-        mz_zip_reader_set_password(reader, password);
-    }
-    err = mz_zip_reader_open_file(reader, zipfile);
-    if (err != MZ_OK) {
-        return err;
-    }
-    err = mz_zip_reader_locate_entry(reader, filename, 1);
-    if (err != MZ_OK) {
-        return err;
-    }
-    err = mz_zip_reader_entry_get_info(reader, file_info);
-    if (err != MZ_OK) {
-        return err;
-    }
-    return MZ_OK;
 }
 
 static int Zip_find(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
