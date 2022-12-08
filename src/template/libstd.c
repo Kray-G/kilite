@@ -994,13 +994,13 @@ static int Integer_toString(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
         }
         switch (radix) {
         case 10: {
-            char buf[31] = {0};
+            char buf[32] = {0};
             sprintf(buf, "%" PRId64, a0->i);
             r->s = alcstr_str(ctx, buf);
             break;
         }
         case 16: {
-            char buf[31] = {0};
+            char buf[32] = {0};
             sprintf(buf, "%" PRIx64, a0->i);
             r->s = alcstr_str(ctx, buf);
             break;

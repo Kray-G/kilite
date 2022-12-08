@@ -421,7 +421,7 @@ static void setup_xmldoc_props(vmctx *ctx, vmfrm *lex, vmvar *r)
             }
         }
     }
-    KL_SET_PROPERTY(o, nodeName, alcvar_str(ctx, "#document"));
+    KL_SET_PROPERTY_S(o, nodeName, "#document");
 }
 
 static const char *parse_doc(vmctx *ctx, vmfrm *lex, vmobj *nsmap, vmvar *r, const char *p, int *err, int *line, int *pos, int depth)
@@ -438,7 +438,7 @@ static const char *parse_doc(vmctx *ctx, vmfrm *lex, vmobj *nsmap, vmvar *r, con
             vmvar *vo = alcvar_obj(ctx, alcobj(ctx));
             KL_SET_PROPERTY(vo->o, text, vs);
             KL_SET_PROPERTY(vo->o, nodeValue, vs);
-            KL_SET_PROPERTY(vo->o, nodeName, alcvar_str(ctx, "#text"));
+            KL_SET_PROPERTY_S(vo->o, nodeName, "#text");
             setup_xmlnode_props(ctx, lex, vo, r, r->o->idxsz, XMLDOM_TEXT_NODE);
             array_push(ctx, r->o, vo);
         }
