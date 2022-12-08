@@ -11,11 +11,9 @@ if not exist zlib (
     echo Build Zlib first.
     exit /b 1
 )
-if not exist minizip mkdir minizip
 set CMKFILE=CMakeLists.txt
-set ORGDIR=..\..\submodules\minizip-ng
+set ORGDIR=..\submodules\minizip-ng
 set ORGFILE=%ORGDIR%\%CMKFILE%
-cd minizip
 copy /y %ORGFILE% .\
 del %ORGFILE%
 
@@ -24,12 +22,6 @@ for /f "tokens=* delims=0123456789 eol=" %%a in ('findstr /n "^" %CMKFILE%') do 
     set b=!b:~1!
     (echo.!b!) >> %ORGFILE%
     set c=!b:"=!
-    if /i "!c!"=="enable_language(C)" (
-        (echo.set^(ZLIB_ROOT ../zlib/install^)) >> %ORGFILE%
-        (echo.set^(MZ_BZIP2 OFF^)) >> %ORGFILE%
-        (echo.set^(MZ_LZMA OFF^)) >> %ORGFILE%
-        (echo.set^(MZ_ZSTD OFF^)) >> %ORGFILE%
-    )
     if /i "!c!"=="project(minizip${MZ_PROJECT_SUFFIX} LANGUAGES C VERSION ${VERSION})" (
         (echo.if^(MSVC^)) >> %ORGFILE%
         (echo.    string^(REPLACE "/MD" "/MT" CMAKE_C_FLAGS_DEBUG            ${CMAKE_C_FLAGS_DEBUG}^)) >> %ORGFILE%
@@ -40,9 +32,12 @@ for /f "tokens=* delims=0123456789 eol=" %%a in ('findstr /n "^" %CMKFILE%') do 
     )
 )
 
-cmake -DCMAKE_INSTALL_PREFIX=.\install %ORGDIR% -G "Visual Studio 16 2019"
-msbuild /p:Configuration=Release minizip.sln
-if exist Release\libminizip.lib copy /y Release\libminizip.lib ..\libminizip.lib
+call :BUILD cl "Visual Studio 16 2019"
+if exist minizip\Release\libminizip.lib copy /y minizip\Release\libminizip.lib libminizip.lib
+@gcc -v > NUL 2>&1
+if ERRORLEVEL 1 goto END
+call :BUILD gcc "MinGW Makefiles" _gcc
+if exist minizip_gcc\libminizip.a copy /y minizip_gcc\libminizip.a libminizip_gcc.a
 
 :END
 if exist .\%CMKFILE% copy .\%CMKFILE% %ORGDIR%\
@@ -55,4 +50,23 @@ exit /b 0
 echo Error occurred.
 popd
 endlocal
+exit /b 0
+
+:BUILD
+set CC=%1
+set GEN=%2
+set TGT=%3
+echo Generating with %CC% and %GEN% ...
+if not exist minizip%TGT% mkdir minizip%TGT%
+cd minizip%TGT%
+
+cmake -DMZ_BZIP2=OFF -DMZ_LZMA=OFF -DMZ_ZSTD=OFF -DZLIB_ROOT=../zlib/install ..\%ORGDIR% -G %GEN%
+if "%CC%"=="cl" (
+    msbuild /p:Configuration=Release minizip.sln
+) else (
+    mingw32-make -f Makefile
+)
+
+cd ..
+
 exit /b 0

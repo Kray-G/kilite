@@ -5,12 +5,30 @@ cd `dirname $0`
 echo $PWD
 cd ..
 
+echo Building MIR...
 mkdir -p bin/mir
 cd bin/mir
 cmake ../../submodules/mir
 make
 cp -f c2m ../
 cp -f libmir_static.a ../
+cd ..
+
+echo Building zlib...
+mkdir -p zlib
+cd zlib
+cmake ../../submodules/zlib
+make
+make install
+cp -f libz.a ../
+cd ..
+
+echo Building minizip...
+mkdir -p minizip
+cd minizip
+cmake ../../submodules/minizip-ng
+make
+cp -f libminizip.a ../
 cd ..
 
 BIN=$PWD
@@ -42,7 +60,6 @@ gcc -Wno-unused-result -O3 -I ../submodules/mir \
     ../src/backend/resolver.c \
     ../src/backend/header.c \
     ../src/backend/cexec.c \
-    ../src/template/lib/zip.c ^
     ../bin/libmir_static.a
 
 cp -f kilite ../kilite
@@ -97,8 +114,6 @@ cat ../src/template/lib/zip.h >> $TEMPF
 echo "#line 1 \"zip.c\"" >> $TEMPF
 cat ../src/template/lib/zip.c >> $TEMPF
 echo "#endif" >> $TEMPF
-echo "#line 1 \"libtzip.c\"" >> $TEMPF
-cat ../src/template/libtzip.c >> $TEMPF
 cd ../src/template/std
 $BIN/kilite --makelib callbacks.klt >> $TEMPF
 cd $BIN

@@ -7,11 +7,9 @@ if not exist bin mkdir bin
 if not exist bin goto ERROR1
 cd bin
 
-if not exist zlib mkdir zlib
 set CMKFILE=CMakeLists.txt
-set ORGDIR=..\..\submodules\zlib
+set ORGDIR=..\submodules\zlib
 set ORGFILE=%ORGDIR%\%CMKFILE%
-cd zlib
 copy /y %ORGFILE% .\
 del %ORGFILE%
 
@@ -30,10 +28,17 @@ for /f "tokens=* delims=0123456789 eol=" %%a in ('findstr /n "^" %CMKFILE%') do 
     )
 )
 
-cmake -DCMAKE_INSTALL_PREFIX=.\install %ORGDIR% -G "Visual Studio 16 2019"
-msbuild /p:Configuration=Release zlib.sln
-msbuild /p:Configuration=Release INSTALL.vcxproj
-if exist Release\zlibstatic.lib copy /y Release\zlibstatic.lib ..\zlibstatic.lib
+call :BUILD cl "Visual Studio 16 2019"
+if exist zlib\Release\zlibstatic.lib copy /y zlib\Release\zlibstatic.lib zlibstatic.lib
+@gcc -v > NUL 2>&1
+if ERRORLEVEL 1 goto TCC
+call :BUILD gcc "MinGW Makefiles" _gcc
+if exist zlib_gcc\libzlibstatic.a copy /y zlib_gcc\libzlibstatic.a libzlibstatic_gcc.a
+:TCC
+@REM @tcc -v > NUL 2>&1
+@REM if ERRORLEVEL 1 goto END
+@REM call :BUILD tcc "MinGW Makefiles" _tcc
+@REM tcc -ar rcs libzlibstatic_tcc.a zlib_tcc\CMakeFiles\zlibstatic.dir\*.obj
 
 :END
 if exist .\%CMKFILE% copy .\%CMKFILE% %ORGDIR%\
@@ -47,4 +52,23 @@ exit /b 0
 echo Error occurred.
 popd
 endlocal
+exit /b 0
+
+:BUILD
+set CC=%1
+set GEN=%2
+set TGT=%3
+echo Generating with %CC% and %GEN% ...
+if not exist zlib%TGT% mkdir zlib%TGT%
+cd zlib%TGT%
+
+cmake -DCMAKE_INSTALL_PREFIX=.\install ..\%ORGDIR% -G %GEN%
+if "%CC%"=="cl" (
+    msbuild /p:Configuration=Release zlib.sln
+    msbuild /p:Configuration=Release INSTALL.vcxproj
+) else (
+    mingw32-make -f Makefile zlibstatic
+)
+
+cd ..
 exit /b 0

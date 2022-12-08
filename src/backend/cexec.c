@@ -4,7 +4,6 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "../template/lib/zip.h"
 #include "../template/inc/platform.c"
 #define timer_init SystemTimer_init
 #define timer_restart SystemTimer_restart_impl
@@ -94,33 +93,6 @@ void load_additional_methods(MIR_context_t ctx)
     MIR_load_external(ctx, "SystemTimer_restart_impl", (void *)SystemTimer_restart_impl);
     MIR_load_external(ctx, "SystemTimer_elapsed_impl", (void *)SystemTimer_elapsed_impl);
     MIR_load_external(ctx, "Math_random_impl", (void *)Math_random_impl);
-
-    MIR_load_external(ctx, "zip_strerror", (void *)zip_strerror);
-    MIR_load_external(ctx, "zip_open", (void *)zip_open);
-    MIR_load_external(ctx, "zip_close", (void *)zip_close);
-    MIR_load_external(ctx, "zip_is64", (void *)zip_is64);
-    MIR_load_external(ctx, "zip_entry_open", (void *)zip_entry_open);
-    MIR_load_external(ctx, "zip_entry_opencasesensitive", (void *)zip_entry_opencasesensitive);
-    MIR_load_external(ctx, "zip_entry_openbyindex", (void *)zip_entry_openbyindex);
-    MIR_load_external(ctx, "zip_entry_close", (void *)zip_entry_close);
-    MIR_load_external(ctx, "zip_entry_name", (void *)zip_entry_name);
-    MIR_load_external(ctx, "zip_entry_index", (void *)zip_entry_index);
-    MIR_load_external(ctx, "zip_entry_isdir", (void *)zip_entry_isdir);
-    MIR_load_external(ctx, "zip_entry_size", (void *)zip_entry_size);
-    MIR_load_external(ctx, "zip_entry_uncomp_size", (void *)zip_entry_uncomp_size);
-    MIR_load_external(ctx, "zip_entry_comp_size", (void *)zip_entry_comp_size);
-    MIR_load_external(ctx, "zip_entry_crc32", (void *)zip_entry_crc32);
-    MIR_load_external(ctx, "zip_entry_write", (void *)zip_entry_write);
-    MIR_load_external(ctx, "zip_entry_fwrite", (void *)zip_entry_fwrite);
-    MIR_load_external(ctx, "zip_entry_read", (void *)zip_entry_read);
-    MIR_load_external(ctx, "zip_entry_noallocread", (void *)zip_entry_noallocread);
-    MIR_load_external(ctx, "zip_entry_fread", (void *)zip_entry_fread);
-    MIR_load_external(ctx, "zip_entries_total", (void *)zip_entries_total);
-    MIR_load_external(ctx, "zip_entries_delete", (void *)zip_entries_delete);
-    MIR_load_external(ctx, "zip_stream_open", (void *)zip_stream_open);
-    MIR_load_external(ctx, "zip_stream_copy", (void *)zip_stream_copy);
-    MIR_load_external(ctx, "zip_stream_close", (void *)zip_stream_close);
-    MIR_load_external(ctx, "zip_create", (void *)zip_create);
 }
 
 int run(int *ret, const char *fname, const char *src, int ac, char **av, char **ev, kl_opts *opts)

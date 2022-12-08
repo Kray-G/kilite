@@ -9,8 +9,15 @@ cd bin
 
 set BIN=%CD%
 set PATH=%PATH%;%BIN%
-if not exist mir_static.lib call ..\build\mir_vs2019.cmd
+echo Building MIR...
+if not exist mir_static.lib call ..\build\mir_win.cmd
 if not exist mir_static.lib goto ERROR
+echo Building zlib...
+if not exist zlibstatic.lib call ..\build\zlib_win.cmd
+if not exist zlibstatic.lib goto ERROR
+echo Building minizip...
+if not exist libminizip.lib call ..\build\zlib_win.cmd
+if not exist libminizip.lib goto ERROR
 del libkilite.a
 
 set TEMPF=%BIN%\libkilite.c
@@ -40,7 +47,6 @@ cl /nologo /O2 /I ..\..\mir /MT ^
     ..\src\backend\resolver.c ^
     ..\src\backend\header.c ^
     ..\src\backend\cexec.c ^
-    ..\src\template\lib\zip.c ^
     ..\bin\mir_static.lib
 
 copy /y kilite.exe ..\kilite.exe > NUL
@@ -87,16 +93,9 @@ echo #line 1 "libxml.c" >> %TEMPF%
 type ..\src\template\libxml.c >> %TEMPF%
 echo #line 1 "inc/platform.c" >> %TEMPF%
 type ..\src\template\inc\platform.c >> %TEMPF%
-echo #ifndef __MIRC__ >> %TEMPF%
-echo #line 1 "miniz.h" >> %TEMPF%
-type ..\src\template\lib\miniz.h >> %TEMPF%
-echo #line 1 "zip.h" >> %TEMPF%
-type ..\src\template\lib\zip.h >> %TEMPF%
-echo #line 1 "zip.c" >> %TEMPF%
-type ..\src\template\lib\zip.c >> %TEMPF%
-echo #endif >> %TEMPF%
-echo #line 1 "libtzip.c" >> %TEMPF%
-type ..\src\template\libtzip.c >> %TEMPF%
+@REM echo #ifndef __MIRC__ >> %TEMPF%
+@REM ... if you need some additional files, you can put them here.
+@REM echo #endif >> %TEMPF%
 pushd ..\src\template\std
 kilite.exe --makelib callbacks.klt >> %TEMPF%
 popd
@@ -110,17 +109,17 @@ if exist kilite.bmir del kilite.bmir
 ren %TEMPF:.c=.bmir% kilite.bmir
 copy /y kilite.bmir ..\kilite.bmir > NUL
 
-:TCC_CHK
-@tcc -v > NUL 2>&1
-if ERRORLEVEL 1 goto GCC_CHK
-call :tcc %TEMPF%
 :GCC_CHK
 @gcc -v > NUL 2>&1
-if ERRORLEVEL 1 goto CHK_END
+if ERRORLEVEL 1 goto TCC_CHK
 call :gcc %TEMPF%
+:TCC_CHK
+@REM @tcc -v > NUL 2>&1
+@REM if ERRORLEVEL 1 goto CHK_END
+@REM call :tcc %TEMPF%
 
 :CHK_END
-if not exist libkilite.a @copy /y libkilite_tcc.a libkilite.a > NUL 2>&1
+@REM if not exist libkilite.a @copy /y libkilite_tcc.a libkilite.a > NUL 2>&1
 if not exist libkilite.a @copy /y libkilite_gcc.a libkilite.a > NUL 2>&1
 copy /y libkilite.a ..\libkilite.a > NUL
 
