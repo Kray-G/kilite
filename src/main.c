@@ -71,18 +71,22 @@ typedef struct clcmd {
     char *opt;
     char *args;
     char *outf;
+    char *libpathopt;
     char *libname;
-    char *libext;
     char *link;
 } clcmd;
 
 static clcmd cclist[] = {
     { .cc = "dummy" },
     #if defined(_WIN32) || defined(_WIN64)
-    { .optch = '/', .cc = "cl", .opt = "O2", .args = "/MT /nologo", .outf = "/Fe", .libname = "kilite", .libext = ".lib", .link = "" },
+    { .optch = '/', .cc = "cl", .opt = "O2", .args = "/MT /nologo", .outf = "/Fe",
+        .libpathopt = "/link /LIBPATH:", .link = "kilite.lib zlibstatic.lib libminizip.lib" },
+    { .optch = '-', .cc = "gcc", .opt = "O3", .args = "", .outf = "-o ",
+        .libpathopt = "-L", .link = "-lm -lkilite -lminizip -lzlibstatic -lcrypt32" },
+    #else
+    { .optch = '-', .cc = "gcc", .opt = "O3", .args = "", .outf = "-o ",
+        .libpathopt = "-L", .link = "-lm -lkilite -lminizip -lz" },
     #endif
-    { .optch = '-', .cc = "gcc", .opt = "O3", .args = "", .outf = "-o ", .libname = "libkilite", .libext = ".a", .link = "-lm" },
-    { .optch = '-', .cc = "tcc", .opt = "", .args = "", .outf = "-o ", .libname = "libkilite", .libext = ".a", .link = "" },
 };
 
 #if defined(_WIN32) || defined(_WIN64)
@@ -417,11 +421,15 @@ int make_executable(kl_argopts *opts, const char *s)
     #endif
 
     int tlen = strlen(temppath);
-    char *fname = (char *)calloc((tlen + i) * 2, sizeof(char));
-    sprintf(fname, "%s%c%s", temppath, SEP, srcf);
+    int fnamelen = (tlen + i) * 2;
+    char *fname = (char *)calloc(fnamelen + 2, sizeof(char));
+    snprintf(fname, fnamelen, "%s%c%s", temppath, SEP, srcf);
 
     int elen = strlen(exepath);
-    char *cmd = (char *)calloc((elen + tlen + i) * 2, sizeof(char));
+    int plen = strlen(cclist[opts->cc].libpathopt);
+    int llen = strlen(cclist[opts->cc].link);
+    int cmdlen = (elen * 2 + tlen + i + llen + plen) * 3;
+    char *cmd = (char *)calloc(cmdlen + 2, sizeof(char));
 
     FILE *fp = fopen(fname, "w");
     output_source(fp, 0, 1, 0, 0, s);
@@ -434,35 +442,27 @@ int make_executable(kl_argopts *opts, const char *s)
         snprintf(ccopt, 30, "%c%s", cclist[opts->cc].optch, optlevel);
     }
 
-    char libsuf[32] = {0};
     printf("Temp path: %s\n", temppath);
-    for (int i = 0; i < 2; ++i) {
-        #if defined(_WIN32) || defined(_WIN64)
-        sprintf(cmd, "%s %s %s %s%s \"%s\\%s\" \"%s\\%s%s%s\" %s",
-            cclist[opts->cc].cc, ccopt, cclist[opts->cc].args, cclist[opts->cc].outf,
-            name, temppath, srcf,
-            exepath, cclist[opts->cc].libname, libsuf, cclist[opts->cc].libext,
-            cclist[opts->cc].link);
-        #else
-        sprintf(cmd, "%s %s %s %s%s %s/%s %s/%s%s%s %s",
-            cclist[opts->cc].cc, ccopt, cclist[opts->cc].args, cclist[opts->cc].outf,
-            name, temppath, srcf,
-            exepath, cclist[opts->cc].libname, libsuf, cclist[opts->cc].libext,
-            cclist[opts->cc].link);
-        #endif
-        r = gen_executble(cmd);
-        if (r == 0) {
-            printf("Command: %s\n", cmd);
-            printf("Creating executable successful: %s\n", name);
-            break;
-        }
-        if (i == 0) {
-            libsuf[0] = '_';
-            strcpy(libsuf + 1, cclist[opts->cc].cc);
-            continue;
-        }
+    #if defined(_WIN32) || defined(_WIN64)
+    snprintf(cmd, cmdlen, "%s %s %s %s%s \"%s\\%s\" %s\"%s\" %s",
+        cclist[opts->cc].cc, ccopt, cclist[opts->cc].args,
+        cclist[opts->cc].outf, name,
+        temppath, srcf,
+        cclist[opts->cc].libpathopt, exepath,
+        cclist[opts->cc].link);
+    #else
+    snprintf(cmd, cmdlen, "%s %s %s %s%s %s/%s %s%s %s",
+        cclist[opts->cc].cc, ccopt, cclist[opts->cc].args, cclist[opts->cc].outf,
+        name, temppath, srcf,
+        cclist[opts->cc].libpathopt, exepath,
+        cclist[opts->cc].link);
+    #endif
+    printf("Command: %s\n", cmd);
+    r = gen_executble(cmd);
+    if (r == 0) {
+        printf("Creating executable successful: %s\n", name);
+    } else {
         printf("Creating executable failed.\n");
-        break;
     }
 
     unlink(fname);
