@@ -742,6 +742,7 @@ typedef struct vmctx {
 #define SET_DBL(dst, v) { (dst)->t = VAR_DBL;   (dst)->d  = (v);                    }
 #define SET_BIG(dst, v) { (dst)->t = VAR_BIG;   (dst)->bi = alcbgi_bigz(ctx, BzFromString((v), 10, BZ_UNTIL_END)); }
 #define SET_STR(dst, v) { (dst)->t = VAR_STR;   (dst)->s  = alcstr_str(ctx, (v));   }
+#define SET_VMSTR(dst, v) { (dst)->t = VAR_STR; (dst)->s  = (v);                    }
 #define SET_BIN(dst, v) { (dst)->t = VAR_BIN;   (dst)->bn = (v);                    }
 #define SET_FNC(dst, v) { (dst)->t = VAR_FNC;   (dst)->f  = (v);                    }
 #define SET_OBJ(dst, v) { (dst)->t = VAR_OBJ;   (dst)->o  = (v);                    }

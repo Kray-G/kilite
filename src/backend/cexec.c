@@ -100,7 +100,11 @@ void load_additional_methods(MIR_context_t ctx)
     MIR_load_external(ctx, "mz_zip_fileinfo_crc", (void *)mz_zip_fileinfo_crc);
     MIR_load_external(ctx, "mz_zip_fileinfo_comp_method", (void *)mz_zip_fileinfo_comp_method);
     MIR_load_external(ctx, "mz_zip_fileinfo_crypt", (void *)mz_zip_fileinfo_crypt);
+    MIR_load_external(ctx, "mz_zip_fileinfo_zip64", (void *)mz_zip_fileinfo_zip64);
+    MIR_load_external(ctx, "mz_zip_fileinfo_aes_bit", (void *)mz_zip_fileinfo_aes_bit);
     MIR_load_external(ctx, "mz_zip_timeinfo", (void *)mz_zip_timeinfo);
+    MIR_load_external(ctx, "mz_alloc_file_info", (void *)mz_alloc_file_info);
+    MIR_load_external(ctx, "mz_free_file_info", (void *)mz_free_file_info);
 
     MIR_load_external(ctx, "mz_zip_reader_create", (void *)mz_zip_reader_create);
     MIR_load_external(ctx, "mz_zip_reader_open_file", (void *)mz_zip_reader_open_file);
@@ -111,6 +115,20 @@ void load_additional_methods(MIR_context_t ctx)
     MIR_load_external(ctx, "mz_zip_reader_entry_get_info", (void *)mz_zip_reader_entry_get_info);
     MIR_load_external(ctx, "mz_zip_reader_entry_is_dir", (void *)mz_zip_reader_entry_is_dir);
     MIR_load_external(ctx, "mz_zip_reader_set_password", (void *)mz_zip_reader_set_password);
+    MIR_load_external(ctx, "mz_zip_reader_entry_save_buffer_length", (void *)mz_zip_reader_entry_save_buffer_length);
+    MIR_load_external(ctx, "mz_zip_reader_entry_save_buffer", (void *)mz_zip_reader_entry_save_buffer);
+    MIR_load_external(ctx, "mz_zip_reader_set_overwrite_cb", (void *)mz_zip_reader_set_overwrite_cb);
+    MIR_load_external(ctx, "mz_zip_reader_entry_save_file", (void *)mz_zip_reader_entry_save_file);
+
+    MIR_load_external(ctx, "mz_zip_writer_create", (void *)mz_zip_writer_create);
+    MIR_load_external(ctx, "mz_zip_writer_delete", (void *)mz_zip_writer_delete);
+    MIR_load_external(ctx, "mz_zip_writer_open_file", (void *)mz_zip_writer_open_file);
+    MIR_load_external(ctx, "mz_zip_writer_add_path", (void *)mz_zip_writer_add_path);
+    MIR_load_external(ctx, "mz_zip_writer_add_buffer", (void *)mz_zip_writer_add_buffer);
+    MIR_load_external(ctx, "mz_zip_writer_set_aes", (void *)mz_zip_writer_set_aes);
+    MIR_load_external(ctx, "mz_zip_writer_set_compress_method", (void *)mz_zip_writer_set_compress_method);
+    MIR_load_external(ctx, "mz_zip_writer_set_compress_level", (void *)mz_zip_writer_set_compress_level);
+    MIR_load_external(ctx, "mz_zip_writer_set_password", (void *)mz_zip_writer_set_password);
 }
 
 int run(int *ret, const char *fname, const char *src, int ac, char **av, char **ev, kl_opts *opts)

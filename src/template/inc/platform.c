@@ -240,9 +240,27 @@ int mz_zip_fileinfo_comp_method(mz_zip_file *file_info)
     return file_info->compression_method;
 }
 
+int mz_zip_fileinfo_zip64(mz_zip_file *file_info)
+{
+    return file_info->zip64;
+}
+
 int mz_zip_fileinfo_crypt(mz_zip_file *file_info)
 {
     return file_info->flag & MZ_ZIP_FLAG_ENCRYPTED;
+}
+
+int mz_zip_fileinfo_aes_bit(mz_zip_file *file_info)
+{
+    switch (file_info->aes_encryption_mode) {
+    case MZ_AES_ENCRYPTION_MODE_128:
+        return 128;
+    case MZ_AES_ENCRYPTION_MODE_192:
+        return 192;
+    case MZ_AES_ENCRYPTION_MODE_256:
+        return 256;
+    }
+    return 0;
 }
 
 void mz_zip_timeinfo(mz_zip_file *file_info, int type, int *year, int *mon, int *mday, int *hour, int *min, int *sec)
@@ -267,6 +285,25 @@ void mz_zip_timeinfo(mz_zip_file *file_info, int type, int *year, int *mon, int 
     *hour = t.tm_hour;
     *min  = t.tm_min;
     *sec  = t.tm_sec;
+}
+
+mz_zip_file *mz_alloc_file_info(const char *filename, int64_t t, int method, int flag, int aes)
+{
+    mz_zip_file *file_info = (mz_zip_file *)calloc(1, sizeof(mz_zip_file));
+    file_info->filename = filename;
+    file_info->modified_date = (time_t)t;
+    file_info->version_madeby = MZ_VERSION_MADEBY;
+    file_info->compression_method = method;
+    file_info->flag = flag;
+    if (aes) {
+        file_info->aes_version = MZ_AES_VERSION;
+    }
+    return file_info;
+}
+
+void mz_free_file_info(mz_zip_file *file_info)
+{
+    free(file_info);
 }
 
 #endif
