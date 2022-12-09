@@ -129,12 +129,12 @@ static int Exception_printStackTrace(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 static int Exception_create(vmctx *ctx, vmfrm *lex, vmvar *r, const char *name)
 {
     vmobj *o = alcobj(ctx);
+    o->is_sysobj = 1;
     vmvar *type = alcvar_str(ctx, name);
     hashmap_set(ctx, o, "_type", type);
     KL_SET_METHOD(o, type, Exception_type, lex, 1)
     KL_SET_METHOD(o, printStackTrace, Exception_printStackTrace, lex, 1)
     SET_OBJ(r, o);
-    o->is_sysobj = 1;
     return 0;
 }
 
@@ -392,13 +392,13 @@ static int SystemTimer_restart(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 int SystemTimer_create(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     vmobj *o = alcobj(ctx);
+    o->is_sysobj = 1;
     vmvar *timer = alcvar(ctx, VAR_VOIDP, 0);
     timer->p = SystemTimer_init();
     array_set(ctx, o, 0, timer);
     KL_SET_METHOD(o, elapsed, SystemTimer_elapsed, lex, 1)
     KL_SET_METHOD(o, restart, SystemTimer_restart, lex, 1)
     SET_OBJ(r, o);
-    o->is_sysobj = 1;
     return 0;
 }
 
@@ -406,6 +406,20 @@ int SystemTimer(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     vmobj *o = alcobj(ctx);
     KL_SET_METHOD(o, create, SystemTimer_create, lex, 0)
+    SET_OBJ(r, o);
+    return 0;
+}
+
+/* File */
+
+int File(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    vmobj *o = alcobj(ctx);
+    KL_SET_PROPERTY_I(o, TEXT,   FILE_TEXT)
+    KL_SET_PROPERTY_I(o, BINARY, FILE_BINARY)
+    KL_SET_PROPERTY_I(o, READ,   FILE_READ)
+    KL_SET_PROPERTY_I(o, WRITE,  FILE_WRITE)
+    KL_SET_PROPERTY_I(o, APPEND, FILE_APPEND)
     SET_OBJ(r, o);
     return 0;
 }
@@ -497,13 +511,13 @@ static int Fiber_create(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     n0->f->created = 1;
 
     vmobj *o = alcobj(ctx);
+    o->is_sysobj = 1;
     array_push(ctx, o, n0);
     KL_SET_PROPERTY_I(o, isFiber, 1)
     KL_SET_METHOD(o, resume, Fiber_resume, lex, 0)
     KL_SET_METHOD(o, isAlive, Fiber_isAlive, lex, 0)
     KL_SET_METHOD(o, reset, Fiber_reset, lex, 0)
     SET_OBJ(r, o);
-    o->is_sysobj = 1;
 
     return 0;
 }
@@ -672,6 +686,7 @@ int Range_create_i(vmctx *ctx, vmfrm *lex, vmvar *r, int *beg, int *end, int exc
     SHCOPY_VAR_TO(ctx, n3, n0);
 
     vmobj *o = alcobj(ctx);
+    o->is_sysobj = 1;
     array_push(ctx, o, n0);
     array_push(ctx, o, n1);
     array_push(ctx, o, n2);
@@ -686,7 +701,6 @@ int Range_create_i(vmctx *ctx, vmfrm *lex, vmvar *r, int *beg, int *end, int exc
     KL_SET_METHOD(o, isEndExcluded, iRange_isEndExcluded, lex, 0)
     KL_SET_METHOD(o, sort, iRange_sort, lex, 0)
     SET_OBJ(r, o);
-    o->is_sysobj = 1;
 
     return 0;
 }
