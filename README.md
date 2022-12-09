@@ -103,7 +103,7 @@ That's why I'll show it below. The target program is the 38th result of a fibona
 |                    | Version           | Time   | Result   | Remark                           |
 | ------------------ | ----------------- | ------ | -------- | -------------------------------- |
 | C (-O3)            | gcc 11.2.0        | 0.062s | 39088169 | Simple C code.                   |
-| Kilite(C compiled) | (beta/gcc 11.2.0) | 0.125s | 39088169 | Compiled the output from Kilite. |
+| Kilite(C compiled) | (beta/gcc 11.2.0) | 0.110s | 39088169 | Compiled the output from Kilite. |
 | luajit             | 2.1.0-beta3       | 0.318s | 39088169 | -                                |
 | PyPy               | 7.3.9             | 0.330s | 39088169 | -                                |
 | Kinx(native)       | 1.1.1             | 0.389s | 39088169 | -                                |
@@ -264,14 +264,19 @@ I will note the followings as I don't forget it.
 * [ ] Libraries support.
   * [ ] Useful Libraries like below.
     * [ ] File
+      * [x] Static methods like File.mkdir.
+      * [x] File.open/print/printf.
+      * [ ] Other operations.
     * [ ] Zip
       * [x] Simple Zip operation.
-      * [ ] Load data into binary. (Currently it is being stored to String temporarily)
-      * [ ] Encryption? *- Do you want to use it? ... miniz doesn't support it.*
+      * [x] Load data into binary.
+      * [x] Encryption.
     * [ ] Xml
       * [x] Simple XML Parser & Simple DOM operation.
       * [ ] Node insertion, deletion, or modification to DOM.
+      * [ ] XPath
     * [ ] PDF
+      * [ ] harupdf
 * [ ] Others.
   * [ ] Direct calling a C code.
   * [ ] REPL.
