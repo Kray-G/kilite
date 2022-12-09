@@ -42,7 +42,11 @@ static int zip_error(vmctx *ctx, int err, const char *arg)
         snprintf(buf, 240, "Version error");
         break;
     case MZ_END_OF_LIST:
-        snprintf(buf, 240, "End of list");
+        if (arg) {
+            snprintf(buf, 240, "Entry not found: %s", arg);
+        } else {
+            snprintf(buf, 240, "Entry not found");
+        }
         break;
     case MZ_END_OF_STREAM:
         snprintf(buf, 240, "End of stream");
