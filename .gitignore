@@ -72,5 +72,6 @@ dkms.conf
 /*.py3
 /*.lua
 /*.c
+/*.txt
 /examples.zip
 /article.md

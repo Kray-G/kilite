@@ -3,26 +3,11 @@
 #include "lib.h"
 #endif
 
-/* Zip */
+extern int File_create(vmctx *ctx, vmfrm *lex, vmvar *r, int ac);
 
-#define ZIP_OPTION_I(param, opts, zip, def) \
-    int64_t param = opts->t == VAR_OBJ ? Zip_get_int(opts->o, #param, def) : def; \
-    if (!param) param = Zip_get_int(zip, #param, def); \
-/**/
-#define ZIP_OPTION_S(param, opts, zip) \
-    const char *param = opts->t == VAR_OBJ ? Zip_get_str(opts->o, #param) : NULL; \
-    if (!param) param = Zip_get_str(zip, #param); \
-/**/
-#define ZIP_OPTION_V(param, opts) \
-    vmvar *param = opts->t == VAR_OBJ ? hashmap_search(opts->o, #param) : NULL; \
-/**/
+/* General */
 
-typedef struct overwrite_status_t {
-    int overwrite;
-    int skipped;
-} overwrite_status_t;
-
-static int zip_error(vmctx *ctx, int err, const char *arg)
+static int zip_error(vmctx *ctx, int type, int err, const char *arg)
 {
     char buf[256] = {0};
     switch (err) {
@@ -77,7 +62,7 @@ static int zip_error(vmctx *ctx, int err, const char *arg)
         snprintf(buf, 240, "Password error");
         break;
     case MZ_SUPPORT_ERROR:
-        snprintf(buf, 240, "Support error");
+        snprintf(buf, 240, "Unsuppoted operation");
         break;
     case MZ_HASH_ERROR:
         snprintf(buf, 240, "Hash error");
@@ -125,14 +110,17 @@ static int zip_error(vmctx *ctx, int err, const char *arg)
         snprintf(buf, 240, "Unknown error");
         break;
     }
-    return throw_system_exception(__LINE__, ctx, EXCEPT_ZIP_ERROR, buf);
+    return throw_system_exception(__LINE__, ctx, type, buf);
 }
 
-static vmobj *Zip_get_zip_object(vmobj *o)
+static inline int isReadable(int mode)
 {
-    vmvar *holder = hashmap_search(o, "zip");
-    if (!holder || holder->t != VAR_OBJ) return NULL;
-    return holder->o;
+    return (mode & FILE_READ) == FILE_READ;
+}
+
+static inline int isWritable(int mode)
+{
+    return (mode & FILE_WRITE) == FILE_WRITE || (mode & FILE_APPEND) == FILE_APPEND;
 }
 
 static int Zip_get_int(vmobj *o, const char *optname, int def)
@@ -149,19 +137,367 @@ static const char *Zip_get_str(vmobj *o, const char *optname)
     return v->s->s;
 }
 
+/* File */
+
+static void set_mode_char(int mode, char modechar[3])
+{
+    int b = (mode & FILE_BINARY) == FILE_BINARY;
+    int t = !b;
+    int r = (mode & FILE_READ) == FILE_READ;
+    int w = (mode & FILE_WRITE) == FILE_WRITE;
+    int a = (mode & FILE_APPEND) == FILE_APPEND;
+    if (t) {
+        if (r) {
+            if (a)      { modechar[0] = 'a'; modechar[1] = '+'; }
+            else if (w) { modechar[0] = 'w'; modechar[1] = '+'; }
+            else        { modechar[0] = 'r'; }
+        } else {
+            if (a)      { modechar[0] = 'a'; }
+            else if (w) { modechar[0] = 'w'; }
+            else        { modechar[0] = 'r'; }
+        }
+    } else {
+        if (r) {
+            if (a)      { modechar[0] = 'a'; modechar[1] = '+'; modechar[2] = 'b'; }
+            else if (w) { modechar[0] = 'w'; modechar[1] = '+'; modechar[2] = 'b'; }
+            else        { modechar[0] = 'r'; modechar[1] = 'b'; }
+        } else {
+            if (a)      { modechar[0] = 'a'; modechar[1] = 'b'; }
+            else if (w) { modechar[0] = 'w'; modechar[1] = 'b'; }
+            else        { modechar[0] = 'r'; modechar[1] = 'b'; }
+        }
+    }
+}
+
+static void close_file_pointer(void *fp)
+{
+    if (fp) {
+        fclose(fp);
+    }
+}
+
+#define FilePointer(fo, f, fp) FILE *fp = NULL; vmvar *f = NULL; { \
+    if (0 < fo->o->idxsz && fo->o->ary[0]) { \
+        f = fo->o->ary[0]; \
+        if (f->t == VAR_VOIDP) { \
+            fp = f->p; \
+        } \
+    } \
+} \
+/**/
+
+int File_close(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    DEF_ARG(fo, 0, VAR_OBJ);
+    FilePointer(fo, f, fp);
+    if (f && fp) {
+        fclose(fp);
+        f->p = NULL;
+        f->freep = NULL;
+    }
+
+    return 0;
+}
+
+static int File_print(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    DEF_ARG(fo, 0, VAR_OBJ);
+    int mode = Zip_get_int(fo->o, "mode", 0);
+    if (!isWritable(mode)) {
+        return zip_error(ctx, EXCEPT_FILE_ERROR, MZ_WRITEONLY_ERROR, NULL);
+    }
+
+    FilePointer(fo, f, fp);
+    if (fp) {
+        for (int i = 1; i < ac; ++i) {
+            vmvar *an = local_var(ctx, i);
+            fprint_obj(ctx, an, fp);
+        }
+    }
+    r->t = VAR_UNDEF;
+    return 0;
+}
+
+static int File_println(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    DEF_ARG(fo, 0, VAR_OBJ);
+    int mode = Zip_get_int(fo->o, "mode", 0);
+    if (!isWritable(mode)) {
+        return zip_error(ctx, EXCEPT_FILE_ERROR, MZ_WRITEONLY_ERROR, NULL);
+    }
+
+    FilePointer(fo, f, fp);
+    if (fp) {
+        for (int i = 1; i < ac; ++i) {
+            vmvar *an = local_var(ctx, i);
+            fprint_obj(ctx, an, fp);
+        }
+        fprintf(fp, "\n");
+    }
+    r->t = VAR_UNDEF;
+    return 0;
+}
+
+int File_open(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    DEF_ARG(name, 0, VAR_STR);
+    DEF_ARG_OR_UNDEF(param, 1, VAR_INT64);
+    const char *filename = name->s->s;
+    int mode = param->t == VAR_UNDEF ? FILE_READ : (int)param->i;
+
+    vmobj *o = alcobj(ctx);
+    o->is_sysobj = 1;
+    vmvar *f = alcvar(ctx, VAR_VOIDP, 0);
+    char modechar[3] = {0};
+    set_mode_char(mode, modechar);
+
+    f->p = fopen(filename, modechar);
+    f->freep = close_file_pointer;
+    array_push(ctx, o, f);
+    KL_SET_PROPERTY_I(o, mode, mode)
+    // KL_SET_METHOD(o, load, File_load, lex, 0)
+    // KL_SET_METHOD(o, readLine, File_readLine, lex, 0)
+    // KL_SET_METHOD(o, getch, File_getch, lex, 0)
+    // KL_SET_METHOD(o, putch, File_putch, lex, 0)
+    KL_SET_METHOD(o, print, File_print, lex, 0)
+    KL_SET_METHOD(o, println, File_println, lex, 0)
+    KL_SET_METHOD(o, close, File_close, lex, 0)
+
+    SET_OBJ(r, o);
+    return 0;
+}
+
+int File_rename(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    DEF_ARG(oldpath, 0, VAR_STR)
+    DEF_ARG(newpath, 1, VAR_STR)
+    const char *op = oldpath->s->s;
+    const char *np = newpath->s->s;
+    int32_t err = mz_os_rename(op, np);
+    if (err != MZ_OK) {
+        return zip_error(ctx, EXCEPT_FILE_ERROR, err, np);
+    }
+    SET_I64(r, 1);
+    return 0;
+}
+
+int File_unlink(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    DEF_ARG(path, 0, VAR_STR)
+    const char *p = path->s->s;
+    int32_t err = mz_os_unlink(p);
+    if (err != MZ_OK && err != MZ_EXIST_ERROR) {
+        /* ignore the error for file existance. */
+        return zip_error(ctx, EXCEPT_FILE_ERROR, err, p);
+    }
+    SET_I64(r, 1);
+    return 0;
+}
+
+int File_file_exists(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    DEF_ARG(path, 0, VAR_STR)
+    const char *p = path->s->s;
+    int32_t err = mz_os_unlink(p);
+    SET_I64(r, err == MZ_OK);
+    return 0;
+}
+
+int File_get_file_size(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    DEF_ARG(path, 0, VAR_STR)
+    const char *p = path->s->s;
+    int64_t size = mz_os_get_file_size(p);
+    if (size < 0) {
+        return zip_error(ctx, EXCEPT_FILE_ERROR, size, p);
+    }
+    SET_I64(r, size);
+    return 0;
+}
+
+static vmobj *make_file_date_object(vmctx *ctx, time_t time)
+{
+    int year, mon, mday, hour, min, sec;
+    mz_zip_timeinfo_raw(time, &year, &mon, &mday, &hour, &min, &sec);
+    vmobj *tmobj = alcobj(ctx);
+    KL_SET_PROPERTY_I(tmobj, year, year);
+    KL_SET_PROPERTY_I(tmobj, month, mon + 1);
+    KL_SET_PROPERTY_I(tmobj, day, mday);
+    KL_SET_PROPERTY_I(tmobj, hour, hour);
+    KL_SET_PROPERTY_I(tmobj, minute, min);
+    KL_SET_PROPERTY_I(tmobj, second, sec);
+    return tmobj;
+}
+
+static time_t make_file_date_value(vmctx *ctx, vmobj *time)
+{
+    int year = Zip_get_int(time, "year", 1900);
+    int mon  = Zip_get_int(time, "mon",  0);
+    int mday = Zip_get_int(time, "mday", 1);
+    int hour = Zip_get_int(time, "hour", 0);
+    int min  = Zip_get_int(time, "min",  0);
+    int sec  = Zip_get_int(time, "sec",  0);
+    return mz_zip_make_time(year, mon, mday, hour, min, sec);
+}
+
+int File_get_file_date(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    DEF_ARG(path, 0, VAR_STR)
+    const char *p = path->s->s;
+    time_t modified, accessed, creation; 
+    int32_t err = mz_os_get_file_date(p, &modified, &accessed, &creation);
+    if (err != MZ_OK) {
+        return zip_error(ctx, EXCEPT_FILE_ERROR, err, p);
+    }
+    vmobj *o = alcobj(ctx);
+    KL_SET_PROPERTY_O(o, modified, make_file_date_object(ctx, modified));
+    KL_SET_PROPERTY_O(o, accessed, make_file_date_object(ctx, accessed));
+    KL_SET_PROPERTY_O(o, creation, make_file_date_object(ctx, creation));
+
+    SET_OBJ(r, o);
+    return 0;
+}
+
+int File_set_file_date(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    DEF_ARG(path, 0, VAR_STR)
+    const char *p = path->s->s;
+
+    DEF_ARG(opts, 1, VAR_OBJ)
+    vmvar *m = hashmap_search(opts->o, "modified");
+    vmvar *a = hashmap_search(opts->o, "accessed");
+    vmvar *c = hashmap_search(opts->o, "creation");
+    time_t modified = (m && m->t == VAR_OBJ) ? make_file_date_value(ctx, m->o) : 0;
+    time_t accessed = (a && a->t == VAR_OBJ) ? make_file_date_value(ctx, a->o) : 0;
+    time_t creation = (c && c->t == VAR_OBJ) ? make_file_date_value(ctx, c->o) : 0;
+
+    int32_t err = mz_os_set_file_date(p, modified, accessed, creation);
+    if (err != MZ_OK) {
+        return zip_error(ctx, EXCEPT_FILE_ERROR, err, p);
+    }
+
+    SET_I64(r, 1);
+    return 0;
+}
+
+int File_is_dir(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    DEF_ARG(path, 0, VAR_STR)
+    const char *p = path->s->s;
+    int32_t err = mz_os_is_dir(p);
+    SET_I64(r, err == MZ_OK);
+    return 0;
+}
+
+int File_make_dir(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    DEF_ARG(path, 0, VAR_STR)
+    const char *p = path->s->s;
+    int32_t err = mz_os_make_dir(p);
+    if (err < 0) {
+        return zip_error(ctx, EXCEPT_FILE_ERROR, err, p);
+    }
+    SET_I64(r, 1);
+    return 0;
+}
+
+int File_is_symlink(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    DEF_ARG(path, 0, VAR_STR)
+    const char *p = path->s->s;
+    int32_t err = mz_os_is_symlink(p);
+    SET_I64(r, err == MZ_OK);
+    return 0;
+}
+
+int File_make_symlink(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    DEF_ARG(path, 0, VAR_STR)
+    DEF_ARG(target, 1, VAR_STR)
+    const char *p = path->s->s;
+    const char *t = target->s->s;
+    int32_t err = mz_os_make_symlink(p, t);
+    if (err != MZ_OK) {
+        return zip_error(ctx, EXCEPT_FILE_ERROR, err, t);
+    }
+    SET_I64(r, 1);
+    return 0;
+}
+
+int File_read_symlink(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    DEF_ARG(path, 0, VAR_STR)
+    const char *p = path->s->s;
+
+    char target[2048] = {0};
+    int32_t err = mz_os_read_symlink(p, target, 2047);
+    if (err != MZ_OK) {
+        return zip_error(ctx, EXCEPT_FILE_ERROR, err, p);
+    }
+    SET_I64(r, 1);
+    return 0;
+}
+
+int File(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    vmobj *o = alcobj(ctx);
+    KL_SET_PROPERTY_I(o, TEXT,   FILE_TEXT)
+    KL_SET_PROPERTY_I(o, BINARY, FILE_BINARY)
+    KL_SET_PROPERTY_I(o, READ,   FILE_READ)
+    KL_SET_PROPERTY_I(o, WRITE,  FILE_WRITE)
+    KL_SET_PROPERTY_I(o, APPEND, FILE_APPEND)
+    KL_SET_METHOD(o, open, File_create, lex, 0)
+    KL_SET_METHOD(o, create, File_create, lex, 0)
+    KL_SET_METHOD(o, _open, File_open, lex, 0)
+    KL_SET_METHOD(o, _close, File_close, lex, 0)
+
+    KL_SET_METHOD(o, rename, File_rename, lex, 0)
+    KL_SET_METHOD(o, unlink, File_unlink, lex, 0)
+    KL_SET_METHOD(o, exists, File_file_exists, lex, 0)
+    KL_SET_METHOD(o, filesize, File_get_file_size, lex, 0)
+    KL_SET_METHOD(o, filedate, File_get_file_date, lex, 0)
+    KL_SET_METHOD(o, setFiledate, File_set_file_date, lex, 0)
+    KL_SET_METHOD(o, isDirectory, File_is_dir, lex, 0)
+    KL_SET_METHOD(o, mkdir, File_make_dir, lex, 0)
+    KL_SET_METHOD(o, makeDirectory, File_make_dir, lex, 0)
+    KL_SET_METHOD(o, isSymlink, File_is_symlink, lex, 0)
+    KL_SET_METHOD(o, mksym, File_make_symlink, lex, 0)
+    KL_SET_METHOD(o, makeSymlink, File_make_symlink, lex, 0)
+    KL_SET_METHOD(o, readSymlink, File_read_symlink, lex, 0)
+
+    SET_OBJ(r, o);
+    return 0;
+}
+
+/* Zip */
+
+#define ZIP_OPTION_I(param, opts, zip, def) \
+    int64_t param = opts->t == VAR_OBJ ? Zip_get_int(opts->o, #param, def) : def; \
+    if (!param) param = Zip_get_int(zip, #param, def); \
+/**/
+#define ZIP_OPTION_S(param, opts, zip) \
+    const char *param = opts->t == VAR_OBJ ? Zip_get_str(opts->o, #param) : NULL; \
+    if (!param) param = Zip_get_str(zip, #param); \
+/**/
+#define ZIP_OPTION_V(param, opts) \
+    vmvar *param = opts->t == VAR_OBJ ? hashmap_search(opts->o, #param) : NULL; \
+/**/
+
+typedef struct overwrite_status_t {
+    int overwrite;
+    int skipped;
+} overwrite_status_t;
+
+static vmobj *Zip_get_zip_object(vmobj *o)
+{
+    vmvar *holder = hashmap_search(o, "zip");
+    if (!holder || holder->t != VAR_OBJ) return NULL;
+    return holder->o;
+}
+
 static const char *Zip_get_zipname(vmobj *o)
 {
     return Zip_get_str(o, "name");
-}
-
-static inline int isReadable(int mode)
-{
-    return (mode & FILE_READ) == FILE_READ;
-}
-
-static inline int isWritable(int mode)
-{
-    return (mode & FILE_WRITE) == FILE_WRITE || (mode & FILE_APPEND) == FILE_APPEND;
 }
 
 static int Zip_get_fileinfo(void *reader, const char *password, const char *zipfile, const char *filename, mz_zip_file **file_info)
@@ -330,7 +666,7 @@ static int Zip_extract_entry(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     const char *zipname = Zip_get_zipname(zip);
     int mode = Zip_get_int(zip, "mode", 0);
     if (!isReadable(mode)) {
-        return zip_error(ctx, MZ_WRITEONLY_ERROR, NULL);
+        return zip_error(ctx, EXCEPT_ZIP_ERROR, MZ_WRITEONLY_ERROR, NULL);
     }
 
     const char *filename = Zip_get_str(entry->o, "filename");
@@ -340,7 +676,7 @@ static int Zip_extract_entry(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 
     int32_t err = Zip_extract_impl(ctx, r, zipname, filename, password, 1, 1, NULL, isbin);
     if (err != MZ_OK) {
-        return zip_error(ctx, err, filename);
+        return zip_error(ctx, EXCEPT_ZIP_ERROR, err, filename);
     }
 
     return 0;
@@ -353,7 +689,7 @@ static int Zip_extract_entry_to(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     const char *zipname = Zip_get_zipname(zip);
     int mode = Zip_get_int(zip, "mode", 0);
     if (!isReadable(mode)) {
-        return zip_error(ctx, MZ_WRITEONLY_ERROR, NULL);
+        return zip_error(ctx, EXCEPT_ZIP_ERROR, MZ_WRITEONLY_ERROR, NULL);
     }
 
     const char *filename = Zip_get_str(entry->o, "filename");
@@ -367,7 +703,7 @@ static int Zip_extract_entry_to(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 
     int32_t err = Zip_extract_impl(ctx, r, zipname, filename, password, overwrite, skip, outfile, isbin);
     if (err != MZ_OK) {
-        return zip_error(ctx, err, filename);
+        return zip_error(ctx, EXCEPT_ZIP_ERROR, err, filename);
     }
 
     return 0;
@@ -418,7 +754,7 @@ static vmobj *Zip_setup_entry(vmctx *ctx, vmfrm *lex, vmobj *zip, void *reader, 
     }
 
     vmobj *time = alcobj(ctx);
-    KL_SET_PROPERTY_I(time, year, (year < 1900) ? (year + 1900) : year);
+    KL_SET_PROPERTY_I(time, year, year);
     KL_SET_PROPERTY_I(time, month, mon + 1);
     KL_SET_PROPERTY_I(time, day, mday);
     KL_SET_PROPERTY_I(time, hour, hour);
@@ -435,7 +771,7 @@ static int Zip_entries(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     const char *zipname = Zip_get_zipname(zip);
     int mode = Zip_get_int(zip, "mode", 0);
     if (!isReadable(mode)) {
-        return zip_error(ctx, MZ_WRITEONLY_ERROR, NULL);
+        return zip_error(ctx, EXCEPT_ZIP_ERROR, MZ_WRITEONLY_ERROR, NULL);
     }
 
     mz_zip_file *file_info = NULL;
@@ -448,13 +784,13 @@ static int Zip_entries(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     err = mz_zip_reader_open_file(reader, zipname);
     if (err != MZ_OK) {
         mz_zip_reader_delete(&reader);
-        return zip_error(ctx, err, zipname);
+        return zip_error(ctx, EXCEPT_ZIP_ERROR, err, zipname);
     }
 
     err = mz_zip_reader_goto_first_entry(reader);
     if (err != MZ_OK && err != MZ_END_OF_LIST) {
         mz_zip_reader_delete(&reader);
-        return zip_error(ctx, err, zipname);
+        return zip_error(ctx, EXCEPT_ZIP_ERROR, err, zipname);
     }
 
     vmobj *files = alcobj(ctx);
@@ -475,7 +811,7 @@ static int Zip_entries(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 
     mz_zip_reader_delete(&reader);
     if (err != MZ_OK && err != MZ_END_OF_LIST) {
-        return zip_error(ctx, err, zipname);
+        return zip_error(ctx, EXCEPT_ZIP_ERROR, err, zipname);
     }
 
     SET_OBJ(r, files);
@@ -489,7 +825,7 @@ static int Zip_extract(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     const char *zipname = Zip_get_zipname(zip);
     int mode = Zip_get_int(zip, "mode", 0);
     if (!isReadable(mode)) {
-        return zip_error(ctx, MZ_WRITEONLY_ERROR, NULL);
+        return zip_error(ctx, EXCEPT_ZIP_ERROR, MZ_WRITEONLY_ERROR, NULL);
     }
 
     DEF_ARG(filev, 1, VAR_STR)          // target filename
@@ -500,7 +836,7 @@ static int Zip_extract(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 
     int32_t err = Zip_extract_impl(ctx, r, zipname, filename, password, 1, 1, NULL, isbin);
     if (err != MZ_OK) {
-        return zip_error(ctx, err, filename);
+        return zip_error(ctx, EXCEPT_ZIP_ERROR, err, filename);
     }
 
     return 0;
@@ -513,7 +849,7 @@ static int Zip_extract_to(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     const char *zipname = Zip_get_zipname(zip);
     int mode = Zip_get_int(zip, "mode", 0);
     if (!isReadable(mode)) {
-        return zip_error(ctx, MZ_WRITEONLY_ERROR, NULL);
+        return zip_error(ctx, EXCEPT_ZIP_ERROR, MZ_WRITEONLY_ERROR, NULL);
     }
 
     DEF_ARG(filev, 1, VAR_STR)          // target filename
@@ -528,7 +864,7 @@ static int Zip_extract_to(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 
     int32_t err = Zip_extract_impl(ctx, r, zipname, filename, password, overwrite, skip, outfile, isbin);
     if (err != MZ_OK) {
-        return zip_error(ctx, err, filename);
+        return zip_error(ctx, EXCEPT_ZIP_ERROR, err, filename);
     }
 
     return 0;
@@ -541,7 +877,7 @@ static int Zip_find(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     const char *zipname = Zip_get_zipname(zip);
     int mode = Zip_get_int(zip, "mode", 0);
     if (!isReadable(mode)) {
-        return zip_error(ctx, MZ_WRITEONLY_ERROR, NULL);
+        return zip_error(ctx, EXCEPT_ZIP_ERROR, MZ_WRITEONLY_ERROR, NULL);
     }
 
     DEF_ARG(filev, 1, VAR_STR)          // target filename
@@ -555,7 +891,7 @@ static int Zip_find(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     err = Zip_get_fileinfo(reader, NULL, zipname, filename, &file_info);
     if (err != MZ_OK) {
         mz_zip_reader_delete(&reader);
-        return zip_error(ctx, err, filename);
+        return zip_error(ctx, EXCEPT_ZIP_ERROR, err, filename);
     }
 
     vmobj *entry = Zip_setup_entry(ctx, lex, zip, reader, file_info);
@@ -573,7 +909,7 @@ static int Zip_add_file(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     int added = Zip_get_int(zip, "added", 0);
     int mode = Zip_get_int(zip, "mode", 0);
     if (!isWritable(mode)) {
-        return zip_error(ctx, MZ_READONLY_ERROR, NULL);
+        return zip_error(ctx, EXCEPT_ZIP_ERROR, MZ_READONLY_ERROR, NULL);
     }
 
     DEF_ARG(filev, 1, VAR_STR)          // target filename
@@ -595,7 +931,7 @@ static int Zip_add_file(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     int append = (added > 0) || ((mode & FILE_APPEND) == FILE_APPEND);
     int32_t err = Zip_add_file_impl(ctx, zipname, aes, use_method, level, diskSize, append, password, filename);
     if (err != MZ_OK) {
-        return zip_error(ctx, err, filename);
+        return zip_error(ctx, EXCEPT_ZIP_ERROR, err, filename);
     }
 
     KL_SET_PROPERTY_I(zip, added, added + 1);
@@ -610,7 +946,7 @@ static int Zip_add_buffer(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     int added = Zip_get_int(zip, "added", 0);
     int mode = Zip_get_int(zip, "mode", 0);
     if (!isWritable(mode)) {
-        return zip_error(ctx, MZ_READONLY_ERROR, NULL);
+        return zip_error(ctx, EXCEPT_ZIP_ERROR, MZ_READONLY_ERROR, NULL);
     }
 
     DEF_ARG(filev, 1, VAR_STR)          // target filename
@@ -633,7 +969,7 @@ static int Zip_add_buffer(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     int append = (added > 0) || ((mode & FILE_APPEND) == FILE_APPEND);
     int32_t err = Zip_add_buffer_impl(ctx, zipname, aes, use_method, level, diskSize, append, password, filename, content);
     if (err != MZ_OK) {
-        return zip_error(ctx, err, filename);
+        return zip_error(ctx, EXCEPT_ZIP_ERROR, err, filename);
     }
 
     KL_SET_PROPERTY_I(zip, added, added + 1);

@@ -118,16 +118,21 @@ vmbin *bin_dup(vmctx *ctx, vmbin *vs)
     return alcbin_bin(ctx, vs->hd, vs->len);
 }
 
-void print_bin(vmctx *ctx, vmbin *vs)
+void fprint_bin(vmctx *ctx, vmbin *vs, FILE *fp)
 {
     const uint8_t *p = vs->s;
     int len = vs->len;
-    printf("<");
+    fprintf(fp, "<");
     if (len > 0) {
-        printf("0x%02x", *p++);
+        fprintf(fp, "0x%02x", *p++);
         for (int i = 1; i < len; ++i) {
-            printf(",0x%02x", *p++);
+            fprintf(fp, ",0x%02x", *p++);
         }
     }
-    printf(">");
+    fprintf(fp, ">");
+}
+
+void print_bin(vmctx *ctx, vmbin *vs)
+{
+    fprint_bin(ctx, vs, stdout);
 }

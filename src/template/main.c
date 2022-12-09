@@ -2,8 +2,18 @@
 #include "common.h"
 #endif
 
+#ifdef __MIRC__
+FILE *stdout, *stderr, *stdin;
+#endif
+
 int main(int ac, char **av)
 {
+    #ifdef __MIRC__
+    /* Should use a host system's standard I/O. */
+    stdin  = get_stdio_stdin();
+    stdout = get_stdio_stdout();
+    stderr = get_stdio_stderr();
+    #endif
     vmctx *ctx = initialize();
     setup_context(ctx);
     ctx->except = alcvar_initial(ctx);

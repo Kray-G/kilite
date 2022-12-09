@@ -54,38 +54,43 @@ int get_min5(int a0, int a1, int a2, int a3, int a4)
     return a0 < a1 ? get_min4(a0, a2, a3, a4) : get_min4(a1, a2, a3, a4);
 }
 
-void print_obj(vmctx *ctx, vmvar *v)
+void fprint_obj(vmctx *ctx, vmvar *v, FILE *fp)
 {
     switch (v->t) {
     case VAR_UNDEF:
-        printf("null");
+        fprintf(fp, "null");
         break;
     case VAR_INT64:
-        printf("%" PRId64, v->i);
+        fprintf(fp, "%" PRId64, v->i);
         break;
     case VAR_DBL:
-        printf("%.16g", v->d);
+        fprintf(fp, "%.16g", v->d);
         break;
     case VAR_BIG: {
         char *bs = BzToString(v->bi->b, 10, 0);
-        printf("%s", bs);
+        fprintf(fp, "%s", bs);
         BzFreeString(bs);
         break;
     }
     case VAR_STR:
-        printf("%s", v->s->s);
+        fprintf(fp, "%s", v->s->s);
         break;
     case VAR_BIN:
-        print_bin(ctx, v->bn);
+        fprint_bin(ctx, v->bn, fp);
         break;
     case VAR_OBJ:
-        hashmap_objprint(ctx, v->o);
+        hashmap_objfprint(ctx, v->o, fp);
         break;
     case VAR_FNC:
-        printf("<function>");
+        fprintf(fp, "<function>");
         break;
     default:
-        printf("<UNKNOWN>");
+        fprintf(fp, "<UNKNOWN>");
         break;
     }
+}
+
+void print_obj(vmctx *ctx, vmvar *v)
+{
+    fprint_obj(ctx, v, stdout);
 }

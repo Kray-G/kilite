@@ -30,15 +30,27 @@ extern BigZ i64minm1;
 #define PRIx64 "llx"
 #endif
 #define INLINE inline
-int printf(const char *, ...);
-int sprintf(const char *, const char *, ...);
-int64_t strtoll(const char*, char**, int);
-void *malloc(size_t);
-void *calloc(size_t, size_t);
-void *memset(void *, int, size_t);
-void free(void *);
-char *strcpy(char *s1, const char *s2);
-int strcmp(const char *s1, const char *s2);
+typedef void FILE;
+extern FILE *stdin;
+extern FILE *stdout;
+extern FILE *stderr;
+extern FILE *get_stdio_stdin(void);
+extern FILE *get_stdio_stdout(void);
+extern FILE *get_stdio_stderr(void);
+
+extern FILE *fopen(const char *, const char *);
+extern int fclose(FILE *);
+extern int fprintf(FILE *, const char *, ...);
+extern int printf(const char *, ...);
+extern int sprintf(const char *, const char *, ...);
+extern int64_t strtoll(const char*, char**, int);
+extern void *malloc(size_t);
+extern void *calloc(size_t, size_t);
+extern void *memset(void *, int, size_t);
+extern void *memcpy(void *, const void *, size_t);
+extern void free(void *);
+extern char *strcpy(char *, const char *);
+extern int strcmp(const char *, const char *);
 #ifndef NULL
 #define NULL ((void*)0)
 #endif
@@ -65,6 +77,7 @@ enum {
     EXCEPT_OUT_OF_RANGE_ERROR,
     EXCEPT_TOO_DEEP,
     EXCEPT_XML_ERROR,
+    EXCEPT_FILE_ERROR,
     EXCEPT_ZIP_ERROR,
     EXCEPT_MAX,
 };
@@ -3154,6 +3167,7 @@ INLINE extern int get_min3(int a0, int a1, int a2);
 INLINE extern int get_min4(int a0, int a1, int a2, int a3);
 INLINE extern int get_min5(int a0, int a1, int a2, int a3, int a4);
 INLINE extern void print_obj(vmctx *ctx, vmvar *v);
+INLINE extern void fprint_obj(vmctx *ctx, vmvar *v, FILE *fp);
 INLINE extern vmstr *format(vmctx *ctx, vmobj *v);
 
 INLINE extern void bi_initialize(void);
@@ -3164,6 +3178,7 @@ INLINE extern void bi_print(vmbgi *b);
 INLINE extern void bi_str(char *buf, int max, vmbgi *b);
 
 INLINE extern void print_escape_str(vmstr *vs);
+INLINE extern void fprint_escape_str(vmstr *vs, FILE *fp);
 INLINE extern vmstr *str_dup(vmctx *ctx, vmstr *vs);
 INLINE extern vmstr *str_from_i64(vmctx *ctx, int64_t i);
 INLINE extern vmstr *str_from_dbl(vmctx *ctx, double *d);
@@ -3193,9 +3208,11 @@ INLINE extern vmbin *bin_append_ch(vmctx *ctx, vmbin *vs, const uint8_t ch);
 INLINE extern vmbin *bin_clear(vmbin *vs);
 INLINE extern vmbin *bin_dup(vmctx *ctx, vmbin *vs);
 INLINE extern void print_bin(vmctx *ctx, vmbin *vs);
+INLINE extern void fprint_bin(vmctx *ctx, vmbin *vs, FILE *fp);
 
 INLINE extern void hashmap_print(vmobj *obj);
 INLINE extern void hashmap_objprint(vmctx *ctx, vmobj *obj);
+INLINE extern void hashmap_objfprint(vmctx *ctx, vmobj *obj, FILE *fp);
 INLINE extern vmobj *hashmap_create(vmobj *h, int sz);
 INLINE extern vmobj *hashmap_set(vmctx *ctx, vmobj *obj, const char *s, vmvar *v);
 INLINE extern vmobj *hashmap_remove(vmctx *ctx, vmobj *obj, const char *s);

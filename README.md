@@ -260,8 +260,10 @@ I will note the followings as I don't forget it.
   * [x] `__FILE__`, `__LINE__`, `__FUNC__`.
   * [ ] `__END__`.
   * [ ] Here document.
+  * [ ] `System.try`
 * [ ] Libraries support.
   * [ ] Useful Libraries like below.
+    * [ ] File
     * [ ] Zip
       * [x] Simple Zip operation.
       * [ ] Load data into binary. (Currently it is being stored to String temporarily)

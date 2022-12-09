@@ -68,6 +68,7 @@
 #else
 
 typedef void mz_zip_file;
+typedef int64_t time_t;
 
 typedef int32_t (*mz_zip_reader_overwrite_cb)(void *handle, void *userdata, mz_zip_file *file_info, const char *path);
 
@@ -94,6 +95,18 @@ void    mz_zip_writer_set_aes(void *handle, uint8_t aes);
 void    mz_zip_writer_set_compress_method(void *handle, uint16_t compress_method);
 void    mz_zip_writer_set_compress_level(void *handle, int16_t compress_level);
 void    mz_zip_writer_set_password(void *handle, const char *password);
+
+int32_t  mz_os_rename(const char *source_path, const char *target_path);
+int32_t  mz_os_unlink(const char *path);
+int32_t  mz_os_file_exists(const char *path);
+int64_t  mz_os_get_file_size(const char *path);
+int32_t  mz_os_get_file_date(const char *path, time_t *modified_date, time_t *accessed_date, time_t *creation_date);
+int32_t  mz_os_set_file_date(const char *path, time_t modified_date, time_t accessed_date, time_t creation_date);
+int32_t  mz_os_is_dir(const char *path);
+int32_t  mz_os_make_dir(const char *path);
+int32_t  mz_os_is_symlink(const char *path);
+int32_t  mz_os_make_symlink(const char *path, const char *target_path);
+int32_t  mz_os_read_symlink(const char *path, char *target_path, int32_t max_target_path);
 
 /* MZ_ERROR */
 #define MZ_OK                           (0)  /* zlib */
@@ -164,7 +177,9 @@ extern int mz_zip_fileinfo_crypt(mz_zip_file *file_info);
 extern int mz_zip_fileinfo_aes_bit(mz_zip_file *file_info);
 extern int mz_zip_fileinfo_zip64(mz_zip_file *file_info);
 extern void mz_zip_timeinfo(mz_zip_file *file_info, int type, int *year, int *mon, int *mday, int *hour, int *min, int *sec);
-extern mz_zip_file *mz_alloc_file_info(const char *filename, int64_t t, int method, int flag, int aes);
+extern void mz_zip_timeinfo_raw(time_t time, int *year, int *mon, int *mday, int *hour, int *min, int *sec);
+extern time_t mz_zip_make_time(int year, int mon, int mday, int hour, int min, int sec);
+extern mz_zip_file *mz_alloc_file_info(const char *filename, time_t t, int method, int flag, int aes);
 extern void mz_free_file_info(mz_zip_file *file_info);
 
 #endif /* KILITE_TEMPLATE_LIB_H */

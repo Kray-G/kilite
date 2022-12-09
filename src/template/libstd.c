@@ -242,6 +242,12 @@ int XmlErrorException(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     return 0;
 }
 
+int FileErrorException(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    RuntimeException_create(ctx, lex, r, "FileErrorException", ctx->msgbuf ? ctx->msgbuf : "File error");
+    return 0;
+}
+
 int ZipErrorException(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     RuntimeException_create(ctx, lex, r, "ZipErrorException", ctx->msgbuf ? ctx->msgbuf : "Zip error");
@@ -302,6 +308,9 @@ int throw_system_exception(int line, vmctx *ctx, int id, const char *msg)
         break;
     case EXCEPT_XML_ERROR:
         XmlErrorException(ctx, NULL, r, 0);
+        break;
+    case EXCEPT_FILE_ERROR:
+        FileErrorException(ctx, NULL, r, 0);
         break;
     case EXCEPT_ZIP_ERROR:
         ZipErrorException(ctx, NULL, r, 0);
@@ -406,20 +415,6 @@ int SystemTimer(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     vmobj *o = alcobj(ctx);
     KL_SET_METHOD(o, create, SystemTimer_create, lex, 0)
-    SET_OBJ(r, o);
-    return 0;
-}
-
-/* File */
-
-int File(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
-{
-    vmobj *o = alcobj(ctx);
-    KL_SET_PROPERTY_I(o, TEXT,   FILE_TEXT)
-    KL_SET_PROPERTY_I(o, BINARY, FILE_BINARY)
-    KL_SET_PROPERTY_I(o, READ,   FILE_READ)
-    KL_SET_PROPERTY_I(o, WRITE,  FILE_WRITE)
-    KL_SET_PROPERTY_I(o, APPEND, FILE_APPEND)
     SET_OBJ(r, o);
     return 0;
 }

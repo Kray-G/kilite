@@ -240,3 +240,14 @@ function Array_sort(a:object, f:func) {
     }
     return a;
 }
+
+/* File functions */
+
+function File_create(filename:string, mode:integer, block:func) {
+    var f = File._open(filename, mode);
+    try {
+        return block(f);
+    } finally {
+        f.close();
+    }
+}

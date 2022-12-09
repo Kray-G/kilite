@@ -6,6 +6,7 @@
 
 #if defined(_MSC_VER)
 #define MATH_SYSTIME_DEFINED
+#include <stdio.h>
 #include <windows.h>
 #pragma comment(lib, "advapi32.lib")
 #pragma comment(lib, "crypt32.lib")
@@ -265,7 +266,7 @@ int mz_zip_fileinfo_aes_bit(mz_zip_file *file_info)
 
 void mz_zip_timeinfo(mz_zip_file *file_info, int type, int *year, int *mon, int *mday, int *hour, int *min, int *sec)
 {
-    struct tm t;
+    struct tm t = {0};
     switch (type) {
     case TIMEINFO_TYPE_MODIFIED:
         mz_zip_time_t_to_tm(file_info->modified_date, &t);
@@ -279,7 +280,31 @@ void mz_zip_timeinfo(mz_zip_file *file_info, int type, int *year, int *mon, int 
     default:
         return;
     }
-    *year = t.tm_year;
+    *year = t.tm_year + 1900;
+    *mon  = t.tm_mon;
+    *mday = t.tm_mday;
+    *hour = t.tm_hour;
+    *min  = t.tm_min;
+    *sec  = t.tm_sec;
+}
+
+time_t mz_zip_make_time(int year, int mon, int mday, int hour, int min, int sec)
+{
+    struct tm t = {0};
+    t.tm_year = year - 1900;
+    t.tm_mon  = mon;
+    t.tm_mday = mday;
+    t.tm_hour = hour;
+    t.tm_min  = min;
+    t.tm_sec  = sec;
+    return mktime(&t);
+}
+
+void mz_zip_timeinfo_raw(time_t time, int *year, int *mon, int *mday, int *hour, int *min, int *sec)
+{
+    struct tm t = {0};
+    mz_zip_time_t_to_tm(time, &t);
+    *year = t.tm_year + 1900;
     *mon  = t.tm_mon;
     *mday = t.tm_mday;
     *hour = t.tm_hour;
@@ -304,6 +329,21 @@ mz_zip_file *mz_alloc_file_info(const char *filename, int64_t t, int method, int
 void mz_free_file_info(mz_zip_file *file_info)
 {
     free(file_info);
+}
+
+FILE *get_stdio_stdin(void)
+{
+    return stdin;
+}
+
+FILE *get_stdio_stdout(void)
+{
+    return stdout;
+}
+
+FILE *get_stdio_stderr(void)
+{
+    return stderr;
 }
 
 #endif

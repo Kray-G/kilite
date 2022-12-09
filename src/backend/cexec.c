@@ -87,24 +87,30 @@ static MIR_item_t load_main_modules(MIR_context_t ctx)
 
 void load_additional_methods(MIR_context_t ctx)
 {
+    MIR_load_external(ctx, "get_stdio_stdin", (void *)get_stdio_stdin);
+    MIR_load_external(ctx, "get_stdio_stdout", (void *)get_stdio_stdout);
+    MIR_load_external(ctx, "get_stdio_stderr", (void *)get_stdio_stderr);
     MIR_load_external(ctx, "printf", (void *)printf);
+    MIR_load_external(ctx, "fprintf", (void *)fprintf);
     MIR_load_external(ctx, "sprintf", (void *)sprintf);
+    MIR_load_external(ctx, "fopen", (void *)fopen);
+    MIR_load_external(ctx, "fclose", (void *)fclose);
     MIR_load_external(ctx, "SystemTimer_init", (void *)SystemTimer_init);
     MIR_load_external(ctx, "SystemTimer_restart_impl", (void *)SystemTimer_restart_impl);
     MIR_load_external(ctx, "SystemTimer_elapsed_impl", (void *)SystemTimer_elapsed_impl);
     MIR_load_external(ctx, "Math_random_impl", (void *)Math_random_impl);
 
-    MIR_load_external(ctx, "mz_zip_fileinfo_filename", (void *)mz_zip_fileinfo_filename);
-    MIR_load_external(ctx, "mz_zip_fileinfo_uncompsize", (void *)mz_zip_fileinfo_uncompsize);
-    MIR_load_external(ctx, "mz_zip_fileinfo_compsize", (void *)mz_zip_fileinfo_compsize);
-    MIR_load_external(ctx, "mz_zip_fileinfo_crc", (void *)mz_zip_fileinfo_crc);
-    MIR_load_external(ctx, "mz_zip_fileinfo_comp_method", (void *)mz_zip_fileinfo_comp_method);
-    MIR_load_external(ctx, "mz_zip_fileinfo_crypt", (void *)mz_zip_fileinfo_crypt);
-    MIR_load_external(ctx, "mz_zip_fileinfo_zip64", (void *)mz_zip_fileinfo_zip64);
-    MIR_load_external(ctx, "mz_zip_fileinfo_aes_bit", (void *)mz_zip_fileinfo_aes_bit);
-    MIR_load_external(ctx, "mz_zip_timeinfo", (void *)mz_zip_timeinfo);
-    MIR_load_external(ctx, "mz_alloc_file_info", (void *)mz_alloc_file_info);
-    MIR_load_external(ctx, "mz_free_file_info", (void *)mz_free_file_info);
+    MIR_load_external(ctx, "mz_os_rename", (void *)mz_os_rename);
+    MIR_load_external(ctx, "mz_os_unlink", (void *)mz_os_unlink);
+    MIR_load_external(ctx, "mz_os_file_exists", (void *)mz_os_file_exists);
+    MIR_load_external(ctx, "mz_os_get_file_size", (void *)mz_os_get_file_size);
+    MIR_load_external(ctx, "mz_os_get_file_date", (void *)mz_os_get_file_date);
+    MIR_load_external(ctx, "mz_os_set_file_date", (void *)mz_os_set_file_date);
+    MIR_load_external(ctx, "mz_os_is_dir", (void *)mz_os_is_dir);
+    MIR_load_external(ctx, "mz_os_make_dir", (void *)mz_os_make_dir);
+    MIR_load_external(ctx, "mz_os_is_symlink", (void *)mz_os_is_symlink);
+    MIR_load_external(ctx, "mz_os_make_symlink", (void *)mz_os_make_symlink);
+    MIR_load_external(ctx, "mz_os_read_symlink", (void *)mz_os_read_symlink);
 
     MIR_load_external(ctx, "mz_zip_reader_create", (void *)mz_zip_reader_create);
     MIR_load_external(ctx, "mz_zip_reader_open_file", (void *)mz_zip_reader_open_file);
@@ -129,6 +135,20 @@ void load_additional_methods(MIR_context_t ctx)
     MIR_load_external(ctx, "mz_zip_writer_set_compress_method", (void *)mz_zip_writer_set_compress_method);
     MIR_load_external(ctx, "mz_zip_writer_set_compress_level", (void *)mz_zip_writer_set_compress_level);
     MIR_load_external(ctx, "mz_zip_writer_set_password", (void *)mz_zip_writer_set_password);
+
+    MIR_load_external(ctx, "mz_zip_fileinfo_filename", (void *)mz_zip_fileinfo_filename);
+    MIR_load_external(ctx, "mz_zip_fileinfo_uncompsize", (void *)mz_zip_fileinfo_uncompsize);
+    MIR_load_external(ctx, "mz_zip_fileinfo_compsize", (void *)mz_zip_fileinfo_compsize);
+    MIR_load_external(ctx, "mz_zip_fileinfo_crc", (void *)mz_zip_fileinfo_crc);
+    MIR_load_external(ctx, "mz_zip_fileinfo_comp_method", (void *)mz_zip_fileinfo_comp_method);
+    MIR_load_external(ctx, "mz_zip_fileinfo_crypt", (void *)mz_zip_fileinfo_crypt);
+    MIR_load_external(ctx, "mz_zip_fileinfo_zip64", (void *)mz_zip_fileinfo_zip64);
+    MIR_load_external(ctx, "mz_zip_fileinfo_aes_bit", (void *)mz_zip_fileinfo_aes_bit);
+    MIR_load_external(ctx, "mz_zip_timeinfo", (void *)mz_zip_timeinfo);
+    MIR_load_external(ctx, "mz_zip_timeinfo_raw", (void *)mz_zip_timeinfo_raw);
+    MIR_load_external(ctx, "mz_zip_make_time", (void *)mz_zip_make_time);
+    MIR_load_external(ctx, "mz_alloc_file_info", (void *)mz_alloc_file_info);
+    MIR_load_external(ctx, "mz_free_file_info", (void *)mz_free_file_info);
 }
 
 int run(int *ret, const char *fname, const char *src, int ac, char **av, char **ev, kl_opts *opts)

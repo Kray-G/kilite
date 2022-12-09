@@ -40,7 +40,7 @@ static inline vmstr *str_append_impl(vmctx *ctx, vmstr *vs, const char *s, int l
     return vs;
 }
 
-void print_escape_str(vmstr *vs)
+void fprint_escape_str(vmstr *vs, FILE *fp)
 {
     const char *s = vs->s;
     if (!s) {
@@ -49,26 +49,31 @@ void print_escape_str(vmstr *vs)
 
     while (*s) {
         if (*s == '\n') {
-            printf("\\n");
+            fprintf(fp, "\\n");
             ++s;
             continue;
         }
         if (*s == '\r') {
-            printf("\\r");
+            fprintf(fp, "\\r");
             ++s;
             continue;
         }
         if (*s == '\t') {
-            printf("\\t");
+            fprintf(fp, "\\t");
             ++s;
             continue;
         }
         if (*s == '"' || *s == '\\') {
-            printf("\\");
+            fprintf(fp, "\\");
         }
-        printf("%c", *s);
+        fprintf(fp, "%c", *s);
         s++;
     }
+}
+
+void print_escape_str(vmstr *vs)
+{
+    fprint_escape_str(vs, stdout);
 }
 
 vmstr *str_append(vmctx *ctx, vmstr *vs, const char *s, int len)
