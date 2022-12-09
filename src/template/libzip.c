@@ -110,6 +110,8 @@ static int zip_error(vmctx *ctx, int err, const char *arg)
     case MZ_SYMLINK_ERROR:
         snprintf(buf, 240, "Symlink error");
         break;
+
+    /* Additional errors in this project. */
     case MZ_READONLY_ERROR:
         snprintf(buf, 240, "Read only mode");
         break;
