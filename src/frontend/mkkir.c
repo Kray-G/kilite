@@ -473,7 +473,7 @@ static kl_kir_inst *gen_binary_literal(kl_context *ctx, kl_symbol *sym, kl_kir_o
             head = gen_binary_literal(ctx, sym, r1, e->rhs, idx);
         }
         break;
-    default:
+    default: {
         kl_kir_opr rs = {0};
         KL_KIR_CHECK_LITERAL(e, rs, head);
         kl_kir_opr r2 = make_lit_i64(ctx, *idx);
@@ -487,7 +487,7 @@ static kl_kir_inst *gen_binary_literal(kl_context *ctx, kl_symbol *sym, kl_kir_o
             last->next = inst;
         }
         break;
-    }
+    }}
     return head;
 }
 
@@ -509,7 +509,7 @@ static kl_kir_inst *gen_array_literal(kl_context *ctx, kl_symbol *sym, kl_kir_op
             head = gen_array_literal(ctx, sym, r1, r2, e->rhs, idx);
         }
         break;
-    default:
+    default: {
         kl_kir_opr rs = {0};
         KL_KIR_CHECK_LITERAL(e, rs, head);
         kl_kir_opr r3 = make_lit_i64(ctx, *idx);
@@ -524,7 +524,7 @@ static kl_kir_inst *gen_array_literal(kl_context *ctx, kl_symbol *sym, kl_kir_op
         inst->next = new_inst_op2(ctx->program, e->line, e->pos, KIR_MOVA, r2, &rs);
         set_file_func(ctx, sym, inst->next);
         break;
-    }
+    }}
     return head;
 }
 
