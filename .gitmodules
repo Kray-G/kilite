@@ -7,3 +7,6 @@
 [submodule "submodules/zlib"]
 	path = submodules/zlib
 	url = https://github.com/Kray-G/zlib.git
+[submodule "submodules/oniguruma"]
+	path = submodules/oniguruma
+	url = https://github.com/Kray-G/oniguruma.git
