@@ -67,7 +67,9 @@ gcc -Wno-unused-result -O3 -I../submodules/mir \
     -L../bin \
     -lmir_static \
     -lminizip \
-    -lz
+    -lz \
+    -ldl \
+    -lpthread
 
 cp -f kilite ../kilite
 
