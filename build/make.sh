@@ -28,7 +28,10 @@ cp -f libz.a ../
 echo Building minizip...
 mkdir -p minizip
 cd minizip
-cmake -DMZ_BZIP2=OFF -DMZ_LZMA=OFF -DMZ_ZSTD=OFF -DZLIB_ROOT=../../src/template/inc/lib/zlib -DCMAKE_INSTALL_PREFIX=../../src/template/inc/lib/minizip ../../submodules/minizip-ng
+# -DMZ_OPENSSL=OFF is just a compilation workaround for minizip-ng with OpenSSL 3.0
+#   because minizip-ng seem it doen's work with OpenSSL 3.0 yet.
+#   This will cause AES encryption can't work, so now I'll look for another workaround.
+cmake -DMZ_OPENSSL=OFF -DMZ_BZIP2=OFF -DMZ_LZMA=OFF -DMZ_ZSTD=OFF -DZLIB_ROOT=../../src/template/inc/lib/zlib -DCMAKE_INSTALL_PREFIX=../../src/template/inc/lib/minizip ../../submodules/minizip-ng
 make
 make install
 cp -f libminizip.a ../
