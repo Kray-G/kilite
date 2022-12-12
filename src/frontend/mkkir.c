@@ -465,7 +465,7 @@ static kl_kir_inst *gen_binary_array_literal(kl_context *ctx, kl_symbol *sym, kl
     }
 
     switch (e->nodetype) {
-    case TK_COMMA:
+    case TK_COMMA: {
         head = gen_binary_array_literal(ctx, sym, r1, e->lhs);
         kl_kir_inst *last = get_last(head);
         if (last) {
@@ -474,6 +474,7 @@ static kl_kir_inst *gen_binary_array_literal(kl_context *ctx, kl_symbol *sym, kl
             head = gen_binary_array_literal(ctx, sym, r1, e->rhs);
         }
         break;
+    }
     default: {
         kl_kir_opr rs = {0};
         KL_KIR_CHECK_LITERAL(e, rs, head);
@@ -494,6 +495,33 @@ static kl_kir_inst *gen_object_literal(kl_context *ctx, kl_symbol *sym, kl_kir_o
 {
     kl_kir_inst *head = NULL;
     switch (e->nodetype) {
+    case TK_VAR: {
+        /* e->has_dot3 should be true. */
+        check_autoset_flag(ctx, e->sym);
+        kl_kir_opr rs = make_var_index(ctx, e->sym->ref ? e->sym->ref->index : e->sym->index, e->sym->level, e->typeid);
+        kl_kir_inst *inst = new_inst_op2(ctx->program, e->line, e->pos, KIR_EXPAND, r1, &rs);
+        set_file_func(ctx, sym, inst);
+        if (!head) {
+            head = inst;
+        } else {
+            kl_kir_inst *last = get_last(head);
+            last->next = inst;
+        }
+        break;
+    }
+    case TK_DOT3: {
+        kl_kir_opr rs = {0};
+        KL_KIR_CHECK_LITERAL(e->lhs, rs, head);
+        kl_kir_inst *inst = new_inst_op2(ctx->program, e->line, e->pos, KIR_EXPAND, r1, &rs);
+        set_file_func(ctx, sym, inst);
+        if (!head) {
+            head = inst;
+        } else {
+            kl_kir_inst *last = get_last(head);
+            last->next = inst;
+        }
+        break;
+    }
     case TK_VKV: {
         /* e->lhs should be a string. */
         kl_kir_opr rs = {0};
@@ -510,10 +538,13 @@ static kl_kir_inst *gen_object_literal(kl_context *ctx, kl_symbol *sym, kl_kir_o
         set_file_func(ctx, sym, inst->next);
         break;
     }
-    case TK_COMMA:
+    case TK_COMMA: {
         head = gen_object_literal(ctx, sym, r1, r2, e->lhs);
         kl_kir_inst *last = get_last(head);
         last->next = gen_object_literal(ctx, sym, r1, r2, e->rhs);
+        break;
+    }
+    default:
         break;
     }
     return head;

@@ -100,6 +100,16 @@ static void print_object(kl_expr *e, int indent)
     if (!e) return;
 
     switch (e->nodetype) {
+    case TK_VAR:
+        make_indent(indent);
+        printf("(var)\n");
+        disp_expr(e, indent + 1);
+        break;
+    case TK_DOT3:
+        make_indent(indent);
+        printf("(dot3)\n");
+        disp_expr(e->lhs, indent + 1);
+        break;
     case TK_VKV:
         make_indent(indent);
         printf("(keyvalue)\n");

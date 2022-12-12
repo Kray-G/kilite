@@ -1072,6 +1072,17 @@ typedef struct vmctx {
 } \
 /**/
 
+#define VALUE_EXPAND(ctx, r, v, label, func, file, line) { \
+    if ((r)->t == VAR_OBJ && (v)->t == VAR_OBJ) { \
+        hashmap_append(ctx, (r)->o, (v)->o); \
+    } else { \
+        e = throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION, NULL); \
+        exception_addtrace(ctx, ctx->except, func, file, line); \
+        goto label; \
+    } \
+} \
+/**/
+
 #define SHCOPY_VAR_TO(ctx, dst, src) { \
     if (!src) { \
         (dst)->t = VAR_UNDEF; \
@@ -3380,6 +3391,7 @@ INLINE extern vmobj *hashmap_create(vmobj *h, int sz);
 INLINE extern vmobj *hashmap_set(vmctx *ctx, vmobj *obj, const char *s, vmvar *v);
 INLINE extern vmobj *hashmap_remove(vmctx *ctx, vmobj *obj, const char *s);
 INLINE extern vmvar *hashmap_search(vmobj *obj, const char *s);
+INLINE extern vmobj *hashmap_append(vmctx *ctx, vmobj *obj, vmobj *src);
 INLINE extern vmobj *hashmap_copy(vmctx *ctx, vmobj *h);
 INLINE extern vmobj *hashmap_copy_method(vmctx *ctx, vmobj *src);
 INLINE extern vmobj *array_create(vmobj *obj, int asz);

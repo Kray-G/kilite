@@ -392,6 +392,9 @@ void disp_inst(kl_kir_program *p, kl_kir_inst *i)
     case KIR_PUSHN:
         disp_1op("pushn", i);
         break;
+    case KIR_EXPAND:
+        disp_2op("expand", i);
+        break;
 
     case KIR_RANGEF:
         disp_3op("rangef", i);

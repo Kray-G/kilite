@@ -4,6 +4,7 @@
 #include "error.h"
 #include "parser.h"
 
+static kl_expr *parse_expr_factor(kl_context *ctx, kl_lexer *l);
 static kl_expr *parse_expr_list(kl_context *ctx, kl_lexer *l, int endch);
 static kl_expr *parse_expr_assignment(kl_context *ctx, kl_lexer *l);
 static kl_expr *parse_expression(kl_context *ctx, kl_lexer *l);
@@ -731,30 +732,38 @@ static kl_expr *parse_expr_keyvalue(kl_context *ctx, kl_lexer *l)
 {
     kl_expr *e = NULL;
     while (l->tok == TK_DOT3 || l->tok == TK_NAME || l->tok == TK_VSTR) {
-        int dot3 = 0;
         if (l->tok == TK_DOT3) {
-            dot3 = 1;
             lexer_fetch(l);
-        }
-        tk_token tok = l->tok;
-        const char *name = parse_const_str(ctx, l, l->str);
-        kl_expr *e2 = make_expr(ctx, l, TK_VSTR);
-        e2->val.str = name;
-        lexer_fetch(l);
-        if (l->tok == TK_COLON) {
-            lexer_fetch(l);
-            kl_expr *e3 = parse_expr_assignment(ctx, l);
-            e2 = make_bin_expr(ctx, l, TK_VKV, e2, e3);
-            e = make_bin_expr(ctx, l, TK_COMMA, e, e2);
-        } else {
-            if (tok != TK_NAME) {
-                parse_error(ctx, __LINE__, l, "The ':' is missing in key value");
-                return panic_mode_expr(e, ';', ctx, l);
+            if (l->tok == TK_NAME) {
+                kl_expr *e1 = parse_expr_varname(ctx, l, l->str, ctx->in_lvalue);
+                e1->sym->is_dot3 = 1;
+                e = make_bin_expr(ctx, l, TK_COMMA, e, e1);
+                lexer_fetch(l);
+            } else {
+                kl_expr *e1 = parse_expr_factor(ctx, l);
+                e1 = make_conn_expr(ctx, l, TK_DOT3, e1, NULL);
+                e = make_bin_expr(ctx, l, TK_COMMA, e, e1);
             }
-            kl_expr *e3 = parse_expr_varname(ctx, l, name, ctx->in_lvalue);
-            e3->sym->is_dot3 = dot3;
-            e2 = make_bin_expr(ctx, l, TK_VKV, e2, e3);
-            e = make_bin_expr(ctx, l, TK_COMMA, e, e2);
+        } else {
+            tk_token tok = l->tok;
+            const char *name = parse_const_str(ctx, l, l->str);
+            kl_expr *e2 = make_expr(ctx, l, TK_VSTR);
+            e2->val.str = name;
+            lexer_fetch(l);
+            if (l->tok == TK_COLON) {
+                lexer_fetch(l);
+                kl_expr *e3 = parse_expr_assignment(ctx, l);
+                e2 = make_bin_expr(ctx, l, TK_VKV, e2, e3);
+                e = make_bin_expr(ctx, l, TK_COMMA, e, e2);
+            } else {
+                if (tok != TK_NAME) {
+                    parse_error(ctx, __LINE__, l, "The ':' is missing in key value");
+                    return panic_mode_expr(e, ';', ctx, l);
+                }
+                kl_expr *e3 = parse_expr_varname(ctx, l, name, ctx->in_lvalue);
+                e2 = make_bin_expr(ctx, l, TK_VKV, e2, e3);
+                e = make_bin_expr(ctx, l, TK_COMMA, e, e2);
+            }
         }
         if (l->tok == TK_COMMA) {
             lexer_fetch(l);

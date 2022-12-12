@@ -304,15 +304,15 @@ vmvar *hashmap_search(vmobj *obj, const char *s)
     return NULL;
 }
 
-static vmobj *hashmap_extend(vmctx *ctx, vmobj *obj)
+static vmobj *hashmap_extend_n(vmctx *ctx, vmobj *obj, int n)
 {
     if (!obj->map) {
-        return hashmap_create(obj, HASH_SIZE);
+        return hashmap_create(obj, n);
     }
     int hsz = obj->hsz;
     vmvar *map = obj->map;
 
-    obj->hsz = (obj->hsz << 1) + 1;
+    obj->hsz = n;
     obj->map = (vmvar *)calloc(obj->hsz, sizeof(vmvar));
     for (int i = 0; i < hsz; ++i) {
         vmvar *v = &(map[i]);
@@ -320,8 +320,18 @@ static vmobj *hashmap_extend(vmctx *ctx, vmobj *obj)
             hashmap_set(ctx, obj, v->s->s, v->a);
         }
     }
+    free(map);
 
     return obj;
+}
+
+static vmobj *hashmap_extend(vmctx *ctx, vmobj *obj)
+{
+    if (!obj->map) {
+        return hashmap_create(obj, HASH_SIZE);
+    }
+
+    return hashmap_extend_n(ctx, obj, (obj->hsz << 1) + 1);
 }
 
 vmobj *hashmap_copy(vmctx *ctx, vmobj *src)
@@ -331,6 +341,40 @@ vmobj *hashmap_copy(vmctx *ctx, vmobj *src)
     if (hsz > 0) {
         hashmap_create(obj, hsz);
         vmvar *map = src->map;
+        for (int i = 0; i < hsz; ++i) {
+            vmvar *v = &(map[i]);
+            if (IS_HASHITEM_EXIST(v)) {
+                hashmap_set(ctx, obj, v->s->s, v->a);
+            }
+        }
+    }
+
+    return obj;
+}
+
+vmobj *hashmap_append(vmctx *ctx, vmobj *obj, vmobj *src)
+{
+    int hsz = src->hsz;
+    if (hsz > 0) {
+        int count = 0;
+        vmvar *map = src->map;
+        for (int i = 0; i < hsz; ++i) {
+            vmvar *v = &(map[i]);
+            if (IS_HASHITEM_EXIST(v)) {
+                count++;
+            }
+        }
+        int cur = obj->hsz;
+        for (int i = 0; i < cur; ++i) {
+            vmvar *v = &(obj->map[i]);
+            if (IS_HASHITEM_EXIST(v)) {
+                count++;
+            }
+        }
+        if (cur < count) {
+            hashmap_extend_n(ctx, obj, (count << 1) + 1);
+        }
+
         for (int i = 0; i < hsz; ++i) {
             vmvar *v = &(map[i]);
             if (IS_HASHITEM_EXIST(v)) {
