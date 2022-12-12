@@ -249,6 +249,9 @@ I will note the followings as I don't forget it.
     * [ ] String
     * [ ] Binary
     * [ ] Array/Object
+  * [ ] Regular expression.
+    * [ ] The regex literal of `/.../`
+    * [ ] Operator `=~` and `!~`.
 * [ ] Notes for a special specifications of the language.
   * [x] Formatter object.
   * [x] The last argument of function call could be outside arguments list if it's a block.
@@ -260,7 +263,12 @@ I will note the followings as I don't forget it.
   * [x] `__FILE__`, `__LINE__`, `__FUNC__`.
   * [ ] `__END__`.
   * [ ] Here document.
+    * [ ] `%{ ... }`
   * [ ] `System.try`
+  * [x] Split operators.
+    * [x] For Binary
+    * [x] For Array
+    * [x] For Object
 * [ ] Libraries support.
   * [ ] Useful Libraries like below.
     * [ ] File
@@ -292,7 +300,6 @@ In addition, the followings are the task list for the current implementation.
 * [ ] Remaining items.
   * [ ] Error recovery during parsing like a panic mode.
   * [ ] Error report for reassigning a value into a variable of `const`.
-  * [x] `isDefined` property.
 
 ## Others
 
