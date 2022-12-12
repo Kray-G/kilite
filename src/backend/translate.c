@@ -1110,6 +1110,28 @@ static void translate_push(func_context *fctx, xstr *code, kl_kir_inst *i)
     }
 }
 
+static void translate_pushx(func_context *fctx, xstr *code, kl_kir_inst *i)
+{
+    char buf1[256] = {0};
+    var_value(buf1, &(i->r1));
+    switch (i->r2.t) {
+    case TK_VAR: {
+        char buf2[256] = {0};
+        var_value(buf2, &(i->r2));
+        xstra_inst(code, "VALUE_PUSHX(ctx, %s, %s, L%d, \"%s\", \"%s\", %d);\n", buf1, buf2,
+            i->catchid, i->funcname, escape(&(fctx->str), i->filename), i->line);
+        break;
+    }
+    case TK_VSTR:
+        xstra_inst(code, "VALUE_PUSHX_S(ctx, %s, \"%s\", ", buf1, escape(&(fctx->str), i->r2.str));
+        xstra_inst(code, "L%d, \"%s\", \"%s\", %d);\n", i->catchid, i->funcname, escape(&(fctx->str), i->filename), i->line);
+        break;
+    default:
+        // TODO: error
+        break;
+    }
+}
+
 static void translate_range(func_context *fctx, xstr *code, kl_kir_inst *i, int excl)
 {
     char buf1[256] = {0};
@@ -1637,11 +1659,14 @@ static void translate_inst(xstr *code, kl_kir_func *f, kl_kir_inst *i, func_cont
         translate_range(fctx, code, i, 1);
         break;
 
-    case KIR_PUSHN:
-        translate_pushn(fctx, code, i);
-        break;
     case KIR_PUSH:
         translate_push(fctx, code, i);
+        break;
+    case KIR_PUSHX:
+        translate_pushx(fctx, code, i);
+        break;
+    case KIR_PUSHN:
+        translate_pushn(fctx, code, i);
         break;
 
     case KIR_ARYSIZE:

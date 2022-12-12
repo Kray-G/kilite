@@ -477,7 +477,7 @@ static kl_kir_inst *gen_binary_array_literal(kl_context *ctx, kl_symbol *sym, kl
     default: {
         kl_kir_opr rs = {0};
         KL_KIR_CHECK_LITERAL(e, rs, head);
-        kl_kir_inst *inst = new_inst_op2(ctx->program, e->line, e->pos, KIR_PUSH, r1, &rs);
+        kl_kir_inst *inst = new_inst_op2(ctx->program, e->line, e->pos, rs.has_dot3 ? KIR_PUSHX : KIR_PUSH, r1, &rs);
         set_file_func(ctx, sym, inst);
         if (!head) {
             head = inst;

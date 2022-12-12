@@ -935,6 +935,18 @@ typedef struct vmctx {
 #define VALUE_PUSH(ctx, r, v, label, func, file, line) { \
     if ((r)->t == VAR_OBJ) { \
         array_push(ctx, (r)->o, v); \
+    } else if ((r)->t == VAR_BIN) { \
+        if ((v)->t == VAR_INT64) { \
+            bin_append_ch(ctx, r->bn, (uint8_t)((v)->i)); \
+        } else if ((v)->t == VAR_DBL) { \
+            bin_append_ch(ctx, r->bn, (uint8_t)((v)->d)); \
+        } else if ((v)->t == VAR_STR) { \
+            bin_append_ch(ctx, r->bn, (uint8_t)((v)->s->s[0])); \
+        } else { \
+            e = throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION, NULL); \
+            exception_addtrace(ctx, ctx->except, func, file, line); \
+            goto label; \
+        } \
     } else { \
         e = throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION, NULL); \
         exception_addtrace(ctx, ctx->except, func, file, line); \
@@ -958,7 +970,8 @@ typedef struct vmctx {
 
 #define VALUE_PUSH_D(ctx, r, d, label, func, file, line) { \
     if ((r)->t == VAR_OBJ) { \
-        array_push(ctx, (r)->o, alcvar_int64(ctx, i, 0)); \
+        double dbl = d; \
+        array_push(ctx, (r)->o, alcvar_double(ctx, &dbl)); \
     } else if ((r)->t == VAR_BIN) { \
         bin_append_ch(ctx, (r)->bn, (uint8_t)d); \
     } else { \
@@ -972,6 +985,83 @@ typedef struct vmctx {
 #define VALUE_PUSH_S(ctx, r, str, label, func, file, line) { \
     if ((r)->t == VAR_OBJ) { \
         array_push(ctx, (r)->o, alcvar_str(ctx, str)); \
+    } else if ((r)->t == VAR_BIN) { \
+        bin_append(ctx, (r)->bn, str, strlen(str)); \
+    } else { \
+        e = throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION, NULL); \
+        exception_addtrace(ctx, ctx->except, func, file, line); \
+        goto label; \
+    } \
+} \
+/**/
+
+#define VALUE_PUSHX(ctx, r, v, label, func, file, line) { \
+    if ((r)->t == VAR_OBJ) { \
+        if ((v)->t == VAR_OBJ) { \
+            vmobj *o = (v)->o; \
+            for (int i = 0; i < o->idxsz; ++i) { \
+                array_push(ctx, (r)->o, o->ary[i]); \
+            } \
+        } else if ((v)->t == VAR_BIN) { \
+            vmbin *bn = (v)->bn; \
+            for (int i = 0; i < bn->len; ++i) { \
+                array_push(ctx, (r)->o, alcvar_int64(ctx, bn->hd[i], 0)); \
+            } \
+        } else if ((v)->t == VAR_STR) { \
+            vmstr *s = (v)->s; \
+            for (int i = 0; i < s->len; ++i) { \
+                array_push(ctx, (r)->o, alcvar_int64(ctx, s->hd[i], 0)); \
+            } \
+        } else { \
+            e = throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION, NULL); \
+            exception_addtrace(ctx, ctx->except, func, file, line); \
+            goto label; \
+        } \
+    } else if ((r)->t == VAR_BIN) { \
+        if ((v)->t == VAR_OBJ) { \
+            vmobj *o = (v)->o; \
+            for (int i = 0; i < o->idxsz; ++i) { \
+                vmvar *aryi = o->ary[i]; \
+                if (aryi) { \
+                    if (aryi->t == VAR_INT64) { \
+                        bin_append_ch(ctx, (r)->bn, (uint8_t)aryi->i); \
+                    } else if (aryi->t == VAR_DBL) { \
+                        bin_append_ch(ctx, (r)->bn, (uint8_t)(aryi->d)); \
+                    } else if (aryi->t == VAR_STR) { \
+                        bin_append_ch(ctx, (r)->bn, (uint8_t)aryi->s->s[0]); \
+                    } else { \
+                        e = throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION, NULL); \
+                        exception_addtrace(ctx, ctx->except, func, file, line); \
+                        goto label; \
+                    } \
+                } else { \
+                    bin_append_ch(ctx, (r)->bn, 0); \
+                } \
+            } \
+        } else if ((v)->t == VAR_BIN) { \
+            bin_append_bin(ctx, (r)->bn, (v)->bn); \
+        } else if ((v)->t == VAR_STR) { \
+            vmstr *s = (v)->s; \
+            bin_append(ctx, (r)->bn, s->hd, s->len); \
+        } else { \
+            e = throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION, NULL); \
+            exception_addtrace(ctx, ctx->except, func, file, line); \
+            goto label; \
+        } \
+    } else { \
+        e = throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION, NULL); \
+        exception_addtrace(ctx, ctx->except, func, file, line); \
+        goto label; \
+    } \
+} \
+/**/
+
+#define VALUE_PUSHX_S(ctx, r, str, label, func, file, line) { \
+    if ((r)->t == VAR_OBJ) { \
+        const char *s = str; \
+        while (*s != 0) { \
+            array_push(ctx, (r)->o, *s); \
+        } \
     } else if ((r)->t == VAR_BIN) { \
         bin_append(ctx, (r)->bn, str, strlen(str)); \
     } else { \

@@ -383,11 +383,14 @@ void disp_inst(kl_kir_program *p, kl_kir_inst *i)
     case KIR_SWAPA:
         disp_2op("swapa", i);
         break;
-    case KIR_PUSHN:
-        disp_1op("pushn", i);
-        break;
     case KIR_PUSH:
         disp_2op("push", i);
+        break;
+    case KIR_PUSHX:
+        disp_2op("pushx", i);
+        break;
+    case KIR_PUSHN:
+        disp_1op("pushn", i);
         break;
 
     case KIR_RANGEF:

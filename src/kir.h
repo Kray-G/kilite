@@ -286,6 +286,7 @@ typedef enum kl_kir {
     KIR_SWAP,       //  <r1>, <r2>              ;   <r1>  <-> <r2>
     KIR_SWAPA,      //  <r1>, <r2>              ;   &<r1> <-> &<r2>
     KIR_PUSH,       //  <r1>, <r2>              ;   <r1>.push(<r2>);
+    KIR_PUSHX,      //  <r1>, <r2>              ;   <r1>.push(...<r2>); it means `expand` by 3 dots.
     KIR_PUSHN,      //  <r1>                    ;   <r1>.push(null);
     KIR_RANGEF,     //  <r1>, <r2>, <r3>        ;   <r1>  <-  new Range(<r2>, <r3>, true)
     KIR_RANGET,     //  <r1>, <r2>, <r3>        ;   <r1>  <-  new Range(<r2>, <r3>, false)

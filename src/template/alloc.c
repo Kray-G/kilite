@@ -501,7 +501,7 @@ vmvar *alcvar_int64(vmctx *ctx, int64_t i, int hold)
 
 vmvar *alcvar_double(vmctx *ctx, double *d)
 {
-    vmvar *v = alcvar_pure(ctx, VAR_INT64);
+    vmvar *v = alcvar_pure(ctx, VAR_DBL);
     v->d = *d;
     return v;
 }
