@@ -626,6 +626,35 @@ static int iRange_includes(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     return 0;
 }
 
+static int iRange_toArray(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    vmvar *a0 = local_var(ctx, 0);
+    vmvar *beg = a0->o->ary[0];
+    vmvar *end = a0->o->ary[1];
+    vmvar *ex = a0->o->ary[2];
+    if (ex->t != VAR_INT64) {
+        return throw_system_exception(__LINE__, ctx, EXCEPT_RANGE_ERROR, NULL);
+    }
+    if (beg->t == VAR_UNDEF || end->t == VAR_UNDEF) {
+        return throw_system_exception(__LINE__, ctx, EXCEPT_RANGE_ERROR, NULL);
+    }
+
+    int bi = beg->i;
+    int ei = end->i - ex->i;
+    if (ei < bi) {
+        int i = bi;
+        bi = ei;
+        ei = i;
+    }
+    vmobj *o = alcobj(ctx);
+    for (int i = bi; i <= ei; ++i) {
+        array_push(ctx, o, alcvar_int64(ctx, i, 0));
+    }
+
+    SET_OBJ(r, o);
+    return 0;
+}
+
 static int iRange_sort(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     vmvar *a0 = local_var(ctx, 0);
@@ -658,6 +687,7 @@ static int iRange_sort(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 
     vmvar *sort = hashmap_search(ctx->o, "sort");
     if (!sort || sort->t != VAR_FNC || !sort->f || !sort->f->f) {
+        restore_vstackp(ctx, pp);
         return throw_system_exception(__LINE__, ctx, EXCEPT_TYPE_MISMATCH, NULL);
     }
     vmfnc *f1 = sort->f;
@@ -695,6 +725,7 @@ int Range_create_i(vmctx *ctx, vmfrm *lex, vmvar *r, int *beg, int *end, int exc
     KL_SET_METHOD(o, includes, iRange_includes, lex, 1)
     KL_SET_METHOD(o, isEndExcluded, iRange_isEndExcluded, lex, 0)
     KL_SET_METHOD(o, sort, iRange_sort, lex, 0)
+    KL_SET_METHOD(o, toArray, iRange_toArray, lex, 0)
     SET_OBJ(r, o);
 
     return 0;
@@ -1170,6 +1201,31 @@ static int Array_join(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     return 0;
 }
 
+static int Array_unshift(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    DEF_ARG(a0, 0, VAR_OBJ);
+    vmobj *o = a0->o;
+    for (int i = 1; i < ac; ++i) {
+        vmvar *aa = local_var(ctx, i);
+        array_unshift(ctx, o, copy_var(ctx, aa, 0));
+    }
+    return 0;
+}
+
+static int Array_shift(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    DEF_ARG(a0, 0, VAR_OBJ);
+    DEF_ARG_OR_UNDEF(a1, 1, VAR_INT64);
+    if (a1->t == VAR_UNDEF) {
+        vmvar *v = array_shift(ctx, a0->o);
+        SHCOPY_VAR_TO(ctx, r, v);
+    } else {
+        vmobj *o = array_shift_array(ctx, a0->o, a1->i);
+        SET_OBJ(r, o);
+    }
+    return 0;
+}
+
 static int Array_push(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     DEF_ARG(a0, 0, VAR_OBJ);
@@ -1177,6 +1233,20 @@ static int Array_push(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     for (int i = 1; i < ac; ++i) {
         vmvar *aa = local_var(ctx, i);
         array_push(ctx, o, copy_var(ctx, aa, 0));
+    }
+    return 0;
+}
+
+static int Array_pop(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    DEF_ARG(a0, 0, VAR_OBJ);
+    DEF_ARG_OR_UNDEF(a1, 1, VAR_INT64);
+    if (a1->t == VAR_UNDEF) {
+        vmvar *v = array_pop(ctx, a0->o);
+        SHCOPY_VAR_TO(ctx, r, v);
+    } else {
+        vmobj *o = array_pop_array(ctx, a0->o, a1->i);
+        SET_OBJ(r, o);
     }
     return 0;
 }
@@ -1246,7 +1316,10 @@ int Array(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     vmobj *o = alcobj(ctx);
     ctx->o = o;
     KL_SET_METHOD(o, each, Array_each, lex, 2)
-    KL_SET_METHOD(o, push, Array_push, lex, 2)
+    KL_SET_METHOD(o, push, Array_push, lex, 1)
+    KL_SET_METHOD(o, pop, Array_pop, lex, 1)
+    KL_SET_METHOD(o, unshift, Array_unshift, lex, 1)
+    KL_SET_METHOD(o, shift, Array_shift, lex, 1)
     KL_SET_METHOD(o, map, Array_map, lex, 2)
     KL_SET_METHOD(o, collect, Array_map, lex, 2)
     KL_SET_METHOD(o, join, Array_join, lex, 2)

@@ -808,7 +808,7 @@ typedef struct vmctx {
         (r)->a = NULL; \
     } else { \
         SET_I64(dst, iv) \
-        SHMOVE_VAR_TO(ctx, (r), dst) \
+        SHMOVE_VAR_TO(ctx, (r), (r)->a) \
     } \
 } \
 /**/
@@ -842,7 +842,7 @@ typedef struct vmctx {
         (r)->a = NULL; \
     } else { \
         SET_DBL(dst, dv) \
-        SHMOVE_VAR_TO(ctx, (r), dst) \
+        SHMOVE_VAR_TO(ctx, (r), (r)->a) \
     } \
 } \
 /**/
@@ -875,7 +875,7 @@ typedef struct vmctx {
         (r)->a = NULL; \
     } else { \
         SET_STR(dst, str) \
-        SHMOVE_VAR_TO(ctx, (r), dst) \
+        SHMOVE_VAR_TO(ctx, (r), (r)->a) \
     } \
 } \
 /**/
@@ -888,7 +888,7 @@ typedef struct vmctx {
         goto label; \
     } else { \
         SET_FNC(dst, f) \
-        SHMOVE_VAR_TO(ctx, (r), dst) \
+        SHMOVE_VAR_TO(ctx, (r), (r)->a) \
     } \
 } \
 /**/
@@ -911,10 +911,10 @@ typedef struct vmctx {
             goto label; \
         } else if ((v)->t == VAR_FNC) { \
             SET_FNC(dst, (v)->f) \
-            SHMOVE_VAR_TO(ctx, (r), dst) \
+            SHMOVE_VAR_TO(ctx, (r), (r)->a) \
         } else { \
             COPY_VAR_TO(ctx, dst, v) \
-            SHMOVE_VAR_TO(ctx, (r), dst) \
+            SHMOVE_VAR_TO(ctx, (r), (r)->a) \
         } \
     } \
 } \
@@ -3221,7 +3221,12 @@ INLINE extern vmobj *hashmap_copy(vmctx *ctx, vmobj *h);
 INLINE extern vmobj *hashmap_copy_method(vmctx *ctx, vmobj *src);
 INLINE extern vmobj *array_create(vmobj *obj, int asz);
 INLINE extern vmobj *array_set(vmctx *ctx, vmobj *obj, int64_t idx, vmvar *vs);
+INLINE extern vmobj *array_unshift(vmctx *ctx, vmobj *obj, vmvar *vs);
+INLINE extern vmvar *array_shift(vmctx *ctx, vmobj *obj);
+INLINE extern vmobj *array_shift_array(vmctx *ctx, vmobj *obj, int n);
 INLINE extern vmobj *array_push(vmctx *ctx, vmobj *obj, vmvar *vs);
+INLINE extern vmvar *array_pop(vmctx *ctx, vmobj *obj);
+INLINE extern vmobj *array_pop_array(vmctx *ctx, vmobj *obj, int n);
 INLINE extern vmobj *object_copy(vmctx *ctx, vmobj *src);
 INLINE extern vmobj *object_get_keys(vmctx *ctx, vmobj *src);
 

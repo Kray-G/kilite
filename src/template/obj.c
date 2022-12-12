@@ -406,6 +406,55 @@ vmobj *array_set(vmctx *ctx, vmobj *obj, int64_t idx, vmvar *vs)
     return obj;
 }
 
+vmobj *array_unshift(vmctx *ctx, vmobj *obj, vmvar *vs)
+{
+    int64_t idx = obj->idxsz;
+    int asz = obj->asz;
+    if (asz <= idx) {
+        array_extend(ctx, obj, idx + 1);
+        obj->idxsz = idx + 1;
+    } else if (obj->idxsz <= idx) {
+        obj->idxsz = idx + 1;
+    }
+    for (int i = idx; i > 0; --i) {
+        obj->ary[i] = obj->ary[i - 1];
+    }
+
+    obj->ary[0] = vs;
+    return obj;
+}
+
+vmvar *array_shift(vmctx *ctx, vmobj *obj)
+{
+    int64_t idx = obj->idxsz;
+    vmvar *r = NULL;
+    if (idx > 0) {
+        r = obj->ary[0];
+        for (int i = 1; i < idx; ++i) {
+            obj->ary[i - 1] = obj->ary[i];
+        }
+        obj->idxsz--;
+    }
+    return r;
+}
+
+vmobj *array_shift_array(vmctx *ctx, vmobj *obj, int n)
+{
+    int64_t idx = obj->idxsz;
+    vmobj *o = alcobj(ctx);
+    if (idx > 0) {
+        int nx = n < idx ? n : idx;
+        for (int i = nx - 1; i >= 0; --i) {
+            array_push(ctx, o, obj->ary[i]);
+        }
+        for (int i = nx; i < idx; ++i) {
+            obj->ary[i - nx] = obj->ary[i];
+        }
+        obj->idxsz -= nx;
+    }
+    return o;
+}
+
 vmobj *array_push(vmctx *ctx, vmobj *obj, vmvar *vs)
 {
     int64_t idx = obj->idxsz;
@@ -419,6 +468,31 @@ vmobj *array_push(vmctx *ctx, vmobj *obj, vmvar *vs)
 
     obj->ary[idx] = vs;
     return obj;
+}
+
+vmvar *array_pop(vmctx *ctx, vmobj *obj)
+{
+    int64_t idx = obj->idxsz;
+    vmvar *r = NULL;
+    if (idx > 0) {
+        r = obj->ary[idx - 1];
+        obj->idxsz--;
+    }
+    return r;
+}
+
+vmobj *array_pop_array(vmctx *ctx, vmobj *obj, int n)
+{
+    int64_t idx = obj->idxsz;
+    vmobj *o = alcobj(ctx);
+    if (idx > 0) {
+        int nx = n < idx ? n : idx;
+        for (int i = nx; i >= 1; --i) {
+            array_push(ctx, o, obj->ary[idx - i]);
+        }
+        obj->idxsz -= nx;
+    }
+    return o;
 }
 
 vmobj *object_copy(vmctx *ctx, vmobj *src)
