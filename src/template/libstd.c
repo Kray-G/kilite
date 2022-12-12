@@ -436,7 +436,7 @@ static int Fiber_resume(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     int args;
     if (f1->yield == 0) {
         args = ac - 1;
-        vmvar **aa = alloca(args);
+        vmvar **aa = alloca(args * sizeof(vmvar *));
         for (int i = 1; i < ac; ++i) {
             aa[i-1] = local_var(ctx, i);
         }
