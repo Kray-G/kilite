@@ -26,6 +26,12 @@ if not exist libminizip.lib goto ERROR
 copy /y libminizip.lib ..\libminizip.lib
 if exist libminizip.a copy /y libminizip.a ..\libminizip.a
 
+echo Building oniguruma...
+if not exist onig.lib call ..\build\onig_win.cmd
+if not exist onig.lib goto ERROR
+copy /y onig.lib ..\onig.lib
+if exist libonig.a copy /y libonig.a ..\libonig.a
+
 del libkilite.a
 set TEMPF=%BIN%\libkilite.c
 

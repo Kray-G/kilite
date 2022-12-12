@@ -38,6 +38,15 @@ cp -f libminizip.a ../
 cd ..
 cp -f libminizip.a ../
 
+echo Building oniguruma...
+mkdir -p onig
+cd onig
+cmake -DBUILD_SHARED_LIBS=OFF -DBUILD_TEST=OFF ../../submodules/oniguruma
+make
+cp -f libonig.a ../
+cd ..
+cp -f libonig.a ../
+
 BIN=$PWD
 TEMPF=$BIN/libkilite.c
 
