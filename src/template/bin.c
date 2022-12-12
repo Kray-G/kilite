@@ -102,7 +102,7 @@ vmbin *bin_append_bin(vmctx *ctx, vmbin *vs, vmbin *s2)
 
 vmbin *bin_append_ch(vmctx *ctx, vmbin *vs, const uint8_t ch)
 {
-    char buf[2] = {ch, 0};
+    uint8_t buf[2] = {ch, 0};
     return bin_append_impl(ctx, vs, buf, 1);
 }
 
