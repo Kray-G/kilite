@@ -290,6 +290,7 @@ static void disp_expr(kl_expr *e, int indent)
     case TK_DEC:
     case TK_DECP:
     case TK_MINUS:
+    case TK_CONV:
         printf("op(%s): %s\n", tokenname(e->nodetype), typeidname(e->typeid));
         disp_expr(e->lhs, indent + 1);
         break;

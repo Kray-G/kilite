@@ -920,6 +920,68 @@ typedef struct vmctx {
 } \
 /**/
 
+#define VALUE_PUSHN(ctx, r, label, func, file, line) { \
+    if ((r)->t == VAR_OBJ) { \
+        array_push(ctx, (r)->o, NULL); \
+    } else if ((r)->t == VAR_BIN) { \
+    } else { \
+        e = throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION, NULL); \
+        exception_addtrace(ctx, ctx->except, func, file, line); \
+        goto label; \
+    } \
+} \
+/**/
+
+#define VALUE_PUSH(ctx, r, v, label, func, file, line) { \
+    if ((r)->t == VAR_OBJ) { \
+        array_push(ctx, (r)->o, v); \
+    } else { \
+        e = throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION, NULL); \
+        exception_addtrace(ctx, ctx->except, func, file, line); \
+        goto label; \
+    } \
+} \
+/**/
+
+#define VALUE_PUSH_I(ctx, r, i, label, func, file, line) { \
+    if ((r)->t == VAR_OBJ) { \
+        array_push(ctx, (r)->o, alcvar_int64(ctx, i, 0)); \
+    } else if ((r)->t == VAR_BIN) { \
+        bin_append_ch(ctx, r->bn, (uint8_t)i); \
+    } else { \
+        e = throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION, NULL); \
+        exception_addtrace(ctx, ctx->except, func, file, line); \
+        goto label; \
+    } \
+} \
+/**/
+
+#define VALUE_PUSH_D(ctx, r, d, label, func, file, line) { \
+    if ((r)->t == VAR_OBJ) { \
+        array_push(ctx, (r)->o, alcvar_int64(ctx, i, 0)); \
+    } else if ((r)->t == VAR_BIN) { \
+        bin_append_ch(ctx, (r)->bn, (uint8_t)d); \
+    } else { \
+        e = throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION, NULL); \
+        exception_addtrace(ctx, ctx->except, func, file, line); \
+        goto label; \
+    } \
+} \
+/**/
+
+#define VALUE_PUSH_S(ctx, r, str, label, func, file, line) { \
+    if ((r)->t == VAR_OBJ) { \
+        array_push(ctx, (r)->o, alcvar_str(ctx, str)); \
+    } else if ((r)->t == VAR_BIN) { \
+        bin_append(ctx, (r)->bn, str, strlen(str)); \
+    } else { \
+        e = throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION, NULL); \
+        exception_addtrace(ctx, ctx->except, func, file, line); \
+        goto label; \
+    } \
+} \
+/**/
+
 #define SHCOPY_VAR_TO(ctx, dst, src) { \
     if (!src) { \
         (dst)->t = VAR_UNDEF; \
@@ -1501,7 +1563,7 @@ typedef struct vmctx {
 } \
 /**/
 
-/* Unary minus */
+/* Unary operations */
 
 #define OP_UMINUS(ctx, r, v, label, func, file, line) { \
     vmvar *t1 = (v); \
@@ -1517,6 +1579,16 @@ typedef struct vmctx {
             exception_addtrace(ctx, ctx->except, func, file, line); \
             goto label; \
         } \
+    } \
+} \
+/**/
+
+#define OP_CONV(ctx, r, v, label, func, file, line) { \
+    vmvar *t1 = (v); \
+    e = uconv_v(ctx, r, t1); \
+    if (e == FLOW_EXCEPTION) { \
+        exception_addtrace(ctx, ctx->except, func, file, line); \
+        goto label; \
     } \
 } \
 /**/
@@ -3151,6 +3223,7 @@ INLINE extern vmvar *alcvar_initial(vmctx *ctx);
 INLINE extern vmvar *alcvar_obj(vmctx *ctx, vmobj *o);
 INLINE extern vmvar *alcvar_fnc(vmctx *ctx, vmfnc *f);
 INLINE extern vmvar *alcvar_int64(vmctx *ctx, int64_t i, int hold);
+INLINE extern vmvar *alcvar_double(vmctx *ctx, double *d);
 INLINE extern vmvar *alcvar_str(vmctx *ctx, const char *s);
 INLINE extern vmvar *alcvar_bin(vmctx *ctx, const uint8_t *s, int len);
 INLINE extern vmvar *alcvar_bgistr(vmctx *ctx, const char *s, int radix);

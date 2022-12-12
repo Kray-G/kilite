@@ -455,30 +455,29 @@ static kl_kir_opr make_var_index(kl_context *ctx, int index, int level, tk_typei
     return r1;
 }
 
-static kl_kir_inst *gen_binary_literal(kl_context *ctx, kl_symbol *sym, kl_kir_opr *r1, kl_expr *e, int *idx)
+static kl_kir_inst *gen_binary_array_literal(kl_context *ctx, kl_symbol *sym, kl_kir_opr *r1, kl_expr *e)
 {
     kl_kir_inst *head = NULL;
     if (!e) {
-        ++(*idx);
-        return NULL;
+        kl_kir_inst *inst = new_inst_op1(ctx->program, e->line, e->pos, KIR_PUSHN, r1);
+        set_file_func(ctx, sym, inst);
+        return inst;
     }
 
     switch (e->nodetype) {
     case TK_COMMA:
-        head = gen_binary_literal(ctx, sym, r1, e->lhs, idx);
+        head = gen_binary_array_literal(ctx, sym, r1, e->lhs);
         kl_kir_inst *last = get_last(head);
         if (last) {
-            last->next = gen_binary_literal(ctx, sym, r1, e->rhs, idx);
+            last->next = gen_binary_array_literal(ctx, sym, r1, e->rhs);
         } else {
-            head = gen_binary_literal(ctx, sym, r1, e->rhs, idx);
+            head = gen_binary_array_literal(ctx, sym, r1, e->rhs);
         }
         break;
     default: {
         kl_kir_opr rs = {0};
         KL_KIR_CHECK_LITERAL(e, rs, head);
-        kl_kir_opr r2 = make_lit_i64(ctx, *idx);
-        ++(*idx);
-        kl_kir_inst *inst = new_inst_op3(ctx->program, e->line, e->pos, KIR_SETBIN, r1, &r2, &rs);
+        kl_kir_inst *inst = new_inst_op2(ctx->program, e->line, e->pos, KIR_PUSH, r1, &rs);
         set_file_func(ctx, sym, inst);
         if (!head) {
             head = inst;
@@ -486,43 +485,6 @@ static kl_kir_inst *gen_binary_literal(kl_context *ctx, kl_symbol *sym, kl_kir_o
             kl_kir_inst *last = get_last(head);
             last->next = inst;
         }
-        break;
-    }}
-    return head;
-}
-
-static kl_kir_inst *gen_array_literal(kl_context *ctx, kl_symbol *sym, kl_kir_opr *r1, kl_kir_opr *r2, kl_expr *e, int *idx)
-{
-    kl_kir_inst *head = NULL;
-    if (!e) {
-        ++(*idx);
-        return NULL;
-    }
-
-    switch (e->nodetype) {
-    case TK_COMMA:
-        head = gen_array_literal(ctx, sym, r1, r2, e->lhs, idx);
-        kl_kir_inst *last = get_last(head);
-        if (last) {
-            last->next = gen_array_literal(ctx, sym, r1, r2, e->rhs, idx);
-        } else {
-            head = gen_array_literal(ctx, sym, r1, r2, e->rhs, idx);
-        }
-        break;
-    default: {
-        kl_kir_opr rs = {0};
-        KL_KIR_CHECK_LITERAL(e, rs, head);
-        kl_kir_opr r3 = make_lit_i64(ctx, *idx);
-        ++(*idx);
-        kl_kir_inst *inst = new_inst_op3(ctx->program, e->line, e->pos, KIR_IDXL, r2, r1, &r3);
-        if (!head) {
-            head = inst;
-        } else {
-            kl_kir_inst *last = get_last(head);
-            last->next = inst;
-        }
-        inst->next = new_inst_op2(ctx->program, e->line, e->pos, KIR_MOVA, r2, &rs);
-        set_file_func(ctx, sym, inst->next);
         break;
     }}
     return head;
@@ -2222,17 +2184,14 @@ static kl_kir_inst *gen_expr(kl_context *ctx, kl_symbol *sym, kl_kir_opr *r1, kl
     case TK_VBIN: {
         head = new_inst_op1(ctx->program, e->line, e->pos, KIR_NEWBIN, r1);
         if (e->lhs) {
-            int idx = 0;
-            head->next = gen_binary_literal(ctx, sym, r1, e->lhs, &idx);
+            head->next = gen_binary_array_literal(ctx, sym, r1, e->lhs);
         }
         break;
     }
     case TK_VARY: {
         head = new_inst_op1(ctx->program, e->line, e->pos, KIR_NEWOBJ, r1);
         if (e->lhs) {
-            int idx = 0;
-            kl_kir_opr r2 = make_var(ctx, sym, TK_TANY);
-            head->next = gen_array_literal(ctx, sym, r1, &r2, e->lhs, &idx);
+            head->next = gen_binary_array_literal(ctx, sym, r1, e->lhs);
         }
         break;
     }
@@ -2479,8 +2438,18 @@ static kl_kir_inst *gen_expr(kl_context *ctx, kl_symbol *sym, kl_kir_opr *r1, kl
     case TK_MINUS: {
         kl_kir_opr rr = make_var(ctx, sym, TK_TANY);
         head = gen_expr(ctx, sym, &rr, e->lhs);
-        head->next = new_inst_op2(ctx->program, e->line, e->pos, KIR_MINUS, r1, &rr);
-        set_file_func(ctx, sym, head->next);
+        kl_kir_inst *last = get_last(head);
+        last->next = new_inst_op2(ctx->program, e->line, e->pos, KIR_MINUS, r1, &rr);
+        set_file_func(ctx, sym, last->next);
+        break;
+    }
+
+    case TK_CONV: {
+        kl_kir_opr rr = make_var(ctx, sym, TK_TANY);
+        head = gen_expr(ctx, sym, &rr, e->lhs);
+        kl_kir_inst *last = get_last(head);
+        last->next = new_inst_op2(ctx->program, e->line, e->pos, KIR_CONV, r1, &rr);
+        set_file_func(ctx, sym, last->next);
         break;
     }
 

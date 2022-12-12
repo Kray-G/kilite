@@ -246,6 +246,16 @@ int add_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
             r->t = VAR_BIN;
             r->bn = v0->bn;
             break;
+        case VAR_INT64:
+            r->t = VAR_BIN;
+            r->bn = bin_dup(ctx, v0->bn);
+            bin_append_ch(ctx, r->bn, (uint8_t)v1->i);
+            break;
+        case VAR_BIN:
+            r->t = VAR_BIN;
+            r->bn = bin_dup(ctx, v0->bn);
+            bin_append_bin(ctx, r->bn, v1->bn);
+            break;
         default:
             return throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION, NULL);
         }
@@ -2063,6 +2073,59 @@ int uminus_v(vmctx *ctx, vmvar *r, vmvar *v)
         r->bi = alcbgi_bigz(ctx, BzNegate(v->bi->b));
         bi_normalize(r);
         break;
+    default:
+        return throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION, NULL);
+    }
+    return 0;
+}
+
+/* Unary conversion */
+
+int uconv_v(vmctx *ctx, vmvar *r, vmvar *v)
+{
+    switch (v->t) {
+    case VAR_INT64:
+        r->t = VAR_STR;
+        r->s = alcstr_str(ctx, "0");
+        r->s->s[0] = (int)v->i;
+        break;
+    case VAR_BIN: {
+        char *buf = alloca(v->bn->len + 1);
+        for (int i = 0; i < v->bn->len; ++i) {
+            buf[i] = v->bn->s[i];
+        }
+        buf[v->bn->len] = 0;
+        r->t = VAR_STR;
+        r->s = alcstr_str(ctx, buf);
+        break;
+    }
+    case VAR_STR:
+        r->t = VAR_OBJ;
+        r->o = alcobj(ctx);
+        for (int i = 0; i < v->s->len; ++i) {
+            array_push(ctx, r->o, alcvar_int64(ctx, v->s->s[i], 0));
+        }
+        break;
+    case VAR_OBJ: {
+        vmobj *obj = v->o;
+        vmvar **ary = obj->ary;
+        r->t = VAR_STR;
+        if (obj->idxsz > 0) {
+            char *buf = alloca(obj->idxsz + 1);
+            for (int i = 0; i < obj->idxsz; ++i) {
+                if (ary[i] && ary[i]->t == VAR_INT64) {
+                    buf[i] = ary[i]->i;
+                } else {
+                    buf[i] = ' ';
+                }
+            }
+            buf[obj->idxsz] = 0;
+            r->s = alcstr_str(ctx, buf);
+        } else {
+            r->s = alcstr_str(ctx, "");
+        }
+        break;
+    }
     default:
         return throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION, NULL);
     }

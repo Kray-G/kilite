@@ -38,7 +38,7 @@ static const char *tkname[] = {
 
     "TK_ARROW", "TK_DARROW", "TK_TYPEID", "TK_NAME",
 
-    "TK_LABEL", "TK_BLOCK", "TK_CONNECT", "TK_VAR", "TK_MINUS", "TK_EXPR", "TK_CALL", "TK_IDX",
+    "TK_LABEL", "TK_BLOCK", "TK_CONNECT", "TK_VAR", "TK_MINUS", "TK_CONV", "TK_EXPR", "TK_CALL", "TK_IDX",
     "TK_TYPENODE", "TK_MKSUPER", "TK_BINEND", "TK_RANGE2", "TK_RANGE3", "TK_COMMENT1", "TK_COMMENTX",
 
     "TK_ARYSIZE",

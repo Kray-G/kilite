@@ -156,6 +156,7 @@ typedef enum tk_token {
     TK_CONNECT,             //  For connected expressions.
     TK_VAR,                 //  For variable.
     TK_MINUS,               //  Unary minus.
+    TK_CONV,                //  Unary convert.
     TK_EXPR,                //  For expression type.
     TK_CALL,                //  For function call.
     TK_IDX,                 //  For array index reference.
@@ -255,6 +256,7 @@ typedef enum kl_kir {
     KIR_DEC,        //  <r1>, <r2>              ;   <r1>  <-  dec <r2>
     KIR_DECP,       //  <r1>, <r2>              ;   <r1>  <-  <r2>,  dec <r2>
     KIR_MINUS,      //  <r1>, -<r2>             ;   <r1>  <-  -<r2>
+    KIR_CONV,       //  <r1>, *<r2>             ;   <r1>  <-  *<r2>
 
     KIR_NEWBIN,     //  <r1>                    ;   <r1>  <-  new bin
     KIR_SETBIN,     //  <r1>, <idx>, <r2>       ;   <r1>[idx] <-  <r2>
@@ -283,6 +285,8 @@ typedef enum kl_kir {
     /* Special instructions */
     KIR_SWAP,       //  <r1>, <r2>              ;   <r1>  <-> <r2>
     KIR_SWAPA,      //  <r1>, <r2>              ;   &<r1> <-> &<r2>
+    KIR_PUSH,       //  <r1>, <r2>              ;   <r1>.push(<r2>);
+    KIR_PUSHN,      //  <r1>                    ;   <r1>.push(null);
     KIR_RANGEF,     //  <r1>, <r2>, <r3>        ;   <r1>  <-  new Range(<r2>, <r3>, true)
     KIR_RANGET,     //  <r1>, <r2>, <r3>        ;   <r1>  <-  new Range(<r2>, <r3>, false)
     KIR_ARYSIZE,    //  <r1>, <r2>              ;   <r1>  <-  <r2>.size()

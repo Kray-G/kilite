@@ -298,6 +298,9 @@ void disp_inst(kl_kir_program *p, kl_kir_inst *i)
     case KIR_MINUS:
         disp_2op("uminus", i);
         break;
+    case KIR_CONV:
+        disp_2op("conv", i);
+        break;
 
     case KIR_NEWBIN:
         disp_1op("newbin", i);
@@ -380,6 +383,13 @@ void disp_inst(kl_kir_program *p, kl_kir_inst *i)
     case KIR_SWAPA:
         disp_2op("swapa", i);
         break;
+    case KIR_PUSHN:
+        disp_1op("pushn", i);
+        break;
+    case KIR_PUSH:
+        disp_2op("push", i);
+        break;
+
     case KIR_RANGEF:
         disp_3op("rangef", i);
         break;

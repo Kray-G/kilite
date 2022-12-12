@@ -1025,6 +1025,7 @@ static void translate_mova(func_context *fctx, xstr *code, kl_kir_inst *i)
         }
         break;
     default:
+        // TODO: error
         break;
     }
 }
@@ -1069,6 +1070,44 @@ static void translate_swapa(func_context *fctx, xstr *code, kl_kir_inst *i)
     xstra_inst(code, "SHMOVE_VAR_TO(ctx, (%s), (%s)->a); SHMOVE_VAR_TO(ctx, (%s), (%s)->a);\n",
         buf1, buf1, buf2, buf2
     );
+}
+
+static void translate_pushn(func_context *fctx, xstr *code, kl_kir_inst *i)
+{
+    char buf1[256] = {0};
+    var_value(buf1, &(i->r1));
+    xstra_inst(code, "VALUE_PUSHN(ctx, %s, L%d, \"%s\", \"%s\", %d);\n", buf1,
+        i->catchid, i->funcname, escape(&(fctx->str), i->filename), i->line);
+}
+
+static void translate_push(func_context *fctx, xstr *code, kl_kir_inst *i)
+{
+    char buf1[256] = {0};
+    var_value(buf1, &(i->r1));
+    switch (i->r2.t) {
+    case TK_VAR: {
+        char buf2[256] = {0};
+        var_value(buf2, &(i->r2));
+        xstra_inst(code, "VALUE_PUSH(ctx, %s, %s, L%d, \"%s\", \"%s\", %d);\n", buf1, buf2,
+            i->catchid, i->funcname, escape(&(fctx->str), i->filename), i->line);
+        break;
+    }
+    case TK_VSINT:
+        xstra_inst(code, "VALUE_PUSH_I(ctx, %s, %" PRId64 ", L%d, \"%s\", \"%s\", %d);\n", buf1, i->r2.i64,
+            i->catchid, i->funcname, escape(&(fctx->str), i->filename), i->line);
+        break;
+    case TK_VDBL:
+        xstra_inst(code, "VALUE_PUSH_D(ctx, %s, %s, L%d, \"%s\", \"%s\", %d);\n", buf1, i->r2.dbl,
+            i->catchid, i->funcname, escape(&(fctx->str), i->filename), i->line);
+        break;
+    case TK_VSTR:
+        xstra_inst(code, "VALUE_PUSH_S(ctx, %s, \"%s\", ", buf1, escape(&(fctx->str), i->r2.str));
+        xstra_inst(code, "L%d, \"%s\", \"%s\", %d);\n", i->catchid, i->funcname, escape(&(fctx->str), i->filename), i->line);
+        break;
+    default:
+        // TODO: error
+        break;
+    }
 }
 
 static void translate_range(func_context *fctx, xstr *code, kl_kir_inst *i, int excl)
@@ -1534,6 +1573,10 @@ static void translate_inst(xstr *code, kl_kir_func *f, kl_kir_inst *i, func_cont
         xstra_inst(code, "OP_UMINUS(ctx, %s, %s, L%d, \"%s\", \"%s\", %d);\n", var_value(buf1, &(i->r1)), var_value(buf2, &(i->r2)),
             i->catchid, i->funcname, escape(&(fctx->str), i->filename), i->line);
         break;
+    case KIR_CONV:
+        xstra_inst(code, "OP_CONV(ctx, %s, %s, L%d, \"%s\", \"%s\", %d);\n", var_value(buf1, &(i->r1)), var_value(buf2, &(i->r2)),
+            i->catchid, i->funcname, escape(&(fctx->str), i->filename), i->line);
+        break;
 
     case KIR_NEWBIN:
         xstra_inst(code, "SET_BIN(%s, alcbin(ctx));\n", var_value(buf1, &(i->r1)));
@@ -1592,6 +1635,13 @@ static void translate_inst(xstr *code, kl_kir_func *f, kl_kir_inst *i, func_cont
         break;
     case KIR_RANGET:
         translate_range(fctx, code, i, 1);
+        break;
+
+    case KIR_PUSHN:
+        translate_pushn(fctx, code, i);
+        break;
+    case KIR_PUSH:
+        translate_push(fctx, code, i);
         break;
 
     case KIR_ARYSIZE:

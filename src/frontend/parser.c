@@ -1088,6 +1088,14 @@ static kl_expr *parse_expr_prefix(kl_context *ctx, kl_lexer *l)
         return e;
     }
 
+    if (tok == TK_MUL) {
+        lhs = make_expr(ctx, l, TK_CONV);
+        lexer_fetch(l);
+        lhs->lhs = parse_expr_postfix(ctx, l, 0);
+        lhs->typeid = lhs->typeid;
+        return lhs;
+    }
+
     if (tok == TK_INC || tok == TK_DEC) {
         lhs = make_expr(ctx, l, tok);
         lexer_fetch(l);

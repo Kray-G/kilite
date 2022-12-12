@@ -499,6 +499,13 @@ vmvar *alcvar_int64(vmctx *ctx, int64_t i, int hold)
     return v;
 }
 
+vmvar *alcvar_double(vmctx *ctx, double *d)
+{
+    vmvar *v = alcvar_pure(ctx, VAR_INT64);
+    v->d = *d;
+    return v;
+}
+
 vmvar *alcvar_str(vmctx *ctx, const char *s)
 {
     vmvar *v = alcvar_pure(ctx, VAR_STR);
