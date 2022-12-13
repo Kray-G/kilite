@@ -382,6 +382,14 @@ static inline kl_expr *make_str_expr(kl_context *ctx, kl_lexer *l, const char *s
     return e;
 }
 
+static inline kl_expr *make_regex_expr(kl_context *ctx, kl_lexer *l, const char *str)
+{
+    kl_expr *e = make_expr(ctx, l, TK_VREGEX);
+    e->typeid = TK_TOBJ;
+    e->val.str = parse_const_str(ctx, l, str);
+    return e;
+}
+
 static kl_expr *gen_specialized_call(kl_context *ctx, kl_lexer *l, tk_token tk, kl_expr *lhs, kl_expr *rhs)
 {
     /* e->nodetype should be TK_CALL */
@@ -882,10 +890,34 @@ static kl_expr *parse_lvalue_factor(kl_context *ctx, kl_lexer *l)
     return e;
 }
 
+static kl_expr *parse_regex_literal(kl_context *ctx, kl_lexer *l)
+{
+    if (l->tok != TK_DIV && l->tok != TK_DIVEQ) {
+        return NULL;
+    }
+
+    char buf[2048] = {0};
+    char *p = buf;
+    if (l->tok == TK_DIVEQ) {
+        *p++ = '=';
+    }
+    lexer_raw(l, p, 2040, '/');
+    kl_expr *e = make_regex_expr(ctx, l, buf);
+    lexer_get_regex_flags(l);
+    e->strx = parse_const_str(ctx, l, l->str);
+
+    lexer_fetch(l);
+    return e;
+}
+
 static kl_expr *parse_expr_factor(kl_context *ctx, kl_lexer *l)
 {
     DEBUG_PARSER_PHASE();
     kl_expr *e = parse_lvalue_factor(ctx, l);
+    if (e) {
+        return e;
+    }
+    e = parse_regex_literal(ctx, l);
     if (e) {
         return e;
     }

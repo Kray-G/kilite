@@ -39,6 +39,7 @@ typedef enum tk_token {
     TK_VARY,                //  * Array literal.
     TK_VOBJ,                //  * Object literal.
     TK_VKV,                 //  * Key value literal.
+    TK_VREGEX,              //  * Regular expression literal.
 
     // Keywords
     TK_EXTERN,              //    extern
@@ -259,8 +260,9 @@ typedef enum kl_kir {
     KIR_CONV,       //  <r1>, *<r2>             ;   <r1>  <-  *<r2>
 
     KIR_NEWBIN,     //  <r1>                    ;   <r1>  <-  new bin
-    KIR_SETBIN,     //  <r1>, <idx>, <r2>       ;   <r1>[idx] <-  <r2>
     KIR_NEWOBJ,     //  <r1>                    ;   <r1>  <-  new obj
+    KIR_NEWREGEX,   //  <r1>, <r2>, <r3>        ;   <r1>  <-  new Regex(<r2>, <r3>)
+    KIR_SETBIN,     //  <r1>, <idx>, <r2>       ;   <r1>[idx] <-  <r2>
     KIR_OBJCPY,     //  <r1>, <r2>              ;   <r1>  <-  <r2> as copy object.
     KIR_MKSUPER,    //  <r1>                    ;   <r1>  <-  `super` object
     KIR_IDXFRM,     //  <r1>, <r2>, <idx>       ;   <r1>  <-  <r2>[idx..]

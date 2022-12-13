@@ -166,6 +166,15 @@ static void disp_expr(kl_expr *e, int indent)
             print_object(e->lhs, indent + 1);
         }
         break;
+    case TK_VREGEX:
+        printf("(regex):\"");
+        escape_print(e->val.str);
+        printf("\"");
+        if (e->strx) {
+            printf(", flags:%s", e->strx);
+        }
+        if (indent > 0) printf("\n");
+        break;
     case TK_DOT3:
         printf("(...)\n");
         if (e->lhs) {

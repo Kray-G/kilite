@@ -2234,6 +2234,13 @@ static kl_kir_inst *gen_expr(kl_context *ctx, kl_symbol *sym, kl_kir_opr *r1, kl
         }
         break;
     }
+    case TK_VREGEX: {
+        kl_kir_opr rs = make_lit_str(ctx, e->val.str);
+        kl_kir_opr rf = make_lit_str(ctx, e->strx);
+        head = new_inst_op3(ctx->program, e->line, e->pos, KIR_NEWREGEX, r1, &rs, &rf);
+        set_file_func(ctx, sym, head);
+        break;
+    }
     case TK_VAR: {
         if (!r1->prevent) {
             check_autoset_flag(ctx, e->sym);

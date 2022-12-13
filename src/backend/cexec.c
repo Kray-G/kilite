@@ -188,8 +188,8 @@ int run(int *ret, const char *fname, const char *src, int ac, char **av, char **
             options.object_p = opts->bmir;
             outf = open_output_file(fname, opts, options.asm_p);
         }
-        if (opts->lazy) {
-            lazy = opts->lazy;
+        if (opts->lazy_off) {
+            lazy = 0;
         }
     }
     c2mir_init(ctx);
@@ -216,12 +216,13 @@ int run(int *ret, const char *fname, const char *src, int ac, char **av, char **
 
         MIR_gen_init(ctx, 1);
         MIR_link(ctx, lazy ? MIR_set_lazy_gen_interface : MIR_set_gen_interface, import_resolver);
+        SHOW_TIMER("Link modules");
         main_t fun_addr = (main_t)(main_func->addr);
         int rc = fun_addr(ac, av, ev);
+        SHOW_TIMER("Run the program");
         MIR_gen_finish(ctx);
         if (ret) *ret = rc;
         r = 0;  /* successful */
-        SHOW_TIMER("Run the program");
     }
 
 END:

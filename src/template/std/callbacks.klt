@@ -54,10 +54,10 @@ function Integer_downto(val:integer, min:integer, callback:func) {
 
 function String_replace(str: string, cond, newstr) {
     if (cond.isString) {
-        if (!newstr.isString) {
-            throw RuntimeException('Replacing must be done by string');
+        if (newstr.isString) {
+            return String.replaceByString(str, cond, newstr);
         }
-        return String.replaceByString(str, cond, newstr);
+        throw RuntimeException('Replacing must be done by string');
     } else if (cond.isRegex) {
         if (newstr.isString) {
             return cond.replaceOf(str, newstr);

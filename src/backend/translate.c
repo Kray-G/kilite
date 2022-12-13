@@ -1014,7 +1014,7 @@ static void translate_mova(func_context *fctx, xstr *code, kl_kir_inst *i)
         break;
     case TK_VSTR:
         xstra_inst(code, "SET_APPLY_S(ctx, (%s), \"%s\", ", buf1, escape(&(fctx->str), i->r2.str));
-        xstra_inst(code, "L%d, \"%s\", \"%s\", %d);\n", i->catchid, i->funcname, escape(&(fctx->str), i->filename), i->line);
+        xstraf(code, "L%d, \"%s\", \"%s\", %d);\n", i->catchid, i->funcname, escape(&(fctx->str), i->filename), i->line);
         break;
     case TK_FUNC:
         xstra_inst(code, "vmfnc *f%d = alcfnc(ctx, %s, frm, \"%s\", 0);\n", i->r2.funcid, i->r2.name, i->r2.str);
@@ -1102,7 +1102,7 @@ static void translate_push(func_context *fctx, xstr *code, kl_kir_inst *i)
         break;
     case TK_VSTR:
         xstra_inst(code, "VALUE_PUSH_S(ctx, %s, \"%s\", ", buf1, escape(&(fctx->str), i->r2.str));
-        xstra_inst(code, "L%d, \"%s\", \"%s\", %d);\n", i->catchid, i->funcname, escape(&(fctx->str), i->filename), i->line);
+        xstraf(code, "L%d, \"%s\", \"%s\", %d);\n", i->catchid, i->funcname, escape(&(fctx->str), i->filename), i->line);
         break;
     default:
         // TODO: error
@@ -1124,7 +1124,7 @@ static void translate_pushx(func_context *fctx, xstr *code, kl_kir_inst *i)
     }
     case TK_VSTR:
         xstra_inst(code, "VALUE_PUSHX_S(ctx, %s, \"%s\", ", buf1, escape(&(fctx->str), i->r2.str));
-        xstra_inst(code, "L%d, \"%s\", \"%s\", %d);\n", i->catchid, i->funcname, escape(&(fctx->str), i->filename), i->line);
+        xstraf(code, "L%d, \"%s\", \"%s\", %d);\n", i->catchid, i->funcname, escape(&(fctx->str), i->filename), i->line);
         break;
     default:
         // TODO: error
@@ -1621,11 +1621,19 @@ static void translate_inst(xstr *code, kl_kir_func *f, kl_kir_inst *i, func_cont
     case KIR_NEWBIN:
         xstra_inst(code, "SET_BIN(%s, alcbin(ctx));\n", var_value(buf1, &(i->r1)));
         break;
-    case KIR_SETBIN:
-        translate_setbin(fctx, code, i);
-        break;
     case KIR_NEWOBJ:
         xstra_inst(code, "SET_OBJ(%s, alcobj(ctx));\n", var_value(buf1, &(i->r1)));
+        break;
+    case KIR_NEWREGEX:
+        xstra_inst(code, "push_var_s(ctx, \"%s\", ", escape(&(fctx->str), i->r3.str));
+        xstraf(code, "L%d, \"%s\", \"%s\", %d);\n", i->catchid, i->funcname, escape(&(fctx->str), i->filename), i->line);
+        xstra_inst(code, "push_var_s(ctx, \"%s\", ", escape(&(fctx->str), i->r2.str));
+        xstraf(code, "L%d, \"%s\", \"%s\", %d);\n", i->catchid, i->funcname, escape(&(fctx->str), i->filename), i->line);
+        xstra_inst(code, "CALL(ctx->regex, ctx->regex->lex, %s, 2);\n", var_value(buf1, &(i->r1)));
+        xstra_inst(code, "reduce_vstackp(ctx, 2);\n");
+        break;
+    case KIR_SETBIN:
+        translate_setbin(fctx, code, i);
         break;
     case KIR_OBJCPY:
         xstra_inst(code, "OBJCOPY(ctx, %s, %s);\n", var_value(buf1, &(i->r1)), var_value(buf2, &(i->r2)));

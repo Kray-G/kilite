@@ -123,20 +123,6 @@ static inline int isWritable(int mode)
     return (mode & FILE_WRITE) == FILE_WRITE || (mode & FILE_APPEND) == FILE_APPEND;
 }
 
-static int Zip_get_int(vmobj *o, const char *optname, int def)
-{
-    vmvar *v = hashmap_search(o, optname);
-    if (!v || v->t != VAR_INT64) return def;
-    return (int)v->i;
-}
-
-static const char *Zip_get_str(vmobj *o, const char *optname)
-{
-    vmvar *v = hashmap_search(o, optname);
-    if (!v || v->t != VAR_STR) return NULL;
-    return v->s->s;
-}
-
 /* File */
 
 static void set_mode_char(int mode, char modechar[3])
@@ -202,7 +188,7 @@ int File_close(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 static int File_print(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     DEF_ARG(fo, 0, VAR_OBJ);
-    int mode = Zip_get_int(fo->o, "mode", 0);
+    int mode = hashmap_getint(fo->o, "mode", 0);
     if (!isWritable(mode)) {
         return zip_error(ctx, EXCEPT_FILE_ERROR, MZ_WRITEONLY_ERROR, NULL);
     }
@@ -221,7 +207,7 @@ static int File_print(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 static int File_println(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     DEF_ARG(fo, 0, VAR_OBJ);
-    int mode = Zip_get_int(fo->o, "mode", 0);
+    int mode = hashmap_getint(fo->o, "mode", 0);
     if (!isWritable(mode)) {
         return zip_error(ctx, EXCEPT_FILE_ERROR, MZ_WRITEONLY_ERROR, NULL);
     }
@@ -331,12 +317,12 @@ static vmobj *make_file_date_object(vmctx *ctx, time_t time)
 
 static time_t make_file_date_value(vmctx *ctx, vmobj *time)
 {
-    int year = Zip_get_int(time, "year", 1900);
-    int mon  = Zip_get_int(time, "mon",  0);
-    int mday = Zip_get_int(time, "mday", 1);
-    int hour = Zip_get_int(time, "hour", 0);
-    int min  = Zip_get_int(time, "min",  0);
-    int sec  = Zip_get_int(time, "sec",  0);
+    int year = hashmap_getint(time, "year", 1900);
+    int mon  = hashmap_getint(time, "mon",  0);
+    int mday = hashmap_getint(time, "mday", 1);
+    int hour = hashmap_getint(time, "hour", 0);
+    int min  = hashmap_getint(time, "min",  0);
+    int sec  = hashmap_getint(time, "sec",  0);
     return mz_zip_make_time(year, mon, mday, hour, min, sec);
 }
 
@@ -472,12 +458,12 @@ int File(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 /* Zip */
 
 #define ZIP_OPTION_I(param, opts, zip, def) \
-    int64_t param = opts->t == VAR_OBJ ? Zip_get_int(opts->o, #param, def) : def; \
-    if (!param) param = Zip_get_int(zip, #param, def); \
+    int64_t param = opts->t == VAR_OBJ ? hashmap_getint(opts->o, #param, def) : def; \
+    if (!param) param = hashmap_getint(zip, #param, def); \
 /**/
 #define ZIP_OPTION_S(param, opts, zip) \
-    const char *param = opts->t == VAR_OBJ ? Zip_get_str(opts->o, #param) : NULL; \
-    if (!param) param = Zip_get_str(zip, #param); \
+    const char *param = opts->t == VAR_OBJ ? hashmap_getstr(opts->o, #param) : NULL; \
+    if (!param) param = hashmap_getstr(zip, #param); \
 /**/
 #define ZIP_OPTION_V(param, opts) \
     vmvar *param = opts->t == VAR_OBJ ? hashmap_search(opts->o, #param) : NULL; \
@@ -497,7 +483,7 @@ static vmobj *Zip_get_zip_object(vmobj *o)
 
 static const char *Zip_get_zipname(vmobj *o)
 {
-    return Zip_get_str(o, "name");
+    return hashmap_getstr(o, "name");
 }
 
 static int Zip_get_fileinfo(void *reader, const char *password, const char *zipfile, const char *filename, mz_zip_file **file_info)
@@ -664,12 +650,12 @@ static int Zip_extract_entry(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     DEF_ARG(entry, 0, VAR_OBJ)          // entry object
     vmobj *zip = Zip_get_zip_object(entry->o);
     const char *zipname = Zip_get_zipname(zip);
-    int mode = Zip_get_int(zip, "mode", 0);
+    int mode = hashmap_getint(zip, "mode", 0);
     if (!isReadable(mode)) {
         return zip_error(ctx, EXCEPT_ZIP_ERROR, MZ_WRITEONLY_ERROR, NULL);
     }
 
-    const char *filename = Zip_get_str(entry->o, "filename");
+    const char *filename = hashmap_getstr(entry->o, "filename");
     DEF_ARG_OR_UNDEF(opts, 1, VAR_OBJ)  // options
     ZIP_OPTION_S(password, opts, zip);
     ZIP_OPTION_I(isbin, opts, zip, 0);
@@ -687,12 +673,12 @@ static int Zip_extract_entry_to(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     DEF_ARG(entry, 0, VAR_OBJ)          // entry object
     vmobj *zip = Zip_get_zip_object(entry->o);
     const char *zipname = Zip_get_zipname(zip);
-    int mode = Zip_get_int(zip, "mode", 0);
+    int mode = hashmap_getint(zip, "mode", 0);
     if (!isReadable(mode)) {
         return zip_error(ctx, EXCEPT_ZIP_ERROR, MZ_WRITEONLY_ERROR, NULL);
     }
 
-    const char *filename = Zip_get_str(entry->o, "filename");
+    const char *filename = hashmap_getstr(entry->o, "filename");
     DEF_ARG(outfv, 1, VAR_STR)          // output file's name
     const char *outfile = outfv->s->s;
     DEF_ARG_OR_UNDEF(opts, 2, VAR_OBJ)  // options
@@ -769,7 +755,7 @@ static int Zip_entries(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     DEF_ARG(a0, 0, VAR_OBJ)     // zip object
     vmobj *zip = a0->o;
     const char *zipname = Zip_get_zipname(zip);
-    int mode = Zip_get_int(zip, "mode", 0);
+    int mode = hashmap_getint(zip, "mode", 0);
     if (!isReadable(mode)) {
         return zip_error(ctx, EXCEPT_ZIP_ERROR, MZ_WRITEONLY_ERROR, NULL);
     }
@@ -823,7 +809,7 @@ static int Zip_extract(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     DEF_ARG(zipv, 0, VAR_OBJ)           // zip object
     vmobj *zip = zipv->o;
     const char *zipname = Zip_get_zipname(zip);
-    int mode = Zip_get_int(zip, "mode", 0);
+    int mode = hashmap_getint(zip, "mode", 0);
     if (!isReadable(mode)) {
         return zip_error(ctx, EXCEPT_ZIP_ERROR, MZ_WRITEONLY_ERROR, NULL);
     }
@@ -847,7 +833,7 @@ static int Zip_extract_to(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     DEF_ARG(zipv, 0, VAR_OBJ)           // zip object
     vmobj *zip = zipv->o;
     const char *zipname = Zip_get_zipname(zip);
-    int mode = Zip_get_int(zip, "mode", 0);
+    int mode = hashmap_getint(zip, "mode", 0);
     if (!isReadable(mode)) {
         return zip_error(ctx, EXCEPT_ZIP_ERROR, MZ_WRITEONLY_ERROR, NULL);
     }
@@ -875,7 +861,7 @@ static int Zip_find(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     DEF_ARG(zipv, 0, VAR_OBJ)           // zip object
     vmobj *zip = zipv->o;
     const char *zipname = Zip_get_zipname(zip);
-    int mode = Zip_get_int(zip, "mode", 0);
+    int mode = hashmap_getint(zip, "mode", 0);
     if (!isReadable(mode)) {
         return zip_error(ctx, EXCEPT_ZIP_ERROR, MZ_WRITEONLY_ERROR, NULL);
     }
@@ -906,8 +892,8 @@ static int Zip_add_file(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     DEF_ARG(zipv, 0, VAR_OBJ)           // zip object
     vmobj *zip = zipv->o;
     const char *zipname = Zip_get_zipname(zip);
-    int added = Zip_get_int(zip, "added", 0);
-    int mode = Zip_get_int(zip, "mode", 0);
+    int added = hashmap_getint(zip, "added", 0);
+    int mode = hashmap_getint(zip, "mode", 0);
     if (!isWritable(mode)) {
         return zip_error(ctx, EXCEPT_ZIP_ERROR, MZ_READONLY_ERROR, NULL);
     }
@@ -943,8 +929,8 @@ static int Zip_add_buffer(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     DEF_ARG(zipv, 0, VAR_OBJ)               // zip object
     vmobj *zip = zipv->o;
     const char *zipname = Zip_get_zipname(zip);
-    int added = Zip_get_int(zip, "added", 0);
-    int mode = Zip_get_int(zip, "mode", 0);
+    int added = hashmap_getint(zip, "added", 0);
+    int mode = hashmap_getint(zip, "mode", 0);
     if (!isWritable(mode)) {
         return zip_error(ctx, EXCEPT_ZIP_ERROR, MZ_READONLY_ERROR, NULL);
     }

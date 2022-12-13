@@ -7,7 +7,7 @@
 typedef struct kl_opts {
     int mir;
     int bmir;
-    int lazy;
+    int lazy_off;
     int out_stdout;
     int cctime;
     void *timer;

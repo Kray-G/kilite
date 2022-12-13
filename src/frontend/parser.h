@@ -94,6 +94,7 @@ typedef struct kl_expr {
     int yield;                      //  yield check number.
     int line;                       //  The line in the source code.
     int pos;                        //  The pos in the source code.
+    const char *strx;               //  Additional string info.
     struct kl_expr *lhs;            //  Left hand side.
     struct kl_expr *rhs;            //  Right hand side.
     struct kl_expr *xhs;            //  Additional expr for ternary expression.

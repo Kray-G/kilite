@@ -94,6 +94,7 @@ static int check_pure(tk_token tk)
     case TK_VARY: /* 0 */
     case TK_VOBJ: /* 0 */
     case TK_VKV: /* 0 */
+    case TK_VREGEX: /* 0 */
         pure = 0;
         break;
 

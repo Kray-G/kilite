@@ -8,23 +8,33 @@
 #define RETTYPE_FOUND (1)
 #define RETTYPE_OBJ (2)
 
+#define REGEX_FLAGS_GLOBAL      (0x01)
+#define REGEX_FLAGS_IGNORECASE  (0x02)
+#define REGEX_FLAGS_DOTALL      (0x04)
+#define REGEX_FLAGS_MULTILINE   (0x08)
+#define REGEX_FLAGS_EXTENDED    (0x10)
+#define REGEX_FLAGS_STICKY      (0x20)
+
+#define is_regex_global(flags)  ((flags & REGEX_FLAGS_GLOBAL) == REGEX_FLAGS_GLOBAL)
+
 typedef struct regex_pack_t {
     regex_t *reg;
     unsigned char *source;
-    int start;
     OnigRegion *region;
+    int32_t flags;
 } regex_pack_t;
 
-void *Regex_compile(const char *pattern)
+static void *Regex_compile(const char *pattern, int32_t flags)
 {
     regex_pack_t *r = (regex_pack_t *)calloc(1, sizeof(regex_pack_t));
+    r->flags = flags;
     int rx = Regex_onig_new(&r->reg, pattern);
     if (rx != ONIG_NORMAL) {
         return NULL;
     }
     r->source = NULL;
-    r->start = 0;
     r->region = onig_region_new();
+
     return r;
 }
 
@@ -59,7 +69,7 @@ int Regex_reset(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
         free(rp->source);
         rp->source = calloc(strlen(str) + 2, sizeof(char));
         strcpy(rp->source, str);
-        rp->start = 0;
+        KL_SET_PROPERTY_I(rx->o, lastIndex, 0);
     }
 
     return 0;
@@ -81,7 +91,7 @@ int Regex_setPosition(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
         if (strlen(rp->source) <= p) {
             return throw_system_exception(__LINE__, ctx, EXCEPT_REGEX_ERROR, "Longer than the target string");
         }
-        rp->start = p;
+        KL_SET_PROPERTY_I(rx->o, lastIndex, p);
     }
 
     return 0;
@@ -112,9 +122,9 @@ int Regex_find_impl(vmctx *ctx, vmvar *r, vmobj *o, regex_pack_t *rp, int rettyp
         return throw_system_exception(__LINE__, ctx, EXCEPT_REGEX_ERROR, "Uninitialized string source");
     }
     int len = strlen((char*)str);
-    int index = rp->start;
-    if (index < 0 || len < index) {
-        rp->start = 0;
+    int index = hashmap_getint(o, "lastIndex", 0);
+    if (index < 0 || len <= index) {
+        KL_SET_PROPERTY_I(o, lastIndex, 0);
         SET_I64(r, rettype == RETTYPE_OBJ ? 0 : (ret == 1 ? 0 : 1));
         return 0;
     }
@@ -128,11 +138,6 @@ int Regex_find_impl(vmctx *ctx, vmvar *r, vmobj *o, regex_pack_t *rp, int rettyp
     }
     int searched = Regex_get_region_end(rp->region, 0);
     KL_SET_PROPERTY_I(o, lastIndex, searched);
-    if (searched >= len) {
-        rp->start = -1;
-    } else {
-        rp->start = searched;
-    }
 
     vmobj *group = make_group_object(ctx, str, rp);
     if (ret == RETTYPE_OBJ) {
@@ -326,13 +331,44 @@ int Regex_replaceOf(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     return 0;
 }
 
+static int32_t make_pattern_string(vmctx *ctx, vmstr *sv, const char *pattern, const char *flags)
+{
+    int32_t fl = 0x00;
+    const char *f = flags;
+    while (*f) {
+        if (*f == 'g') fl |= REGEX_FLAGS_GLOBAL;
+        if (*f == 'i') fl |= REGEX_FLAGS_IGNORECASE;
+        if (*f == 's') fl |= REGEX_FLAGS_DOTALL;
+        if (*f == 'm') fl |= REGEX_FLAGS_MULTILINE;
+        if (*f == 'x') fl |= REGEX_FLAGS_EXTENDED;
+        if (*f == 'y') fl |= REGEX_FLAGS_STICKY;
+        ++f;
+    }
+
+    if (fl > 0) {
+        str_append_cp(ctx, sv, "(?");
+        if (fl & REGEX_FLAGS_IGNORECASE) str_append_cp(ctx, sv, "i");
+        if (fl & REGEX_FLAGS_MULTILINE)  str_append_cp(ctx, sv, "m");
+        if (fl & REGEX_FLAGS_EXTENDED)   str_append_cp(ctx, sv, "x");
+        str_append_cp(ctx, sv, ")");
+    }
+
+    str_append_cp(ctx, sv, pattern);
+    return fl;
+}
+
 int Regex_create(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     DEF_ARG(pattern, 0, VAR_STR);
+    DEF_ARG_OR_UNDEF(flagsv, 1, VAR_STR);
+
     vmobj *o = alcobj(ctx);
     o->is_sysobj = 1;
     vmvar *rpack = alcvar(ctx, VAR_VOIDP, 0);
-    rpack->p = Regex_compile(pattern->s->s);
+    vmstr *sv = alcstr_str(ctx, "");
+    int32_t flags = make_pattern_string(ctx, sv, pattern->s->s, flagsv->t == VAR_STR ? flagsv->s->s : "");
+
+    rpack->p = Regex_compile(sv->s, flags);
     rpack->freep = Regex_free;
     array_push(ctx, o, rpack);
 
@@ -346,6 +382,11 @@ int Regex_create(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     KL_SET_METHOD(o, replaceOf, Regex_replaceOf, lex, 2);
     KL_SET_PROPERTY_I(o, isRegex, 1);
     KL_SET_PROPERTY_I(o, lastIndex, 0);
+    KL_SET_PROPERTY_I(o, global, (flags & REGEX_FLAGS_GLOBAL) ? 1 : 0);
+    KL_SET_PROPERTY_I(o, ignoreCase, (flags & REGEX_FLAGS_IGNORECASE) ? 1 : 0);
+    KL_SET_PROPERTY_I(o, multiline, (flags & REGEX_FLAGS_MULTILINE) ? 1 : 0);
+    KL_SET_PROPERTY_I(o, multiline, (flags & REGEX_FLAGS_MULTILINE) ? 1 : 0);
+    KL_SET_PROPERTY_SV(o, pattern, sv);
     SET_OBJ(r, o);
     return 0;
 }
@@ -353,7 +394,8 @@ int Regex_create(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 int Regex(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     vmobj *o = alcobj(ctx);
-    KL_SET_METHOD(o, create, Regex_create, lex, 1);
+    ctx->regex = alcfnc(ctx, Regex_create, lex, "create", 2);
+    KL_SET_METHOD_F(o, create, ctx->regex);
     SET_OBJ(r, o);
     return 0;
 }

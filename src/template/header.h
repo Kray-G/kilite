@@ -90,8 +90,8 @@ enum {
 #define ALC_UNIT (1024)
 #define ALC_UNIT_FRM (1024)
 #define TICK_UNIT (1024*64)
-#define STR_UNIT (32)
-#define BIN_UNIT (32)
+#define STR_UNIT (64)
+#define BIN_UNIT (64)
 #define HASH_SIZE (23)
 #define ARRAY_UNIT (64)
 #define HASHITEM_EMPTY(h) ((h)->hasht = 0x00)
@@ -275,6 +275,7 @@ typedef struct vmctx {
     vmobj *s;               /* Special object for string. */
     vmobj *b;               /* Special object for binary. */
     vmobj *o;               /* Special object for object/array. */
+    vmfnc *regex;           /* The function to create a Regex object. */
 
     vmfrm *frm;             /* Reference to the global frame. */
 
@@ -462,6 +463,10 @@ typedef struct vmctx {
 
 #define KL_SET_METHOD(o, name, fname, lex, args) \
     hashmap_set(ctx, o, #name, alcvar_fnc(ctx, alcfnc(ctx, fname, lex, #name, args))); \
+/**/
+
+#define KL_SET_METHOD_F(o, name, f) \
+    hashmap_set(ctx, o, #name, alcvar_fnc(ctx, f)); \
 /**/
 
 
@@ -3399,6 +3404,8 @@ INLINE extern void fprint_bin(vmctx *ctx, vmbin *vs, FILE *fp);
 INLINE extern void hashmap_print(vmobj *obj);
 INLINE extern void hashmap_objprint(vmctx *ctx, vmobj *obj);
 INLINE extern void hashmap_objfprint(vmctx *ctx, vmobj *obj, FILE *fp);
+INLINE extern int hashmap_getint(vmobj *o, const char *optname, int def);
+INLINE extern const char *hashmap_getstr(vmobj *o, const char *optname);
 INLINE extern vmobj *hashmap_create(vmobj *h, int sz);
 INLINE extern vmobj *hashmap_set(vmctx *ctx, vmobj *obj, const char *s, vmvar *v);
 INLINE extern vmobj *hashmap_remove(vmctx *ctx, vmobj *obj, const char *s);

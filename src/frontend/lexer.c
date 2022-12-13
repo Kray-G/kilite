@@ -17,7 +17,7 @@ static const char *tpname[] = {
 };
 static const char *tkname[] = {
     "TK_EOF", "TK_UNKNOWN",
-    "TK_VSINT", "TK_VBIGINT", "TK_VDBL", "TK_VSTR", "TK_VBIN", "TK_VARY", "TK_VOBJ", "TK_VKV",
+    "TK_VSINT", "TK_VBIGINT", "TK_VDBL", "TK_VSTR", "TK_VBIN", "TK_VARY", "TK_VOBJ", "TK_VKV", "TK_VREGEX",
 
     "TK_EXTERN", "TK_ENUM", "TK_CONST", "TK_LET", "TK_NEW", "TK_IMPORT", "TK_NAMESPACE", "TK_MODULE", "TK_CLASS", "TK_PRIVATE",
     "TK_PROTECTED", "TK_PUBLIC", "TK_MIXIN", "TK_FUNC", "TK_NATIVE", "TK_SWITCH", "TK_CASE", "TK_DEFAULT", "TK_OTHERWISE",
@@ -256,6 +256,44 @@ static inline void lexer_getch(kl_lexer *l)
     } else {
         l->pos++;
     }
+}
+
+void lexer_raw(kl_lexer *l, char *p, int max, int lastch)
+{
+    max--;
+    int i = 0;
+    while (l->ch != lastch && l->ch != EOF) {
+        if (++i >= max) {
+            break;
+        }
+        if (l->ch == '\\') {
+            *p++ = '\\';
+            lexer_getch(l);
+            if (++i >= max) {
+                break;
+            }
+        }
+        *p++ = l->ch;
+        lexer_getch(l);
+    }
+    *p = 0;
+
+    if (l->ch == lastch) {
+        lexer_getch(l);
+    }
+}
+
+void lexer_get_regex_flags(kl_lexer *l)
+{
+    int i = 0;
+    while (is_regexp_flags(l->ch)) {
+        if (i >= (LEXER_STRBUF_SZ - 1)) {
+            break;
+        }
+        l->str[i++] = l->ch;
+        lexer_getch(l);
+    }
+    l->str[i] = 0;
 }
 
 static inline int is_whitespace(int ch)

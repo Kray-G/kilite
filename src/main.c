@@ -46,7 +46,6 @@ typedef struct kl_argopts {
     int out_lib;
     int out_csrc;
     int out_cfull;
-    int out_cdebug;
     int out_ast;
     int out_stdout;
     int in_stdin;
@@ -55,6 +54,7 @@ typedef struct kl_argopts {
     int error_stdout;
     int error_limit;
     int print_result;
+    int lazy_off;
     int verbose;
     int argstart;
     int cctime;
@@ -169,6 +169,7 @@ static void usage(void)
     printf("    --stdout            Change the distination of the output to stdout.\n");
     printf("    --verbose           Show some infrmation when running.\n");
     printf("    --disable-pure      Disable the code optimization for a pure function.\n");
+    printf("    --lazy-off          Disable lazy code generation mode.\n");
     printf("    --ext=<ext>         Change the extension of the output file.\n");
     printf("\n");
     printf("Show Process:\n");
@@ -177,9 +178,6 @@ static void usage(void)
     printf("    --kir               Output internal temporary compiled code.\n");
     printf("    --csrc              Output the C code of the script code.\n");
     printf("    --cfull             Output the full C code to build the executable.\n");
-    #ifdef KILITE_SHOW_HIDDEN_OPTIONS
-    printf("    --cdebug            Output the full C code to debug the script code.\n");
-    #endif
     printf("\n");
     printf("Compiler Options:\n");
     printf("    --cc=<cc>           Change the compiler to make an executable.\n");
@@ -241,9 +239,8 @@ static int parse_long_options(int ac, char **av, int *i, kl_argopts *opts)
     } else if (strcmp(av[*i], "--cfull") == 0) {
         opts->out_src = 1;
         opts->out_cfull = 1;
-    } else if (strcmp(av[*i], "--cdebug") == 0) {
-        opts->out_src = 1;
-        opts->out_cdebug = 1;
+    } else if (strcmp(av[*i], "--lazy-off") == 0) {
+        opts->lazy_off = 1;
     } else if (strcmp(av[*i], "--stdout") == 0) {
         opts->out_stdout = 1;
     } else if (strcmp(av[*i], "--cctime") == 0) {
@@ -338,42 +335,25 @@ static int parse_arg_options(int ac, char **av, kl_argopts *opts)
         }
     }
     if (opts->out_src) {
-        opts->out_mir = !(opts->out_ast || opts->out_kir || opts->out_csrc || opts->out_cdebug || opts->out_cfull);
+        opts->out_mir = !(opts->out_ast || opts->out_kir || opts->out_csrc || opts->out_cfull);
     }
 
     return 0;
 }
 
-void output_source(FILE *f, int cdebug, int cfull, int print_result, int verbose, const char *s)
+void output_source(FILE *f, int cfull, int print_result, int verbose, const char *s)
 {
     if (cfull) {
         fprintf(f, "#define _PRINTF_H_\n");
-    }
-    if (cdebug || cfull) {
         fprintf(f, "%s", vmheader());
     }
     fprintf(f, "%s\n", s);
-    if (cdebug || cfull) {
-        if (cdebug) {
-            fprintf(f, "void _putchar(char ch) { putchar(ch); }\n");
-            fprintf(f, "uint32_t Math_random_impl(void) { return 0; }\n");
-            fprintf(f, "void *SystemTimer_init(void) { return NULL; }\n");
-            fprintf(f, "void SystemTimer_restart_impl(void *p) {}\n");
-            fprintf(f, "double SystemTimer_elapsed_impl(void *p) { return 0.0; }\n");
-        } else {
-        }
-
+    if (cfull) {
         fprintf(f, "void setup_context(vmctx *ctx)\n{\n");
-        fprintf(f, "    ctx->print_result = %d;\n", cdebug ? 1 : print_result);
+        fprintf(f, "    ctx->print_result = %d;\n", print_result);
         fprintf(f, "    ctx->verbose = %d;\n", verbose);
-        if (cfull) {
-            fprintf(f, "    Math_initialize();\n");
-        }
         fprintf(f, "}\n\n");
         fprintf(f, "void finalize_context(vmctx *ctx)\n{\n");
-        if (cfull) {
-            fprintf(f, "    Math_finalize();\n");
-        }
         fprintf(f, "    finalize(ctx);\n");
         fprintf(f, "}\n\n");
     }
@@ -432,7 +412,7 @@ int make_executable(kl_argopts *opts, const char *s)
     char *cmd = (char *)calloc(cmdlen + 2, sizeof(char));
 
     FILE *fp = fopen(fname, "w");
-    output_source(fp, 0, 1, 0, 0, s);
+    output_source(fp, /* cfull */ 1, /* print_result */ 0, /* verbose */ 0, s);
     fclose(fp);
 
     int r = 0;
@@ -497,7 +477,7 @@ int main(int ac, char **av)
                 /* This must be a 1st variable because compiler is expecting it's an index 0 variable.*/
         "const undefined; const null = undefined;"
         "extern True; extern False;"
-        "extern System; extern SystemTimer; extern Math; extern Fiber; extern Range;"
+        "extern System; extern SystemTimer; extern Math; extern Fiber; extern Range; extern Regex;"
         "extern RuntimeException();"
         "extern Integer; extern Double; extern String; extern Binary; extern Array;"
         "const Object = Array;"
@@ -542,10 +522,10 @@ int main(int ac, char **av)
     }
     ctx->program->print_result = opts.print_result;
     ctx->program->verbose = opts.verbose;
-    if (opts.out_src && (opts.out_csrc || opts.out_cdebug || opts.out_cfull)) {
-        s = translate(ctx->program, opts.out_cdebug ? TRANS_DEBUG : TRANS_SRC);
+    if (opts.out_src && (opts.out_csrc || opts.out_cfull)) {
+        s = translate(ctx->program, TRANS_SRC);
         SHOW_TIMER("Translating from KIR to C");
-        output_source(stdout, opts.out_cdebug, opts.out_cfull, opts.print_result, opts.verbose, s);
+        output_source(stdout, opts.out_cfull, opts.print_result, opts.verbose, s);
         goto END;
     } else if (opts.cc) {
         s = translate(ctx->program, TRANS_SRC);
@@ -580,6 +560,7 @@ int main(int ac, char **av)
             .modules = modules,
             .timer = ctx->timer,
             .cctime = opts.cctime,
+            .lazy_off = opts.lazy_off,
         };
         run(&ri, opts.file, s, ac - opts.argstart, av + opts.argstart, NULL, &runopts);
     }

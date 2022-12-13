@@ -12,6 +12,8 @@
  * Defnitions
  */
 #define LEXER_STRBUF_SZ (1024)
+#define LEXER_OPT_FETCH_NAME (0x01)
+#define is_regexp_flags(x) (((x) == 'i') || ((x) == 's') || ((x) == 'm') || ((x) == 'x') || ((x) == 'g') || ((x) == 'y'))
 
 /*
  * Structure of lexical analyzer.
@@ -46,8 +48,6 @@ typedef struct kl_lexer {
     char str[LEXER_STRBUF_SZ];
 } kl_lexer;
 
-#define LEXER_OPT_FETCH_NAME (0x01)
-
 /*
  * Public functions of lexical analyzer.
  */
@@ -57,5 +57,7 @@ extern kl_lexer *lexer_new_file(const char *f);
 extern kl_lexer *lexer_new_string(const char *s);
 extern void lexer_free(kl_lexer *l);
 extern tk_token lexer_fetch(kl_lexer *l);
+extern void lexer_raw(kl_lexer *l, char *p, int max, int lastch);
+extern void lexer_get_regex_flags(kl_lexer *l);
 
 #endif /* KILITE_LEXER_H */

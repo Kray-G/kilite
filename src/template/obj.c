@@ -204,6 +204,20 @@ vmobj *hashmap_create(vmobj *obj, int hsz)
     return obj;
 }
 
+int hashmap_getint(vmobj *o, const char *optname, int def)
+{
+    vmvar *v = hashmap_search(o, optname);
+    if (!v || v->t != VAR_INT64) return def;
+    return (int)v->i;
+}
+
+const char *hashmap_getstr(vmobj *o, const char *optname)
+{
+    vmvar *v = hashmap_search(o, optname);
+    if (!v || v->t != VAR_STR) return NULL;
+    return v->s->s;
+}
+
 vmobj *hashmap_set(vmctx *ctx, vmobj *obj, const char *s, vmvar *vs)
 {
     if (!obj->map) {
