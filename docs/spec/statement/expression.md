@@ -103,7 +103,7 @@ a = 2 ** 3 ** 4;    // means 2 ** (3 ** 4), not (2 ** 3) ** 4.
                     //  should be 2417851639229258349412352.
 ```
 
-#### `??` - Logical Undefined Operator
+#### `??` - Null Coalescing Operator
 
 This operator is like Logical OR operator of `||`.
 When using `||` and LHS is `false`, the RHS will be evaluated.
@@ -157,7 +157,7 @@ System.println(a);
 2417851639229258349412352
 ```
 
-### Example 3. Logical Undefined Operator
+### Example 3. Null Coalescing Operator
 
 #### Code
 

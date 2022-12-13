@@ -1,8 +1,8 @@
-# Logical UNDEF Operator
+# Null Coalescing Operator
 
 ## Overview
 
-Logical Undef operator is a shortcut operator and this operator is like Logical OR operator of `||`.
+Null Coalescing operator is a shortcut operator and this operator is like Logical OR operator of `||`.
 When using `||` and LHS is `false`, the RHS will be evaluated.
 Compared to that, whe using `??` and LHS is `null`, the RHS will be evaluated.
 
