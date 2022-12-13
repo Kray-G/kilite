@@ -254,6 +254,12 @@ int ZipErrorException(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     return 0;
 }
 
+int RegexErrorException(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    RuntimeException_create(ctx, lex, r, "RegexErrorException", ctx->msgbuf ? ctx->msgbuf : "Regular expression error");
+    return 0;
+}
+
 /* Make exception */
 
 int throw_system_exception(int line, vmctx *ctx, int id, const char *msg)
@@ -314,6 +320,9 @@ int throw_system_exception(int line, vmctx *ctx, int id, const char *msg)
         break;
     case EXCEPT_ZIP_ERROR:
         ZipErrorException(ctx, NULL, r, 0);
+        break;
+    case EXCEPT_REGEX_ERROR:
+        RegexErrorException(ctx, NULL, r, 0);
         break;
     default:
         RuntimeException_create(ctx, NULL, r, "SystemException", msg ? msg : "Unknown exception");

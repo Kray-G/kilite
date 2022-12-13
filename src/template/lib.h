@@ -47,6 +47,8 @@
 
 #ifndef __MIRC__
 
+#include "inc/lib/onig/include/oniguruma.h"
+
 #include "inc/lib/minizip/include/mz.h"
 #include "inc/lib/minizip/include/mz_compat.h"
 #include "inc/lib/minizip/include/mz_crypt.h"
@@ -66,6 +68,31 @@
 #endif
 
 #else
+
+/* oniguruma */
+
+#define ONIG_OPTION_NONE          0U
+#define ONIG_OPTION_DEFAULT       ONIG_OPTION_NONE
+#define ONIG_ENCODING_UTF8        (&OnigEncodingUTF8)
+
+#define ONIG_NORMAL                0
+#define ONIG_VALUE_IS_NOT_SET      1
+#define ONIG_MISMATCH             -1
+#define ONIG_NO_SUPPORT_CONFIG    -2
+#define ONIG_ABORT                -3
+
+typedef void regex_t;
+typedef void OnigRegion;
+typedef unsigned char OnigUChar;
+typedef unsigned int OnigOptionType;
+
+void onig_free(regex_t *);
+OnigRegion* onig_region_new(void);
+void onig_region_free(OnigRegion* region, int free_self);
+void onig_region_clear(OnigRegion* region);
+int onig_search(regex_t *, const OnigUChar* str, const OnigUChar* end, const OnigUChar* start, const OnigUChar* range, OnigRegion* region, OnigOptionType option);
+
+/* minizip */
 
 typedef void mz_zip_file;
 typedef int64_t time_t;
@@ -159,6 +186,11 @@ int32_t  mz_os_read_symlink(const char *path, char *target_path, int32_t max_tar
 #define MZ_ZIP_FLAG_MASK_LOCAL_INFO     (1 << 13)
 
 #endif
+
+extern int Regex_onig_new(void *reg, const char *pattern);
+extern int Regex_get_region_numregs(OnigRegion *region);
+extern int Regex_get_region_beg(OnigRegion *region, int i);
+extern int Regex_get_region_end(OnigRegion *region, int i);
 
 #define TIMEINFO_TYPE_MODIFIED (1)
 #define TIMEINFO_TYPE_ACCESSED (2)

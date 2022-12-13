@@ -24,16 +24,19 @@ static inline vmstr *str_append_impl(vmctx *ctx, vmstr *vs, const char *s, int l
         vs->hd = vs->s;
     }
     int len = vs->len + l;
-    if (len < vs->cap) {
-        strcpy(vs->s + vs->len, s);
+    int xlen = len + 1;
+    if (xlen < vs->cap) {
+        strncpy(vs->s + vs->len, s, l);
+        vs->s[len] = 0;
         vs->len = len;
     } else {
-        int cap = (len < STR_UNIT) ? STR_UNIT : ((len / STR_UNIT) * (STR_UNIT << 1));
+        int cap = (xlen < STR_UNIT) ? STR_UNIT : ((xlen / STR_UNIT) * (STR_UNIT << 1));
         char *ns = (char *)calloc(cap, sizeof(char));
         strcpy(ns, vs->s);
-        strcpy(ns + vs->len, s);
+        strncpy(ns + vs->len, s, l);
         free(vs->s);
         vs->hd = vs->s = ns;
+        vs->s[len] = 0;
         vs->len = len;
         vs->cap = cap;
     }
@@ -156,7 +159,7 @@ vmstr *str_append_i64(vmctx *ctx, vmstr *vs, int64_t i)
 
 vmstr *str_clear(vmstr *vs)
 {
-    vs->s[0] = 0;
+    vs->s[0] = vs->hd[0] = 0;
     vs->len = 0;
     return vs;
 }

@@ -46,7 +46,7 @@ makecstr.exe %TEMPF% > ..\src\backend\header.c
 del %TEMPF%
 
 @echo Building a Kilite binary...
-cl /nologo /O2 /I..\..\mir  /MT ^
+cl /nologo /O2 /I..\..\mir  /MT /DONIG_EXTERN=extern ^
     /Fekilite.exe ^
     ..\src\main.c ^
     ..\src\frontend\lexer.c ^
@@ -60,6 +60,7 @@ cl /nologo /O2 /I..\..\mir  /MT ^
     ..\src\backend\resolver.c ^
     ..\src\backend\header.c ^
     ..\src\backend\cexec.c ^
+    ..\bin\onig.lib ^
     ..\bin\libminizip.lib ^
     ..\bin\zlibstatic.lib ^
     ..\bin\mir_static.lib
@@ -110,6 +111,8 @@ echo #line 1 "libxml.c" >> %TEMPF%
 type ..\src\template\libxml.c >> %TEMPF%
 echo #line 1 "libzip.c" >> %TEMPF%
 type ..\src\template\libzip.c >> %TEMPF%
+echo #line 1 "libregex.c" >> %TEMPF%
+type ..\src\template\libregex.c >> %TEMPF%
 echo #line 1 "inc/platform.c" >> %TEMPF%
 type ..\src\template\inc\platform.c >> %TEMPF%
 pushd ..\src\template\std
@@ -117,10 +120,10 @@ kilite.exe --makelib callbacks.klt >> %TEMPF%
 popd
 
 @echo Generating a static library file for cl...
-cl /nologo /O2 /DUSE_INT64 /I..\src\template /I..\src\template\inc /c %TEMPF%
+cl /nologo /O2 /DUSE_INT64 /I..\src\template /I..\src\template\inc /DONIG_EXTERN=extern /c %TEMPF%
 lib /nologo /out:kilite.lib %TEMPF:.c=.obj%
 copy /y kilite.lib ..\kilite.lib > NUL
-c2m -DUSE_INT64 -Ilib -c %TEMPF%
+c2m -DUSE_INT64 -DONIG_EXTERN=extern -Ilib -c %TEMPF%
 if exist kilite.bmir del kilite.bmir
 ren %TEMPF:.c=.bmir% kilite.bmir
 copy /y kilite.bmir ..\kilite.bmir > NUL
@@ -154,7 +157,7 @@ exit /b 0
 
 :gcc
 @echo Generating a static library file for gcc...
-gcc -O3 -o libkilite.o -DUSE_INT64 -Ilib -I../src/template -I../src/template/inc -c %1%
+gcc -O3 -o libkilite.o -DUSE_INT64 -DONIG_EXTERN=extern -Ilib -I../src/template -I../src/template/inc -c %1%
 ar rcs libkilite.a libkilite.o
 copy /y libkilite.a ..\libkilite.a > NUL
 exit /b 0

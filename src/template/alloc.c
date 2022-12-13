@@ -513,6 +513,13 @@ vmvar *alcvar_str(vmctx *ctx, const char *s)
     return v;
 }
 
+vmvar *alcvar_sv(vmctx *ctx, vmstr *sv)
+{
+    vmvar *v = alcvar_pure(ctx, VAR_STR);
+    v->s = sv;
+    return v;
+}
+
 vmvar *alcvar_bin(vmctx *ctx, const uint8_t *s, int len)
 {
     vmvar *v = alcvar_pure(ctx, VAR_BIN);

@@ -80,12 +80,12 @@ static clcmd cclist[] = {
     { .cc = "dummy" },
     #if defined(_WIN32) || defined(_WIN64)
     { .optch = '/', .cc = "cl", .opt = "O2", .args = "/MT /nologo", .outf = "/Fe",
-        .libpathopt = "/link /LIBPATH:", .link = "kilite.lib zlibstatic.lib libminizip.lib" },
+        .libpathopt = "/link /LIBPATH:", .link = "kilite.lib libminizip.lib onig.lib zlibstatic.lib" },
     { .optch = '-', .cc = "gcc", .opt = "O3", .args = "", .outf = "-o ",
-        .libpathopt = "-L", .link = "-lkilite -lminizip -lzlibstatic -lcrypt32" },
+        .libpathopt = "-L", .link = "-lkilite -lminizip -lonig -lzlibstatic -lcrypt32" },
     #else
     { .optch = '-', .cc = "gcc", .opt = "O3", .args = "", .outf = "-o ",
-        .libpathopt = "-L", .link = "-lkilite -lminizip -lz -lm" },
+        .libpathopt = "-L", .link = "-lkilite -lminizip -lonig -lz -lm" },
     #endif
 };
 

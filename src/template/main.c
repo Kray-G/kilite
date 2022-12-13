@@ -1,5 +1,6 @@
 #ifndef KILITE_AMALGAMATION
 #include "common.h"
+#include "lib.h"
 #endif
 
 #ifdef __MIRC__
@@ -14,6 +15,10 @@ int main(int ac, char **av)
     stdout = get_stdio_stdout();
     stderr = get_stdio_stderr();
     #endif
+
+    Regex_initialize();
+    Math_initialize();
+
     vmctx *ctx = initialize();
     setup_context(ctx);
     ctx->except = alcvar_initial(ctx);
@@ -44,5 +49,8 @@ int main(int ac, char **av)
     }
 
     finalize_context(ctx);
+
+    Math_finalize();
+    Regex_finalize();
     return ri;
 }

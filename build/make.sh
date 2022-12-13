@@ -41,8 +41,9 @@ cp -f libminizip.a ../
 echo Building oniguruma...
 mkdir -p onig
 cd onig
-cmake -DBUILD_SHARED_LIBS=OFF -DBUILD_TEST=OFF ../../submodules/oniguruma
+cmake DCMAKE_INSTALL_PREFIX=../../src/template/inc/lib/onig -DBUILD_SHARED_LIBS=OFF -DBUILD_TEST=OFF ../../submodules/oniguruma
 make
+make install
 cp -f libonig.a ../
 cd ..
 cp -f libonig.a ../
@@ -62,7 +63,7 @@ cat ../src/template/header.h >> $TEMPF
 rm $TEMPF
 
 echo Building a Kilite binary...
-gcc -Wno-unused-result -O3 -I../submodules/mir \
+gcc -Wno-unused-result -O3 -I../submodules/mir -DONIG_EXTERN=extern \
     -DUSE_INT64 -o kilite \
     ../src/main.c \
     ../src/frontend/lexer.c \
@@ -81,6 +82,7 @@ gcc -Wno-unused-result -O3 -I../submodules/mir \
     -lminizip \
     -lz \
     -ldl \
+    -lonig \
     -lpthread
 
 cp -f kilite ../kilite
@@ -136,10 +138,10 @@ $BIN/kilite --makelib callbacks.klt >> $TEMPF
 cd $BIN
 
 echo Generating a static library file for gcc...
-gcc -O3 -DUSE_INT64 -o ${TEMPF/.c/.o} -Ilib -I../src/template -I../src/template/inc -Wno-unused-result -c $TEMPF
+gcc -O3 -DUSE_INT64 -DONIG_EXTERN=extern -o ${TEMPF/.c/.o} -Ilib -I../src/template -I../src/template/inc -Wno-unused-result -c $TEMPF
 ar rcs libkilite.a ${TEMPF/.c/.o}
 cp -f libkilite.a ../libkilite.a
-./c2m -DUSE_INT64 -I lib -c $TEMPF
+./c2m -DUSE_INT64 -DONIG_EXTERN=extern -I lib -c $TEMPF
 rm -f kilite.bmir
 mv libkilite.bmir kilite.bmir
 cp -f kilite.bmir ../kilite.bmir

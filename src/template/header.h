@@ -79,6 +79,7 @@ enum {
     EXCEPT_XML_ERROR,
     EXCEPT_FILE_ERROR,
     EXCEPT_ZIP_ERROR,
+    EXCEPT_REGEX_ERROR,
     EXCEPT_MAX,
 };
 
@@ -447,6 +448,10 @@ typedef struct vmctx {
 
 #define KL_SET_PROPERTY_S(o, name, str) \
     hashmap_set(ctx, o, #name, alcvar_str(ctx, str)); \
+/**/
+
+#define KL_SET_PROPERTY_SV(o, name, sv) \
+    hashmap_set(ctx, o, #name, alcvar_sv(ctx, sv)); \
 /**/
 
 #define KL_SET_PROPERTY_I(o, name, i64) \
@@ -3303,6 +3308,8 @@ INLINE extern void setup_context(vmctx *ctx);
 INLINE extern void finalize_context(vmctx *ctx);
 INLINE extern void Math_initialize(void);
 INLINE extern void Math_finalize(void);
+INLINE extern void Regex_initialize(void);
+INLINE extern void Regex_finalize(void);
 
 INLINE extern vmfnc *alcfnc(vmctx *ctx, void *f, vmfrm *lex, const char *name, int args);
 INLINE extern void pbakfnc(vmctx *ctx, vmfnc *p);
@@ -3326,6 +3333,7 @@ INLINE extern vmvar *alcvar_fnc(vmctx *ctx, vmfnc *f);
 INLINE extern vmvar *alcvar_int64(vmctx *ctx, int64_t i, int hold);
 INLINE extern vmvar *alcvar_double(vmctx *ctx, double *d);
 INLINE extern vmvar *alcvar_str(vmctx *ctx, const char *s);
+INLINE extern vmvar *alcvar_sv(vmctx *ctx, vmstr *sv);
 INLINE extern vmvar *alcvar_bin(vmctx *ctx, const uint8_t *s, int len);
 INLINE extern vmvar *alcvar_bgistr(vmctx *ctx, const char *s, int radix);
 INLINE extern void pbakvar(vmctx *ctx, vmvar *p);
@@ -3353,6 +3361,7 @@ INLINE extern void bi_str(char *buf, int max, vmbgi *b);
 
 INLINE extern void print_escape_str(vmstr *vs);
 INLINE extern void fprint_escape_str(vmstr *vs, FILE *fp);
+INLINE extern vmstr *str_clear(vmstr *vs);
 INLINE extern vmstr *str_dup(vmctx *ctx, vmstr *vs);
 INLINE extern vmstr *str_from_i64(vmctx *ctx, int64_t i);
 INLINE extern vmstr *str_from_dbl(vmctx *ctx, double *d);

@@ -38,10 +38,11 @@ if not exist onig%TGT% mkdir onig%TGT%
 cd onig%TGT%
 
 if "%CC%"=="cl" (
-    cmake -DMSVC_STATIC_RUNTIME=ON -DBUILD_SHARED_LIBS=OFF -DBUILD_TEST=OFF ..\%ORGDIR% -G %GEN%
+    cmake -DCMAKE_INSTALL_PREFIX=../../src/template/inc/lib/onig -DMSVC_STATIC_RUNTIME=ON -DBUILD_SHARED_LIBS=OFF -DBUILD_TEST=OFF ..\%ORGDIR% -G %GEN%
     msbuild /p:Configuration=Release oniguruma.sln
+    msbuild /p:Configuration=Release INSTALL.vcxproj
 ) else (
-    cmake -DBUILD_SHARED_LIBS=OFF -DBUILD_TEST=OFF ..\%ORGDIR% -G %GEN%
+    cmake -DCMAKE_INSTALL_PREFIX=../../src/template/inc/lib/onig -DBUILD_SHARED_LIBS=OFF -DBUILD_TEST=OFF ..\%ORGDIR% -G %GEN%
     mingw32-make -f Makefile
 )
 

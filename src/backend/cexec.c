@@ -99,7 +99,26 @@ void load_additional_methods(MIR_context_t ctx)
     MIR_load_external(ctx, "SystemTimer_restart_impl", (void *)SystemTimer_restart_impl);
     MIR_load_external(ctx, "SystemTimer_elapsed_impl", (void *)SystemTimer_elapsed_impl);
     MIR_load_external(ctx, "Math_random_impl", (void *)Math_random_impl);
+    MIR_load_external(ctx, "Math_initialize", (void *)Math_initialize);
+    MIR_load_external(ctx, "Math_finalize", (void *)Math_finalize);
+    MIR_load_external(ctx, "Regex_initialize", (void *)Regex_initialize);
+    MIR_load_external(ctx, "Regex_finalize", (void *)Regex_finalize);
 
+    /* Regex */
+    MIR_load_external(ctx, "onig_initialize", (void *)onig_initialize);
+    MIR_load_external(ctx, "onig_new", (void *)onig_new);
+    MIR_load_external(ctx, "onig_free", (void *)onig_free);
+    MIR_load_external(ctx, "onig_region_new", (void *)onig_region_new);
+    MIR_load_external(ctx, "onig_region_free", (void *)onig_region_free);
+    MIR_load_external(ctx, "onig_region_clear", (void *)onig_region_clear);
+    MIR_load_external(ctx, "onig_search", (void *)onig_search);
+
+    MIR_load_external(ctx, "Regex_onig_new", (void *)Regex_onig_new);
+    MIR_load_external(ctx, "Regex_get_region_numregs", (void *)Regex_get_region_numregs);
+    MIR_load_external(ctx, "Regex_get_region_beg", (void *)Regex_get_region_beg);
+    MIR_load_external(ctx, "Regex_get_region_end", (void *)Regex_get_region_end);
+
+    /* File/Zip */
     MIR_load_external(ctx, "mz_os_rename", (void *)mz_os_rename);
     MIR_load_external(ctx, "mz_os_unlink", (void *)mz_os_unlink);
     MIR_load_external(ctx, "mz_os_file_exists", (void *)mz_os_file_exists);
@@ -195,13 +214,11 @@ int run(int *ret, const char *fname, const char *src, int ac, char **av, char **
         }
         SHOW_TIMER("Load modules");
 
-        Math_initialize();
         MIR_gen_init(ctx, 1);
         MIR_link(ctx, lazy ? MIR_set_lazy_gen_interface : MIR_set_gen_interface, import_resolver);
         main_t fun_addr = (main_t)(main_func->addr);
         int rc = fun_addr(ac, av, ev);
         MIR_gen_finish(ctx);
-        Math_finalize();
         if (ret) *ret = rc;
         r = 0;  /* successful */
         SHOW_TIMER("Run the program");

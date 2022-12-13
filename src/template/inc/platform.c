@@ -216,6 +216,38 @@ double SystemTimer_elapsed_impl(void *p)
 #ifndef __MIRC__
 #include "../lib.h"
 
+void Regex_initialize(void)
+{
+    OnigEncoding use_encs[] = { ONIG_ENCODING_UTF8 };
+    onig_initialize(use_encs, sizeof(use_encs)/sizeof(use_encs[0]));
+}
+
+void Regex_finalize(void)
+{
+    onig_end();
+}
+
+int Regex_onig_new(void *reg, const char *pattern)
+{
+    return onig_new(reg, pattern, pattern + strlen((char*)pattern),
+        ONIG_OPTION_DEFAULT, ONIG_ENCODING_UTF8, ONIG_SYNTAX_DEFAULT, NULL);
+}
+
+int Regex_get_region_numregs(OnigRegion *region)
+{
+    return region->num_regs;
+}
+
+int Regex_get_region_beg(OnigRegion *region, int i)
+{
+    return region->beg[i];
+}
+
+int Regex_get_region_end(OnigRegion *region, int i)
+{
+    return region->end[i];
+}
+
 const char *mz_zip_fileinfo_filename(mz_zip_file *file_info)
 {
     return file_info->filename;
