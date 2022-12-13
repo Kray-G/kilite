@@ -288,9 +288,9 @@ int Regex_replaceOf(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     DEF_ARG(rx, 0, VAR_OBJ);
     Regexp(rx, rpack, rp);
-    DEF_ARG(sv1, 0, VAR_STR);
+    DEF_ARG(sv1, 1, VAR_STR);
     const char *str = sv1->s->s;
-    DEF_ARG(sv2, 0, VAR_STR);
+    DEF_ARG(sv2, 2, VAR_STR);
     const char *newstr = sv2->s->s;
 
     if (!str || !newstr) {
@@ -322,7 +322,7 @@ int Regex_replaceOf(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
         }
     }
 
-    SET_VMSTR(r, sv);
+    SET_SV(r, sv);
     return 0;
 }
 

@@ -50,6 +50,42 @@ function Integer_downto(val:integer, min:integer, callback:func) {
     return ary;
 }
 
+/* String functions */
+
+function String_replace(str: string, cond, newstr) {
+    if (cond.isString) {
+        if (!newstr.isString) {
+            throw RuntimeException('Replacing must be done by string');
+        }
+        return String.replaceByString(str, cond, newstr);
+    } else if (cond.isRegex) {
+        if (newstr.isString) {
+            return cond.replaceOf(str, newstr);
+        } else if (newstr.isFunction) {
+            var start = 0, end = 0;
+            var rstr = "";
+            cond.reset(str);
+            while (cond.find()) {
+                var matched = cond.group[0];
+                var mb = matched.begin;
+                end = matched.end;
+                rstr += String.subString(str, start, mb - start);
+                rstr += newstr(cond.group);
+                start = end;
+            }
+            if (start > 0) {
+                rstr += String.subString(str, start);
+            } else {
+                rstr = str;
+            }
+            return rstr;
+        }
+        throw RuntimeException('Invalid replace condition');
+    } else {
+        throw RuntimeException('Invalid replace condition');
+    }
+};
+
 /* Array functions */
 
 function Array_each(a:object, f:func) {

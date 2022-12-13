@@ -50,6 +50,8 @@ extern void *memset(void *, int, size_t);
 extern void *memcpy(void *, const void *, size_t);
 extern void free(void *);
 extern char *strcpy(char *, const char *);
+extern char *strncpy(char *, const char *, size_t);
+extern char *strstr(const char *, const char *);
 extern int strcmp(const char *, const char *);
 #ifndef NULL
 #define NULL ((void*)0)
@@ -760,7 +762,7 @@ typedef struct vmctx {
 #define SET_DBL(dst, v) { (dst)->t = VAR_DBL;   (dst)->d  = (v);                    }
 #define SET_BIG(dst, v) { (dst)->t = VAR_BIG;   (dst)->bi = alcbgi_bigz(ctx, BzFromString((v), 10, BZ_UNTIL_END)); }
 #define SET_STR(dst, v) { (dst)->t = VAR_STR;   (dst)->s  = alcstr_str(ctx, (v));   }
-#define SET_VMSTR(dst, v) { (dst)->t = VAR_STR; (dst)->s  = (v);                    }
+#define SET_SV(dst, v)  { (dst)->t = VAR_STR;   (dst)->s  = (v);                    }
 #define SET_BIN(dst, v) { (dst)->t = VAR_BIN;   (dst)->bn = (v);                    }
 #define SET_FNC(dst, v) { (dst)->t = VAR_FNC;   (dst)->f  = (v);                    }
 #define SET_OBJ(dst, v) { (dst)->t = VAR_OBJ;   (dst)->o  = (v);                    }
@@ -3317,6 +3319,7 @@ INLINE extern vmfrm *alcfrm(vmctx *ctx, vmfrm *lex, int args);
 INLINE extern void pbakfrm(vmctx *ctx, vmfrm *p);
 INLINE extern vmstr *alcstr_allocated_str(vmctx *ctx, char *s, int alloclen);
 INLINE extern vmstr *alcstr_str(vmctx *ctx, const char *s);
+INLINE extern vmstr *alcstr_str_len(vmctx *ctx, const char *s, int len);
 INLINE extern void pbakstr(vmctx *ctx, vmstr *p);
 INLINE extern vmbin *alcbin_allocated_bin(vmctx *ctx, uint8_t *s, int alloclen);
 INLINE extern vmbin *alcbin_bin(vmctx *ctx, const uint8_t *s, int len);

@@ -34,9 +34,9 @@ static inline vmstr *str_append_impl(vmctx *ctx, vmstr *vs, const char *s, int l
         char *ns = (char *)calloc(cap, sizeof(char));
         strcpy(ns, vs->s);
         strncpy(ns + vs->len, s, l);
+        ns[len] = 0;
         free(vs->s);
         vs->hd = vs->s = ns;
-        vs->s[len] = 0;
         vs->len = len;
         vs->cap = cap;
     }

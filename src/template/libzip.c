@@ -587,7 +587,7 @@ static int32_t Zip_extract_impl(vmctx *ctx, vmvar *r, const char *zipname, const
         SET_BIN(r, bin);
     } else {
         vmstr *str = alcstr_allocated_str(ctx, buf, buf_size + 1);
-        SET_VMSTR(r, str);
+        SET_SV(r, str);
     }
 
     mz_zip_reader_delete(&reader);

@@ -174,10 +174,9 @@ vmstr *alcstr_allocated_str(vmctx *ctx, char *s, int alloclen)
     return v;
 }
 
-vmstr *alcstr_str(vmctx *ctx, const char *s)
+vmstr *alcstr_str_len(vmctx *ctx, const char *s, int len)
 {
     vmstr *v = alcstr_pure(ctx);
-    int len = s ? strlen(s) : -1;
     if (v->cap > 0) {
         if (0 <= len && len < v->cap) {
             strcpy(v->s, s);
@@ -188,17 +187,24 @@ vmstr *alcstr_str(vmctx *ctx, const char *s)
         free(v->s);
     }
 
-    if (len < 0) {
+    if (len <= 0) {
         v->s = v->hd = (char *)calloc(STR_UNIT, sizeof(char));
         v->cap = STR_UNIT;
         v->len = 0;
         return v;
     }
-    v->cap = (len < STR_UNIT) ? STR_UNIT : ((len / STR_UNIT) * (STR_UNIT << 1)); 
+    int xlen = len + 1;
+    v->cap = (xlen < STR_UNIT) ? STR_UNIT : ((xlen / STR_UNIT) * (STR_UNIT << 1)); 
     v->s = v->hd = (char *)calloc(v->cap, sizeof(char));
-    strcpy(v->s, s);
+    strncpy(v->s, s, len);
+    v->s[len] = 0;
     v->len = len;
     return v;
+}
+
+vmstr *alcstr_str(vmctx *ctx, const char *s)
+{
+    return alcstr_str_len(ctx, s, s ? strlen(s) : -1);
 }
 
 void pbakstr(vmctx *ctx, vmstr *p)

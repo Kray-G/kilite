@@ -157,7 +157,7 @@ exit /b 0
 
 :gcc
 @echo Generating a static library file for gcc...
-gcc -O3 -o libkilite.o -DUSE_INT64 -DONIG_EXTERN=extern -Ilib -I../src/template -I../src/template/inc -c %1%
+gcc -O3 -o libkilite.o -DUSE_INT64 -DONIG_EXTERN=extern -Wno-stringop-overflow -Ilib -I../src/template -I../src/template/inc -c %1%
 ar rcs libkilite.a libkilite.o
 copy /y libkilite.a ..\libkilite.a > NUL
 exit /b 0
