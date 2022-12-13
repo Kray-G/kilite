@@ -39,7 +39,7 @@ static const char *tkname[] = {
     "TK_ARROW", "TK_DARROW", "TK_TYPEID", "TK_NAME",
 
     "TK_LABEL", "TK_BLOCK", "TK_CONNECT", "TK_VAR", "TK_MINUS", "TK_CONV", "TK_EXPR", "TK_CALL", "TK_IDX",
-    "TK_TYPENODE", "TK_MKSUPER", "TK_BINEND", "TK_RANGE2", "TK_RANGE3", "TK_COMMENT1", "TK_COMMENTX",
+    "TK_TYPENODE", "TK_MKSUPER", "TK_BINEND", "TK_RANGE2", "TK_RANGE3", "TK_MLIT", "TK_COMMENT1", "TK_COMMENTX",
 
     "TK_ARYSIZE",
 };
@@ -260,6 +260,18 @@ static inline void lexer_getch(kl_lexer *l)
 
 void lexer_raw(kl_lexer *l, char *p, int max, int lastch)
 {
+    if (lastch == 'm') {
+        switch (l->ch) {
+        case '(': lastch = ')'; break;
+        case '<': lastch = '>'; break;
+        case '[': lastch = ']'; break;
+        case '{': lastch = '}'; break;
+        default:
+            lastch = l->ch;
+            break;
+        }
+        lexer_getch(l);
+    }
     max--;
     int i = 0;
     while (l->ch != lastch && l->ch != EOF) {
@@ -267,8 +279,10 @@ void lexer_raw(kl_lexer *l, char *p, int max, int lastch)
             break;
         }
         if (l->ch == '\\') {
-            *p++ = '\\';
             lexer_getch(l);
+            if (l->ch != lastch) {
+                *p++ = '\\';
+            }
             if (++i >= max) {
                 break;
             }
@@ -904,7 +918,7 @@ static tk_token lexer_fetch_token(kl_lexer *l)
     case '/':
         LEXER_CHECK_12_13_14_TOK('=', '*', '/', TK_DIV, TK_DIVEQ, TK_COMMENTX, TK_COMMENT1)
     case '%':
-        LEXER_CHECK_12_TOK('=', TK_MOD, TK_MODEQ)
+        LEXER_CHECK_12_13_TOK('=', 'm', TK_MOD, TK_MODEQ, TK_MLIT)
     case '&':
         LEXER_CHECK_12_13_123_TOK('&', '=', TK_AND, TK_LAND, TK_ANDEQ, TK_LANDEQ)
     case '|':

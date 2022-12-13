@@ -892,16 +892,21 @@ static kl_expr *parse_lvalue_factor(kl_context *ctx, kl_lexer *l)
 
 static kl_expr *parse_regex_literal(kl_context *ctx, kl_lexer *l)
 {
-    if (l->tok != TK_DIV && l->tok != TK_DIVEQ) {
+    if (l->tok != TK_DIV && l->tok != TK_DIVEQ && l->tok != TK_MLIT) {
         return NULL;
     }
 
     char buf[2048] = {0};
     char *p = buf;
-    if (l->tok == TK_DIVEQ) {
+    if (l->tok == TK_MLIT) {
+        lexer_raw(l, p, 2040, 'm');
+    } else if (l->tok == TK_DIVEQ) {
         *p++ = '=';
+        lexer_raw(l, p, 2040, '/');
+    } else {
+        lexer_raw(l, p, 2040, '/');
     }
-    lexer_raw(l, p, 2040, '/');
+
     kl_expr *e = make_regex_expr(ctx, l, buf);
     lexer_get_regex_flags(l);
     e->strx = parse_const_str(ctx, l, l->str);
