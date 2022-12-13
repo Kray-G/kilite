@@ -282,6 +282,12 @@ void disp_inst(kl_kir_program *p, kl_kir_inst *i)
     case KIR_LGE:
         disp_3op("lge", i);
         break;
+    case KIR_REGEQ:
+        disp_3op("regeq", i);
+        break;
+    case KIR_REGNE:
+        disp_3op("regne", i);
+        break;
 
     case KIR_INC:
         disp_2op("inc", i);

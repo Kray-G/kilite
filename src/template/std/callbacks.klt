@@ -52,6 +52,16 @@ function Integer_downto(val:integer, min:integer, callback:func) {
 
 /* String functions */
 
+function String_split(str: string, cond) {
+    if (cond.isString) {
+        return String.splitByString(str, cond);
+    } else if (cond.isRegex) {
+        return cond.splitOf(str);
+    } else {
+        throw RuntimeException('Invalid split condition');
+    }
+};
+
 function String_replace(str: string, cond, newstr) {
     if (cond.isString) {
         if (newstr.isString) {

@@ -834,6 +834,24 @@ static void translate_chkcnd(func_context *fctx, xstr *code, const char *op, con
     translate_op3(fctx, code, op, sop, i);
 }
 
+static void translate_regexp(func_context *fctx, xstr *code, kl_kir_inst *i, const char *method, int str)
+{
+    char buf1[256] = {0};
+    if (str) {
+        xstra_inst(code, "push_var_s(ctx, \"%s\", ", escape(&(fctx->str), i->r3.str));
+        xstraf(code, "L%d, \"%s\", \"%s\", %d);\n", i->catchid, i->funcname, escape(&(fctx->str), i->filename), i->line);
+        xstra_inst(code, "push_var_s(ctx, \"%s\", ", escape(&(fctx->str), i->r2.str));
+        xstraf(code, "L%d, \"%s\", \"%s\", %d);\n", i->catchid, i->funcname, escape(&(fctx->str), i->filename), i->line);
+    } else {
+        xstra_inst(code, "push_var(ctx, %s, ", var_value(buf1, &(i->r3)));
+        xstraf(code, "L%d, \"%s\", \"%s\", %d);\n", i->catchid, i->funcname, escape(&(fctx->str), i->filename), i->line);
+        xstra_inst(code, "push_var(ctx, %s, ", var_value(buf1, &(i->r2)));
+        xstraf(code, "L%d, \"%s\", \"%s\", %d);\n", i->catchid, i->funcname, escape(&(fctx->str), i->filename), i->line);
+    }
+    xstra_inst(code, "CALL(ctx->%s, ctx->%s->lex, %s, 2);\n", method, method, var_value(buf1, &(i->r1)));
+    xstra_inst(code, "reduce_vstackp(ctx, 2);\n");
+}
+
 static void translate_call(func_context *fctx, xstr *code, kl_kir_func *f, kl_kir_inst *i)
 {
     char buf1[256] = {0};
@@ -1596,6 +1614,12 @@ static void translate_inst(xstr *code, kl_kir_func *f, kl_kir_inst *i, func_cont
     case KIR_LGE:
         translate_chkcnd(fctx, code, "LGE", NULL, i);
         break;
+    case KIR_REGEQ:
+        translate_regexp(fctx, code, i, "regeq", 0);
+        break;
+    case KIR_REGNE:
+        translate_regexp(fctx, code, i, "regne", 0);
+        break;
 
     case KIR_INC:
         translate_incdec(fctx, code, "INC", NULL, i);
@@ -1625,12 +1649,7 @@ static void translate_inst(xstr *code, kl_kir_func *f, kl_kir_inst *i, func_cont
         xstra_inst(code, "SET_OBJ(%s, alcobj(ctx));\n", var_value(buf1, &(i->r1)));
         break;
     case KIR_NEWREGEX:
-        xstra_inst(code, "push_var_s(ctx, \"%s\", ", escape(&(fctx->str), i->r3.str));
-        xstraf(code, "L%d, \"%s\", \"%s\", %d);\n", i->catchid, i->funcname, escape(&(fctx->str), i->filename), i->line);
-        xstra_inst(code, "push_var_s(ctx, \"%s\", ", escape(&(fctx->str), i->r2.str));
-        xstraf(code, "L%d, \"%s\", \"%s\", %d);\n", i->catchid, i->funcname, escape(&(fctx->str), i->filename), i->line);
-        xstra_inst(code, "CALL(ctx->regex, ctx->regex->lex, %s, 2);\n", var_value(buf1, &(i->r1)));
-        xstra_inst(code, "reduce_vstackp(ctx, 2);\n");
+        translate_regexp(fctx, code, i, "regex", 1);
         break;
     case KIR_SETBIN:
         translate_setbin(fctx, code, i);

@@ -55,7 +55,7 @@ void Regex_free(void *p)
     free(r);
 }
 
-#define Regexp(ro, rpack, rp) regex_pack_t *rp = NULL; vmvar *rpack = NULL; { \
+#define Regexp(ro, rpack, rp) regex_pack_t *rp = NULL; vmvar *rpack = NULL; if (ro) { \
     if (0 < ro->o->idxsz && ro->o->ary[0]) { \
         rpack = ro->o->ary[0]; \
         if (rpack->t == VAR_VOIDP) { \
@@ -65,19 +65,23 @@ void Regex_free(void *p)
 } \
 /**/
 
+#define ResetRegex(rx, rp, sv) { \
+    const char *str = sv->s->s; \
+    KL_SET_PROPERTY_S(rx->o, source, str); \
+    free(rp->source); \
+    rp->source = calloc(strlen(str) + 2, sizeof(char)); \
+    strcpy(rp->source, str); \
+    KL_SET_PROPERTY_I(rx->o, lastIndex, 0); \
+} \
+/**/
+
 int Regex_reset(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     DEF_ARG(rx, 0, VAR_OBJ);
     Regexp(rx, rpack, rp);
     if (rp) {
         DEF_ARG(sv, 1, VAR_STR);
-        const char *str = sv->s->s;
-        KL_SET_PROPERTY_S(rx->o, source, str);
-
-        free(rp->source);
-        rp->source = calloc(strlen(str) + 2, sizeof(char));
-        strcpy(rp->source, str);
-        KL_SET_PROPERTY_I(rx->o, lastIndex, 0);
+        ResetRegex(rx, rp, sv);
     }
 
     return 0;
@@ -140,10 +144,10 @@ int Regex_find_impl(vmctx *ctx, vmvar *r, vmobj *o, regex_pack_t *rp, int rettyp
     int sticky = rp->flags & REGEX_FLAGS_STICKY;
     onig_region_clear(rp->region);
     const unsigned char *end = str + len;
-    int rx = sticky
+    int reg = sticky
         ? onig_match(rp->reg, str, end, str + index, rp->region, ONIG_OPTION_NONE)
         : onig_search(rp->reg, str, end, str + index, end, rp->region, ONIG_OPTION_NONE);
-    if (rx == ONIG_MISMATCH) {
+    if (reg == ONIG_MISMATCH) {
         SET_I64(r, rettype == RETTYPE_OBJ ? 0 : (ret == 1 ? 0 : 1));
         return 0;
     }
@@ -151,7 +155,7 @@ int Regex_find_impl(vmctx *ctx, vmvar *r, vmobj *o, regex_pack_t *rp, int rettyp
     KL_SET_PROPERTY_I(o, lastIndex, searched);
 
     vmobj *group = make_group_object(ctx, str, rp);
-    if (ret == RETTYPE_OBJ) {
+    if (rettype == RETTYPE_OBJ) {
         SET_OBJ(r, group);
     } else {
         KL_SET_PROPERTY_O(o, group, group);
@@ -167,18 +171,37 @@ int Regex_find(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     return Regex_find_impl(ctx, r, rx->o, rp, RETTYPE_FOUND, 1);
 }
 
+int Regex_find_eq_ne_hook(vmctx *ctx, vmfrm *lex, vmvar *r, int ac, int rettype, int ret)
+{
+    vmvar *rx = NULL, *sv = NULL;
+    DEF_ARG2(a0, 0, VAR_STR, VAR_OBJ);
+    DEF_ARG2(a1, 1, VAR_STR, VAR_OBJ);
+    if (a0->t == VAR_OBJ && a1->t == VAR_STR) {
+        rx = a0;
+        sv = a1;
+    } else if (a0->t == VAR_STR && a1->t == VAR_OBJ) {
+        rx = a1;
+        sv = a0;
+    }
+    Regexp(rx, rpack, rp);
+    if (!rp) {
+        return throw_system_exception(__LINE__, ctx, EXCEPT_TYPE_MISMATCH, "No Regex object");
+    }
+
+    if (!rp->source || strcmp(rp->source, sv->s->s) != 0) {
+        ResetRegex(rx, rp, sv);
+    }
+    return Regex_find_impl(ctx, r, rx->o, rp, rettype, ret);
+}
+
 int Regex_find_eq(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
-    DEF_ARG(rx, 0, VAR_OBJ);
-    Regexp(rx, rpack, rp);
-    return Regex_find_impl(ctx, r, rx->o, rp, RETTYPE_OBJ, 0);
+    return Regex_find_eq_ne_hook(ctx, lex, r, ac, RETTYPE_OBJ, 0);
 }
 
 int Regex_find_ne(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
-    DEF_ARG(rx, 0, VAR_OBJ);
-    Regexp(rx, rpack, rp);
-    return Regex_find_impl(ctx, r, rx->o, rp, RETTYPE_FOUND, 0);
+    return Regex_find_eq_ne_hook(ctx, lex, r, ac, RETTYPE_FOUND, 0);
 }
 
 int Regex_matches(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
@@ -215,7 +238,7 @@ int Regex_splitOf(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     DEF_ARG(rx, 0, VAR_OBJ);
     Regexp(rx, rpack, rp);
-    DEF_ARG(sv1, 0, VAR_STR);
+    DEF_ARG(sv1, 1, VAR_STR);
     const char *str = sv1->s->s;
     if (!str) {
         return throw_system_exception(__LINE__, ctx, EXCEPT_REGEX_ERROR, "No string to split");
@@ -398,6 +421,10 @@ int Regex(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     vmobj *o = alcobj(ctx);
     ctx->regex = alcfnc(ctx, Regex_create, lex, "create", 2);
     KL_SET_METHOD_F(o, create, ctx->regex);
+    ctx->regeq = alcfnc(ctx, Regex_find_eq, lex, "=~", 2);
+    KL_SET_METHOD_F(o, =~, ctx->regeq);
+    ctx->regne = alcfnc(ctx, Regex_find_ne, lex, "!~", 2);
+    KL_SET_METHOD_F(o, !~, ctx->regne);
     SET_OBJ(r, o);
     return 0;
 }

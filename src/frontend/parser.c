@@ -1162,14 +1162,28 @@ static kl_expr *parse_expr_prefix(kl_context *ctx, kl_lexer *l)
     return parse_expr_postfix(ctx, l, 0);
 }
 
-static kl_expr *parse_expr_term(kl_context *ctx, kl_lexer *l)
+static kl_expr *parse_expr_regmatch(kl_context *ctx, kl_lexer *l)
 {
     DEBUG_PARSER_PHASE();
     kl_expr *lhs = parse_expr_prefix(ctx, l);
     tk_token tok = l->tok;
+    while (tok == TK_REGEQ || tok == TK_REGNE) {
+        lexer_fetch(l);
+        kl_expr *rhs = parse_expr_prefix(ctx, l);
+        lhs = make_bin_expr(ctx, l, tok, lhs, rhs);
+        tok = l->tok;
+    }
+    return lhs;
+}
+
+static kl_expr *parse_expr_term(kl_context *ctx, kl_lexer *l)
+{
+    DEBUG_PARSER_PHASE();
+    kl_expr *lhs = parse_expr_regmatch(ctx, l);
+    tk_token tok = l->tok;
     while (tok == TK_MUL || tok == TK_DIV || tok == TK_MOD || tok == TK_POW) {
         lexer_fetch(l);
-        kl_expr *rhs = (tok == TK_POW) ? parse_expr_term(ctx, l) : parse_expr_prefix(ctx, l);
+        kl_expr *rhs = (tok == TK_POW) ? parse_expr_term(ctx, l) : parse_expr_regmatch(ctx, l);
         lhs = make_bin_expr(ctx, l, tok, lhs, rhs);
         tok = l->tok;
     }

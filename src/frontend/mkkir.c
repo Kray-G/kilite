@@ -1435,6 +1435,33 @@ static kl_kir_inst *gen_nullc_assign(kl_context *ctx, kl_symbol *sym, kl_expr *e
     return head;
 }
 
+static kl_kir_inst *gen_regmatch(kl_context *ctx, kl_symbol *sym, kl_kir_opr *r1, kl_expr *e, tk_token op)
+{
+    kl_kir_inst *lhead = NULL;
+    kl_kir_opr r2 = {0};
+    KL_KIR_CHECK_LITERAL(e->lhs, r2, lhead);
+
+    kl_kir_inst *rhead = NULL;
+    kl_kir_opr r3 = {0};
+    KL_KIR_CHECK_LITERAL(e->rhs, r3, rhead);
+
+    kl_kir_inst *inst = new_inst_op3(ctx->program, e->line, e->pos, op == TK_REGEQ ? KIR_REGEQ : KIR_REGNE, r1, &r2, &r3);
+    set_file_func(ctx, sym, inst);
+
+    if (rhead) {
+        kl_kir_inst *rlast = get_last(rhead);
+        rlast->next = inst;
+        inst = rhead;
+    }
+    if (lhead) {
+        kl_kir_inst *llast = get_last(lhead);
+        llast->next = inst;
+        inst = lhead;
+    }
+
+    return inst;
+}
+
 static kl_kir_inst *gen_ternary_expr(kl_context *ctx, kl_symbol *sym, kl_kir_opr *r1, kl_expr *e, int l1)
 {
     kl_kir_inst *head = NULL;
@@ -2336,6 +2363,7 @@ static kl_kir_inst *gen_expr(kl_context *ctx, kl_symbol *sym, kl_kir_opr *r1, kl
         break;
     case TK_REGEQ:
     case TK_REGNE:
+        head = gen_regmatch(ctx, sym, r1, e, e->nodetype);
         break;
     case TK_EQEQ:
         head = gen_op3_inst(ctx, sym, KIR_EQEQ, r1, e);

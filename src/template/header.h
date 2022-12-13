@@ -8,6 +8,7 @@
 
 extern BigZ i64maxp1;
 extern BigZ i64minm1;
+extern const char g_utf8bytes[];
 
 // printf("%s:%d -> %s\n", __FILE__, __LINE__, __func__);
 
@@ -275,7 +276,10 @@ typedef struct vmctx {
     vmobj *s;               /* Special object for string. */
     vmobj *b;               /* Special object for binary. */
     vmobj *o;               /* Special object for object/array. */
+
     vmfnc *regex;           /* The function to create a Regex object. */
+    vmfnc *regeq;           /* The function to compare Regex objects with `=~`. */
+    vmfnc *regne;           /* The function to compare Regex objects with `!~`. */
 
     vmfrm *frm;             /* Reference to the global frame. */
 
@@ -311,6 +315,7 @@ typedef struct vmctx {
 /***************************************************************************
  * Setup arguments
 */
+
 #define SETUP_PROGRAM_ARGS(nv) { \
     SET_OBJ(nv, ctx->args); \
     ctx->args = NULL; \

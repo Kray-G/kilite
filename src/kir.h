@@ -251,6 +251,8 @@ typedef enum kl_kir {
     KIR_GT,         //  <r1>, <r2>, <r3>        ;   <r1>  <-  <r2> > <r3>
     KIR_GE,         //  <r1>, <r2>, <r3>        ;   <r1>  <-  <r2> => <r3>
     KIR_LGE,        //  <r1>, <r2>, <r3>        ;   <r1>  <-  <r2> <=> <r3>
+    KIR_REGEQ,      //  <r1>, <r2>, <r3>        ;   <r1>  <-  <r2> =~ <r3>
+    KIR_REGNE,      //  <r1>, <r2>, <r3>        ;   <r1>  <-  <r2> !~ <r3>
 
     KIR_INC,        //  <r1>, <r2>              ;   <r1>  <-  inc <r2>
     KIR_INCP,       //  <r1>, <r2>              ;   <r1>  <-  <r2>,  inc <r2>

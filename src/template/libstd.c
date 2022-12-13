@@ -1172,6 +1172,59 @@ int String_subString(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     return 0;
 }
 
+int String_splitByString(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    DEF_ARG(sv0, 0, VAR_STR);
+    const char *str = sv0->s->s;
+    DEF_ARG(sv1, 1, VAR_STR);
+    const char *cond = sv1->s->s;
+
+    if (!str) {
+        return throw_system_exception(__LINE__, ctx, EXCEPT_RUNTIME_EXCEPTION, "No string value");
+    }
+    if (!cond) {
+        cond = "";
+    }
+
+    vmobj *res = alcobj(ctx);
+    if (cond[0] == 0) {
+        const char *p = str;
+        while (*p) {
+            int b = g_utf8bytes[*p & 0xff];
+            char buf[8] = {0};
+            for (int i = 0; *p && i < b; ++i) {
+                buf[i] = *p;
+                ++p;
+            }
+            array_push(ctx, res, alcvar_str(ctx, buf));
+        }
+    } else {
+        vmstr *sv = alcstr_str(ctx, "");
+        int width = strlen(cond);
+        const char *start = str;
+        const char *p = strstr(str, cond);
+        const char *end = start + strlen(str);
+        while (p) {
+            str_append(ctx, sv, start, p - start);
+            array_push(ctx, res, alcvar_sv(ctx, sv));
+            sv = alcstr_str(ctx, "");
+            start = p + width;
+            if (start < end) {
+                p = strstr(start, cond);
+            } else {
+                p = NULL;
+            }
+        }
+        if (start < end) {
+            str_append_cp(ctx, sv, start);
+        }
+        array_push(ctx, res, alcvar_sv(ctx, sv));
+    }
+
+    SET_OBJ(r, res);
+    return 0;
+}
+
 int String_replaceByString(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     DEF_ARG(sv0, 0, VAR_STR);
@@ -1221,6 +1274,7 @@ int String_replaceByString(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     return 0;
 }
 
+extern int String_split(vmctx *ctx, vmfrm *lex, vmvar *r, int ac);
 extern int String_replace(vmctx *ctx, vmfrm *lex, vmvar *r, int ac);
 
 int String(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
@@ -1228,7 +1282,9 @@ int String(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     vmobj *o = alcobj(ctx);
     ctx->s = o;
     KL_SET_METHOD(o, replace, String_replace, lex, 2)
+    KL_SET_METHOD(o, split, String_split, lex, 2)
     KL_SET_METHOD(o, replaceByString, String_replaceByString, lex, 2)
+    KL_SET_METHOD(o, splitByString, String_splitByString, lex, 2)
     KL_SET_METHOD(o, subString, String_subString, lex, 2)
     SET_OBJ(r, o);
     return 0;
