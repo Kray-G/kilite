@@ -10,10 +10,9 @@
 
 #define REGEX_FLAGS_GLOBAL      (0x01)
 #define REGEX_FLAGS_IGNORECASE  (0x02)
-#define REGEX_FLAGS_DOTALL      (0x04)
+#define REGEX_FLAGS_EXTEND      (0x04)
 #define REGEX_FLAGS_MULTILINE   (0x08)
-#define REGEX_FLAGS_EXTENDED    (0x10)
-#define REGEX_FLAGS_STICKY      (0x20)
+#define REGEX_FLAGS_STICKY      (0x10)
 
 #define is_regex_global(flags)  ((flags & REGEX_FLAGS_GLOBAL) == REGEX_FLAGS_GLOBAL)
 
@@ -24,11 +23,20 @@ typedef struct regex_pack_t {
     int32_t flags;
 } regex_pack_t;
 
+static OnigOptionType make_onig_option(int32_t flags)
+{
+    OnigOptionType options = ONIG_OPTION_NONE;
+    if (flags & REGEX_FLAGS_IGNORECASE) options |= ONIG_OPTION_IGNORECASE;
+    if (flags & REGEX_FLAGS_EXTEND)     options |= ONIG_OPTION_EXTEND;
+    if (flags & REGEX_FLAGS_MULTILINE)  options |= ONIG_OPTION_MULTILINE;
+    return options;
+}
+
 static void *Regex_compile(const char *pattern, int32_t flags)
 {
     regex_pack_t *r = (regex_pack_t *)calloc(1, sizeof(regex_pack_t));
     r->flags = flags;
-    int rx = Regex_onig_new(&r->reg, pattern);
+    int rx = Regex_onig_new(&r->reg, pattern, make_onig_option(flags));
     if (rx != ONIG_NORMAL) {
         return NULL;
     }
@@ -129,9 +137,12 @@ int Regex_find_impl(vmctx *ctx, vmvar *r, vmobj *o, regex_pack_t *rp, int rettyp
         return 0;
     }
 
+    int sticky = rp->flags & REGEX_FLAGS_STICKY;
     onig_region_clear(rp->region);
     const unsigned char *end = str + len;
-    int rx = onig_search(rp->reg, str, end, str + index, end, rp->region, ONIG_OPTION_NONE);
+    int rx = sticky
+        ? onig_match(rp->reg, str, end, str + index, rp->region, ONIG_OPTION_NONE)
+        : onig_search(rp->reg, str, end, str + index, end, rp->region, ONIG_OPTION_NONE);
     if (rx == ONIG_MISMATCH) {
         SET_I64(r, rettype == RETTYPE_OBJ ? 0 : (ret == 1 ? 0 : 1));
         return 0;
@@ -183,12 +194,12 @@ int Regex_matches(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 
     onig_region_clear(rp->region);
     const unsigned char *end = str + len;
-    int rr = onig_search(rp->reg, str, end, str, end, rp->region, ONIG_OPTION_NONE);
+    int rr = onig_match(rp->reg, str, end, str, rp->region, ONIG_OPTION_NONE);
     if (rr == ONIG_MISMATCH) {
         SET_I64(r, 0);
         return 0;
     }
-    if (0 != Regex_get_region_beg(rp->region, 0) || len != Regex_get_region_end(rp->region, 0)) {
+    if (len != rr) {
         SET_I64(r, 0);
         return 0;
     }
@@ -331,42 +342,32 @@ int Regex_replaceOf(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     return 0;
 }
 
-static int32_t make_pattern_string(vmctx *ctx, vmstr *sv, const char *pattern, const char *flags)
+static int32_t make_pattern_string(vmctx *ctx, const char *pattern, const char *flags)
 {
     int32_t fl = 0x00;
     const char *f = flags;
     while (*f) {
         if (*f == 'g') fl |= REGEX_FLAGS_GLOBAL;
         if (*f == 'i') fl |= REGEX_FLAGS_IGNORECASE;
-        if (*f == 's') fl |= REGEX_FLAGS_DOTALL;
         if (*f == 'm') fl |= REGEX_FLAGS_MULTILINE;
-        if (*f == 'x') fl |= REGEX_FLAGS_EXTENDED;
+        if (*f == 'x') fl |= REGEX_FLAGS_EXTEND;
         if (*f == 'y') fl |= REGEX_FLAGS_STICKY;
         ++f;
     }
-
-    if (fl > 0) {
-        str_append_cp(ctx, sv, "(?");
-        if (fl & REGEX_FLAGS_IGNORECASE) str_append_cp(ctx, sv, "i");
-        if (fl & REGEX_FLAGS_MULTILINE)  str_append_cp(ctx, sv, "m");
-        if (fl & REGEX_FLAGS_EXTENDED)   str_append_cp(ctx, sv, "x");
-        str_append_cp(ctx, sv, ")");
-    }
-
-    str_append_cp(ctx, sv, pattern);
     return fl;
 }
 
 int Regex_create(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
-    DEF_ARG(pattern, 0, VAR_STR);
+    DEF_ARG(patv, 0, VAR_STR);
+    const char *pattern = patv->s->s;
     DEF_ARG_OR_UNDEF(flagsv, 1, VAR_STR);
 
     vmobj *o = alcobj(ctx);
     o->is_sysobj = 1;
     vmvar *rpack = alcvar(ctx, VAR_VOIDP, 0);
-    vmstr *sv = alcstr_str(ctx, "");
-    int32_t flags = make_pattern_string(ctx, sv, pattern->s->s, flagsv->t == VAR_STR ? flagsv->s->s : "");
+    vmstr *sv = alcstr_str(ctx, pattern);
+    int32_t flags = make_pattern_string(ctx, pattern, flagsv->t == VAR_STR ? flagsv->s->s : "");
 
     rpack->p = Regex_compile(sv->s, flags);
     rpack->freep = Regex_free;
@@ -385,7 +386,8 @@ int Regex_create(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     KL_SET_PROPERTY_I(o, global, (flags & REGEX_FLAGS_GLOBAL) ? 1 : 0);
     KL_SET_PROPERTY_I(o, ignoreCase, (flags & REGEX_FLAGS_IGNORECASE) ? 1 : 0);
     KL_SET_PROPERTY_I(o, multiline, (flags & REGEX_FLAGS_MULTILINE) ? 1 : 0);
-    KL_SET_PROPERTY_I(o, multiline, (flags & REGEX_FLAGS_MULTILINE) ? 1 : 0);
+    KL_SET_PROPERTY_I(o, extend, (flags & REGEX_FLAGS_MULTILINE) ? 1 : 0);
+    KL_SET_PROPERTY_I(o, sticky, (flags & REGEX_FLAGS_STICKY) ? 1 : 0);
     KL_SET_PROPERTY_SV(o, pattern, sv);
     SET_OBJ(r, o);
     return 0;

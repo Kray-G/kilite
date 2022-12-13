@@ -81,6 +81,17 @@
 #define ONIG_NO_SUPPORT_CONFIG    -2
 #define ONIG_ABORT                -3
 
+#define ONIG_OPTION_NONE                 0U
+#define ONIG_OPTION_IGNORECASE           1U
+#define ONIG_OPTION_EXTEND               (ONIG_OPTION_IGNORECASE         << 1)
+#define ONIG_OPTION_MULTILINE            (ONIG_OPTION_EXTEND             << 1)
+#define ONIG_OPTION_SINGLELINE           (ONIG_OPTION_MULTILINE          << 1)
+#define ONIG_OPTION_FIND_LONGEST         (ONIG_OPTION_SINGLELINE         << 1)
+#define ONIG_OPTION_FIND_NOT_EMPTY       (ONIG_OPTION_FIND_LONGEST       << 1)
+#define ONIG_OPTION_NEGATE_SINGLELINE    (ONIG_OPTION_FIND_NOT_EMPTY     << 1)
+#define ONIG_OPTION_DONT_CAPTURE_GROUP   (ONIG_OPTION_NEGATE_SINGLELINE  << 1)
+#define ONIG_OPTION_CAPTURE_GROUP        (ONIG_OPTION_DONT_CAPTURE_GROUP << 1)
+
 typedef void regex_t;
 typedef void OnigRegion;
 typedef unsigned char OnigUChar;
@@ -91,6 +102,7 @@ OnigRegion* onig_region_new(void);
 void onig_region_free(OnigRegion* region, int free_self);
 void onig_region_clear(OnigRegion* region);
 int onig_search(regex_t *, const OnigUChar* str, const OnigUChar* end, const OnigUChar* start, const OnigUChar* range, OnigRegion* region, OnigOptionType option);
+int onig_match(regex_t *, const OnigUChar* str, const OnigUChar* end, const OnigUChar* at, OnigRegion* region, OnigOptionType option);
 
 /* minizip */
 
@@ -187,7 +199,7 @@ int32_t  mz_os_read_symlink(const char *path, char *target_path, int32_t max_tar
 
 #endif
 
-extern int Regex_onig_new(void *reg, const char *pattern);
+extern int Regex_onig_new(void *reg, const char *pattern, int option);
 extern int Regex_get_region_numregs(OnigRegion *region);
 extern int Regex_get_region_beg(OnigRegion *region, int i);
 extern int Regex_get_region_end(OnigRegion *region, int i);

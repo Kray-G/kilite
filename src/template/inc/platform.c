@@ -227,10 +227,9 @@ void Regex_finalize(void)
     onig_end();
 }
 
-int Regex_onig_new(void *reg, const char *pattern)
+int Regex_onig_new(void *reg, const char *pattern, int option)
 {
-    return onig_new(reg, pattern, pattern + strlen((char*)pattern),
-        ONIG_OPTION_DEFAULT, ONIG_ENCODING_UTF8, ONIG_SYNTAX_DEFAULT, NULL);
+    return onig_new(reg, pattern, pattern + strlen((char*)pattern), option, ONIG_ENCODING_UTF8, ONIG_SYNTAX_DEFAULT, NULL);
 }
 
 int Regex_get_region_numregs(OnigRegion *region)

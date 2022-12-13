@@ -112,6 +112,7 @@ void load_additional_methods(MIR_context_t ctx)
     MIR_load_external(ctx, "onig_region_free", (void *)onig_region_free);
     MIR_load_external(ctx, "onig_region_clear", (void *)onig_region_clear);
     MIR_load_external(ctx, "onig_search", (void *)onig_search);
+    MIR_load_external(ctx, "onig_match", (void *)onig_match);
 
     MIR_load_external(ctx, "Regex_onig_new", (void *)Regex_onig_new);
     MIR_load_external(ctx, "Regex_get_region_numregs", (void *)Regex_get_region_numregs);
