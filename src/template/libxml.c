@@ -380,9 +380,48 @@ static const char *parse_node(vmctx *ctx, vmfrm *lex, vmobj *nsmap, vmvar *r, co
     return p;
 }
 
+static vmvar *XmlDom_checkid(vmvar *node)
+{
+    vmvar *attr = hashmap_search(node->o, "attributes");
+    if (attr && attr->t == VAR_OBJ) {
+        return hashmap_search(attr->o, "id");
+    }
+    return NULL;
+}
+
+static vmvar *XmlDom_getElementById_Node(vmvar *node, const char *idvalue)
+{
+    vmvar *id = XmlDom_checkid(node);
+    if (id && id->t == VAR_STR && strcmp(id->s->s, idvalue) == 0) {
+        return node;
+    }
+    vmobj *c = node->o;
+    for (int i = 0, n = c->idxsz; i < n; i++) {
+        vmvar *v = XmlDom_getElementById_Node(c->ary[i], idvalue);
+        if (v) {
+            return v;
+        }
+    }
+    return NULL;
+}
+
+static int XmlDom_getElementById(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    DEF_ARG(a0, 0, VAR_OBJ);
+    DEF_ARG(a1, 1, VAR_STR);
+    vmvar *found = XmlDom_getElementById_Node(a0, a1->s->s);
+    if (found && found->t == VAR_OBJ) {
+        SET_OBJ(r, found->o);
+    } else {
+        SET_I64(r, 0);
+    }
+    return 0;
+}
+
 static void setup_xmlnode_props(vmctx *ctx, vmfrm *lex, vmvar *r, vmvar *parent, int index, int type)
 {
     vmobj *o = r->o;
+    o->is_sysobj = 1;
     KL_SET_PROPERTY_I(o, nodeType, type);
     KL_SET_PROPERTY_I(o, hasChildNodes, o->idxsz > 0 ? 1 : 0);
     vmobj *children = alcobj(ctx);
@@ -404,7 +443,7 @@ static void setup_xmlnode_props(vmctx *ctx, vmfrm *lex, vmvar *r, vmvar *parent,
         KL_SET_PROPERTY(o, previousSibling, prev);
         KL_SET_PROPERTY(prev->o, nextSibling, r);
     }
-    o->is_sysobj = 1;
+    KL_SET_METHOD(o, getElementById, XmlDom_getElementById, lex, 1);
 }
 
 static void setup_xmldoc_props(vmctx *ctx, vmfrm *lex, vmvar *r)
@@ -481,6 +520,9 @@ static int XmlDom_parseString(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     DEF_ARG(a0, 0, VAR_STR);
     vmstr *s = a0->s;
     const char *str = s->s;
+    while (is_whitespace(*str)) {
+        ++str;
+    }
     vmobj *nsmap = alcobj(ctx);
     r->t = VAR_OBJ;
     r->o = alcobj(ctx);
