@@ -66,7 +66,7 @@ void Regex_free(void *p)
 /**/
 
 #define ResetRegex(rx, rp, sv) { \
-    const char *str = sv->s->s; \
+    const char *str = sv->s->hd; \
     KL_SET_PROPERTY_S(rx->o, source, str); \
     free(rp->source); \
     rp->source = calloc(strlen(str) + 2, sizeof(char)); \
@@ -188,7 +188,7 @@ int Regex_find_eq_ne_hook(vmctx *ctx, vmfrm *lex, vmvar *r, int ac, int rettype,
         return throw_system_exception(__LINE__, ctx, EXCEPT_TYPE_MISMATCH, "No Regex object");
     }
 
-    if (!rp->source || strcmp(rp->source, sv->s->s) != 0) {
+    if (!rp->source || strcmp(rp->source, sv->s->hd) != 0) {
         ResetRegex(rx, rp, sv);
     }
     return Regex_find_impl(ctx, r, rx->o, rp, rettype, ret);
@@ -239,7 +239,7 @@ int Regex_splitOf(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     DEF_ARG(rx, 0, VAR_OBJ);
     Regexp(rx, rpack, rp);
     DEF_ARG(sv1, 1, VAR_STR);
-    const char *str = sv1->s->s;
+    const char *str = sv1->s->hd;
     if (!str) {
         return throw_system_exception(__LINE__, ctx, EXCEPT_REGEX_ERROR, "No string to split");
     }
@@ -328,9 +328,9 @@ int Regex_replaceOf(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     DEF_ARG(rx, 0, VAR_OBJ);
     Regexp(rx, rpack, rp);
     DEF_ARG(sv1, 1, VAR_STR);
-    const char *str = sv1->s->s;
+    const char *str = sv1->s->hd;
     DEF_ARG(sv2, 2, VAR_STR);
-    const char *newstr = sv2->s->s;
+    const char *newstr = sv2->s->hd;
 
     if (!str || !newstr) {
         return throw_system_exception(__LINE__, ctx, EXCEPT_REGEX_ERROR, "No string to replace");
@@ -383,14 +383,14 @@ static int32_t make_pattern_string(vmctx *ctx, const char *pattern, const char *
 int Regex_create(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     DEF_ARG(patv, 0, VAR_STR);
-    const char *pattern = patv->s->s;
+    const char *pattern = patv->s->hd;
     DEF_ARG_OR_UNDEF(flagsv, 1, VAR_STR);
 
     vmobj *o = alcobj(ctx);
     o->is_sysobj = 1;
     vmvar *rpack = alcvar(ctx, VAR_VOIDP, 0);
     vmstr *sv = alcstr_str(ctx, pattern);
-    int32_t flags = make_pattern_string(ctx, pattern, flagsv->t == VAR_STR ? flagsv->s->s : "");
+    int32_t flags = make_pattern_string(ctx, pattern, flagsv->t == VAR_STR ? flagsv->s->hd : "");
 
     rpack->p = Regex_compile(sv->s, flags);
     rpack->freep = Regex_free;

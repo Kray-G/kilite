@@ -712,7 +712,7 @@ typedef struct vmctx {
 /**/
 
 #define CHKMATCH_STR(v, i, label, func, file, line) { \
-    if ((v)->t != VAR_STR || strcmp((v)->s->s, (vs)) != 0) { \
+    if ((v)->t != VAR_STR || strcmp((v)->s->hd, (vs)) != 0) { \
         e = throw_system_exception(__LINE__, ctx, EXCEPT_NO_MATCHING_PATTERN, NULL); \
         exception_addtrace(ctx, ctx->except, func, file, line); \
         goto label; \
@@ -921,7 +921,7 @@ typedef struct vmctx {
         double d = (v)->d; \
         SET_APPLY_D(ctx, r, d, label, func, file, line); \
     } else if ((v)->t == VAR_STR) { \
-        const char *str = (v)->s->s; \
+        const char *str = (v)->s->hd; \
         SET_APPLY_S(ctx, r, str, label, func, file, line); \
     } else { \
         vmvar *dst = (r)->a; \
@@ -961,7 +961,7 @@ typedef struct vmctx {
         } else if ((v)->t == VAR_DBL) { \
             bin_append_ch(ctx, r->bn, (uint8_t)((v)->d)); \
         } else if ((v)->t == VAR_STR) { \
-            bin_append_ch(ctx, r->bn, (uint8_t)((v)->s->s[0])); \
+            bin_append_ch(ctx, r->bn, (uint8_t)((v)->s->hd[0])); \
         } else { \
             e = throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION, NULL); \
             exception_addtrace(ctx, ctx->except, func, file, line); \
@@ -1048,7 +1048,7 @@ typedef struct vmctx {
                     } else if (aryi->t == VAR_DBL) { \
                         bin_append_ch(ctx, (r)->bn, (uint8_t)(aryi->d)); \
                     } else if (aryi->t == VAR_STR) { \
-                        bin_append_ch(ctx, (r)->bn, (uint8_t)aryi->s->s[0]); \
+                        bin_append_ch(ctx, (r)->bn, (uint8_t)aryi->s->hd[0]); \
                     } else { \
                         e = throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION, NULL); \
                         exception_addtrace(ctx, ctx->except, func, file, line); \
@@ -1409,8 +1409,8 @@ typedef struct vmctx {
         if (ii < 0) { \
             do { ii += xlen; } while (ii < 0); \
         } \
-        if (0 <= ii && ii < xlen && (v)->s->s[ii]) { \
-            SET_I64(r, (v)->s->s[ii]); \
+        if (0 <= ii && ii < xlen && (v)->s->hd[ii]) { \
+            SET_I64(r, (v)->s->hd[ii]); \
         } else { \
             (r)->t = VAR_UNDEF; \
         } \
@@ -1457,7 +1457,7 @@ typedef struct vmctx {
         break; \
     } \
     case VAR_STR: { \
-        OP_HASH_APPLY_OBJ(ctx, r, v, (iv)->s->s) \
+        OP_HASH_APPLY_OBJ(ctx, r, v, (iv)->s->hd) \
         break; \
     } \
     default: \
@@ -1527,7 +1527,7 @@ typedef struct vmctx {
         break; \
     } \
     case VAR_STR: { \
-        OP_ARRAY_REFL_S(ctx, r, v, (iv)->s->s) \
+        OP_ARRAY_REFL_S(ctx, r, v, (iv)->s->hd) \
         break; \
     } \
     default: \
@@ -3430,6 +3430,7 @@ INLINE extern vmobj *array_push(vmctx *ctx, vmobj *obj, vmvar *vs);
 INLINE extern vmvar *array_pop(vmctx *ctx, vmobj *obj);
 INLINE extern vmobj *array_pop_array(vmctx *ctx, vmobj *obj, int n);
 INLINE extern vmobj *array_remove_obj(vmobj *obj, vmobj *rmv);
+INLINE extern int array_replace_obj(vmctx *ctx, vmobj *obj, vmobj *obj1, vmobj *obj2);
 INLINE extern int array_insert_before_obj(vmctx *ctx, vmobj *obj, vmobj *key, vmobj* ins);
 INLINE extern int array_insert_after_obj(vmctx *ctx, vmobj *obj, vmobj *key, vmobj* ins);
 INLINE extern vmobj *object_copy(vmctx *ctx, vmobj *src);

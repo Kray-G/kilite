@@ -226,7 +226,7 @@ static const char *parse_pi(vmctx *ctx, vmobj *nsmap, vmvar *doc, vmvar *r, cons
     if (s != p) {
         vmvar *target = make_str_obj(ctx, err, s, p - s);
         if (*err < 0) return p;
-        if (strcmp(target->s->s, "xml") == 0) {
+        if (strcmp(target->s->hd, "xml") == 0) {
             *xmldecl = 1;
         }
         hashmap_set(ctx, r->o, "target", target);
@@ -254,7 +254,7 @@ static const char *parse_pi(vmctx *ctx, vmobj *nsmap, vmvar *doc, vmvar *r, cons
         if (!encoding) encoding = alcvar_str(ctx, "UTF-8");
         hashmap_set(ctx, doc->o, "xmlEncoding", encoding);
         vmvar *standalone = hashmap_search(attrs, "standalone");
-        int sv = !standalone || (standalone->t == VAR_STR && strcmp(standalone->s->s, "yes") == 0);
+        int sv = !standalone || (standalone->t == VAR_STR && strcmp(standalone->s->hd, "yes") == 0);
         standalone = alcvar_int64(ctx, sv, 0);
         hashmap_set(ctx, doc->o, "xmlStandalone", standalone);
     }
@@ -276,7 +276,7 @@ static const char *get_namespace_uri(vmctx *ctx, vmobj *nsmap, const char *prefi
         ns = nsmap->ary[0];
     }
     if (ns && ns->t == VAR_STR) {
-        return ns->s->s;
+        return ns->s->hd;
     }
     return "";
 }
@@ -316,10 +316,12 @@ static const char *parse_node(vmctx *ctx, vmfrm *lex, vmobj *nsmap, vmvar *r, co
         vmvar *tname = make_str_obj(ctx, err, ns, nslen + taglen + 1);
         if (*err < 0) return p;
         hashmap_set(ctx, r->o, "tagName", tname);
+        hashmap_set(ctx, r->o, "qName", tname);
         hashmap_set(ctx, r->o, "nodeName", tname);
     } else {
         hashmap_set(ctx, r->o, "prefix", alcvar_str(ctx, ""));
         hashmap_set(ctx, r->o, "tagName", lname);
+        hashmap_set(ctx, r->o, "qName", lname);
         hashmap_set(ctx, r->o, "nodeName", lname);
     }
     skip_whitespace(p);
@@ -337,7 +339,7 @@ static const char *parse_node(vmctx *ctx, vmfrm *lex, vmobj *nsmap, vmvar *r, co
     hashmap_set(ctx, r->o, "attributes", alcvar_obj(ctx, attrs));
 
     if (nsname) {
-        const char *uri = get_namespace_uri(ctx, nsmap, nsname->s->s);
+        const char *uri = get_namespace_uri(ctx, nsmap, nsname->s->hd);
         hashmap_set(ctx, r->o, "namespaceURI", alcvar_str(ctx, uri));
     } else {
         const char *uri = get_namespace_uri(ctx, nsmap, NULL);
@@ -392,7 +394,7 @@ static vmvar *XmlDom_checkid(vmvar *node)
 static vmvar *XmlDom_getElementById_Node(vmvar *node, const char *idvalue)
 {
     vmvar *id = XmlDom_checkid(node);
-    if (id && id->t == VAR_STR && strcmp(id->s->s, idvalue) == 0) {
+    if (id && id->t == VAR_STR && strcmp(id->s->hd, idvalue) == 0) {
         return node;
     }
     vmobj *c = node->o;
@@ -409,7 +411,7 @@ static int XmlDom_getElementById(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     DEF_ARG(a0, 0, VAR_OBJ);
     DEF_ARG(a1, 1, VAR_STR);
-    vmvar *found = XmlDom_getElementById_Node(a0, a1->s->s);
+    vmvar *found = XmlDom_getElementById_Node(a0, a1->s->hd);
     if (found && found->t == VAR_OBJ) {
         SET_OBJ(r, found->o);
     } else {
@@ -421,7 +423,7 @@ static int XmlDom_getElementById(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 static void XmlDom_getElementsByTagName_Node(vmctx *ctx, vmobj *nodes, vmvar *node, const char *name)
 {
     vmvar *tagName = hashmap_search(node->o, "tagName");
-    if (tagName && tagName->t == VAR_STR && strcmp(tagName->s->s, name) == 0) {
+    if (tagName && tagName->t == VAR_STR && strcmp(tagName->s->hd, name) == 0) {
         array_push(ctx, nodes, node);
     }
     vmobj *c = node->o;
@@ -435,18 +437,14 @@ static int XmlDom_getElementsByTagName(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     DEF_ARG(a0, 0, VAR_OBJ);
     DEF_ARG(a1, 1, VAR_STR);
     vmobj *nodes = alcobj(ctx);
-    XmlDom_getElementsByTagName_Node(ctx, nodes, a0, a1->s->s);
+    XmlDom_getElementsByTagName_Node(ctx, nodes, a0, a1->s->hd);
     SET_OBJ(r, nodes);
     return 0;
 }
 
-static int XmlDom_remove(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+static int XmlDom_removeNode(vmctx *ctx, vmvar *parent, vmobj *node)
 {
-    DEF_ARG(a0, 0, VAR_OBJ);
-    vmobj *node = a0->o;
-
     /* remove from the parent */
-    vmvar *parent = hashmap_search(node, "parentNode");
     if (parent && parent->t == VAR_OBJ) {
         vmobj *po = parent->o;
         array_remove_obj(po, node);
@@ -482,6 +480,18 @@ static int XmlDom_remove(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     return 0;
 }
 
+static int XmlDom_remove(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    DEF_ARG(a0, 0, VAR_OBJ);
+    vmobj *node = a0->o;
+    vmvar *parent = hashmap_search(node, "parentNode");
+
+    XmlDom_removeNode(ctx, parent, node);
+
+    SET_I64(r, 0);
+    return 0;
+}
+
 static int XmlDom_insertBefore(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     DEF_ARG(parent, 0, VAR_OBJ);
@@ -490,25 +500,23 @@ static int XmlDom_insertBefore(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     vmobj *newnode = a1->o;
     vmobj *refnode = a2->o;
 
-    /* remove from the parent */
+    /* append to the parent */
     KL_SET_PROPERTY_O(newnode, parentNode, parent->o);
-    if (parent && parent->t == VAR_OBJ) {
-        vmobj *po = parent->o;
-        if (!array_insert_before_obj(ctx, po, refnode, newnode)) {
-            return throw_system_exception(__LINE__, ctx, EXCEPT_XML_ERROR, "Reference node not found");
+    vmobj *po = parent->o;
+    if (!array_insert_before_obj(ctx, po, refnode, newnode)) {
+        return throw_system_exception(__LINE__, ctx, EXCEPT_XML_ERROR, "Reference node not found");
+    }
+    vmvar *children = hashmap_search(po, "children");
+    if (children && children->t == VAR_OBJ) {
+        children->o->idxsz = 0; // clear nodes.
+        for (int i = 0, n = children->o->idxsz; i < n; i++) {
+            array_push(ctx, children->o, po->ary[i]);
         }
-        vmvar *children = hashmap_search(po, "children");
-        if (children && children->t == VAR_OBJ) {
-            children->o->idxsz = 0; // clear nodes.
-            for (int i = 0, n = children->o->idxsz; i < n; i++) {
-                array_push(ctx, children->o, po->ary[i]);
-            }
-        }
+    }
 
-        if (po->idxsz > 0) {            
-            KL_SET_PROPERTY(po, firstChild, po->ary[0]);
-            KL_SET_PROPERTY(po, lastNode, po->ary[po->idxsz - 1]);
-        }
+    if (po->idxsz > 0) {            
+        KL_SET_PROPERTY(po, firstChild, po->ary[0]);
+        KL_SET_PROPERTY(po, lastNode, po->ary[po->idxsz - 1]);
     }
 
     /* adjustment of siblings */
@@ -531,25 +539,23 @@ static int XmlDom_insertAfter(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     vmobj *newnode = a1->o;
     vmobj *refnode = a2->o;
 
-    /* remove from the parent */
+    /* append to the parent */
     KL_SET_PROPERTY_O(newnode, parentNode, parent->o);
-    if (parent && parent->t == VAR_OBJ) {
-        vmobj *po = parent->o;
-        if (!array_insert_after_obj(ctx, po, refnode, newnode)) {
-            return throw_system_exception(__LINE__, ctx, EXCEPT_XML_ERROR, "Reference node not found");
+    vmobj *po = parent->o;
+    if (!array_insert_after_obj(ctx, po, refnode, newnode)) {
+        return throw_system_exception(__LINE__, ctx, EXCEPT_XML_ERROR, "Reference node not found");
+    }
+    vmvar *children = hashmap_search(po, "children");
+    if (children && children->t == VAR_OBJ) {
+        children->o->idxsz = 0; // clear nodes.
+        for (int i = 0, n = children->o->idxsz; i < n; i++) {
+            array_push(ctx, children->o, po->ary[i]);
         }
-        vmvar *children = hashmap_search(po, "children");
-        if (children && children->t == VAR_OBJ) {
-            children->o->idxsz = 0; // clear nodes.
-            for (int i = 0, n = children->o->idxsz; i < n; i++) {
-                array_push(ctx, children->o, po->ary[i]);
-            }
-        }
+    }
 
-        if (po->idxsz > 0) {            
-            KL_SET_PROPERTY(po, firstChild, po->ary[0]);
-            KL_SET_PROPERTY(po, lastNode, po->ary[po->idxsz - 1]);
-        }
+    if (po->idxsz > 0) {            
+        KL_SET_PROPERTY(po, firstChild, po->ary[0]);
+        KL_SET_PROPERTY(po, lastNode, po->ary[po->idxsz - 1]);
     }
 
     /* adjustment of siblings */
@@ -561,6 +567,145 @@ static int XmlDom_insertAfter(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     KL_SET_PROPERTY_O(refnode, nextSibling, newnode);
     KL_SET_PROPERTY_O(newnode, previousSibling, refnode);
 
+    return 0;
+}
+
+static int XmlDom_appendChild(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    DEF_ARG(parent, 0, VAR_OBJ);
+    DEF_ARG(a1, 1, VAR_OBJ);
+    vmobj *newnode = a1->o;
+
+    /* remove from the parent */
+    KL_SET_PROPERTY_O(newnode, parentNode, parent->o);
+    vmobj *po = parent->o;
+    vmvar *last = po->ary[po->idxsz - 1];
+    vmvar *nobj = alcvar_obj(ctx, newnode);
+    array_push(ctx, po, nobj);
+    vmvar *children = hashmap_search(po, "children");
+    if (children && children->t == VAR_OBJ) {
+        array_push(ctx, children->o, nobj);
+    }
+
+    if (po->idxsz == 1) {
+        KL_SET_PROPERTY_O(po, firstChild, newnode);
+    }
+    KL_SET_PROPERTY_O(po, lastNode, newnode);
+
+    /* adjustment of siblings */
+    if (last && last->t == VAR_OBJ) {
+        KL_SET_PROPERTY_O(last->o, nextSibling, newnode);
+        KL_SET_PROPERTY(newnode, previousSibling, last);
+    }
+
+    return 0;
+}
+
+static int XmlDom_removeChild(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    DEF_ARG(parent, 0, VAR_OBJ);
+    DEF_ARG(a1, 1, VAR_OBJ);
+    vmobj *node = a1->o;
+
+    XmlDom_removeNode(ctx, parent, node);
+
+    SET_I64(r, 0);
+    return 0;
+}
+
+static int XmlDom_replaceNodeFromParent(vmctx *ctx, vmobj *po, vmobj *node1, vmobj *node2)
+{
+    int pos = array_replace_obj(ctx, po, node1, node2);
+    if (pos < 0) {
+        return throw_system_exception(__LINE__, ctx, EXCEPT_XML_ERROR, "Node to replace not found");
+    }
+    vmvar *children = hashmap_search(po, "children");
+    if (children && children->t == VAR_OBJ && pos < children->o->idxsz) {
+        children->o->ary[pos] = po->ary[pos];
+    }
+    if (pos == 0) {
+        KL_SET_PROPERTY_O(po, firstChild, node2);
+    } else if (pos == po->idxsz - 1) {
+        KL_SET_PROPERTY_O(po, lastNode, node2);
+    }
+
+    KL_SET_PROPERTY_O(node2, parentNode, po);
+    vmvar *next = hashmap_search(node1, "nextSibling");
+    if (next) {
+        KL_SET_PROPERTY(node2, nextSibling, next);
+        KL_SET_PROPERTY_O(next->o, previousSibling, node2);
+    }
+    vmvar *prev = hashmap_search(node1, "previousSibling");
+    if (prev) {
+        KL_SET_PROPERTY(node2, previousSibling, prev);
+        KL_SET_PROPERTY_O(prev->o, nextSibling, node2);
+    }
+
+    /* remove node1 from tree, but child nodes will still be held. */
+    hashmap_remove(ctx, node1, "parentNode");
+    hashmap_remove(ctx, node1, "previousSibling");
+    hashmap_remove(ctx, node1, "nextSibling");
+
+    return 0;
+}
+
+static int XmlDom_replaceNode(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    DEF_ARG(node1, 0, VAR_OBJ);
+    DEF_ARG(node2, 1, VAR_OBJ);
+    vmvar *parent = hashmap_search(node1->o, "parentNode");
+    if (!parent || parent->t != VAR_OBJ) {
+        return throw_system_exception(__LINE__, ctx, EXCEPT_XML_ERROR, "Invalid XML node");
+    }
+
+    int e = XmlDom_replaceNodeFromParent(ctx, parent->o, node1->o, node2->o);
+    if (e != 0) {
+        return e;
+    }
+
+    SET_I64(r, 0);
+    return 0;
+}
+
+static int XmlDom_replaceChild(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    DEF_ARG(parent, 0, VAR_OBJ);
+    DEF_ARG(a1, 1, VAR_OBJ);
+    DEF_ARG(a2, 2, VAR_OBJ);
+    vmobj *node1 = a1->o;
+    vmobj *node2 = a2->o;
+
+    int e = XmlDom_replaceNodeFromParent(ctx, parent->o, node1, node2);
+    if (e != 0) {
+        return e;
+    }
+
+    SET_I64(r, 0);
+    return 0;
+}
+
+static void XmlDom_getTextContent(vmctx *ctx, vmstr *text, vmvar *node)
+{
+    int node_type = hashmap_getint(node->o, "nodeType", -1);
+    if (node_type == XMLDOM_TEXT_NODE || node_type == XMLDOM_CDATA_SECTION_NODE ||
+            node_type == XMLDOM_COMMENT_NODE || node_type == XMLDOM_PROCESSING_INSTRUCTION_NODE) {
+        const char *node_value = hashmap_getstr(node->o, "nodeValue");
+        str_append_cp(ctx, text, node_value);
+        return;
+    }
+
+    vmobj *c = node->o;
+    for (int i = 0, n = c->idxsz; i < n; i++) {
+        XmlDom_getTextContent(ctx, text, c->ary[i]);
+    }
+}
+
+static int XmlDom_textContent(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    DEF_ARG(node, 0, VAR_OBJ);
+    vmstr *text = alcstr_str(ctx, "");
+    XmlDom_getTextContent(ctx, text, node);
+    SET_SV(r, text);
     return 0;
 }
 
@@ -590,11 +735,17 @@ static void setup_xmlnode_props(vmctx *ctx, vmfrm *lex, vmvar *r, vmvar *parent,
         KL_SET_PROPERTY(prev->o, nextSibling, r);
     }
 
-    KL_SET_METHOD(o, getElementById, XmlDom_getElementById, lex, 1);
-    KL_SET_METHOD(o, getElementsByTagName, XmlDom_getElementsByTagName, lex, 1);
+    KL_SET_METHOD(o, getElementById, XmlDom_getElementById, lex, 2);
+    KL_SET_METHOD(o, getElementsByTagName, XmlDom_getElementsByTagName, lex, 2);
     KL_SET_METHOD(o, remove, XmlDom_remove, lex, 1);
-    KL_SET_METHOD(o, insertBefore, XmlDom_insertBefore, lex, 1);
-    KL_SET_METHOD(o, insertAfter, XmlDom_insertAfter, lex, 1);
+    KL_SET_METHOD(o, insertBefore, XmlDom_insertBefore, lex, 3);
+    KL_SET_METHOD(o, insertAfter, XmlDom_insertAfter, lex, 3);
+    KL_SET_METHOD(o, appendChild, XmlDom_appendChild, lex, 2);
+    KL_SET_METHOD(o, removeChild, XmlDom_removeChild, lex, 2);
+    KL_SET_METHOD(o, replaceChild, XmlDom_replaceChild, lex, 3);
+    KL_SET_METHOD(o, replaceNode, XmlDom_replaceNode, lex, 3);
+    KL_SET_METHOD(o, textContent, XmlDom_textContent, lex, 3);
+    KL_SET_METHOD(o, innerText, XmlDom_textContent, lex, 3);
 }
 
 static void setup_xmldoc_props(vmctx *ctx, vmfrm *lex, vmvar *r)

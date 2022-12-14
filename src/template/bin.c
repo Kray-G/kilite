@@ -82,7 +82,7 @@ int bin_set(vmbin *vs, int idx, vmvar *v)
         vs->s[idx] = (uint8_t)(((int)v->d) & 0xFF);
         break;
     case VAR_STR:
-        vs->s[idx] = (uint8_t)(v->s->s[0]);
+        vs->s[idx] = (uint8_t)(v->s->hd[0]);
         break;
     default:
         return 0;

@@ -128,7 +128,7 @@ int add_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
             break;
         case VAR_STR:
             r->t = VAR_STR;
-            r->s = alcstr_str(ctx, v1->s->s);
+            r->s = alcstr_str(ctx, v1->s->hd);
             break;
         case VAR_BIN:
             r->t = VAR_BIN;
@@ -1004,7 +1004,7 @@ int eqeq_v_i(vmctx *ctx, vmvar *r, vmvar *v, int64_t i)
         char buf[32] = {0};
         sprintf(buf, "%" PRId64, i);
         r->t = VAR_INT64;
-        r->i = strcmp(v->s->s, buf) == 0;
+        r->i = strcmp(v->s->hd, buf) == 0;
         break;
     }
     default:
@@ -1054,7 +1054,7 @@ int eqeq_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
             char buf[32] = {0};
             sprintf(buf, "%" PRId64, v0->i);
             r->t = VAR_INT64;
-            r->i = strcmp(v1->s->s, buf) == 0;
+            r->i = strcmp(v1->s->hd, buf) == 0;
             break;
         }
         default:
@@ -1068,7 +1068,7 @@ int eqeq_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
         case VAR_STR: {
             char *bs = BzToString(v0->bi->b, 10, 0);
             r->t = VAR_INT64;
-            r->i = strcmp(v1->s->s, bs) == 0;
+            r->i = strcmp(v1->s->hd, bs) == 0;
             BzFreeString(bs);
             break;
         }
@@ -1099,7 +1099,7 @@ int eqeq_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
             char buf[32] = {0};
             sprintf(buf, "%.16g", v0->d);
             r->t = VAR_INT64;
-            r->i = strcmp(v1->s->s, buf) == 0;
+            r->i = strcmp(v1->s->hd, buf) == 0;
             break;
         }
         default:
@@ -1116,13 +1116,13 @@ int eqeq_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
             char buf[32] = {0};
             sprintf(buf, "%" PRId64, v1->i);
             r->t = VAR_INT64;
-            r->i = strcmp(v0->s->s, buf) == 0;
+            r->i = strcmp(v0->s->hd, buf) == 0;
             break;
         }
         case VAR_BIG: {
             char *bs = BzToString(v1->bi->b, 10, 0);
             r->t = VAR_INT64;
-            r->i = strcmp(v0->s->s, bs) == 0;
+            r->i = strcmp(v0->s->hd, bs) == 0;
             BzFreeString(bs);
             break;
         }
@@ -1130,12 +1130,12 @@ int eqeq_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
             char buf[32] = {0};
             sprintf(buf, "%.16g", v1->d);
             r->t = VAR_INT64;
-            r->i = strcmp(v0->s->s, buf) == 0;
+            r->i = strcmp(v0->s->hd, buf) == 0;
             break;
         }
         case VAR_STR:
             r->t = VAR_INT64;
-            r->i = strcmp(v0->s->s, v1->s->s) == 0;
+            r->i = strcmp(v0->s->hd, v1->s->hd) == 0;
             break;
         case VAR_BIN:
         case VAR_OBJ:
@@ -1321,7 +1321,7 @@ int lt_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
         switch (v1->t) {
         case VAR_STR:
             r->t = VAR_INT64;
-            r->i = strcmp(v0->s->s, v1->s->s) == -1;
+            r->i = strcmp(v0->s->hd, v1->s->hd) == -1;
             break;
         default:
             return throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION, NULL);
@@ -2087,7 +2087,7 @@ int uconv_v(vmctx *ctx, vmvar *r, vmvar *v)
     case VAR_INT64:
         r->t = VAR_STR;
         r->s = alcstr_str(ctx, "0");
-        r->s->s[0] = (int)v->i;
+        r->s->hd[0] = (int)v->i;
         break;
     case VAR_BIN: {
         char *buf = alloca(v->bn->len + 1);
@@ -2103,7 +2103,7 @@ int uconv_v(vmctx *ctx, vmvar *r, vmvar *v)
         r->t = VAR_OBJ;
         r->o = alcobj(ctx);
         for (int i = 0; i < v->s->len; ++i) {
-            array_push(ctx, r->o, alcvar_int64(ctx, v->s->s[i], 0));
+            array_push(ctx, r->o, alcvar_int64(ctx, v->s->hd[i], 0));
         }
         break;
     case VAR_OBJ: {

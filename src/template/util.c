@@ -73,7 +73,7 @@ void fprint_obj(vmctx *ctx, vmvar *v, FILE *fp)
         break;
     }
     case VAR_STR:
-        fprintf(fp, "%s", v->s->s);
+        fprintf(fp, "%s", v->s->hd);
         break;
     case VAR_BIN:
         fprint_bin(ctx, v->bn, fp);

@@ -51,10 +51,10 @@ int exception_printtrace(vmctx *ctx, vmvar *e)
         vmvar *file = hashmap_search(trace->o, "_file");
         vmvar *line = hashmap_search(trace->o, "_line");
         if (func && func->t == VAR_STR && file && file->t == VAR_STR && line && line->t == VAR_INT64) {
-            if (func->s->s[0] == '<') {
-                printf("        at %s(%s:%" PRId64 ")\n", func->s->s, file->s->s, line->i);
+            if (func->s->hd[0] == '<') {
+                printf("        at %s(%s:%" PRId64 ")\n", func->s->hd, file->s->hd, line->i);
             } else {
-                printf("        at function %s(%s:%" PRId64 ")\n", func->s->s, file->s->s, line->i);
+                printf("        at function %s(%s:%" PRId64 ")\n", func->s->hd, file->s->hd, line->i);
             }
         }
     }
@@ -78,9 +78,9 @@ int exception_uncaught(vmctx *ctx, vmvar *e)
     if (!type || type->t != VAR_STR) {
         print_obj(ctx, e);
     } else {
-        const char *t = type->s->s;
+        const char *t = type->s->hd;
         vmvar *what = hashmap_search(e->o, "_what");
-        const char *w = (what && what->t == VAR_STR) ? what->s->s : "No message";
+        const char *w = (what && what->t == VAR_STR) ? what->s->hd : "No message";
         printf("%s: %s\n", t, w);
         exception_printtrace(ctx, e);
     }
@@ -151,7 +151,7 @@ int RuntimeException(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     vmvar *msg = ac < 1 ? NULL : local_var(ctx, 0);
     if (msg && msg->t == VAR_STR) {
-        RuntimeException_create(ctx, lex, r, "RuntimeException", msg->s->s);
+        RuntimeException_create(ctx, lex, r, "RuntimeException", msg->s->hd);
     } else {
         RuntimeException_create(ctx, lex, r, "RuntimeException", "Unknown");
     }
@@ -840,7 +840,7 @@ static int IteratorObject_next(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
         if (keys && keys->t == VAR_OBJ && idx < keys->o->idxsz) {
             k = keys->o->ary[idx];
             if (k && k->t == VAR_STR) {
-                char *s = k->s->s;
+                char *s = k->s->hd;
                 c = hashmap_search(n->o, s);
             }
         }
@@ -1169,7 +1169,7 @@ int String_trim(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     DEF_ARG(sv0, 0, VAR_STR);
     vmstr *s = str_dup(ctx, sv0->s);
-    str_trim(ctx, s, " \t\n");
+    str_trim(ctx, s, " \t\r\n");
     SET_SV(r, s);
     return 0;
 }
@@ -1177,7 +1177,7 @@ int String_trim(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 int String_subString(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     DEF_ARG(sv0, 0, VAR_STR);
-    const char *str = sv0->s->s;
+    const char *str = sv0->s->hd;
     DEF_ARG(bv, 1, VAR_INT64);
     int beg = bv->i;
     DEF_ARG_OR_UNDEF(lv, 2, VAR_INT64);
@@ -1191,9 +1191,9 @@ int String_subString(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 int String_splitByString(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     DEF_ARG(sv0, 0, VAR_STR);
-    const char *str = sv0->s->s;
+    const char *str = sv0->s->hd;
     DEF_ARG(sv1, 1, VAR_STR);
-    const char *cond = sv1->s->s;
+    const char *cond = sv1->s->hd;
 
     if (!str) {
         return throw_system_exception(__LINE__, ctx, EXCEPT_RUNTIME_EXCEPTION, "No string value");
@@ -1244,11 +1244,11 @@ int String_splitByString(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 int String_replaceByString(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     DEF_ARG(sv0, 0, VAR_STR);
-    const char *str = sv0->s->s;
+    const char *str = sv0->s->hd;
     DEF_ARG(sv1, 1, VAR_STR);
-    const char *cond = sv1->s->s;
+    const char *cond = sv1->s->hd;
     DEF_ARG(sv2, 2, VAR_STR);
-    const char *newstr = sv2->s->s;
+    const char *newstr = sv2->s->hd;
 
     if (!str || !cond) {
         return throw_system_exception(__LINE__, ctx, EXCEPT_RUNTIME_EXCEPTION, "No string value");

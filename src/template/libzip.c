@@ -228,7 +228,7 @@ int File_open(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     DEF_ARG(name, 0, VAR_STR);
     DEF_ARG_OR_UNDEF(param, 1, VAR_INT64);
-    const char *filename = name->s->s;
+    const char *filename = name->s->hd;
     int mode = param->t == VAR_UNDEF ? FILE_READ : (int)param->i;
 
     vmobj *o = alcobj(ctx);
@@ -257,8 +257,8 @@ int File_rename(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     DEF_ARG(oldpath, 0, VAR_STR)
     DEF_ARG(newpath, 1, VAR_STR)
-    const char *op = oldpath->s->s;
-    const char *np = newpath->s->s;
+    const char *op = oldpath->s->hd;
+    const char *np = newpath->s->hd;
     int32_t err = mz_os_rename(op, np);
     if (err != MZ_OK) {
         return zip_error(ctx, EXCEPT_FILE_ERROR, err, np);
@@ -270,7 +270,7 @@ int File_rename(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 int File_unlink(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     DEF_ARG(path, 0, VAR_STR)
-    const char *p = path->s->s;
+    const char *p = path->s->hd;
     int32_t err = mz_os_unlink(p);
     if (err != MZ_OK && err != MZ_EXIST_ERROR) {
         /* ignore the error for file existance. */
@@ -283,7 +283,7 @@ int File_unlink(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 int File_file_exists(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     DEF_ARG(path, 0, VAR_STR)
-    const char *p = path->s->s;
+    const char *p = path->s->hd;
     int32_t err = mz_os_unlink(p);
     SET_I64(r, err == MZ_OK);
     return 0;
@@ -292,7 +292,7 @@ int File_file_exists(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 int File_get_file_size(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     DEF_ARG(path, 0, VAR_STR)
-    const char *p = path->s->s;
+    const char *p = path->s->hd;
     int64_t size = mz_os_get_file_size(p);
     if (size < 0) {
         return zip_error(ctx, EXCEPT_FILE_ERROR, size, p);
@@ -329,7 +329,7 @@ static time_t make_file_date_value(vmctx *ctx, vmobj *time)
 int File_get_file_date(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     DEF_ARG(path, 0, VAR_STR)
-    const char *p = path->s->s;
+    const char *p = path->s->hd;
     time_t modified, accessed, creation; 
     int32_t err = mz_os_get_file_date(p, &modified, &accessed, &creation);
     if (err != MZ_OK) {
@@ -347,7 +347,7 @@ int File_get_file_date(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 int File_set_file_date(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     DEF_ARG(path, 0, VAR_STR)
-    const char *p = path->s->s;
+    const char *p = path->s->hd;
 
     DEF_ARG(opts, 1, VAR_OBJ)
     vmvar *m = hashmap_search(opts->o, "modified");
@@ -369,7 +369,7 @@ int File_set_file_date(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 int File_is_dir(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     DEF_ARG(path, 0, VAR_STR)
-    const char *p = path->s->s;
+    const char *p = path->s->hd;
     int32_t err = mz_os_is_dir(p);
     SET_I64(r, err == MZ_OK);
     return 0;
@@ -378,7 +378,7 @@ int File_is_dir(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 int File_make_dir(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     DEF_ARG(path, 0, VAR_STR)
-    const char *p = path->s->s;
+    const char *p = path->s->hd;
     int32_t err = mz_os_make_dir(p);
     if (err < 0) {
         return zip_error(ctx, EXCEPT_FILE_ERROR, err, p);
@@ -390,7 +390,7 @@ int File_make_dir(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 int File_is_symlink(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     DEF_ARG(path, 0, VAR_STR)
-    const char *p = path->s->s;
+    const char *p = path->s->hd;
     int32_t err = mz_os_is_symlink(p);
     SET_I64(r, err == MZ_OK);
     return 0;
@@ -400,8 +400,8 @@ int File_make_symlink(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     DEF_ARG(path, 0, VAR_STR)
     DEF_ARG(target, 1, VAR_STR)
-    const char *p = path->s->s;
-    const char *t = target->s->s;
+    const char *p = path->s->hd;
+    const char *t = target->s->hd;
     int32_t err = mz_os_make_symlink(p, t);
     if (err != MZ_OK) {
         return zip_error(ctx, EXCEPT_FILE_ERROR, err, t);
@@ -413,7 +413,7 @@ int File_make_symlink(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 int File_read_symlink(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     DEF_ARG(path, 0, VAR_STR)
-    const char *p = path->s->s;
+    const char *p = path->s->hd;
 
     char target[2048] = {0};
     int32_t err = mz_os_read_symlink(p, target, 2047);
@@ -628,7 +628,7 @@ static int Zip_add_buffer_impl(vmctx *ctx, const char *zipname, int aes, uint16_
     void *buf = NULL;
     int32_t len = 0;
     if (v->t == VAR_STR) {
-        buf = v->s->s;
+        buf = v->s->hd;
         len = v->s->len;
     } else if (v->t == VAR_BIN) {
         buf = v->bn->s;
@@ -680,7 +680,7 @@ static int Zip_extract_entry_to(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 
     const char *filename = hashmap_getstr(entry->o, "filename");
     DEF_ARG(outfv, 1, VAR_STR)          // output file's name
-    const char *outfile = outfv->s->s;
+    const char *outfile = outfv->s->hd;
     DEF_ARG_OR_UNDEF(opts, 2, VAR_OBJ)  // options
     ZIP_OPTION_S(password, opts, zip);
     ZIP_OPTION_I(isbin, opts, zip, 0);
@@ -815,7 +815,7 @@ static int Zip_extract(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     }
 
     DEF_ARG(filev, 1, VAR_STR)          // target filename
-    const char *filename = filev->s->s;
+    const char *filename = filev->s->hd;
     DEF_ARG_OR_UNDEF(opts, 2, VAR_OBJ)  // options
     ZIP_OPTION_S(password, opts, zip);
     ZIP_OPTION_I(isbin, opts, zip, 0);
@@ -839,9 +839,9 @@ static int Zip_extract_to(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     }
 
     DEF_ARG(filev, 1, VAR_STR)          // target filename
-    const char *filename = filev->s->s;
+    const char *filename = filev->s->hd;
     DEF_ARG(outfv, 2, VAR_STR)          // output file's name
-    const char *outfile = outfv->s->s;
+    const char *outfile = outfv->s->hd;
     DEF_ARG_OR_UNDEF(opts, 3, VAR_OBJ)  // options
     ZIP_OPTION_S(password, opts, zip);
     ZIP_OPTION_I(isbin, opts, zip, 0);
@@ -867,7 +867,7 @@ static int Zip_find(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     }
 
     DEF_ARG(filev, 1, VAR_STR)          // target filename
-    const char *filename = filev->s->s;
+    const char *filename = filev->s->hd;
     mz_zip_file *file_info = NULL;
     int32_t err = MZ_OK;
     int crypt = 0;
@@ -899,7 +899,7 @@ static int Zip_add_file(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     }
 
     DEF_ARG(filev, 1, VAR_STR)          // target filename
-    const char *filename = filev->s->s;
+    const char *filename = filev->s->hd;
     DEF_ARG_OR_UNDEF(opts, 2, VAR_OBJ)  // options
     ZIP_OPTION_S(password, opts, zip);
     ZIP_OPTION_S(method, opts, zip);
@@ -936,7 +936,7 @@ static int Zip_add_buffer(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     }
 
     DEF_ARG(filev, 1, VAR_STR)          // target filename
-    const char *filename = filev->s->s;
+    const char *filename = filev->s->hd;
     DEF_ARG_OR_UNDEF(opts, 2, VAR_OBJ)      // options
     ZIP_OPTION_V(content, opts);
     ZIP_OPTION_S(password, opts, zip);
@@ -966,7 +966,7 @@ static int Zip_set_password(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     DEF_ARG(zipv, 0, VAR_OBJ)           // zip object
     DEF_ARG(password, 1, VAR_STR)       // password
-    KL_SET_PROPERTY_S(zipv->o, password, password->s->s);
+    KL_SET_PROPERTY_S(zipv->o, password, password->s->hd);
     return 0;
 }
 
@@ -991,7 +991,7 @@ static int Zip_open(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     DEF_ARG(a0, 0, VAR_STR)             // zipname
     DEF_ARG_OR_UNDEF(a1, 1, VAR_INT64)  // mode
 
-    const char *zipname = a0->s->s;
+    const char *zipname = a0->s->hd;
     int mode = a1->t == VAR_UNDEF ? FILE_READ : a1->i;
 
     vmobj *o = alcobj(ctx);

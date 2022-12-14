@@ -108,9 +108,9 @@ static void hashmap_objfprint_impl(vmobj *obj, int indent, FILE *fp)
                 vmvar *va = v->a;
                 if (va->t != VAR_FNC) {
                     ++c;
-                    if (v->s && v->s->s) {
+                    if (v->s && v->s->hd) {
                         hashmap_fprint_indent(idt ? indent + 1 : -1, fp);
-                        fprintf(fp, "\"%s\": ", v->s->s);
+                        fprintf(fp, "\"%s\": ", v->s->hd);
                         switch (va->t) {
                         case VAR_UNDEF:
                             fprintf(fp, "null");
@@ -190,8 +190,8 @@ void hashmap_print(vmobj *obj)
         } else if (IS_HASHITEM_EMPTY(v)) {
             printf("EMPTY   ");
         }
-        if (v->s && v->s->s) {
-            printf("[%d], key(%s) => var(%p)", (int)v->i, v->s->s, v->a);
+        if (v->s && v->s->hd) {
+            printf("[%d], key(%s) => var(%p)", (int)v->i, v->s->hd, v->a);
         }
         printf("\n");
     }
@@ -215,7 +215,7 @@ const char *hashmap_getstr(vmobj *o, const char *optname)
 {
     vmvar *v = hashmap_search(o, optname);
     if (!v || v->t != VAR_STR) return NULL;
-    return v->s->s;
+    return v->s->hd;
 }
 
 vmobj *hashmap_set(vmctx *ctx, vmobj *obj, const char *s, vmvar *vs)
@@ -229,7 +229,7 @@ vmobj *hashmap_set(vmctx *ctx, vmobj *obj, const char *s, vmvar *vs)
     for (int i = 0; i < hsz; ++i) {
         vmvar *v = &(obj->map[h]);
         if (IS_HASHITEM_EXIST(v)) {
-            if (strcmp(v->s->s, s) == 0) {
+            if (strcmp(v->s->hd, s) == 0) {
                 /* if the key string has been already registered, overwrite it. */
                 v->i = hc;
                 v->a = vs;
@@ -268,7 +268,7 @@ vmobj *hashmap_remove(vmctx *ctx, vmobj *obj, const char *s)
         for (int i = 0; i < hsz; ++i) {
             vmvar *v = &(obj->map[h]);
             if (IS_HASHITEM_EXIST(v)) {
-                if (strcmp(v->s->s, s) == 0) {
+                if (strcmp(v->s->hd, s) == 0) {
                     v->i = 0;
                     v->s = NULL;
                     v->a = NULL;
@@ -305,7 +305,7 @@ vmvar *hashmap_search(vmobj *obj, const char *s)
                 return NULL;
             }
             if (IS_HASHITEM_EXIST(v)) {
-                if (v->i == hc && strcmp(v->s->s, s) == 0) {
+                if (v->i == hc && strcmp(v->s->hd, s) == 0) {
                     return v->a;
                 }
             }
@@ -331,7 +331,7 @@ static vmobj *hashmap_extend_n(vmctx *ctx, vmobj *obj, int n)
     for (int i = 0; i < hsz; ++i) {
         vmvar *v = &(map[i]);
         if (IS_HASHITEM_EXIST(v)) {
-            hashmap_set(ctx, obj, v->s->s, v->a);
+            hashmap_set(ctx, obj, v->s->hd, v->a);
         }
     }
     free(map);
@@ -358,7 +358,7 @@ vmobj *hashmap_copy(vmctx *ctx, vmobj *src)
         for (int i = 0; i < hsz; ++i) {
             vmvar *v = &(map[i]);
             if (IS_HASHITEM_EXIST(v)) {
-                hashmap_set(ctx, obj, v->s->s, v->a);
+                hashmap_set(ctx, obj, v->s->hd, v->a);
             }
         }
     }
@@ -392,7 +392,7 @@ vmobj *hashmap_append(vmctx *ctx, vmobj *obj, vmobj *src)
         for (int i = 0; i < hsz; ++i) {
             vmvar *v = &(map[i]);
             if (IS_HASHITEM_EXIST(v)) {
-                hashmap_set(ctx, obj, v->s->s, v->a);
+                hashmap_set(ctx, obj, v->s->hd, v->a);
             }
         }
     }
@@ -410,11 +410,11 @@ vmobj *hashmap_copy_method(vmctx *ctx, vmobj *src)
         for (int i = 0; i < hsz; ++i) {
             vmvar *v = &(map[i]);
             if (IS_HASHITEM_EXIST(v)) {
-                if (v->s && v->s->s) {
+                if (v->s && v->s->hd) {
                     vmvar *va = v->a;
                     if (va->t == VAR_FNC) {
                         vmvar *nv = alcvar_fnc(ctx, v->a->f);
-                        hashmap_set(ctx, obj, v->s->s, nv);
+                        hashmap_set(ctx, obj, v->s->hd, nv);
                     }
                 }
             }
@@ -570,6 +570,19 @@ vmobj *array_remove_obj(vmobj *obj, vmobj *rmv)
     return obj;
 }
 
+int array_replace_obj(vmctx *ctx, vmobj *obj, vmobj *obj1, vmobj *obj2)
+{
+    int n = obj->idxsz;
+    for (int i = 0; i < n; ++i) {
+        vmvar *c = obj->ary[i];
+        if (c && c->t == VAR_OBJ && (c->o == obj1)) {
+            obj->ary[i] = alcvar_obj(ctx, obj2);
+            return i;
+        }
+    }
+    return -1;
+}
+
 int array_insert_before_obj(vmctx *ctx, vmobj *obj, vmobj *key, vmobj* ins)
 {
     int64_t idx = obj->idxsz;
@@ -650,7 +663,7 @@ vmobj *object_copy(vmctx *ctx, vmobj *src)
 
 static int compkeys(const void * n1, const void * n2)
 {
-    return strcmp((*(vmvar **)n1)->s->s, (*(vmvar **)n2)->s->s);
+    return strcmp((*(vmvar **)n1)->s->hd, (*(vmvar **)n2)->s->hd);
 }
 
 vmobj *object_get_keys(vmctx *ctx, vmobj *src)
@@ -662,8 +675,8 @@ vmobj *object_get_keys(vmctx *ctx, vmobj *src)
     for (int i = 0; i < hsz; ++i) {
         vmvar *v = &(map[i]);
         if (IS_HASHITEM_EXIST(v)) {
-            if (v->s && v->s->s) {
-                array_push(ctx, obj, alcvar_str(ctx, v->s->s));
+            if (v->s && v->s->hd) {
+                array_push(ctx, obj, alcvar_str(ctx, v->s->hd));
             }
         }
     }

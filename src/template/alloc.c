@@ -591,7 +591,7 @@ vmvar *copy_var(vmctx *ctx, vmvar *src, int hold)
         break;
     case VAR_STR:
         v = alcvar_pure(ctx, VAR_STR);
-        v->s = alcstr_str(ctx, src->s->s);
+        v->s = alcstr_str(ctx, src->s->hd);
         if (hold) HOLD(v);
         break;
     case VAR_BIN:

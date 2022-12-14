@@ -755,7 +755,7 @@ static void format_one(vmctx *ctx, vmstr *r, vmvar *v, int ch, int num, int prec
             str_append_fmt_dbl(ctx, r, fmtbuf, &(v->d));
         }
     } else if (v->t == VAR_STR) {
-        const char *strp = v->s->s;
+        const char *strp = v->s->hd;
         if (num > 0) {
             int len = strlen(strp);
             int width = 0;
@@ -909,7 +909,7 @@ vmstr *format(vmctx *ctx, vmobj *o)
         return r;
     }
 
-    format_impl(ctx, r, o, fmt->s->s);
+    format_impl(ctx, r, o, fmt->s->hd);
     return r;
 }
 
