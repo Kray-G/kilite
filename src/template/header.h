@@ -951,7 +951,7 @@ typedef struct vmctx {
 
 #define VALUE_PUSH(ctx, r, v, label, func, file, line) { \
     if ((r)->t == VAR_OBJ) { \
-        array_push(ctx, (r)->o, v); \
+        array_push(ctx, (r)->o, copy_var(ctx, v, 0)); \
     } else if ((r)->t == VAR_BIN) { \
         if ((v)->t == VAR_INT64) { \
             bin_append_ch(ctx, r->bn, (uint8_t)((v)->i)); \
@@ -1077,7 +1077,7 @@ typedef struct vmctx {
     if ((r)->t == VAR_OBJ) { \
         const char *s = str; \
         while (*s != 0) { \
-            array_push(ctx, (r)->o, *s); \
+            array_push(ctx, (r)->o, alcvar_int64(ctx, *s, 0)); \
         } \
     } else if ((r)->t == VAR_BIN) { \
         bin_append(ctx, (r)->bn, str, strlen(str)); \
