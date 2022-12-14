@@ -31,7 +31,8 @@ set TEMPF=%BIN%\libkilite.c
 @echo Generating a header source code...
 cl /nologo /O2 /MT ..\build\makecstr.c > NUL
 cl /nologo /O2 /MT ..\build\clockspersec.c > NUL
-type ..\src\template\lib\bign.h > %TEMPF%
+echo #define KILITE_AMALGAMATION > %TEMPF%
+type ..\src\template\lib\bign.h >> %TEMPF%
 type ..\src\template\lib\bigz.h >> %TEMPF%
 type ..\src\template\lib\printf.h >> %TEMPF%
 type ..\src\template\header.h >> %TEMPF%

@@ -51,7 +51,8 @@ TEMPF=$BIN/libkilite.c
 echo Generating a header source code...
 gcc -O3 -o makecstr ../build/makecstr.c
 gcc -O2 -o clockspersec ../build/clockspersec.c
-cat ../src/template/lib/bign.h > $TEMPF
+echo "#define KILITE_AMALGAMATION" > $TEMPF
+cat ../src/template/lib/bign.h >> $TEMPF
 cat ../src/template/lib/bigz.h >> $TEMPF
 cat ../src/template/lib/printf.h >> $TEMPF
 cat ../src/template/header.h >> $TEMPF
