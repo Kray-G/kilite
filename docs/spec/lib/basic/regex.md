@@ -82,23 +82,15 @@ c
 
 ### Notes
 
-There is a note when it is used in a condition expression of loop like `while`.
-
-For example, you can loop until not matched with the string of `str`.
-But if the loop has ended by such as `break`, there is a situation that the regular expression object has not correctly been reset in the start of the next loop.
+Do not use a regular expression in the condition of `while`. It will cause an infinite loop.
+You should declare a regular expression as a variable and use the variable in the condition like this.
 
 ```javascript
-while (group = (str =~ /ab+/)) {
+var re = /ab+/;
+while (group = (str =~ re)) {
     /* block */
 }
 ```
-
-A regular expression object will be reset with the following 2 situations.
-
-*   The first evaluation. It includes th situation where the last same loop has been completed correctly.
-*   A content of `str` has been changed.
-
-This is currently a restriction.
 
 ## Examples
 
