@@ -167,6 +167,7 @@ typedef enum tk_token {
     TK_RANGE2,              //  The range object with dot2.
     TK_RANGE3,              //  The range object with dot3.
     TK_MLIT,                //  %m literal.
+    TK_HEREDOC,             //  %{ ... } as a string literal.
     TK_COMMENT1,            //  1 line comment.
     TK_COMMENTX,            //  Multi lines comment.
 

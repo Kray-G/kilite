@@ -982,6 +982,10 @@ static kl_expr *parse_expr_factor(kl_context *ctx, kl_lexer *l)
         e = make_str_expr(ctx, l, l->str);
         lexer_fetch(l);
         break;
+    case TK_HEREDOC:
+        e = make_str_expr(ctx, l, l->heredoc);
+        lexer_fetch(l);
+        break;
     case TK_FUNC:
         lexer_fetch(l);
         e = parse_anonymous_function(ctx, l);

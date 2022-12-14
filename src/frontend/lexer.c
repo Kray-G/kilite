@@ -39,7 +39,7 @@ static const char *tkname[] = {
     "TK_ARROW", "TK_DARROW", "TK_TYPEID", "TK_NAME",
 
     "TK_LABEL", "TK_BLOCK", "TK_CONNECT", "TK_VAR", "TK_MINUS", "TK_CONV", "TK_EXPR", "TK_CALL", "TK_IDX",
-    "TK_TYPENODE", "TK_MKSUPER", "TK_BINEND", "TK_RANGE2", "TK_RANGE3", "TK_MLIT", "TK_COMMENT1", "TK_COMMENTX",
+    "TK_TYPENODE", "TK_MKSUPER", "TK_BINEND", "TK_RANGE2", "TK_RANGE3", "TK_MLIT", "TK_HEREDOC", "TK_COMMENT1", "TK_COMMENTX",
 
     "TK_ARYSIZE",
 };
@@ -186,6 +186,7 @@ static kl_lexer *lexer_new(void)
     l->tokline = 0;
     l->tokpos = 0;
     l->toklen = 1;
+    l->str = (char *)calloc(LEXER_STRBUF_SZ, sizeof(char));
     return l;
 }
 
@@ -214,6 +215,7 @@ void lexer_free(kl_lexer *l)
     if (l->s) {
         free(l->s);
     }
+    free(l->str);
     free(l);
 }
 
@@ -255,6 +257,64 @@ static inline void lexer_getch(kl_lexer *l)
         l->pos = 0;
     } else {
         l->pos++;
+    }
+}
+
+static int lexer_append_ch(kl_lexer *l, int i, int *cap, int ch)
+{
+    if (*cap <= i) {
+        char *p = l->heredoc;
+        *cap *= 2;
+        l->heredoc = (char *)calloc(*cap, sizeof(char));
+        strcpy(l->heredoc, p);
+        free(p);
+    }
+    l->heredoc[i++] = ch;
+    return i;
+}
+
+void lexer_heredoc(kl_lexer *l)
+{
+    if (l->heredoc) {
+        free(l->heredoc);
+    }
+    int i = 0, cap = LEXER_STRBUF_SZ;
+    l->heredoc = (char *)calloc(LEXER_STRBUF_SZ, sizeof(char));
+
+    int br = 1;
+    while (br > 0 && l->ch != EOF) {
+        if (l->ch == '{') {
+            ++br;
+            i = lexer_append_ch(l, i, &cap, '{');
+            lexer_getch(l);
+            continue;
+        }
+        if (l->ch == '}') {
+            --br;
+            if (br > 0) {
+                i = lexer_append_ch(l, i, &cap, '}');
+            }
+            lexer_getch(l);
+            continue;
+        }
+        if (l->ch == '"' || l->ch == '\'') {
+            int endch = l->ch;
+            i = lexer_append_ch(l, i, &cap, endch);
+            lexer_getch(l);
+            while (l->ch != endch && l->ch != EOF) {
+                if (l->ch == '\\') {
+                    i = lexer_append_ch(l, i, &cap, l->ch);
+                    lexer_getch(l);
+                }
+                i = lexer_append_ch(l, i, &cap, l->ch);
+                lexer_getch(l);
+            }
+            i = lexer_append_ch(l, i, &cap, endch);
+            lexer_getch(l);
+            continue;
+        }
+        i = lexer_append_ch(l, i, &cap, l->ch);
+        lexer_getch(l);
     }
 }
 
@@ -918,7 +978,7 @@ static tk_token lexer_fetch_token(kl_lexer *l)
     case '/':
         LEXER_CHECK_12_13_14_TOK('=', '*', '/', TK_DIV, TK_DIVEQ, TK_COMMENTX, TK_COMMENT1)
     case '%':
-        LEXER_CHECK_12_13_TOK('=', 'm', TK_MOD, TK_MODEQ, TK_MLIT)
+        LEXER_CHECK_12_13_14_TOK('=', 'm', '{', TK_MOD, TK_MODEQ, TK_MLIT, TK_HEREDOC)
     case '&':
         LEXER_CHECK_12_13_123_TOK('&', '=', TK_AND, TK_LAND, TK_ANDEQ, TK_LANDEQ)
     case '|':
@@ -1000,6 +1060,10 @@ L0:
     l->tokline = l->line;
     l->tokpos = l->pos;
     l->tok = lexer_fetch_token(l);
+    if (l->tok == TK_HEREDOC) {
+        lexer_heredoc(l);
+        return TK_HEREDOC;
+    }
     if ((l->options & LEXER_OPT_FETCH_NAME) == LEXER_OPT_FETCH_NAME) {
         if (l->tok == TK_EOF) {
             fprintf(stderr, "kl_lexer: EOF\n");

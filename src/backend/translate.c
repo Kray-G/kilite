@@ -97,9 +97,8 @@ static xstr *xstraf(xstr *vs, const char *fmt, ...)
     return vs;
 }
 
-static const char *escape(xstr *str, const char *s)
+static void escape_out(xstr *str, const char *s)
 {
-    clear_xstr(str);
     while (*s) {
         if (*s == '"' || *s == '\\') {
             xstrc(str, '\\');
@@ -142,6 +141,12 @@ static const char *escape(xstr *str, const char *s)
             s++;
         }
     }
+}
+
+static const char *escape(xstr *str, const char *s)
+{
+    clear_xstr(str);
+    escape_out(str, s);
     return str->s;
 }
 
@@ -989,7 +994,9 @@ static void translate_mov(func_context *fctx, xstr *code, kl_kir_inst *i)
         xstra_inst(code, "SET_DBL(%s, %s);\n", buf1, i->r2.dbl);
         break;
     case TK_VSTR:
-        xstra_inst(code, "SET_STR(%s, \"%s\");\n", buf1, escape(&(fctx->str), i->r2.str));
+        xstra_inst(code, "SET_STR(%s, \"", buf1);
+        escape_out(code, i->r2.str);
+        xstrs(code, "\");\n");
         break;
     case TK_FUNC:
         xstra_inst(code, "vmfnc *f%d = alcfnc(ctx, %s, frm, \"%s\", 0);\n", i->r2.funcid, i->r2.name, i->r2.str);

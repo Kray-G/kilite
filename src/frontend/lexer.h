@@ -45,7 +45,8 @@ typedef struct kl_lexer {
     uint32_t options;
 
     int64_t i64;
-    char str[LEXER_STRBUF_SZ];
+    char *str;
+    char *heredoc;
 } kl_lexer;
 
 /*
