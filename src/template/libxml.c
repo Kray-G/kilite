@@ -418,6 +418,28 @@ static int XmlDom_getElementById(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     return 0;
 }
 
+static void XmlDom_getElementsByTagName_Node(vmctx *ctx, vmobj *nodes, vmvar *node, const char *name)
+{
+    vmvar *tagName = hashmap_search(node->o, "tagName");
+    if (tagName && tagName->t == VAR_STR && strcmp(tagName->s->s, name) == 0) {
+        array_push(ctx, nodes, node);
+    }
+    vmobj *c = node->o;
+    for (int i = 0, n = c->idxsz; i < n; i++) {
+        XmlDom_getElementsByTagName_Node(ctx, nodes, c->ary[i], name);
+    }
+}
+
+static int XmlDom_getElementsByTagName(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    DEF_ARG(a0, 0, VAR_OBJ);
+    DEF_ARG(a1, 1, VAR_STR);
+    vmobj *nodes = alcobj(ctx);
+    XmlDom_getElementsByTagName_Node(ctx, nodes, a0, a1->s->s);
+    SET_OBJ(r, nodes);
+    return 0;
+}
+
 static void setup_xmlnode_props(vmctx *ctx, vmfrm *lex, vmvar *r, vmvar *parent, int index, int type)
 {
     vmobj *o = r->o;
@@ -444,6 +466,7 @@ static void setup_xmlnode_props(vmctx *ctx, vmfrm *lex, vmvar *r, vmvar *parent,
         KL_SET_PROPERTY(prev->o, nextSibling, r);
     }
     KL_SET_METHOD(o, getElementById, XmlDom_getElementById, lex, 1);
+    KL_SET_METHOD(o, getElementsByTagName, XmlDom_getElementsByTagName, lex, 1);
 }
 
 static void setup_xmldoc_props(vmctx *ctx, vmfrm *lex, vmvar *r)
