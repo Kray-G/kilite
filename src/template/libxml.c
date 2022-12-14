@@ -838,6 +838,7 @@ static int XmlDom_parseString(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
         if (err < 0) {
             return xmldom_error(ctx, err, line, pos);
         }
+        mark_and_sweep(ctx);
     }
     return 0;
 }
