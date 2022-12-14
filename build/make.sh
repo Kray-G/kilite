@@ -13,7 +13,6 @@ make
 cp -f c2m ../
 cp -f libmir_static.a ../
 cd ..
-cp -f libmir_static.a ../
 
 echo Building zlib...
 mkdir -p zlib
@@ -23,7 +22,6 @@ make
 make install
 cp -f libz.a ../
 cd ..
-cp -f libz.a ../
 
 echo Building minizip...
 mkdir -p minizip
@@ -36,7 +34,6 @@ make
 make install
 cp -f libminizip.a ../
 cd ..
-cp -f libminizip.a ../
 
 echo Building oniguruma...
 mkdir -p onig
@@ -46,7 +43,6 @@ make
 make install
 cp -f libonig.a ../
 cd ..
-cp -f libonig.a ../
 
 BIN=$PWD
 TEMPF=$BIN/libkilite.c
@@ -141,7 +137,10 @@ cd $BIN
 
 echo Generating a static library file for gcc...
 gcc -Wno-stringop-overflow -O3 -DUSE_INT64 -DONIG_EXTERN=extern -o ${TEMPF/.c/.o} -Ilib -I../src/template -I../src/template/inc -Wno-unused-result -c $TEMPF
-ar rcs libkilite.a ${TEMPF/.c/.o}
+ar rcs libklstd.a ${TEMPF/.c/.o}
+rm -f libkilite.a
+ar cqT libkilite.a libklstd.a libonig.a libz.a libminizip.a
+echo -n -e "create libkilite.a\naddlib libklstd.a\naddlib libonig.a\naddlib libz.a\naddlib libminizip.a\nsave\nend" | ar -M
 cp -f libkilite.a ../libkilite.a
 ./c2m -DUSE_INT64 -DONIG_EXTERN=extern -I lib -c $TEMPF
 rm -f kilite.bmir

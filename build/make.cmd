@@ -12,25 +12,18 @@ set PATH=%PATH%;%BIN%
 echo Building MIR...
 if not exist mir_static.lib call ..\build\mir_win.cmd
 if not exist mir_static.lib goto ERROR
-copy /y mir_static.lib ..\mir_static.lib
 
 echo Building zlib...
 if not exist zlibstatic.lib call ..\build\zlib_win.cmd
 if not exist zlibstatic.lib goto ERROR
-copy /y zlibstatic.lib ..\zlibstatic.lib
-if exist libzlibstatic.a copy /y libzlibstatic.a ..\libzlibstatic.a
 
 echo Building minizip...
 if not exist libminizip.lib call ..\build\minizip_win.cmd
 if not exist libminizip.lib goto ERROR
-copy /y libminizip.lib ..\libminizip.lib
-if exist libminizip.a copy /y libminizip.a ..\libminizip.a
 
 echo Building oniguruma...
 if not exist onig.lib call ..\build\onig_win.cmd
 if not exist onig.lib goto ERROR
-copy /y onig.lib ..\onig.lib
-if exist libonig.a copy /y libonig.a ..\libonig.a
 
 del libkilite.a
 set TEMPF=%BIN%\libkilite.c
@@ -121,8 +114,7 @@ popd
 
 @echo Generating a static library file for cl...
 cl /nologo /O2 /DUSE_INT64 /I..\src\template /I..\src\template\inc /DONIG_EXTERN=extern /c %TEMPF%
-lib /nologo /out:kilite.lib %TEMPF:.c=.obj%
-copy /y kilite.lib ..\kilite.lib > NUL
+lib /nologo /out:klstd.lib %TEMPF:.c=.obj%
 c2m -DUSE_INT64 -DONIG_EXTERN=extern -Ilib -c %TEMPF%
 if exist kilite.bmir del kilite.bmir
 ren %TEMPF:.c=.bmir% kilite.bmir
@@ -134,15 +126,17 @@ if ERRORLEVEL 1 goto CHK_END
 call :gcc %TEMPF%
 
 :CHK_END
-if not exist libkilite.a @copy /y libkilite.a libkilite.a > NUL 2>&1
-copy /y libkilite.a ..\libkilite.a > NUL
-
-goto CLEANUP
+goto MKLIB
 
 :ERROR
 popd
 endlocal
 exit /b 0
+
+:MKLIB
+lib /nologo /OUT:kilite.lib klstd.lib onig.lib zlibstatic.lib libminizip.lib
+copy /y kilite.lib ..\kilite.lib > NUL
+if exist libkilite.a copy /y libkilite.a ..\libkilite.a
 
 :CLEANUP
 @REM del %TEMPF%
@@ -158,6 +152,18 @@ exit /b 0
 :gcc
 @echo Generating a static library file for gcc...
 gcc -O3 -o libkilite.o -DUSE_INT64 -DONIG_EXTERN=extern -Wno-stringop-overflow -Ilib -I../src/template -I../src/template/inc -c %1%
-ar rcs libkilite.a libkilite.o
-copy /y libkilite.a ..\libkilite.a > NUL
+ar rcs libklstd.a libkilite.o
+if not exist libonig.a exit /b 0
+if not exist libzlibstatic.a exit /b 0
+if not exist libminizip.a exit /b 0
+ar cqT libkilite.a libklstd.a libonig.a libzlibstatic.a libminizip.a
+(
+    echo create libkilite.a
+    echo addlib libklstd.a
+    echo addlib libonig.a
+    echo addlib libzlibstatic.a
+    echo addlib libminizip.a
+    echo save
+    echo end
+) | ar -M
 exit /b 0

@@ -80,12 +80,12 @@ static clcmd cclist[] = {
     { .cc = "dummy" },
     #if defined(_WIN32) || defined(_WIN64)
     { .optch = '/', .cc = "cl", .opt = "O2", .args = "/MT /nologo", .outf = "/Fe",
-        .libpathopt = "/link /LIBPATH:", .link = "kilite.lib libminizip.lib onig.lib zlibstatic.lib" },
+        .libpathopt = "/link /LIBPATH:", .link = "kilite.lib" },
     { .optch = '-', .cc = "gcc", .opt = "O3", .args = "", .outf = "-o ",
-        .libpathopt = "-L", .link = "-lkilite -lminizip -lonig -lzlibstatic -lcrypt32" },
+        .libpathopt = "-L", .link = "-lkilite -lcrypt32" },
     #else
     { .optch = '-', .cc = "gcc", .opt = "O3", .args = "", .outf = "-o ",
-        .libpathopt = "-L", .link = "-lkilite -lminizip -lonig -lz -lm" },
+        .libpathopt = "-L", .link = "-lkilite -lm" },
     #endif
 };
 
@@ -344,6 +344,7 @@ static int parse_arg_options(int ac, char **av, kl_argopts *opts)
 void output_source(FILE *f, int cfull, int print_result, int verbose, const char *s)
 {
     if (cfull) {
+        fprintf(f, "#define KILITE_AMALGAMATION\n");
         fprintf(f, "#define _PRINTF_H_\n");
         fprintf(f, "%s", vmheader());
     }

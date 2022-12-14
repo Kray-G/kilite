@@ -1,13 +1,16 @@
 #ifndef KILITE_TEMPLATE_HEADER_H
 #define KILITE_TEMPLATE_HEADER_H
 
+#ifndef KILITE_AMALGAMATION
+#include "lib/bigz.h"
+#endif
 #include <stdint.h>
 #include <stddef.h>
 #include <stdarg.h>
 #include <float.h>
 
-extern BigZ i64maxp1;
-extern BigZ i64minm1;
+extern BigZ g_i64maxp1;
+extern BigZ g_i64minm1;
 extern const char g_utf8bytes[];
 
 // printf("%s:%d -> %s\n", __FILE__, __LINE__, __func__);
@@ -2046,7 +2049,7 @@ typedef struct vmctx {
     } else if ((i1) == -1) { \
         if ((i0) == INT64_MIN) { \
             (r)->t = VAR_BIG; \
-            (r)->bi = alcbgi_bigz(ctx, BzCopy(i64maxp1)); \
+            (r)->bi = alcbgi_bigz(ctx, BzCopy(g_i64maxp1)); \
         } else { \
             (r)->t = VAR_INT64; \
             (r)->i = -(i0); \
