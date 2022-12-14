@@ -1158,6 +1158,22 @@ int Double(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 
 /* String */
 
+int String_length(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    DEF_ARG(sv0, 0, VAR_STR);
+    SET_I64(r, sv0->s->len);
+    return 0;
+}
+
+int String_trim(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    DEF_ARG(sv0, 0, VAR_STR);
+    vmstr *s = str_dup(ctx, sv0->s);
+    str_trim(ctx, s, " \t\n");
+    SET_SV(r, s);
+    return 0;
+}
+
 int String_subString(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     DEF_ARG(sv0, 0, VAR_STR);
@@ -1281,6 +1297,8 @@ int String(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     vmobj *o = alcobj(ctx);
     ctx->s = o;
+    KL_SET_METHOD(o, length, String_length, lex, 2)
+    KL_SET_METHOD(o, trim, String_trim, lex, 2)
     KL_SET_METHOD(o, replace, String_replace, lex, 2)
     KL_SET_METHOD(o, split, String_split, lex, 2)
     KL_SET_METHOD(o, replaceByString, String_replaceByString, lex, 2)
