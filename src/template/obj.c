@@ -553,6 +553,82 @@ vmobj *array_pop_array(vmctx *ctx, vmobj *obj, int n)
     return o;
 }
 
+vmobj *array_remove_obj(vmobj *obj, vmobj *rmv)
+{
+    int n = obj->idxsz;
+    for (int i = 0, j = 0; i < n; ++i) {
+        vmvar *c = obj->ary[i];
+        if (c && c->t == VAR_OBJ && (c->o != rmv)) {
+            if (j < i) {
+                obj->ary[j] = obj->ary[i];
+            }
+            ++j;
+        } else {
+            obj->idxsz--;
+        }
+    }
+    return obj;
+}
+
+int array_insert_before_obj(vmctx *ctx, vmobj *obj, vmobj *key, vmobj* ins)
+{
+    int64_t idx = obj->idxsz;
+    int asz = obj->asz;
+    if (asz <= idx) {
+        array_extend(ctx, obj, idx + 1);
+        obj->idxsz = idx + 1;
+    } else if (obj->idxsz <= idx) {
+        obj->idxsz = idx + 1;
+    }
+    int p = -1;
+    int n = obj->idxsz;
+    for (int i = 0; i < n; ++i) {
+        vmvar *c = obj->ary[i];
+        if (c && c->t == VAR_OBJ && (c->o == key)) {
+            p = i;
+            break;
+        }
+    }
+    if (p < 0) {
+        return 0;
+    }
+    for (int i = n - 1; p < i; --i) {
+        obj->ary[i] = obj->ary[i-1];
+    }
+    obj->ary[p] = alcvar_obj(ctx, ins);
+    return 1;
+}
+
+int array_insert_after_obj(vmctx *ctx, vmobj *obj, vmobj *key, vmobj* ins)
+{
+    int n = obj->idxsz;
+    int64_t idx = obj->idxsz;
+    int asz = obj->asz;
+    if (asz <= idx) {
+        array_extend(ctx, obj, idx + 1);
+        obj->idxsz = idx + 1;
+    } else if (obj->idxsz <= idx) {
+        obj->idxsz = idx + 1;
+    }
+    int p = -1;
+    for (int i = 0; i < n; ++i) {
+        vmvar *c = obj->ary[i];
+        if (c && c->t == VAR_OBJ && (c->o == key)) {
+            p = i + 1;
+            break;
+        }
+    }
+    if (p < 0) {
+        return 0;
+    }
+    for (int i = n - 1; p < i; --i) {
+        obj->ary[i] = obj->ary[i-1];
+    }
+
+    obj->ary[p] = alcvar_obj(ctx, ins);
+    return 1;
+}
+
 vmobj *object_copy(vmctx *ctx, vmobj *src)
 {
     vmobj *obj = hashmap_copy(ctx, src);

@@ -440,6 +440,130 @@ static int XmlDom_getElementsByTagName(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     return 0;
 }
 
+static int XmlDom_remove(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    DEF_ARG(a0, 0, VAR_OBJ);
+    vmobj *node = a0->o;
+
+    /* remove from the parent */
+    vmvar *parent = hashmap_search(node, "parentNode");
+    if (parent && parent->t == VAR_OBJ) {
+        vmobj *po = parent->o;
+        array_remove_obj(po, node);
+        vmvar *children = hashmap_search(po, "children");
+        if (children && children->t == VAR_OBJ) {
+            children->o->idxsz = 0; // clear nodes.
+            for (int i = 0, n = children->o->idxsz; i < n; i++) {
+                array_push(ctx, children->o, po->ary[i]);
+            }
+        }
+
+        if (po->idxsz > 0) {            
+            KL_SET_PROPERTY(po, firstChild, po->ary[0]);
+            KL_SET_PROPERTY(po, lastNode, po->ary[po->idxsz - 1]);
+        }
+    }
+
+    /* adjustment of siblings */
+    vmvar *prev = hashmap_search(node, "previousSibling");
+    vmvar *next = hashmap_search(node, "nextSibling");
+    if (prev && prev->t == VAR_OBJ) {
+        KL_SET_PROPERTY(prev->o, nextSibling, next);
+    }
+    if (next && next->t == VAR_OBJ) {
+        KL_SET_PROPERTY(next->o, previousSibling, prev);
+    }
+
+    /* remove this from tree, but child nodes will still be held. */
+    hashmap_remove(ctx, node, "parentNode");
+    hashmap_remove(ctx, node, "previousSibling");
+    hashmap_remove(ctx, node, "nextSibling");
+
+    return 0;
+}
+
+static int XmlDom_insertBefore(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    DEF_ARG(parent, 0, VAR_OBJ);
+    DEF_ARG(a1, 1, VAR_OBJ);
+    DEF_ARG(a2, 2, VAR_OBJ);
+    vmobj *newnode = a1->o;
+    vmobj *refnode = a2->o;
+
+    /* remove from the parent */
+    KL_SET_PROPERTY_O(newnode, parentNode, parent->o);
+    if (parent && parent->t == VAR_OBJ) {
+        vmobj *po = parent->o;
+        if (!array_insert_before_obj(ctx, po, refnode, newnode)) {
+            return throw_system_exception(__LINE__, ctx, EXCEPT_XML_ERROR, "Reference node not found");
+        }
+        vmvar *children = hashmap_search(po, "children");
+        if (children && children->t == VAR_OBJ) {
+            children->o->idxsz = 0; // clear nodes.
+            for (int i = 0, n = children->o->idxsz; i < n; i++) {
+                array_push(ctx, children->o, po->ary[i]);
+            }
+        }
+
+        if (po->idxsz > 0) {            
+            KL_SET_PROPERTY(po, firstChild, po->ary[0]);
+            KL_SET_PROPERTY(po, lastNode, po->ary[po->idxsz - 1]);
+        }
+    }
+
+    /* adjustment of siblings */
+    vmvar *prev = hashmap_search(refnode, "previousSibling");
+    if (prev && prev->t == VAR_OBJ) {
+        KL_SET_PROPERTY_O(prev->o, nextSibling, newnode);
+        KL_SET_PROPERTY(newnode, previousSibling, prev);
+    }
+    KL_SET_PROPERTY_O(refnode, previousSibling, newnode);
+    KL_SET_PROPERTY_O(newnode, nextSibling, refnode);
+
+    return 0;
+}
+
+static int XmlDom_insertAfter(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    DEF_ARG(parent, 0, VAR_OBJ);
+    DEF_ARG(a1, 1, VAR_OBJ);
+    DEF_ARG(a2, 2, VAR_OBJ);
+    vmobj *newnode = a1->o;
+    vmobj *refnode = a2->o;
+
+    /* remove from the parent */
+    KL_SET_PROPERTY_O(newnode, parentNode, parent->o);
+    if (parent && parent->t == VAR_OBJ) {
+        vmobj *po = parent->o;
+        if (!array_insert_after_obj(ctx, po, refnode, newnode)) {
+            return throw_system_exception(__LINE__, ctx, EXCEPT_XML_ERROR, "Reference node not found");
+        }
+        vmvar *children = hashmap_search(po, "children");
+        if (children && children->t == VAR_OBJ) {
+            children->o->idxsz = 0; // clear nodes.
+            for (int i = 0, n = children->o->idxsz; i < n; i++) {
+                array_push(ctx, children->o, po->ary[i]);
+            }
+        }
+
+        if (po->idxsz > 0) {            
+            KL_SET_PROPERTY(po, firstChild, po->ary[0]);
+            KL_SET_PROPERTY(po, lastNode, po->ary[po->idxsz - 1]);
+        }
+    }
+
+    /* adjustment of siblings */
+    vmvar *next = hashmap_search(refnode, "nextSibling");
+    if (next && next->t == VAR_OBJ) {
+        KL_SET_PROPERTY_O(next->o, previousSibling, newnode);
+        KL_SET_PROPERTY(newnode, nextSibling, next);
+    }
+    KL_SET_PROPERTY_O(refnode, nextSibling, newnode);
+    KL_SET_PROPERTY_O(newnode, previousSibling, refnode);
+
+    return 0;
+}
+
 static void setup_xmlnode_props(vmctx *ctx, vmfrm *lex, vmvar *r, vmvar *parent, int index, int type)
 {
     vmobj *o = r->o;
@@ -465,8 +589,12 @@ static void setup_xmlnode_props(vmctx *ctx, vmfrm *lex, vmvar *r, vmvar *parent,
         KL_SET_PROPERTY(o, previousSibling, prev);
         KL_SET_PROPERTY(prev->o, nextSibling, r);
     }
+
     KL_SET_METHOD(o, getElementById, XmlDom_getElementById, lex, 1);
     KL_SET_METHOD(o, getElementsByTagName, XmlDom_getElementsByTagName, lex, 1);
+    KL_SET_METHOD(o, remove, XmlDom_remove, lex, 1);
+    KL_SET_METHOD(o, insertBefore, XmlDom_insertBefore, lex, 1);
+    KL_SET_METHOD(o, insertAfter, XmlDom_insertAfter, lex, 1);
 }
 
 static void setup_xmldoc_props(vmctx *ctx, vmfrm *lex, vmvar *r)

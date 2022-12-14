@@ -3429,6 +3429,9 @@ INLINE extern vmobj *array_shift_array(vmctx *ctx, vmobj *obj, int n);
 INLINE extern vmobj *array_push(vmctx *ctx, vmobj *obj, vmvar *vs);
 INLINE extern vmvar *array_pop(vmctx *ctx, vmobj *obj);
 INLINE extern vmobj *array_pop_array(vmctx *ctx, vmobj *obj, int n);
+INLINE extern vmobj *array_remove_obj(vmobj *obj, vmobj *rmv);
+INLINE extern int array_insert_before_obj(vmctx *ctx, vmobj *obj, vmobj *key, vmobj* ins);
+INLINE extern int array_insert_after_obj(vmctx *ctx, vmobj *obj, vmobj *key, vmobj* ins);
 INLINE extern vmobj *object_copy(vmctx *ctx, vmobj *src);
 INLINE extern vmobj *object_get_keys(vmctx *ctx, vmobj *src);
 
