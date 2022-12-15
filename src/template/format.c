@@ -718,7 +718,7 @@ static void format_one(vmctx *ctx, vmstr *r, vmvar *v, int ch, int num, int prec
             str_append_fmt(ctx, r, fmtbuf, v->i);
         }
     } else if (v->t == VAR_BIG) {
-        int rdx = (ch == 'x') ? 16 : (ch == 'b') ? 2 : (ch == 'o') ? 8 : 10;
+        int rdx = (ch == 'x' || ch == 'X') ? 16 : (ch == 'b') ? 2 : (ch == 'o') ? 8 : 10;
         buf = BzToString(v->bi->b, rdx, 0);
         if (num > 0) {
             if (zero || ch == 'b') {
