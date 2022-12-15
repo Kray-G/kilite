@@ -275,11 +275,6 @@ void sweep(vmctx *ctx)
         vmstr *n = s->liv;
         if (!IS_MARKED(s)) {
             ++sc;
-            if (STR_UNIT < s->cap) {
-                free(s->s);
-                s->s = s->hd = NULL;
-                s->len = s->cap = 0;
-            }
             pbakstr(ctx, s);
         }
         s = n;

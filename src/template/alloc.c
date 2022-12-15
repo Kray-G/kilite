@@ -210,6 +210,12 @@ vmstr *alcstr_str(vmctx *ctx, const char *s)
 void pbakstr(vmctx *ctx, vmstr *p)
 {
     if (p && !p->nxt) {
+        if (STR_UNIT < p->cap) {
+            free(p->s);
+            p->s = p->hd = NULL;
+            p->len = p->cap = 0;
+        }
+
         p->nxt = ctx->alc.str.nxt;
         ctx->alc.str.nxt = p;
         ctx->fre.str++;
