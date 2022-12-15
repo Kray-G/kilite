@@ -1521,6 +1521,7 @@ int band_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
             r->t = VAR_BIG;
             r->bi = alcbgi_bigz(ctx, BzAnd((v0)->bi->b, b1));
             BzFree(b1);
+            bi_normalize(r);
             break;
         }
         default:
@@ -1542,6 +1543,7 @@ int band_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
             r->t = VAR_BIG;
             r->bi = alcbgi_bigz(ctx, BzAnd(b0, (v1)->bi->b));
             BzFree(b0);
+            bi_normalize(r);
             break;
         }
         case VAR_DBL:
@@ -1639,6 +1641,7 @@ int bor_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
             r->t = VAR_BIG;
             r->bi = alcbgi_bigz(ctx, BzOr((v0)->bi->b, b1));
             BzFree(b1);
+            bi_normalize(r);
             break;
         }
         default:
@@ -1660,6 +1663,7 @@ int bor_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
             r->t = VAR_BIG;
             r->bi = alcbgi_bigz(ctx, BzOr(b0, (v1)->bi->b));
             BzFree(b0);
+            bi_normalize(r);
             break;
         }
         case VAR_DBL:
@@ -1757,6 +1761,7 @@ int bxor_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
             r->t = VAR_BIG;
             r->bi = alcbgi_bigz(ctx, BzXor((v0)->bi->b, b1));
             BzFree(b1);
+            bi_normalize(r);
             break;
         }
         default:
@@ -1778,6 +1783,7 @@ int bxor_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
             r->t = VAR_BIG;
             r->bi = alcbgi_bigz(ctx, BzXor(b0, (v1)->bi->b));
             BzFree(b0);
+            bi_normalize(r);
             break;
         }
         case VAR_DBL:
@@ -1973,6 +1979,7 @@ int bshr_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
         case VAR_DBL: {
             r->t = VAR_BIG;
             r->bi = alcbgi_bigz(ctx, BzAsh((v0)->bi->b, -((int64_t)v0->d)));
+            bi_normalize(r);
             break;
         }
         default:

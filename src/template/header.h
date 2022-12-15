@@ -2896,6 +2896,7 @@ typedef struct vmctx {
             (r)->t = VAR_BIG; \
             (r)->bi = alcbgi_bigz(ctx, BzAsh(b0, i1)); \
             BzFree(b0); \
+            bi_normalize(r); \
         } else { \
             (r)->t = VAR_INT64; \
             (r)->i = (i0) << (i1); \
@@ -2988,6 +2989,7 @@ typedef struct vmctx {
             (r)->t = VAR_BIG; \
             (r)->bi = alcbgi_bigz(ctx, BzAsh(b0, -(i1))); \
             BzFree(b0); \
+            bi_normalize(r); \
         } else { \
             (r)->t = VAR_INT64; \
             (r)->i = (i0) >> (i1); \
@@ -3084,6 +3086,7 @@ typedef struct vmctx {
     (r)->t = VAR_BIG; \
     (r)->bi = alcbgi_bigz(ctx, BzAnd((v0)->bi->b, b1)); \
     BzFree(b1); \
+    bi_normalize(r); \
 } \
 /**/
 
@@ -3092,6 +3095,7 @@ typedef struct vmctx {
     (r)->t = VAR_BIG; \
     (r)->bi = alcbgi_bigz(ctx, BzAnd(b0, (v1)->bi->b)); \
     BzFree(b0); \
+    bi_normalize(r); \
 } \
 /**/
 
@@ -3166,6 +3170,7 @@ typedef struct vmctx {
     (r)->t = VAR_BIG; \
     (r)->bi = alcbgi_bigz(ctx, BzOr((v0)->bi->b, b1)); \
     BzFree(b1); \
+    bi_normalize(r); \
 } \
 /**/
 
@@ -3174,6 +3179,7 @@ typedef struct vmctx {
     (r)->t = VAR_BIG; \
     (r)->bi = alcbgi_bigz(ctx, BzOr(b0, (v1)->bi->b)); \
     BzFree(b0); \
+    bi_normalize(r); \
 } \
 /**/
 
@@ -3248,6 +3254,7 @@ typedef struct vmctx {
     (r)->t = VAR_BIG; \
     (r)->bi = alcbgi_bigz(ctx, BzXor((v0)->bi->b, b1)); \
     BzFree(b1); \
+    bi_normalize(r); \
 } \
 /**/
 
@@ -3256,6 +3263,7 @@ typedef struct vmctx {
     (r)->t = VAR_BIG; \
     (r)->bi = alcbgi_bigz(ctx, BzXor(b0, (v1)->bi->b)); \
     BzFree(b0); \
+    bi_normalize(r); \
 } \
 /**/
 
@@ -3378,6 +3386,8 @@ INLINE extern void bi_str(char *buf, int max, vmbgi *b);
 INLINE extern void print_escape_str(vmstr *vs);
 INLINE extern void fprint_escape_str(vmstr *vs, FILE *fp);
 INLINE extern vmstr *str_clear(vmstr *vs);
+INLINE extern vmstr *str_set(vmctx *ctx, vmstr *vs, const char *s, int len);
+INLINE extern vmstr *str_set_cp(vmctx *ctx, vmstr *vs, const char *s);
 INLINE extern vmstr *str_dup(vmctx *ctx, vmstr *vs);
 INLINE extern vmstr *str_from_i64(vmctx *ctx, int64_t i);
 INLINE extern vmstr *str_from_dbl(vmctx *ctx, double *d);
