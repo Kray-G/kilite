@@ -164,6 +164,22 @@ vmstr *str_clear(vmstr *vs)
     return vs;
 }
 
+vmstr *str_set(vmctx *ctx, vmstr *vs, const char *s, int len)
+{
+    vs->s[0] = vs->hd[0] = 0;
+    vs->len = 0;
+    str_append_impl(ctx, vs, s, len);
+    return vs;
+}
+
+vmstr *str_set_cp(vmctx *ctx, vmstr *vs, const char *s)
+{
+    vs->s[0] = vs->hd[0] = 0;
+    vs->len = 0;
+    str_append_impl(ctx, vs, s, strlen(s));
+    return vs;
+}
+
 vmstr *str_dup(vmctx *ctx, vmstr *vs)
 {
     return alcstr_str(ctx, vs->hd);
