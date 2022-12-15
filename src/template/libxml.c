@@ -36,13 +36,13 @@ enum {
     XMLDOM_DOCUMENT_POSITION_PRECEDING,
 };
 
-#define errset_wuth_ret(err, msg) do { *err = msg; if (0) { printf("[%d] err set %s\n", __LINE__, #msg); } return p; } while (0)
 #define is_whitespace(x) ((x) == ' ' || (x) == '\t' || (x) == '\r' || (x) == '\n')
 #define skip_whitespace(p) do { while (is_whitespace(*p)) { if (*p == '\n') { ++*line; *pos = -1; } ++p; ++*pos; } } while (0)
 #define move_next(p) do { if (*p == '\n') { ++*line, *pos = -1;} ++p; ++*pos; } while (0)
 #define check_error(err, condition, code) do { if (condition) { errset_wuth_ret(err, code); } } while (0)
 #define syntax_error(err, condition) check_error(err, condition, XMLDOM_ESYNTAX)
 #define end_of_text_error(err, p) syntax_error(err, *p == 0)
+#define errset_wuth_ret(err, msg) do { *err = msg; if (0) { printf("[%d] err set %s\n", __LINE__, #msg); } return p; } while (0)
 static const char *parse_doc(vmctx *ctx, vmfrm *lex, vmobj *nsmap, vmvar *r, const char *p, int *err, int *line, int *pos, int depth);
 
 static int xmldom_error(vmctx *ctx, int err, int line, int pos)
@@ -821,7 +821,7 @@ static int XmlDom_parseString(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     DEF_ARG(a0, 0, VAR_STR);
     vmstr *s = a0->s;
-    const char *str = s->s;
+    const char *str = s->hd;
     while (is_whitespace(*str)) {
         ++str;
     }
