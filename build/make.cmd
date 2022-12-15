@@ -103,6 +103,8 @@ echo #line 1 "libstd.c" >> %TEMPF%
 type ..\src\template\libstd.c >> %TEMPF%
 echo #line 1 "libxml.c" >> %TEMPF%
 type ..\src\template\libxml.c >> %TEMPF%
+echo #line 1 "libxpath.c" >> %TEMPF%
+type ..\src\template\libxpath.c >> %TEMPF%
 echo #line 1 "libzip.c" >> %TEMPF%
 type ..\src\template\libzip.c >> %TEMPF%
 echo #line 1 "libregex.c" >> %TEMPF%
