@@ -3,6 +3,13 @@
 #include "lib.h"
 #endif
 
+/*
+ * XPath parser implementation.
+ *  This implementation was done for reference to the site below with some modifications.
+ *    - https://github.com/quamotion/XPathParser
+ *    - License: Microsoft Public License
+ */
+
 /* XPath */
 
 enum xpath_axis {
