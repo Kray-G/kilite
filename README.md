@@ -250,8 +250,8 @@ I will note the followings as I don't forget it.
     * [ ] Binary
     * [ ] Array/Object
   * [ ] Regular expression.
-    * [ ] The regex literal of `/.../`
-    * [ ] Operator `=~` and `!~`.
+    * [x] The regex literal of `/.../`
+    * [x] Operator `=~` and `!~`.
 * [ ] Notes for a special specifications of the language.
   * [x] Formatter object.
   * [x] The last argument of function call could be outside arguments list if it's a block.
@@ -262,8 +262,8 @@ I will note the followings as I don't forget it.
   * [ ] Pipeline operators like `|>`.
   * [x] `__FILE__`, `__LINE__`, `__FUNC__`.
   * [ ] `__END__`.
-  * [ ] Here document.
-    * [ ] `%{ ... }`
+  * [x] Raw String Text.
+    * [x] `%{ ... }`
   * [ ] `System.try`
   * [x] Split operators.
     * [x] For Binary
