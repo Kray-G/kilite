@@ -306,6 +306,7 @@ static inline kl_symbol *make_ref_symbol(kl_context *ctx, kl_lexer *l, tk_token 
     while (ns) {
         kl_symbol *ref = search_symbol_in_scope(ctx, l, ns, name);
         if (ref) {
+            ref->refcount++;
             sym = (kl_symbol *)calloc(1, sizeof(kl_symbol));
             sym->chn = ctx->symchn;
             ctx->symchn = sym;
