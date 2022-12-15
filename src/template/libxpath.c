@@ -283,7 +283,6 @@ static int get_number(vmctx *ctx, xpath_lexer *l)
 
 static void next_token(vmctx *ctx, xpath_lexer *l)
 {
-
     l->prevend = l->cur;
     l->prevtype = l->token;
     skip_xpah_whitespace(l);
