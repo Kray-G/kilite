@@ -2968,7 +2968,7 @@ static kl_kir_inst *gen_stmt(kl_context *ctx, kl_symbol *sym, kl_stmt *s)
     case TK_EXTERN: {
         kl_expr *e2 = s->e2;
         kl_symbol *sym = e2 ? e2->sym : NULL;
-        if (sym && sym->refcount > 0) {
+        if (sym) {
             kl_kir_opr r1 = make_var_index(ctx, sym->index, sym->level, s->typeid);
             kl_kir_opr r2 = make_lit_str(ctx, s->e1->val.str);
             head = new_inst_op2(ctx->program, sym->line, sym->pos, KIR_EXTERN, &r1, &r2);

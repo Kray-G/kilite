@@ -2812,7 +2812,7 @@ static kl_stmt *parse_statement(kl_context *ctx, kl_lexer *l)
     case TK_EXTERN:
         lexer_fetch(l);
         if (l->tok != TK_NAME) {
-            parse_error(ctx, __LINE__, l, "Function name is needed after 'extern'");
+            parse_error(ctx, __LINE__, l, "Function/Object name is needed after 'extern'");
             return panic_mode_stmt(r, ';', ctx, l);
         }
         r = make_stmt(ctx, l, TK_EXTERN);

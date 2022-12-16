@@ -6,8 +6,7 @@
 /*
  * XPath parser implementation.
  *  This implementation was done for reference to the site below with some modifications.
- *    - https://github.com/quamotion/XPathParser
- *    - License: Microsoft Public License
+ *    - https://github.com/quamotion/XPathParser (Microsoft Public License)
  */
 
 /* XPath */
@@ -1084,6 +1083,37 @@ int XPath(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     KL_SET_METHOD(o, opName, XPath_opName, lex, 1);
     KL_SET_METHOD(o, axisName, XPath_axisName, lex, 1);
     KL_SET_METHOD(o, nodeTypeName, XPath_nodeTypeName, lex, 1);
+
+    vmobj *axis = alcobj(ctx);
+    KL_SET_PROPERTY_I(axis, ANCESTOR,             XPATH_AXIS_ANCESTOR);
+    KL_SET_PROPERTY_I(axis, ANCESTOR_OR_SELF,     XPATH_AXIS_ANCESTOR_OR_SELF);
+    KL_SET_PROPERTY_I(axis, ATTRIBUTE,            XPATH_AXIS_ATTRIBUTE);
+    KL_SET_PROPERTY_I(axis, CHILD,                XPATH_AXIS_CHILD);
+    KL_SET_PROPERTY_I(axis, DESCENDANT,           XPATH_AXIS_DESCENDANT);
+    KL_SET_PROPERTY_I(axis, DESCENDANT_OR_SELF,   XPATH_AXIS_DESCENDANT_OR_SELF);
+    KL_SET_PROPERTY_I(axis, FOLLOWING,            XPATH_AXIS_FOLLOWING);
+    KL_SET_PROPERTY_I(axis, FOLLOWING_SIBLING,    XPATH_AXIS_FOLLOWING_SIBLING);
+    KL_SET_PROPERTY_I(axis, NAMESPACE,            XPATH_AXIS_NAMESPACE);
+    KL_SET_PROPERTY_I(axis, PARENT,               XPATH_AXIS_PARENT);
+    KL_SET_PROPERTY_I(axis, PRECEDING,            XPATH_AXIS_PRECEDING);
+    KL_SET_PROPERTY_I(axis, PRECEDING_SIBLING,    XPATH_AXIS_PRECEDING_SIBLING);
+    KL_SET_PROPERTY_I(axis, SELF,                 XPATH_AXIS_SELF);
+    KL_SET_PROPERTY_I(axis, ROOT,                 XPATH_AXIS_ROOT);
+    KL_SET_PROPERTY_O(o, axis, axis);
+
+    vmobj *nt = alcobj(ctx);
+    KL_SET_PROPERTY_I(nt, ROOT,                   XPATH_NODE_ROOT);
+    KL_SET_PROPERTY_I(nt, ELEMENT,                XPATH_NODE_ELEMENT);
+    KL_SET_PROPERTY_I(nt, ATTRIBUTE,              XPATH_NODE_ATTRIBUTE);
+    KL_SET_PROPERTY_I(nt, NAMESPACE,              XPATH_NODE_NAMESPACE);
+    KL_SET_PROPERTY_I(nt, TEXT,                   XPATH_NODE_TEXT);
+    KL_SET_PROPERTY_I(nt, SIGNIFICANT_WHITESPACE, XPATH_NODE_SIGNIFICANT_WHITESPACE);
+    KL_SET_PROPERTY_I(nt, WHITESPACE,             XPATH_NODE_WHITESPACE);
+    KL_SET_PROPERTY_I(nt, PROCESSIGN_INSTRUCTION, XPATH_NODE_PROCESSIGN_INSTRUCTION);
+    KL_SET_PROPERTY_I(nt, COMMENT,                XPATH_NODE_COMMENT);
+    KL_SET_PROPERTY_I(nt, ALL,                    XPATH_NODE_ALL);
+    KL_SET_PROPERTY_O(o, nodeType, nt);
+
     SET_OBJ(r, o);
     return 0;
 }
