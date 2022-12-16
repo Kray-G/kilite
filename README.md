@@ -238,6 +238,8 @@ I will note the followings as I don't forget it.
     * [x] Module definition.
     * [x] The `mixin` statement.
     * [x] `@` is the same as the shorten word of `this.`.
+  * [x] enum
+    * [ ] Value propagation from constant value.
   * [x] Exception.
     * [x] throwing an exception.
     * [x] Stack trace.
