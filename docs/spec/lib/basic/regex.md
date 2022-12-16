@@ -80,10 +80,10 @@ c
 c
 ```
 
-### Notes
+### Note
 
-Do not use a regular expression in the condition of `while`. It will cause an infinite loop.
-You should declare a regular expression as a variable and use the variable in the condition like this.
+Do not use a regular expression literal directly in the condition of a loop like `while`, `for`, or something. It will cause an infinite loop.
+You should declare a regular expression as a variable and use the variable in the condition like below.
 
 ```javascript
 var re = /ab+/;
@@ -129,12 +129,18 @@ var s = "XYZXYZ";
 if (s !~ /ABC/) {
     System.println("ABC is not included.");
 }
+if (s !~ /X.+Y/) {
+    System.println("<string> !~ /X.+Y/ test was failed.");
+} else {
+    System.println("<string> !~ /X.+Y/ test was successful.");
+}
 ```
 
 #### Result
 
 ```
 ABC is not included.
+<string> !~ /X.+Y/ test was successful.
 ```
 
 ### Example 3. `String#replace()`
