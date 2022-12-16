@@ -35,8 +35,6 @@ enum xpath_node_type {
     XPATH_NODE_ATTRIBUTE,
     XPATH_NODE_NAMESPACE,
     XPATH_NODE_TEXT,
-    XPATH_NODE_SIGNIFICANT_WHITESPACE,
-    XPATH_NODE_WHITESPACE,
     XPATH_NODE_PROCESSIGN_INSTRUCTION,
     XPATH_NODE_COMMENT,
     XPATH_NODE_ALL,
@@ -1065,8 +1063,6 @@ static int XPath_nodeTypeName(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     case XPATH_NODE_ATTRIBUTE:              SET_STR(r, "attribute");              break;
     case XPATH_NODE_NAMESPACE:              SET_STR(r, "namespace");              break;
     case XPATH_NODE_TEXT:                   SET_STR(r, "text");                   break;
-    case XPATH_NODE_SIGNIFICANT_WHITESPACE: SET_STR(r, "significant-whitespace"); break;
-    case XPATH_NODE_WHITESPACE:             SET_STR(r, "whitespace");             break;
     case XPATH_NODE_PROCESSIGN_INSTRUCTION: SET_STR(r, "processing-instruction"); break;
     case XPATH_NODE_COMMENT:                SET_STR(r, "comment");                break;
     case XPATH_NODE_ALL:                    SET_STR(r, "all");                    break;
@@ -1107,8 +1103,6 @@ int XPath(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     KL_SET_PROPERTY_I(nt, ATTRIBUTE,              XPATH_NODE_ATTRIBUTE);
     KL_SET_PROPERTY_I(nt, NAMESPACE,              XPATH_NODE_NAMESPACE);
     KL_SET_PROPERTY_I(nt, TEXT,                   XPATH_NODE_TEXT);
-    KL_SET_PROPERTY_I(nt, SIGNIFICANT_WHITESPACE, XPATH_NODE_SIGNIFICANT_WHITESPACE);
-    KL_SET_PROPERTY_I(nt, WHITESPACE,             XPATH_NODE_WHITESPACE);
     KL_SET_PROPERTY_I(nt, PROCESSIGN_INSTRUCTION, XPATH_NODE_PROCESSIGN_INSTRUCTION);
     KL_SET_PROPERTY_I(nt, COMMENT,                XPATH_NODE_COMMENT);
     KL_SET_PROPERTY_I(nt, ALL,                    XPATH_NODE_ALL);

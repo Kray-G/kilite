@@ -36,14 +36,22 @@ enum {
     XMLDOM_DOCUMENT_POSITION_PRECEDING,
 };
 
+typedef struct xmlctx {
+    int line;
+    int pos;
+    int depth;
+    int id;
+    int err;
+} xmlctx;
+
 #define is_whitespace(x) ((x) == ' ' || (x) == '\t' || (x) == '\r' || (x) == '\n')
-#define skip_whitespace(p) do { while (is_whitespace(*p)) { if (*p == '\n') { ++*line; *pos = -1; } ++p; ++*pos; } } while (0)
-#define move_next(p) do { if (*p == '\n') { ++*line, *pos = -1;} ++p; ++*pos; } while (0)
+#define skip_whitespace(p) do { while (is_whitespace(*p)) { if (*p == '\n') { ++(xctx->line); (xctx->pos) = -1; } ++p; ++(xctx->pos); } } while (0)
+#define move_next(p) do { if (*p == '\n') { ++(xctx->line), (xctx->pos) = -1;} ++p; ++(xctx->pos); } while (0)
 #define check_error(err, condition, code) do { if (condition) { errset_wuth_ret(err, code); } } while (0)
 #define syntax_error(err, condition) check_error(err, condition, XMLDOM_ESYNTAX)
 #define end_of_text_error(err, p) syntax_error(err, *p == 0)
-#define errset_wuth_ret(err, msg) do { *err = msg; if (0) { printf("[%d] err set %s\n", __LINE__, #msg); } return p; } while (0)
-static const char *parse_doc(vmctx *ctx, vmfrm *lex, vmobj *nsmap, vmvar *r, const char *p, int *err, int *line, int *pos, int depth);
+#define errset_wuth_ret(err, msg) do { err = msg; if (0) { printf("[%d] err set %s\n", __LINE__, #msg); } return p; } while (0)
+static const char *parse_doc(vmctx *ctx, vmfrm *lex, vmobj *nsmap, vmvar *r, const char *p, xmlctx *xctx);
 
 static int xmldom_error(vmctx *ctx, int err, int line, int pos)
 {
@@ -163,42 +171,42 @@ static void set_attrs(vmctx *ctx, int *err, vmobj *attrs, const char *n, int nle
     hashmap_set(ctx, attrs, key, value);
 }
 
-static const char *parse_attrs(vmctx *ctx, vmobj *nsmap, vmobj *attrs, const char *p, int *err, int *line, int *pos)
+static const char *parse_attrs(vmctx *ctx, vmobj *nsmap, vmobj *attrs, const char *p, xmlctx *xctx)
 {
     const char *attrn = p;
     while (!is_whitespace(*p)) {
-        end_of_text_error(err, p);
+        end_of_text_error((xctx->err), p);
         if (*p == '=') break;
         move_next(p);
     }
     int attrnlen = p - attrn;
     skip_whitespace(p);
-    syntax_error(err, (*p != '='));
+    syntax_error((xctx->err), (*p != '='));
     move_next(p);
     skip_whitespace(p);
-    syntax_error(err, (*p != '"' && *p != '\''));
+    syntax_error((xctx->err), (*p != '"' && *p != '\''));
     char br = *p;
     move_next(p);
     const char *attrv = p;
     while (*p != br) {
-        end_of_text_error(err, p);
+        end_of_text_error((xctx->err), p);
         if (*p == '\\') { move_next(p); }
         move_next(p);
     }
     if (strncmp(attrn, "xmlns", 5) == 0 && (*(attrn + 5) == '=' || is_whitespace(*(attrn+5)))) {
-        vmvar *value = make_str_obj(ctx, err, attrv, p - attrv);
+        vmvar *value = make_str_obj(ctx, &(xctx->err), attrv, p - attrv);
         array_set(ctx, nsmap, 0, value);
     } else if (strncmp(attrn, "xmlns:", 6) == 0) {
-        set_attrs(ctx, err, nsmap, attrn + 6, attrnlen - 6, attrv, p - attrv);
+        set_attrs(ctx, &(xctx->err), nsmap, attrn + 6, attrnlen - 6, attrv, p - attrv);
     } else {
-        set_attrs(ctx, err, attrs, attrn, attrnlen, attrv, p - attrv);
+        set_attrs(ctx, &(xctx->err), attrs, attrn, attrnlen, attrv, p - attrv);
     }
-    if (*err < 0) return p;
+    if (xctx->err < 0) return p;
     if (*p == br) { move_next(p); }
     return p;
 }
 
-static const char *parse_comment(vmctx *ctx, vmvar *r, const char *p, int *err, int *line, int *pos)
+static const char *parse_comment(vmctx *ctx, vmvar *r, const char *p, xmlctx *xctx)
 {
     const char *s = p;
     while (*p) {
@@ -208,24 +216,24 @@ static const char *parse_comment(vmctx *ctx, vmvar *r, const char *p, int *err, 
             break;
         }
     }
-    syntax_error(err, (*p != '>'));
-    vmvar *comment = make_pure_str_obj(ctx, err, s, p - s - 2);
+    syntax_error((xctx->err), (*p != '>'));
+    vmvar *comment = make_pure_str_obj(ctx, &(xctx->err), s, p - s - 2);
     hashmap_set(ctx, r->o, "nodeName", alcvar_str(ctx, "#comment"));
     hashmap_set(ctx, r->o, "nodeValue", comment);
     hashmap_set(ctx, r->o, "comment", comment);
     return p;
 }
 
-static const char *parse_pi(vmctx *ctx, vmobj *nsmap, vmvar *doc, vmvar *r, const char *p, int *err, int *line, int *pos, int *xmldecl)
+static const char *parse_pi(vmctx *ctx, vmobj *nsmap, vmvar *doc, vmvar *r, const char *p, xmlctx *xctx, int *xmldecl)
 {
     const char *s = p;
     while (!is_whitespace(*p)) {
-        end_of_text_error(err, p);
+        end_of_text_error((xctx->err), p);
         move_next(p);
     }
     if (s != p) {
-        vmvar *target = make_str_obj(ctx, err, s, p - s);
-        if (*err < 0) return p;
+        vmvar *target = make_str_obj(ctx, &(xctx->err), s, p - s);
+        if (xctx->err < 0) return p;
         if (strcmp(target->s->hd, "xml") == 0) {
             *xmldecl = 1;
         }
@@ -235,16 +243,16 @@ static const char *parse_pi(vmctx *ctx, vmobj *nsmap, vmvar *doc, vmvar *r, cons
     skip_whitespace(p);
     if (*p == '?') {
         move_next(p);
-        syntax_error(err, (*p != '>'));
+        syntax_error((xctx->err), (*p != '>'));
         return p;
     }
     vmobj *attrs = alcobj(ctx);
     while (1) {
         skip_whitespace(p);
-        end_of_text_error(err, p);
+        end_of_text_error((xctx->err), p);
         if (*p == '?') break;
-        p = parse_attrs(ctx, nsmap, attrs, p, err, line, pos);
-        if (*err < 0) return p;
+        p = parse_attrs(ctx, nsmap, attrs, p, xctx);
+        if (xctx->err < 0) return p;
     }
     if (*xmldecl) {
         vmvar *version = hashmap_search(attrs, "version");
@@ -281,17 +289,17 @@ static const char *get_namespace_uri(vmctx *ctx, vmobj *nsmap, const char *prefi
     return "";
 }
 
-static const char *parse_node(vmctx *ctx, vmfrm *lex, vmobj *nsmap, vmvar *r, const char *p, int *err, int *line, int *pos, int depth)
+static const char *parse_node(vmctx *ctx, vmfrm *lex, vmobj *nsmap, vmvar *r, const char *p, xmlctx *xctx)
 {
     skip_whitespace(p);
-    end_of_text_error(err, p);
+    end_of_text_error((xctx->err), p);
 
     const char *tag = p;
     int taglen = 0;
     const char *ns = p;
     int nslen = 0;
     while (!is_whitespace(*p)) {
-        end_of_text_error(err, p);
+        end_of_text_error((xctx->err), p);
         if (*p == '/' || *p == '>') break;
         if (*p == ':') {
             ns = tag; nslen = taglen;
@@ -302,19 +310,19 @@ static const char *parse_node(vmctx *ctx, vmfrm *lex, vmobj *nsmap, vmvar *r, co
             ++taglen;
         }
     }
-    syntax_error(err, (taglen == 0));
+    syntax_error((xctx->err), (taglen == 0));
 
     KL_SET_PROPERTY_I(r->o, "isXmlNode", 1);
-    vmvar *lname = make_str_obj(ctx, err, tag, taglen);
-    if (*err < 0) return p;
+    vmvar *lname = make_str_obj(ctx, &(xctx->err), tag, taglen);
+    if (xctx->err < 0) return p;
     hashmap_set(ctx, r->o, "localName", lname);
     vmvar *nsname = NULL;
     if (nslen > 0) {
-        nsname = make_str_obj(ctx, err, ns, nslen);
-        if (*err < 0) return p;
+        nsname = make_str_obj(ctx, &(xctx->err), ns, nslen);
+        if (xctx->err < 0) return p;
         hashmap_set(ctx, r->o, "prefix", nsname);
-        vmvar *tname = make_str_obj(ctx, err, ns, nslen + taglen + 1);
-        if (*err < 0) return p;
+        vmvar *tname = make_str_obj(ctx, &(xctx->err), ns, nslen + taglen + 1);
+        if (xctx->err < 0) return p;
         hashmap_set(ctx, r->o, "tagName", tname);
         hashmap_set(ctx, r->o, "qName", tname);
         hashmap_set(ctx, r->o, "nodeName", tname);
@@ -330,10 +338,10 @@ static const char *parse_node(vmctx *ctx, vmfrm *lex, vmobj *nsmap, vmvar *r, co
     if (*p != '/' && *p != '>') {
         while (1) {
             skip_whitespace(p);
-            end_of_text_error(err, p);
+            end_of_text_error((xctx->err), p);
             if (*p == '/' || *p == '>') break;
-            p = parse_attrs(ctx, nsmap, attrs, p, err, line, pos);
-            if (*err < 0) return p;
+            p = parse_attrs(ctx, nsmap, attrs, p, xctx);
+            if (xctx->err < 0) return p;
         }
     }
     hashmap_set(ctx, r->o, "attributes", alcvar_obj(ctx, attrs));
@@ -348,9 +356,11 @@ static const char *parse_node(vmctx *ctx, vmfrm *lex, vmobj *nsmap, vmvar *r, co
 
     if (*p == '/') { move_next(p); return p; }
     if (*p == '>') { move_next(p); }
-    p = parse_doc(ctx, lex, nsmap, r, p, err, line, pos, depth + 1);
-    if (*err < 0) return p;
-    syntax_error(err, (*p != '/'));
+    xctx->depth++;
+    p = parse_doc(ctx, lex, nsmap, r, p, xctx);
+    xctx->depth--;
+    if (xctx->err < 0) return p;
+    syntax_error((xctx->err), (*p != '/'));
     move_next(p);
 
     const char *ctag = p;
@@ -358,7 +368,7 @@ static const char *parse_node(vmctx *ctx, vmfrm *lex, vmobj *nsmap, vmvar *r, co
     const char *cns = p;
     int cnslen = 0;
     while (!is_whitespace(*p)) {
-        end_of_text_error(err, p);
+        end_of_text_error((xctx->err), p);
         if (*p == '>') break;
         if (*p == ':') {
             cns = ctag; cnslen = ctaglen;
@@ -372,11 +382,11 @@ static const char *parse_node(vmctx *ctx, vmfrm *lex, vmobj *nsmap, vmvar *r, co
     skip_whitespace(p);
 
     if (!is_same_tagname(tag, taglen, ctag, ctaglen)) {
-        errset_wuth_ret(err, XMLDOM_ECLOSE);
+        errset_wuth_ret((xctx->err), XMLDOM_ECLOSE);
     }
     if (nslen > 0) {
         if (!is_same_tagname(ns, nslen, cns, cnslen)) {
-            errset_wuth_ret(err, XMLDOM_ECLOSE);
+            errset_wuth_ret((xctx->err), XMLDOM_ECLOSE);
         }
     }
     return p;
@@ -709,10 +719,11 @@ static int XmlDom_textContent(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     return 0;
 }
 
-static void setup_xmlnode_props(vmctx *ctx, vmfrm *lex, vmvar *r, vmvar *parent, int index, int type)
+static void setup_xmlnode_props(vmctx *ctx, vmfrm *lex, vmvar *r, vmvar *parent, int index, int type, xmlctx *xctx)
 {
     vmobj *o = r->o;
     o->is_sysobj = 1;
+    KL_SET_PROPERTY_I(o, _nodeid, xctx->id++);
     KL_SET_PROPERTY_I(o, nodeType, type);
     KL_SET_PROPERTY_I(o, hasChildNodes, o->idxsz > 0 ? 1 : 0);
     vmobj *children = alcobj(ctx);
@@ -765,7 +776,7 @@ static void setup_xmldoc_props(vmctx *ctx, vmfrm *lex, vmvar *r)
     KL_SET_PROPERTY_S(o, nodeName, "#document");
 }
 
-static const char *parse_doc(vmctx *ctx, vmfrm *lex, vmobj *nsmap, vmvar *r, const char *p, int *err, int *line, int *pos, int depth)
+static const char *parse_doc(vmctx *ctx, vmfrm *lex, vmobj *nsmap, vmvar *r, const char *p, xmlctx *xctx)
 {
     while (*p != 0) {
         const char *s = p;
@@ -774,13 +785,13 @@ static const char *parse_doc(vmctx *ctx, vmfrm *lex, vmobj *nsmap, vmvar *r, con
             move_next(p);
         }
         if (s != p) {
-            vmvar *vs = make_str_obj(ctx, err, s, p - s);
-            if (*err < 0) return p;
+            vmvar *vs = make_str_obj(ctx, &(xctx->err), s, p - s);
+            if (xctx->err < 0) return p;
             vmvar *vo = alcvar_obj(ctx, alcobj(ctx));
             KL_SET_PROPERTY(vo->o, text, vs);
             KL_SET_PROPERTY(vo->o, nodeValue, vs);
             KL_SET_PROPERTY_S(vo->o, nodeName, "#text");
-            setup_xmlnode_props(ctx, lex, vo, r, r->o->idxsz, XMLDOM_TEXT_NODE);
+            setup_xmlnode_props(ctx, lex, vo, r, r->o->idxsz, XMLDOM_TEXT_NODE, xctx);
             array_push(ctx, r->o, vo);
         }
         if (*p == 0) break;
@@ -790,28 +801,28 @@ static const char *parse_doc(vmctx *ctx, vmfrm *lex, vmobj *nsmap, vmvar *r, con
             if (*p == '/') return p;
             vmvar *n = alcvar_obj(ctx, alcobj(ctx));
             if (*p == '!') {
-                syntax_error(err, (*++p != '-'));
-                syntax_error(err, (*++p != '-'));
-                p = parse_comment(ctx, n, p+1, err, line, pos);
-                setup_xmlnode_props(ctx, lex, n, r, r->o->idxsz, XMLDOM_COMMENT_NODE);
+                syntax_error((xctx->err), (*++p != '-'));
+                syntax_error((xctx->err), (*++p != '-'));
+                p = parse_comment(ctx, n, p+1, xctx);
+                setup_xmlnode_props(ctx, lex, n, r, r->o->idxsz, XMLDOM_COMMENT_NODE, xctx);
             } else if (*p == '?') {
                 move_next(p);
                 int xmldecl = 0;
-                p = parse_pi(ctx, cnsmap, r, n, p, err, line, pos, &xmldecl);
-                if (xmldecl && (depth > 0 || r->o->idxsz > 0)) {
-                    errset_wuth_ret(err, XMLDOM_EDECL);
+                p = parse_pi(ctx, cnsmap, r, n, p, xctx, &xmldecl);
+                if (xmldecl && (xctx->depth > 0 || r->o->idxsz > 0)) {
+                    errset_wuth_ret((xctx->err), XMLDOM_EDECL);
                 }
                 setup_xmlnode_props(ctx, lex, n, r, r->o->idxsz,
-                    xmldecl ? XMLDOM_XMLDECL_NODE : XMLDOM_PROCESSING_INSTRUCTION_NODE);
+                    xmldecl ? XMLDOM_XMLDECL_NODE : XMLDOM_PROCESSING_INSTRUCTION_NODE, xctx);
             } else {
-                p = parse_node(ctx, lex, cnsmap, n, p, err, line, pos, depth);
-                setup_xmlnode_props(ctx, lex, n, r, r->o->idxsz, XMLDOM_ELEMENT_NODE);
+                p = parse_node(ctx, lex, cnsmap, n, p, xctx);
+                setup_xmlnode_props(ctx, lex, n, r, r->o->idxsz, XMLDOM_ELEMENT_NODE, xctx);
             }
-            if (*err < 0) return p;
+            if (xctx->err < 0) return p;
             array_push(ctx, r->o, n);
         }
         if (*p == 0) break;
-        syntax_error(err, (*p != '>'));
+        syntax_error((xctx->err), (*p != '>'));
         move_next(p);
     }
     return p;
@@ -830,13 +841,17 @@ static int XmlDom_parseString(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     r->o = alcobj(ctx);
     r->o->is_sysobj = 1;
     if (s->s) {
-        int err = 0;
-        int line = 1;
-        int pos = 0;
-        parse_doc(ctx, lex, nsmap, r, str, &err, &line, &pos, 0);
+        xmlctx xctx = {
+            .err = 0,
+            .line = 1,
+            .pos = 0,
+            .id = 1,
+            .depth = 0,
+        };
+        parse_doc(ctx, lex, nsmap, r, str, &xctx);
         setup_xmldoc_props(ctx, lex, r);
-        if (err < 0) {
-            return xmldom_error(ctx, err, line, pos);
+        if (xctx.err < 0) {
+            return xmldom_error(ctx, xctx.err, xctx.line, xctx.pos);
         }
         mark_and_sweep(ctx);
     }
