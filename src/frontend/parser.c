@@ -2499,24 +2499,29 @@ static kl_stmt *parse_function(kl_context *ctx, kl_lexer *l, tk_token funcscope)
     DEBUG_PARSER_PHASE();
 
     kl_stmt *s = make_stmt(ctx, l, TK_FUNC);
-    kl_symbol *sym = make_symbol(ctx, l, funcscope, 0);
-    s->sym = sym;
-    sym->funcid = ++ctx->funcid;
-    sym->is_callable = 1;
-    sym->is_native = (funcscope == TK_NATIVE);
+    const char *name = NULL;
+    int funcid = ++ctx->funcid;
 
     /* The name is not needed for function */
     if (l->tok == TK_NAME) {
-        sym->name = parse_const_str(ctx, l, l->str);
-        sym->funcname = make_func_name(ctx, l, l->str, 0, sym->funcid);
-        if (ctx->scope->symtoken == TK_CLASS && strcmp(sym->name, "initialize") == 0) {
-            ctx->scope->initer = sym;
-        }
+        name = parse_const_str(ctx, l, l->str);
         lexer_fetch(l);
     } else {
-        sym->name = parse_const_funcidname(ctx, l, sym->funcid);
-        sym->funcname = make_func_name(ctx, l, sym->name, 0, sym->funcid);
+        name = parse_const_funcidname(ctx, l, funcid);
     }
+    kl_symbol *sym = make_ref_symbol(ctx, l, funcscope, name);
+    if (!sym) {
+        sym = make_symbol(ctx, l, funcscope, 0);
+    }
+    if (ctx->scope->symtoken == TK_CLASS && strcmp(name, "initialize") == 0) {
+        ctx->scope->initer = sym;
+    }
+    s->sym = sym;
+    sym->funcid = funcid;
+    sym->name = name;
+    sym->funcname = make_func_name(ctx, l, name, 0, funcid);
+    sym->is_callable = 1;
+    sym->is_native = (funcscope == TK_NATIVE);
     add_sym2method(ctx->scope, sym);
 
     /* Push the scope */
