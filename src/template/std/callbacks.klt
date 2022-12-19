@@ -60,7 +60,7 @@ function String_split(str: string, cond) {
     } else {
         throw RuntimeException('Invalid split condition');
     }
-};
+}
 
 function String_replace(str: string, cond, newstr) {
     if (cond.isString) {
@@ -94,7 +94,7 @@ function String_replace(str: string, cond, newstr) {
     } else {
         throw RuntimeException('Invalid replace condition');
     }
-};
+}
 
 function String_each(str: string, f: func) {
     let n:integer = str.length();
@@ -219,7 +219,7 @@ function Array_partition(a:object, cond:func) {
         }
     }
     return [t, f];
-};
+}
 
 function Array_take(a:object, n:integer) {
     let r:object = [];
@@ -231,7 +231,7 @@ function Array_take(a:object, n:integer) {
         r.push(a[i]);
     }
     return r;
-};
+}
 
 function Array_takeWhile(a:object, f:func) {
     let r:object = [];
@@ -243,7 +243,7 @@ function Array_takeWhile(a:object, f:func) {
         r.push(a[i]);
     }
     return r;
-};
+}
 
 function Array_drop(a:object, n:integer) {
     let r:object = [];
@@ -252,7 +252,7 @@ function Array_drop(a:object, n:integer) {
         r.push(a[i]);
     }
     return r;
-};
+}
 
 function Array_dropWhile(a:object, f:func) {
     let r:object = [];
@@ -267,8 +267,7 @@ function Array_dropWhile(a:object, f:func) {
         r.push(a[i]);
     }
     return r;
-};
-
+}
 
 function Array_sort(a:object, f:func) {
     function _quicksort(a, first, last, comp) {
