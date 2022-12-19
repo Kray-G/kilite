@@ -247,8 +247,9 @@ I will note the followings as I don't forget it.
     * [x] MethodMissing for global scope.
     * [x] MethodMissing for class methods.
   * [ ] Special object.
-    * [ ] Integer
-    * [ ] String
+    * [x] Integer
+    * [x] Double
+    * [x] String
     * [ ] Binary
     * [ ] Array/Object
   * [ ] Regular expression.

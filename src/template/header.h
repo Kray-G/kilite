@@ -48,6 +48,7 @@ extern int fprintf(FILE *, const char *, ...);
 extern int printf(const char *, ...);
 extern int sprintf(const char *, const char *, ...);
 extern int64_t strtoll(const char*, char**, int);
+extern double strtod(const char *, char **);
 extern void *malloc(size_t);
 extern void *calloc(size_t, size_t);
 extern void *memset(void *, int, size_t);
@@ -57,6 +58,7 @@ extern char *strcpy(char *, const char *);
 extern char *strncpy(char *, const char *, size_t);
 extern char *strstr(const char *, const char *);
 extern int strcmp(const char *, const char *);
+extern int strncmp(const char *, const char *, size_t);
 #ifndef NULL
 #define NULL ((void*)0)
 #endif

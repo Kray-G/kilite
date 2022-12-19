@@ -96,6 +96,13 @@ function String_replace(str: string, cond, newstr) {
     }
 };
 
+function String_each(str: string, f: func) {
+    let n:integer = str.length();
+    for (let i:integer = 0; i < n; ++i) {
+        f(*str[i], i);
+    }
+}
+
 /* Array functions */
 
 function Array_each(a:object, f:func) {

@@ -1077,6 +1077,18 @@ static int Integer_toString(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     return 0;
 }
 
+static int Integer_toDouble(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    DEF_ARG_INT(a0, 0);
+    r->t = VAR_INT64;
+    if (a0->t == VAR_INT64) {
+        r->d = (double)(a0->i);
+    } else {
+        r->d = BzToDouble(a0->bi->b);
+    }
+    return 0;
+}
+
 int Integer_abs(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     DEF_ARG(v1, 0, VAR_INT64)
@@ -1093,6 +1105,7 @@ int Integer(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     vmobj *o = alcobj(ctx);
     ctx->i = o;
     KL_SET_METHOD(o, toString, Integer_toString, lex, 2)
+    KL_SET_METHOD(o, toDouble, Integer_toDouble, lex, 1)
     KL_SET_METHOD(o, times, Integer_times, lex, 2)
     KL_SET_METHOD(o, upto, Integer_upto, lex, 2)
     KL_SET_METHOD(o, downto, Integer_downto, lex, 2)
@@ -1126,10 +1139,31 @@ int Integer(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 
 /* Double */
 
+static int Double_toString(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    DEF_ARG(a0, 0, VAR_DBL);
+    r->t = VAR_STR;
+    char buf[32] = {0};
+    sprintf(buf, "%g", a0->d);
+    r->s = alcstr_str(ctx, buf);
+    return 0;
+}
+
+static int Double_toInteger(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    DEF_ARG(a0, 0, VAR_DBL);
+    r->t = VAR_INT64;
+    r->i = (int64_t)(a0->d);
+    return 0;
+}
+
 int Double(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     vmobj *o = alcobj(ctx);
     ctx->d = o;
+    KL_SET_METHOD(o, toString, Double_toString, lex, 1)
+    KL_SET_METHOD(o, toInt, Double_toInteger, lex, 1)
+    KL_SET_METHOD(o, toInteger, Double_toInteger, lex, 1)
     KL_SET_METHOD(o, acos, Math_acos, lex, 1)
     KL_SET_METHOD(o, asin, Math_asin, lex, 1)
     KL_SET_METHOD(o, atan, Math_atan, lex, 1)
@@ -1290,8 +1324,155 @@ int String_replaceByString(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     return 0;
 }
 
+int String_toDouble(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    DEF_ARG(a0, 0, VAR_STR);
+    double d = strtod(a0->s->hd, NULL);
+    SET_DBL(r, d);
+    return 0;
+}
+
+int String_toInteger(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    DEF_ARG(a0, 0, VAR_STR);
+    DEF_ARG_OR_UNDEF(a1, 1, VAR_INT64);
+    int radix = a1->t == VAR_INT64 ? a1->i : 10;
+
+    int64_t i64 = strtoll(a0->s->hd, NULL, radix);
+    SET_I64(r, i64);
+    return 0;
+}
+
+int String_startsWith(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    DEF_ARG(a0, 0, VAR_STR);
+    DEF_ARG(a1, 1, VAR_STR);
+    const char *s0 = a0->s->hd;
+    int s0l = strlen(s0);
+    const char *s1 = a1->s->hd;
+    int s1l = strlen(s1);
+    if (s0l < s1l) {
+        SET_I64(r, 0);
+    } else {
+        SET_I64(r, strncmp(s0, s1, s1l));
+    }
+    return 0;
+}
+
+int String_endsWith(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    DEF_ARG(a0, 0, VAR_STR);
+    DEF_ARG(a1, 1, VAR_STR);
+    const char *s0 = a0->s->hd;
+    int s0l = strlen(s0);
+    const char *s1 = a1->s->hd;
+    int s1l = strlen(s1);
+    if (s0l < s1l) {
+        SET_I64(r, 0);
+    } else {
+        SET_I64(r, strcmp(s0 + s0l - s1l, s1));
+    }
+    return 0;
+}
+
+int String_find(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    DEF_ARG(a0, 0, VAR_STR);
+    DEF_ARG(a1, 1, VAR_STR);
+    const char *s0 = a0->s->hd;
+    const char *s1 = a1->s->hd;
+    const char *p = strstr(s0, s1);
+    if (p) {
+        SET_I64(r, (int64_t)(p - s0));
+    } else {
+        SET_I64(r, -1);
+    }
+    return 0;
+}
+
+int String_parentPath(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    DEF_ARG(a0, 0, VAR_STR);
+    const char *s0 = a0->s->hd;
+    const char *p = NULL;
+    for (const char *pp = s0; *pp; ++pp) {
+        if(*pp == '/' || *pp == '\\') {
+            p = pp; // hold the last one.
+        }
+    }
+    r->t = VAR_STR;
+    if (p) {
+        r->s = alcstr_str_len(ctx, s0, p - s0);
+    } else {
+        r->s = alcstr_str(ctx, "");
+    }
+    return 0;
+}
+
+int String_filename(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    DEF_ARG(a0, 0, VAR_STR);
+    const char *s0 = a0->s->hd;
+    const char *p = s0;
+    for (const char *pp = s0; *pp; ++pp) {
+        if(*pp == '/' || *pp == '\\') {
+            p = pp; // hold the last one.
+        }
+    }
+    r->t = VAR_STR;
+    r->s = alcstr_str(ctx, p + 1);
+    return 0;
+}
+
+int String_stem(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    DEF_ARG(a0, 0, VAR_STR);
+    const char *s0 = a0->s->hd;
+    const char *p = s0;
+    const char *n = NULL;
+    for (const char *pp = s0; *pp; ++pp) {
+        if(*pp == '/' || *pp == '\\') {
+            p = pp + 1; // hold the last one.
+            n = NULL;
+        }
+        if(*pp == '.') {
+            n = pp; // hold the last one.
+        }
+    }
+    r->t = VAR_STR;
+    if (n) {
+        r->s = alcstr_str_len(ctx, p, n - p);
+    } else {
+        r->s = alcstr_str(ctx, p);
+    }
+    return 0;
+}
+
+int String_extension(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    DEF_ARG(a0, 0, VAR_STR);
+    const char *s0 = a0->s->hd;
+    const char *n = NULL;
+    for (const char *pp = s0; *pp; ++pp) {
+        if(*pp == '/' || *pp == '\\') {
+            n = NULL;
+        }
+        if(*pp == '.') {
+            n = pp; // hold the last one.
+        }
+    }
+    r->t = VAR_STR;
+    if (n) {
+        r->s = alcstr_str(ctx, n);
+    } else {
+        r->s = alcstr_str(ctx, "");
+    }
+    return 0;
+}
+
 extern int String_split(vmctx *ctx, vmfrm *lex, vmvar *r, int ac);
 extern int String_replace(vmctx *ctx, vmfrm *lex, vmvar *r, int ac);
+extern int String_each(vmctx *ctx, vmfrm *lex, vmvar *r, int ac);
 
 int String(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
@@ -1304,6 +1485,16 @@ int String(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     KL_SET_METHOD(o, replaceByString, String_replaceByString, lex, 2)
     KL_SET_METHOD(o, splitByString, String_splitByString, lex, 2)
     KL_SET_METHOD(o, subString, String_subString, lex, 2)
+    KL_SET_METHOD(o, toDouble, String_toDouble, lex, 1)
+    KL_SET_METHOD(o, toInteger, String_toInteger, lex, 2)
+    KL_SET_METHOD(o, toInt, String_toInteger, lex, 2)
+    KL_SET_METHOD(o, startsWith, String_startsWith, lex, 2)
+    KL_SET_METHOD(o, endsWith, String_endsWith, lex, 2)
+    KL_SET_METHOD(o, parentPath, String_parentPath, lex, 1)
+    KL_SET_METHOD(o, filename, String_filename, lex, 1)
+    KL_SET_METHOD(o, stem, String_stem, lex, 1)
+    KL_SET_METHOD(o, extension, String_extension, lex, 1)
+    KL_SET_METHOD(o, each, String_each, lex, 2)
     SET_OBJ(r, o);
     return 0;
 }

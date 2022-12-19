@@ -178,8 +178,9 @@ vmstr *alcstr_str_len(vmctx *ctx, const char *s, int len)
 {
     vmstr *v = alcstr_pure(ctx);
     if (v->cap > 0) {
-        if (0 <= len && len < v->cap) {
-            strcpy(v->s, s);
+        if (0 <= len && len < (v->cap - 1)) {
+            strncpy(v->s, s, len);
+            v->s[len] = 0;
             v->len = len;
             v->hd = v->s;
             return v;
