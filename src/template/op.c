@@ -1257,7 +1257,7 @@ int lt_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
             r->i = BzGetSign(v1->bi->b) == BZ_PLUS;
             break;
         default:
-            return throw_system_exception(__LINE__, ctx, EXCEPT_DIVIDE_BY_ZERO, NULL);
+            return throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION, NULL);
         }
         break;
     case VAR_INT64:
@@ -1275,7 +1275,7 @@ int lt_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
             r->i = BzGetSign(v1->bi->b) == BZ_PLUS;
             break;
         default:
-            return throw_system_exception(__LINE__, ctx, EXCEPT_DIVIDE_BY_ZERO, NULL);
+            return throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION, NULL);
         }
         break;
     case VAR_BIG:
