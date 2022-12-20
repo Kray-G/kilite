@@ -1494,6 +1494,7 @@ int String(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     KL_SET_METHOD(o, filename, String_filename, lex, 1)
     KL_SET_METHOD(o, stem, String_stem, lex, 1)
     KL_SET_METHOD(o, extension, String_extension, lex, 1)
+    KL_SET_METHOD(o, find, String_find, lex, 2)
     KL_SET_METHOD(o, each, String_each, lex, 2)
     SET_OBJ(r, o);
     return 0;
