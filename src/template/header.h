@@ -188,6 +188,7 @@ typedef struct vmobj {
     int32_t is_sysobj;  /* This is the mark for the system object and automatically passed to the function. */
     int32_t is_formatter;
     int64_t is_false;
+    int64_t value;      /* Almighty value to identify this object. */
     int64_t idxsz;
     int64_t asz;
     int64_t hsz;

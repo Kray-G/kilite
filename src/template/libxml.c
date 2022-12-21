@@ -2804,6 +2804,58 @@ static int xpath_proc_function_call(vmctx *ctx, vmvar *r, vmstr *func, vmobj *ar
         e = xpath_function_last(ctx, r, args, root, node, base);
     } else if (strcmp(funcname, "count") == 0) {
         e = xpath_function_count(ctx, r, args, root, node, base);
+    // } else if (strcmp(funcname, "id") == 0) {
+    //     e = xpath_function_id(ctx, r, args, root, node, base);
+    // } else if (strcmp(funcname, "local-name") == 0) {
+    //     e = xpath_function_local_name(ctx, r, args, root, node, base);
+    // } else if (strcmp(funcname, "namespace-uri") == 0) {
+    //     e = xpath_function_namespace_uri(ctx, r, args, root, node, base);
+    // } else if (strcmp(funcname, "name") == 0) {
+    //     e = xpath_function_name(ctx, r, args, root, node, base);
+
+    // } else if (strcmp(funcname, "string") == 0) {
+    //     e = xpath_function_string(ctx, r, args, root, node, base);
+    // } else if (strcmp(funcname, "concat") == 0) {
+    //     e = xpath_function_concat(ctx, r, args, root, node, base);
+    // } else if (strcmp(funcname, "starts-with") == 0) {
+    //     e = xpath_function_starts_with(ctx, r, args, root, node, base);
+    // } else if (strcmp(funcname, "contains") == 0) {
+    //     e = xpath_function_contains(ctx, r, args, root, node, base);
+    // } else if (strcmp(funcname, "substring-before") == 0) {
+    //     e = xpath_function_substring_before(ctx, r, args, root, node, base);
+    // } else if (strcmp(funcname, "substring-after") == 0) {
+    //     e = xpath_function_substring_after(ctx, r, args, root, node, base);
+    // } else if (strcmp(funcname, "substring") == 0) {
+    //     e = xpath_function_substring(ctx, r, args, root, node, base);
+    // } else if (strcmp(funcname, "string-length") == 0) {
+    //     e = xpath_function_string_length(ctx, r, args, root, node, base);
+    // } else if (strcmp(funcname, "normalize-space") == 0) {
+    //     e = xpath_function_normalize_space(ctx, r, args, root, node, base);
+    // } else if (strcmp(funcname, "translate") == 0) {
+    //     e = xpath_function_translate(ctx, r, args, root, node, base);
+
+    // } else if (strcmp(funcname, "boolean") == 0) {
+    //     e = xpath_function_boolean(ctx, r, args, root, node, base);
+    // } else if (strcmp(funcname, "not") == 0) {
+    //     e = xpath_function_not(ctx, r, args, root, node, base);
+    // } else if (strcmp(funcname, "true") == 0) {
+    //     e = xpath_function_true(ctx, r, args, root, node, base);
+    // } else if (strcmp(funcname, "false") == 0) {
+    //     e = xpath_function_false(ctx, r, args, root, node, base);
+    // } else if (strcmp(funcname, "lang") == 0) {
+    //     e = xpath_function_lang(ctx, r, args, root, node, base);
+
+    // } else if (strcmp(funcname, "number") == 0) {
+    //     e = xpath_function_number(ctx, r, args, root, node, base);
+    // } else if (strcmp(funcname, "sum") == 0) {
+    //     e = xpath_function_sum(ctx, r, args, root, node, base);
+    // } else if (strcmp(funcname, "floor") == 0) {
+    //     e = xpath_function_floor(ctx, r, args, root, node, base);
+    // } else if (strcmp(funcname, "ceiling") == 0) {
+    //     e = xpath_function_ceiling(ctx, r, args, root, node, base);
+    // } else if (strcmp(funcname, "round") == 0) {
+    //     e = xpath_function_round(ctx, r, args, root, node, base);
+
     } else {
         return throw_system_exception(__LINE__, ctx, EXCEPT_XML_ERROR, "Unsupported function name");
     }
@@ -2834,7 +2886,6 @@ static int xpath_evaluate_predicate(vmctx *ctx, vmobj *resobj, vmvar *xpath, vmv
     }
     return e;
 }
-
 
 static int xpath_evaluate_step(vmctx *ctx, vmvar *r, vmvar *xpath, vmvar *root, vmobj *info, vmobj *base)
 {
