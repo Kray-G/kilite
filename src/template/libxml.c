@@ -1445,7 +1445,7 @@ static int xpath_set_invalid_state_exception(int line, vmctx *ctx)
 static vmvar *xpath_make_predicate(vmctx *ctx, vmvar *node, vmvar *condition, int reverse)
 {
     vmobj *n = alcobj(ctx);
-    KL_SET_PROPERTY_I(n, op, XPATH_OP_PREDICATE);
+    n->value = XPATH_OP_PREDICATE;
     KL_SET_PROPERTY_I(n, isPredicate, 1);
     array_push(ctx, n, node);
     array_push(ctx, n, condition);
@@ -1456,7 +1456,7 @@ static vmvar *xpath_make_predicate(vmctx *ctx, vmvar *node, vmvar *condition, in
 static vmvar *xpath_make_axis(vmctx *ctx, int axis, int nodetype, vmvar *prefix, vmvar *name)
 {
     vmobj *n = alcobj(ctx);
-    KL_SET_PROPERTY_I(n, op, XPATH_OP_AXIS);
+    n->value = XPATH_OP_AXIS;
     KL_SET_PROPERTY_I(n, isAxis, 1);
     array_push(ctx, n, alcvar_int64(ctx, axis, 0));
     array_push(ctx, n, alcvar_int64(ctx, nodetype, 0));
@@ -1468,7 +1468,7 @@ static vmvar *xpath_make_axis(vmctx *ctx, int axis, int nodetype, vmvar *prefix,
 static vmvar *xpath_make_function(vmctx *ctx, vmvar *prefix, vmvar *name, vmobj *args)
 {
     vmobj *n = alcobj(ctx);
-    KL_SET_PROPERTY_I(n, op, XPATH_OP_FUNCCALL);
+    n->value = XPATH_OP_FUNCCALL;
     KL_SET_PROPERTY_I(n, isFunctionCall, 1);
     array_push(ctx, n, prefix);
     array_push(ctx, n, name);
@@ -1479,7 +1479,7 @@ static vmvar *xpath_make_function(vmctx *ctx, vmvar *prefix, vmvar *name, vmobj 
 static vmvar *xpath_make_binop(vmctx *ctx, int op, vmvar *lhs, vmvar *rhs)
 {
     vmobj *n = alcobj(ctx);
-    KL_SET_PROPERTY_I(n, op, XPATH_OP_EXPR);
+    n->value = XPATH_OP_EXPR;
     KL_SET_PROPERTY_I(n, isExpr, 1);
     array_push(ctx, n, alcvar_int64(ctx, op, 0));
     array_push(ctx, n, lhs);
@@ -1490,7 +1490,7 @@ static vmvar *xpath_make_binop(vmctx *ctx, int op, vmvar *lhs, vmvar *rhs)
 static vmvar *xpath_make_step(vmctx *ctx, vmvar *lhs, vmvar *rhs)
 {
     vmobj *n = alcobj(ctx);
-    KL_SET_PROPERTY_I(n, op, XPATH_OP_STEP);
+    n->value = XPATH_OP_STEP;
     KL_SET_PROPERTY_I(n, isStep, 1);
     array_push(ctx, n, lhs);
     array_push(ctx, n, rhs);
@@ -2902,8 +2902,7 @@ static int xpath_evaluate_step(vmctx *ctx, vmvar *r, vmvar *xpath, vmvar *root, 
         break;
     case VAR_OBJ: {
         vmobj *xobj = xpath->o;
-        int optype = hashmap_getint(xobj, "op", XPATH_OP_UNKNOWN);
-        switch (optype) {
+        switch (xobj->value) {
         case XPATH_OP_STEP: {
             e = xpath_evaluate_step(ctx, r, xobj->ary[0], root, info, base);
             XPATH_CHECK_ERR(e);
