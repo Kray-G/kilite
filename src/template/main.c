@@ -28,19 +28,21 @@ int main(int ac, char **av)
     }
 
     int ri = 0;
-    vmvar r = {0};
+    vmvar *r = alcvar_initial(ctx);
+    HOLD(r);
     ctx->callee = alcfnc(ctx, run_global, NULL, "run_global", 0); // dummy.
-    int e = run_global(ctx, NULL, &r, 0);
+    int e = run_global(ctx, NULL, r, 0);
     ctx->callee = NULL;
     if (e) {
         exception_uncaught(ctx, ctx->except);
     } else {
-        ri = (r.t == VAR_INT64) ? r.i : 0;
+        ri = (r->t == VAR_INT64) ? r->i : 0;
         if (ctx->verbose || ctx->print_result) {
-            print_obj(ctx, &r);
+            print_obj(ctx, r);
             printf("\n");
         }
     }
+    UNHOLD(r);
 
     ctx->except = NULL;
     if (ctx->verbose) {
