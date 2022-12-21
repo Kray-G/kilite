@@ -126,8 +126,6 @@ echo "#line 1 \"libstd.c\"" >> $TEMPF
 cat ../src/template/libstd.c >> $TEMPF
 echo "#line 1 \"libxml.c\"" >> $TEMPF
 cat ../src/template/libxml.c >> $TEMPF
-echo "#line 1 \"libxpath.c\"" >> $TEMPF
-cat ../src/template/libxpath.c >> $TEMPF
 echo "#line 1 \"libzip.c\"" >> $TEMPF
 cat ../src/template/libzip.c >> $TEMPF
 echo "#line 1 \"libregex.c\"" >> $TEMPF
