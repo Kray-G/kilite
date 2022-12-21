@@ -123,6 +123,7 @@ enum {
 #define IS_VMINT(x) ((x) <= VAR_BIG)
 typedef enum vartype {
     VAR_UNDEF = 0x00,
+    VAR_BOOL,
     VAR_INT64,
     VAR_BIG,
     VAR_DBL,
@@ -183,6 +184,7 @@ typedef struct vmobj {
     struct vmobj *chn;  /* The link in allocated object list */
 
     int32_t flags;
+    int32_t is_checked; /* Almighty flag to check this object. */
     int32_t is_sysobj;  /* This is the mark for the system object and automatically passed to the function. */
     int32_t is_formatter;
     int64_t is_false;
@@ -368,6 +370,7 @@ typedef struct vmctx {
     } while (0) \
 /**/
 #define push_var(ctx, v, label, func, file, line)   push_var_def(ctx, label, func, file, line, { SHCOPY_VAR_TO(ctx, px, v); })
+#define push_var_l(ctx, v, label, func, file, line) push_var_def(ctx, label, func, file, line, { px->t = VAR_BOOL; px->i = (v); })
 #define push_var_i(ctx, v, label, func, file, line) push_var_def(ctx, label, func, file, line, { px->t = VAR_INT64; px->i = (v); })
 #define push_var_b(ctx, v, label, func, file, line) push_var_def(ctx, label, func, file, line, { px->t = VAR_BIG; px->bi = alcbgi_bigz(ctx, BzFromString((v), 10, BZ_UNTIL_END)); })
 #define push_var_d(ctx, v, label, func, file, line) push_var_def(ctx, label, func, file, line, { px->t = VAR_DBL; px->d = (v); })
@@ -442,7 +445,7 @@ typedef struct vmctx {
     if ((v)->t == VAR_UNDEF) { \
         (v)->t = VAR_DBL; \
         (v)->d = 0.0; \
-    } else if ((v)->t == VAR_INT64) { \
+    } else if ((v)->t == VAR_INT64 || (v)->t == VAR_BOOL) { \
         (v)->t = VAR_DBL; \
         (v)->d = (double)((v)->i); \
     } else if ((v)->t != VAR_DBL) { \
@@ -575,7 +578,7 @@ typedef struct vmctx {
         push_var_sys(ctx, v, ad0, label, func, file, line); \
         CALL(f, f->lex, &rx, ad0) \
         restore_vstackp(ctx, pp); \
-        if (rx.t == VAR_UNDEF || (rx.t == VAR_INT64 && rx.i == 0)) goto label; \
+        if (rx.t == VAR_UNDEF || ((rx.t == VAR_INT64 || rx.t == VAR_BOOL) && rx.i == 0)) goto label; \
     } else { \
         /* This is treated as the end. */ \
     } \
@@ -695,6 +698,15 @@ typedef struct vmctx {
 } \
 /**/
 
+#define CHKMATCH_BOOL(v, vi, label, func, file, line) { \
+    if ((v)->t != VAR_BOOL || (v)->i != (vi)) { \
+        e = throw_system_exception(__LINE__, ctx, EXCEPT_NO_MATCHING_PATTERN, NULL); \
+        exception_addtrace(ctx, ctx->except, func, file, line); \
+        goto label; \
+    } \
+} \
+/**/
+
 #define CHKMATCH_I64(v, vi, label, func, file, line) { \
     if ((v)->t != VAR_INT64 || (v)->i != (vi)) { \
         e = throw_system_exception(__LINE__, ctx, EXCEPT_NO_MATCHING_PATTERN, NULL); \
@@ -772,15 +784,16 @@ typedef struct vmctx {
 } \
 /**/
 
-#define SET_UNDEF(dst)  { (dst)->t = VAR_UNDEF;                                     }
-#define SET_I64(dst, v) { (dst)->t = VAR_INT64; (dst)->i  = (v);                    }
-#define SET_DBL(dst, v) { (dst)->t = VAR_DBL;   (dst)->d  = (v);                    }
-#define SET_BIG(dst, v) { (dst)->t = VAR_BIG;   (dst)->bi = alcbgi_bigz(ctx, BzFromString((v), 10, BZ_UNTIL_END)); }
-#define SET_STR(dst, v) { (dst)->t = VAR_STR;   (dst)->s  = alcstr_str(ctx, (v));   }
-#define SET_SV(dst, v)  { (dst)->t = VAR_STR;   (dst)->s  = (v);                    }
-#define SET_BIN(dst, v) { (dst)->t = VAR_BIN;   (dst)->bn = (v);                    }
-#define SET_FNC(dst, v) { (dst)->t = VAR_FNC;   (dst)->f  = (v);                    }
-#define SET_OBJ(dst, v) { (dst)->t = VAR_OBJ;   (dst)->o  = (v);                    }
+#define SET_UNDEF(dst)   { (dst)->t = VAR_UNDEF;                                     }
+#define SET_BOOL(dst, v) { (dst)->t = VAR_BOOL;  (dst)->i  = (v);                    }
+#define SET_I64(dst, v)  { (dst)->t = VAR_INT64; (dst)->i  = (v);                    }
+#define SET_DBL(dst, v)  { (dst)->t = VAR_DBL;   (dst)->d  = (v);                    }
+#define SET_BIG(dst, v)  { (dst)->t = VAR_BIG;   (dst)->bi = alcbgi_bigz(ctx, BzFromString((v), 10, BZ_UNTIL_END)); }
+#define SET_STR(dst, v)  { (dst)->t = VAR_STR;   (dst)->s  = alcstr_str(ctx, (v));   }
+#define SET_SV(dst, v)   { (dst)->t = VAR_STR;   (dst)->s  = (v);                    }
+#define SET_BIN(dst, v)  { (dst)->t = VAR_BIN;   (dst)->bn = (v);                    }
+#define SET_FNC(dst, v)  { (dst)->t = VAR_FNC;   (dst)->f  = (v);                    }
+#define SET_OBJ(dst, v)  { (dst)->t = VAR_OBJ;   (dst)->o  = (v);                    }
 #define SET_BIN_DATA(ctx, bin, idx, v, label, func, file, line) { \
     /* bin should be always binary here by compiler */ \
     if (!bin_set(bin->bn, idx, v)) { \
@@ -916,7 +929,7 @@ typedef struct vmctx {
 /**/
 
 #define SET_APPLY(ctx, r, v, label, func, file, line) { \
-    if ((v)->t == VAR_INT64) { \
+    if ((v)->t == VAR_INT64 || (v)->t == VAR_BOOL) { \
         int64_t i = (v)->i; \
         SET_APPLY_I(ctx, r, i, label, func, file, line); \
     } else if ((v)->t == VAR_DBL) { \
@@ -958,7 +971,7 @@ typedef struct vmctx {
     if ((r)->t == VAR_OBJ) { \
         array_push(ctx, (r)->o, copy_var(ctx, v, 0)); \
     } else if ((r)->t == VAR_BIN) { \
-        if ((v)->t == VAR_INT64) { \
+        if ((v)->t == VAR_INT64 || (v)->t == VAR_BOOL) { \
             bin_append_ch(ctx, r->bn, (uint8_t)((v)->i)); \
         } else if ((v)->t == VAR_DBL) { \
             bin_append_ch(ctx, r->bn, (uint8_t)((v)->d)); \
@@ -969,6 +982,19 @@ typedef struct vmctx {
             exception_addtrace(ctx, ctx->except, func, file, line); \
             goto label; \
         } \
+    } else { \
+        e = throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION, NULL); \
+        exception_addtrace(ctx, ctx->except, func, file, line); \
+        goto label; \
+    } \
+} \
+/**/
+
+#define VALUE_PUSH_BOOL(ctx, r, i, label, func, file, line) { \
+    if ((r)->t == VAR_OBJ) { \
+        array_push(ctx, (r)->o, alcvar_bool(ctx, i)); \
+    } else if ((r)->t == VAR_BIN) { \
+        bin_append_ch(ctx, r->bn, (uint8_t)i); \
     } else { \
         e = throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION, NULL); \
         exception_addtrace(ctx, ctx->except, func, file, line); \
@@ -1045,7 +1071,7 @@ typedef struct vmctx {
             for (int i = 0; i < o->idxsz; ++i) { \
                 vmvar *aryi = o->ary[i]; \
                 if (aryi) { \
-                    if (aryi->t == VAR_INT64) { \
+                    if (aryi->t == VAR_INT64 || aryi->t == VAR_BOOL) { \
                         bin_append_ch(ctx, (r)->bn, (uint8_t)aryi->i); \
                     } else if (aryi->t == VAR_DBL) { \
                         bin_append_ch(ctx, (r)->bn, (uint8_t)(aryi->d)); \
@@ -1112,6 +1138,10 @@ typedef struct vmctx {
     case VAR_UNDEF: \
         (dst)->t = VAR_UNDEF; \
         break; \
+    case VAR_BOOL: \
+        (dst)->t = VAR_BOOL; \
+        (dst)->i = (src)->i; \
+        break; \
     case VAR_INT64: \
         (dst)->t = VAR_INT64; \
         (dst)->i = (src)->i; \
@@ -1155,6 +1185,10 @@ typedef struct vmctx {
     } else switch ((src)->t) { \
     case VAR_UNDEF: \
         (dst)->t = VAR_UNDEF; \
+        break; \
+    case VAR_BOOL: \
+        (dst)->t = VAR_BOOL; \
+        (dst)->i = (src)->i; \
         break; \
     case VAR_INT64: \
         (dst)->t = VAR_INT64; \
@@ -1239,6 +1273,7 @@ typedef struct vmctx {
 
 #define OP_JMP_IF_TRUE(r, label) { \
     switch ((r)->t) { \
+    case VAR_BOOL: \
     case VAR_INT64: \
         if ((r)->i) goto label; \
         break; \
@@ -1269,6 +1304,7 @@ typedef struct vmctx {
     switch ((r)->t) { \
     case VAR_UNDEF: \
         goto label; \
+    case VAR_BOOL: \
     case VAR_INT64: \
         if ((r)->i == 0) goto label; \
         break; \
@@ -1317,6 +1353,7 @@ typedef struct vmctx {
     vmvar *t2 = NULL; \
     int done = 0; \
     switch ((t1)->t) { \
+    case VAR_BOOL: \
     case VAR_INT64: \
     case VAR_BIG: \
         t2 = hashmap_search(ctx->i, str); \
@@ -1448,6 +1485,7 @@ typedef struct vmctx {
 
 #define OP_ARRAY_REF(ctx, r, v, iv) { \
     switch ((iv)->t) { \
+    case VAR_BOOL: \
     case VAR_INT64: { \
         int64_t i = (iv)->i; \
         OP_ARRAY_REF_I(ctx, r, v, i) \
@@ -1518,6 +1556,7 @@ typedef struct vmctx {
 
 #define OP_ARRAY_REFL(ctx, r, v, iv) { \
     switch (iv->t) { \
+    case VAR_BOOL: \
     case VAR_INT64: { \
         int64_t i = iv->i; \
         OP_ARRAY_REFL_I(ctx, r, v, i) \
@@ -1690,7 +1729,7 @@ typedef struct vmctx {
 
 #define OP_UMINUS(ctx, r, v, label, func, file, line) { \
     vmvar *t1 = (v); \
-    if ((t1)->t == VAR_INT64) { \
+    if ((t1)->t == VAR_INT64 || (t1)->t == VAR_BOOL) { \
         (r)->t = VAR_INT64; \
         (r)->i = -((t1)->i); \
     } else if ((t1)->t == VAR_DBL) { \
@@ -1748,13 +1787,13 @@ typedef struct vmctx {
 /* NOT */
 
 #define OP_NOT_I(ctx, r, i0, label, func, file, line) { \
-    (r)->t = VAR_INT64; \
+    (r)->t = VAR_BOOL; \
     (r)->i = (i0 == 0) ? 1 : 0; \
 } \
 /**/
 
 #define OP_NOT_V(ctx, r, v0, label, func, file, line) { \
-    if ((v0)->t == VAR_INT64) { \
+    if ((v0)->t == VAR_INT64 || (v0)->t == VAR_BOOL) { \
         int64_t i0 = (v0)->i; \
         OP_NOT_I(ctx, r, i0, label, func, file, line) \
     } else { \
@@ -2459,25 +2498,25 @@ typedef struct vmctx {
 /* EQEQ */
 
 #define OP_EQEQ_I_I(ctx, r, i0, i1, label, func, file, line) { \
-    (r)->t = VAR_INT64; \
+    (r)->t = VAR_BOOL; \
     (r)->i = (i0) == (i1); \
 } \
 /**/
 
 #define OP_EQEQ_B_I(ctx, r, v0, i1, label, func, file, line) { \
-    (r)->t = VAR_INT64; \
+    (r)->t = VAR_BOOL; \
     (r)->i = 0; \
 } \
 /**/
 
 #define OP_EQEQ_I_B(ctx, r, i0, v1, label, func, file, line) { \
-    (r)->t = VAR_INT64; \
+    (r)->t = VAR_BOOL; \
     (r)->i = 0; \
 } \
 /**/
 
 #define OP_EQEQ_V_I(ctx, r, v0, i1, label, func, file, line) { \
-    if ((v0)->t == VAR_INT64) { \
+    if ((v0)->t == VAR_INT64 || (v0)->t == VAR_BOOL) { \
         OP_EQEQ_I_I(ctx, r, (v0)->i, i1, label, func, file, line) \
     } else if ((v0)->t == VAR_BIG) { \
         OP_EQEQ_B_I(ctx, r, v0, i1, label, func, file, line) \
@@ -2492,7 +2531,7 @@ typedef struct vmctx {
 /**/
 
 #define OP_EQEQ_I_V(ctx, r, i0, v1, label, func, file, line) { \
-    if ((v1)->t == VAR_INT64) { \
+    if ((v1)->t == VAR_INT64 || (v1)->t == VAR_BOOL) { \
         OP_EQEQ_I_I(ctx, r, i0, (v1)->i, label, func, file, line) \
     } else if ((v1)->t == VAR_BIG) { \
         OP_EQEQ_I_B(ctx, r, i0, v1, label, func, file, line) \
@@ -2507,16 +2546,16 @@ typedef struct vmctx {
 /**/
 
 #define OP_EQEQ(ctx, r, v0, v1, label, func, file, line) { \
-    if ((v0)->t == VAR_INT64) { \
+    if ((v0)->t == VAR_INT64 || (v0)->t == VAR_BOOL) { \
         int64_t i0 = (v0)->i; \
         OP_EQEQ_I_V(ctx, r, i0, v1, label, func, file, line) \
     } else if ((v0)->t == VAR_BIG) { \
-        if ((v1)->t == VAR_INT64) { \
+        if ((v1)->t == VAR_INT64 || (v1)->t == VAR_BOOL) { \
             int64_t i1 = (v1)->i; \
             OP_EQEQ_B_I(ctx, r, v0, i1, label, func, file, line) \
         } else if ((v1)->t == VAR_BIG) { \
             BzCmp c = BzCompare((v0)->bi->b, (v1)->bi->b); \
-            (r)->t = VAR_INT64; \
+            (r)->t = VAR_BOOL; \
             (r)->i = (c == BZ_EQ); \
         } else { \
             e = eqeq_v_v(ctx, r, v0, v1); \
@@ -2538,28 +2577,28 @@ typedef struct vmctx {
 /* NEQ */
 
 #define OP_NEQ_I_I(ctx, r, i0, i1, label, func, file, line) { \
-    (r)->t = VAR_INT64; \
+    (r)->t = VAR_BOOL; \
     (r)->i = (i0) != (i1); \
 } \
 /**/
 
 #define OP_NEQ_B_I(ctx, r, v0, i1, label, func, file, line) { \
-    (r)->t = VAR_INT64; \
+    (r)->t = VAR_BOOL; \
     (r)->i = 1; \
 } \
 /**/
 
 #define OP_NEQ_I_B(ctx, r, i0, v1, label, func, file, line) { \
-    (r)->t = VAR_INT64; \
+    (r)->t = VAR_BOOL; \
     (r)->i = 1; \
 } \
 /**/
 
 #define OP_NEQ_V_I(ctx, r, v0, i1, label, func, file, line) { \
-    if ((v0)->t == VAR_INT64) { \
+    if ((v0)->t == VAR_INT64 || (v0)->t == VAR_BOOL) { \
         OP_NEQ_I_I(ctx, r, (v0)->i, i1, label, func, file, line) \
     } else if ((v0)->t == VAR_BIG) { \
-        (r)->t = VAR_INT64; \
+        (r)->t = VAR_BOOL; \
         (r)->i = 1; \
     } else { \
         e = neq_v_i(ctx, r, v0, i1); \
@@ -2572,10 +2611,10 @@ typedef struct vmctx {
 /**/
 
 #define OP_NEQ_I_V(ctx, r, i0, v1, label, func, file, line) { \
-    if ((v1)->t == VAR_INT64) { \
+    if ((v1)->t == VAR_INT64 || (v1)->t == VAR_BOOL) { \
         OP_NEQ_I_I(ctx, r, i0, (v1)->i, label, func, file, line) \
     } else if ((v1)->t == VAR_BIG) { \
-        (r)->t = VAR_INT64; \
+        (r)->t = VAR_BOOL; \
         (r)->i = 1; \
     } else { \
         e = neq_i_v(ctx, r, i0, v1); \
@@ -2588,16 +2627,16 @@ typedef struct vmctx {
 /**/
 
 #define OP_NEQ(ctx, r, v0, v1, label, func, file, line) { \
-    if ((v0)->t == VAR_INT64) { \
+    if ((v0)->t == VAR_INT64 || (v0)->t == VAR_BOOL) { \
         int64_t i0 = (v0)->i; \
         OP_NEQ_I_V(ctx, r, i0, v1, label, func, file, line) \
     } else if ((v0)->t == VAR_BIG) { \
-        if ((v1)->t == VAR_INT64) { \
-            (r)->t = VAR_INT64; \
+        if ((v1)->t == VAR_INT64 || (v1)->t == VAR_BOOL) { \
+            (r)->t = VAR_BOOL; \
             (r)->i = 1; \
         } else if ((v1)->t == VAR_BIG) { \
             BzCmp c = BzCompare((v0)->bi->b, (v1)->bi->b); \
-            (r)->t = VAR_INT64; \
+            (r)->t = VAR_BOOL; \
             (r)->i = (c != BZ_EQ); \
         } else { \
             e = neq_v_v(ctx, r, v0, v1); \
@@ -2619,7 +2658,7 @@ typedef struct vmctx {
 /* LT */
 
 #define OP_LT_I_I(ctx, r, i0, i1, label, func, file, line) { \
-    (r)->t = VAR_INT64; \
+    (r)->t = VAR_BOOL; \
     (r)->i = (i0) < (i1); \
 } \
 /**/
@@ -2628,7 +2667,7 @@ typedef struct vmctx {
     BigZ b1 = BzFromInteger(i1); \
     BzCmp c = BzCompare((v0)->bi->b, b1); \
     BzFree(b1); \
-    (r)->t = VAR_INT64; \
+    (r)->t = VAR_BOOL; \
     (r)->i = (c == BZ_LT); \
 } \
 /**/
@@ -2637,13 +2676,13 @@ typedef struct vmctx {
     BigZ b0 = BzFromInteger(i0); \
     BzCmp c = BzCompare(b0, (v1)->bi->b); \
     BzFree(b0); \
-    (r)->t = VAR_INT64; \
+    (r)->t = VAR_BOOL; \
     (r)->i = (c == BZ_LT); \
 } \
 /**/
 
 #define OP_LT_V_I(ctx, r, v0, i1, label, func, file, line) { \
-    if ((v0)->t == VAR_INT64) { \
+    if ((v0)->t == VAR_INT64 || (v0)->t == VAR_BOOL) { \
         OP_LT_I_I(ctx, r, (v0)->i, i1, label, func, file, line) \
     } else if ((v0)->t == VAR_BIG) { \
         OP_LT_B_I(ctx, r, v0, i1, label, func, file, line) \
@@ -2658,7 +2697,7 @@ typedef struct vmctx {
 /**/
 
 #define OP_LT_I_V(ctx, r, i0, v1, label, func, file, line) { \
-    if ((v1)->t == VAR_INT64) { \
+    if ((v1)->t == VAR_INT64 || (v1)->t == VAR_BOOL) { \
         OP_LT_I_I(ctx, r, i0, (v1)->i, label, func, file, line) \
     } else if ((v1)->t == VAR_BIG) { \
         OP_LT_I_B(ctx, r, i0, v1, label, func, file, line) \
@@ -2673,16 +2712,16 @@ typedef struct vmctx {
 /**/
 
 #define OP_LT(ctx, r, v0, v1, label, func, file, line) { \
-    if ((v0)->t == VAR_INT64) { \
+    if ((v0)->t == VAR_INT64 || (v0)->t == VAR_BOOL) { \
         int64_t i0 = (v0)->i; \
         OP_LT_I_V(ctx, r, i0, v1, label, func, file, line) \
     } else if ((v0)->t == VAR_BIG) { \
-        if ((v1)->t == VAR_INT64) { \
+        if ((v1)->t == VAR_INT64 || (v1)->t == VAR_BOOL) { \
             int64_t i1 = (v1)->i; \
             OP_LT_B_I(ctx, r, v0, i1, label, func, file, line) \
         } else if ((v1)->t == VAR_BIG) { \
             BzCmp c = BzCompare((v0)->bi->b, (v1)->bi->b); \
-            (r)->t = VAR_INT64; \
+            (r)->t = VAR_BOOL; \
             (r)->i = (c == BZ_LT); \
         } else { \
             e = lt_v_v(ctx, r, v0, v1); \
@@ -2704,7 +2743,7 @@ typedef struct vmctx {
 /* LE */
 
 #define OP_LE_I_I(ctx, r, i0, i1, label, func, file, line) { \
-    (r)->t = VAR_INT64; \
+    (r)->t = VAR_BOOL; \
     (r)->i = (i0) <= (i1); \
 } \
 /**/
@@ -2713,7 +2752,7 @@ typedef struct vmctx {
     BigZ b1 = BzFromInteger(i1); \
     BzCmp c = BzCompare((v0)->bi->b, b1); \
     BzFree(b1); \
-    (r)->t = VAR_INT64; \
+    (r)->t = VAR_BOOL; \
     (r)->i = (c != BZ_GT); \
 } \
 /**/
@@ -2722,13 +2761,13 @@ typedef struct vmctx {
     BigZ b0 = BzFromInteger(i0); \
     BzCmp c = BzCompare(b0, (v1)->bi->b); \
     BzFree(b0); \
-    (r)->t = VAR_INT64; \
+    (r)->t = VAR_BOOL; \
     (r)->i = (c != BZ_GT); \
 } \
 /**/
 
 #define OP_LE_V_I(ctx, r, v0, i1, label, func, file, line) { \
-    if ((v0)->t == VAR_INT64) { \
+    if ((v0)->t == VAR_INT64 || (v0)->t == VAR_BOOL) { \
         OP_LE_I_I(ctx, r, (v0)->i, i1, label, func, file, line) \
     } else if ((v0)->t == VAR_BIG) { \
         OP_LE_B_I(ctx, r, v0, i1, label, func, file, line) \
@@ -2743,7 +2782,7 @@ typedef struct vmctx {
 /**/
 
 #define OP_LE_I_V(ctx, r, i0, v1, label, func, file, line) { \
-    if ((v1)->t == VAR_INT64) { \
+    if ((v1)->t == VAR_INT64 || (v1)->t == VAR_BOOL) { \
         OP_LE_I_I(ctx, r, i0, (v1)->i, label, func, file, line) \
     } else if ((v1)->t == VAR_BIG) { \
         OP_LE_I_B(ctx, r, i0, v1, label, func, file, line) \
@@ -2758,16 +2797,16 @@ typedef struct vmctx {
 /**/
 
 #define OP_LE(ctx, r, v0, v1, label, func, file, line) { \
-    if ((v0)->t == VAR_INT64) { \
+    if ((v0)->t == VAR_INT64 || (v0)->t == VAR_BOOL) { \
         int64_t i0 = (v0)->i; \
         OP_LE_I_V(ctx, r, i0, v1, label, func, file, line) \
     } else if ((v0)->t == VAR_BIG) { \
-        if ((v1)->t == VAR_INT64) { \
+        if ((v1)->t == VAR_INT64 || (v1)->t == VAR_BOOL) { \
             int64_t i1 = (v1)->i; \
             OP_LE_B_I(ctx, r, v0, i1, label, func, file, line) \
         } else if ((v1)->t == VAR_BIG) { \
             BzCmp c = BzCompare((v0)->bi->b, (v1)->bi->b); \
-            (r)->t = VAR_INT64; \
+            (r)->t = VAR_BOOL; \
             (r)->i = (c != BZ_GT); \
         } else { \
             e = le_v_v(ctx, r, v0, v1); \
@@ -3356,6 +3395,7 @@ INLINE extern vmvar *alcvar(vmctx *ctx, vartype t, int hold);
 INLINE extern vmvar *alcvar_initial(vmctx *ctx);
 INLINE extern vmvar *alcvar_obj(vmctx *ctx, vmobj *o);
 INLINE extern vmvar *alcvar_fnc(vmctx *ctx, vmfnc *f);
+INLINE extern vmvar *alcvar_bool(vmctx *ctx, int64_t i);
 INLINE extern vmvar *alcvar_int64(vmctx *ctx, int64_t i, int hold);
 INLINE extern vmvar *alcvar_double(vmctx *ctx, double *d);
 INLINE extern vmvar *alcvar_str(vmctx *ctx, const char *s);

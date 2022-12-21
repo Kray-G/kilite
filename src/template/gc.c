@@ -10,6 +10,13 @@ void mark_var(vmvar *v);
 
 void unmark_all(vmctx *ctx)
 {
+    int vstkp = ctx->vstkp;
+    vmvar *vstk = ctx->vstk;
+    while (vstkp--) {
+        UNMARK(vstk);
+        ++vstk;
+    }
+
     vmstr *s = ctx->alc.str.liv;
     while (s) {
         UNMARK(s);
@@ -260,7 +267,7 @@ void mark_all(vmctx *ctx)
     int vstkp = ctx->vstkp;
     vmvar *v = ctx->vstk;
     while (vstkp--) {
-        if (v->a) mark_var(v->a);
+        if (v) mark_var(v);
         ++v;
     }
 }
@@ -287,11 +294,6 @@ void sweep(vmctx *ctx)
         vmbin *n = bn->liv;
         if (!IS_MARKED(bn)) {
             ++bnc;
-            if (BIN_UNIT < bn->cap) {
-                free(bn->s);
-                bn->s = bn->hd = NULL;
-                bn->len = bn->cap = 0;
-            }
             pbakbin(ctx, bn);
         }
         bn = n;
@@ -304,8 +306,6 @@ void sweep(vmctx *ctx)
         vmbgi *n = bi->liv;
         if (!IS_MARKED(bi)) {
             ++bic;
-            BzFree(bi->b);
-            bi->b = NULL;
             pbakbgi(ctx, bi);
         }
         bi = n;
@@ -318,13 +318,6 @@ void sweep(vmctx *ctx)
         vmobj *n = h->liv;
         if (!IS_MARKED(h)) {
             ++hc;
-            free(h->map);
-            h->map = NULL;
-            h->hsz = 0;
-            free(h->ary);
-            h->ary = NULL;
-            h->asz = 0;
-            h->idxsz = 0;
             pbakobj(ctx, h);
         }
         h = n;
@@ -337,18 +330,6 @@ void sweep(vmctx *ctx)
         vmvar *n = v->liv;
         if (!IS_MARKED(v)) {
             ++vc;
-            if (v->o) {
-                v->o = NULL;
-            }
-            if (v->p) {
-                if (v->freep) {
-                    v->freep(v->p);
-                    v->freep = NULL;
-                } else {
-                    free(v->p);
-                }
-                v->p = NULL;
-            }
             pbakvar(ctx, v);
         }
         v = n;
@@ -361,11 +342,6 @@ void sweep(vmctx *ctx)
         vmfnc *n = f->liv;
         if (!IS_MARKED(f)) {
             ++fc;
-            if (f->vars) {
-                free(f->vars);
-                f->vars = NULL;
-                f->varcnt = 0;
-            }
             pbakfnc(ctx, f);
         }
         f = n;

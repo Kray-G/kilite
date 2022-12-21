@@ -14,6 +14,7 @@ typedef enum tk_typeid {
     // Types
     TK_TANY = 0,            //  <any type>
     TK_TUNDEF,              //  undefined
+    TK_TBOOL,               //  boolean
     TK_TSINT64,             //  int64
     TK_TBIGINT,             //  bigint
     TK_TDBL,                //  real
@@ -31,6 +32,7 @@ typedef enum tk_token {
     TK_UNKNOWN,
 
     // Literals
+    TK_VBOOL,               //  * Boolean value as true or false.
     TK_VSINT,               //  * Integer value as signed 64 bit.
     TK_VBIGINT,             //  * Big Integer value
     TK_VDBL,                //  * Double precision value

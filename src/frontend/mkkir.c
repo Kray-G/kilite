@@ -44,6 +44,8 @@ static inline int get_next_label(kl_context *ctx)
 static const char *translate_vartype(tk_typeid tp)
 {
     switch (tp) {
+    case TK_TBOOL:
+        return "VAR_BOOL";
     case TK_TSINT64:
         return "VAR_INT64";
     case TK_TBIGINT:
@@ -388,6 +390,16 @@ static kl_kir_opr make_lit_undef(kl_context *ctx)
 {
     kl_kir_opr r1 = {
         .t = TK_UNKNOWN,
+    };
+    return r1;
+}
+
+static kl_kir_opr make_lit_bool(kl_context *ctx, int64_t i64)
+{
+    kl_kir_opr r1 = {
+        .t = TK_VBOOL,
+        .i64 = i64,
+        .typeid = TK_TBOOL,
     };
     return r1;
 }
@@ -1060,6 +1072,14 @@ static kl_kir_inst *gen_object_lvalue(kl_context *ctx, kl_symbol *sym, kl_kir_op
                 inst->next = new_inst_op2(ctx->program, e->line, e->pos, KIR_REMOVE, r1, &r3);
             }
             break;
+        case TK_VBOOL: {
+            kl_kir_opr rr = make_lit_bool(ctx, r->val.i64);
+            rs = make_var(ctx, sym, TK_TANY);
+            head = new_inst_op3(ctx->program, r->line, r->pos, KIR_APLY, &rs, r2, &r3);
+            head->next = new_inst_op2(ctx->program, r->line, r->pos, KIR_CHKMATCH, &rs, &rr);
+            set_file_func(ctx, sym, head->next);
+            break;
+        }
         case TK_VSINT: {
             kl_kir_opr rr = make_lit_i64(ctx, r->val.i64);
             rs = make_var(ctx, sym, TK_TANY);
@@ -1159,7 +1179,7 @@ static kl_kir_inst *gen_not(kl_context *ctx, kl_symbol *sym, kl_kir_opr *r1, kl_
 
 static int is_same_array_index(kl_expr *a, kl_expr *b)
 {
-    if (a->nodetype == TK_VSINT && b->nodetype == TK_VSINT) {
+    if ((a->nodetype == TK_VSINT || a->nodetype == TK_VBOOL) && (b->nodetype == TK_VSINT || b->nodetype == TK_VBOOL)) {
         return a->val.i64 == b->val.i64;
     }
     return 0;
@@ -1808,7 +1828,7 @@ static kl_kir_inst *gen_while(kl_context *ctx, kl_symbol *sym, kl_stmt *s, int d
     kl_kir_inst *last = NULL;
     kl_kir_inst *next = NULL;
 
-    int infinite = s->e1 && s->e1->nodetype == TK_VSINT && s->e1->val.i64 != 0;
+    int infinite = s->e1 && (s->e1->nodetype == TK_VSINT || s->e1->nodetype == TK_VBOOL) && s->e1->val.i64 != 0;
 
     if (dowhile || infinite) {
         l2 = l1;
@@ -1844,7 +1864,7 @@ static kl_kir_inst *gen_while(kl_context *ctx, kl_symbol *sym, kl_stmt *s, int d
         next = new_inst_jump(ctx->program, s->line, s->pos, l1, last);
         KIR_ADD_NEXT(last, next);
     } else {
-        int noloop = s->e1 && s->e1->nodetype == TK_VSINT && s->e1->val.i64 == 0;
+        int noloop = s->e1 && (s->e1->nodetype == TK_VSINT || s->e1->nodetype == TK_VBOOL) && s->e1->val.i64 == 0;
         if (!noloop) {
             kl_kir_opr r1 = make_var(ctx, sym, s->e1->typeid);
             next = gen_expr(ctx, sym, &r1, s->e1);
@@ -1946,7 +1966,7 @@ static kl_kir_inst *gen_for(kl_context *ctx, kl_symbol *sym, kl_stmt *s)
     KIR_ADD_NEXT(last, next);
 
     if (s->e2) {
-        if (s->e2->nodetype == TK_VSINT) {
+        if (s->e2->nodetype == TK_VSINT || s->e2->nodetype == TK_VBOOL) {
             if (s->e2->val.i64 != 0) {
                 next = new_inst_jump(ctx->program, s->line, s->pos, l1, last);
                 KIR_ADD_NEXT(last, next);
@@ -2224,6 +2244,11 @@ static kl_kir_inst *gen_expr(kl_context *ctx, kl_symbol *sym, kl_kir_opr *r1, kl
     }
 
     switch (e->nodetype) {
+    case TK_VBOOL: {
+        kl_kir_opr rs = make_lit_bool(ctx, e->val.i64);
+        head = new_inst_op2(ctx->program, e->line, e->pos, KIR_MOV, r1, &rs);
+        break;
+    }
     case TK_VSINT: {
         kl_kir_opr rs = make_lit_i64(ctx, e->val.i64);
         head = new_inst_op2(ctx->program, e->line, e->pos, KIR_MOV, r1, &rs);

@@ -158,6 +158,7 @@ static inline int is_var(kl_kir_opr *rn)
 static const char *var_value_pure(char *buf, kl_kir_opr *rn)  /* buf should have at least 256 bytes. */
 {
     switch (rn->t) {
+    case TK_VBOOL:
     case TK_VSINT:
         sprintf(buf, "%" PRId64, rn->i64);
         break;
@@ -184,6 +185,7 @@ static void translate_pusharg_pure(xstr *code, func_context *fctx, kl_kir_opr *r
     const char *typestr = (fctx->push_max <= pushed) ? "int64_t " : "";
     char buf1[256] = {0};
     switch (rn->t) {
+    case TK_VBOOL:
     case TK_VSINT:
         xstra_inst(code, "%st%d = %" PRId64 ";\n", typestr, pushed, rn->i64);
         break;
@@ -365,6 +367,7 @@ static void translate_bnot_pure(xstr *code, kl_kir_inst *i)
         xstra_inst(code, "%s = ~%s;\n", buf1, buf2);
         break;
     }
+    case TK_VBOOL:
     case TK_VSINT:
         xstra_inst(code, "%s = %" PRId64 ";\n", buf1, ~(i->r2.i64));
         break;
@@ -384,6 +387,7 @@ static void translate_not_pure(xstr *code, kl_kir_inst *i)
         xstra_inst(code, "%s = !%s;\n", buf1, buf2);
         break;
     }
+    case TK_VBOOL:
     case TK_VSINT:
         xstra_inst(code, "%s = %" PRId64 ";\n", buf1, i->r2.i64 == 0 ? 1 : 0);
         break;
@@ -403,6 +407,7 @@ static void translate_mov_pure(xstr *code, kl_kir_inst *i)
         xstra_inst(code, "%s = %s;\n", buf1, buf2);
         break;
     }
+    case TK_VBOOL:
     case TK_VSINT:
         xstra_inst(code, "%s = %" PRId64 ";\n", buf1, i->r2.i64);
         break;
@@ -574,6 +579,7 @@ void translate_pure_func(kl_kir_program *p, xstr *code, kl_kir_func *f)
 static const char *var_value(char *buf, kl_kir_opr *rn)  /* buf should have at least 256 bytes. */
 {
     switch (rn->t) {
+    case TK_VBOOL:
     case TK_VSINT:
         sprintf(buf, "%" PRId64, rn->i64);
         break;
@@ -620,6 +626,10 @@ static void translate_pusharg(func_context *fctx, xstr *code, kl_kir_inst *i, in
     kl_kir_opr *rn = &(i->r1);
     char buf1[256] = {0};
     switch (rn->t) {
+    case TK_VBOOL:
+        xstra_inst(code, "{ push_var_l(ctx, %" PRId64 ", L%d, \"%s\", \"%s\", %d); }\n",
+            rn->i64, catchid, i->funcname, escape(&(fctx->str), i->filename), i->line);
+        break;
     case TK_VSINT:
         xstra_inst(code, "{ push_var_i(ctx, %" PRId64 ", L%d, \"%s\", \"%s\", %d); }\n",
             rn->i64, catchid, i->funcname, escape(&(fctx->str), i->filename), i->line);
@@ -682,6 +692,7 @@ static void translate_setbin(func_context *fctx, xstr *code, kl_kir_inst *i)
     var_value(buf1, &(i->r1));
 
     switch (i->r3.t) {
+    case TK_VBOOL:
     case TK_VSINT:
         xstra_inst(code, "SET_BIN_DATA_I(ctx, %s, %d, %" PRId64 ");\n", buf1, i->r2.i64, i->r3.i64);
         break;
@@ -722,6 +733,7 @@ static void translate_idx(func_context *fctx, xstr *code, kl_kir_inst *i, int r3
     var_value(buf1, &(i->r1));
     var_value(buf2, &(i->r2));
     switch (i->r3.t) {
+    case TK_VBOOL:
     case TK_VSINT:
         xstra_inst(code, "OP_ARRAY_REF%s_I(ctx, %s, %s, %" PRId64 ");\n", (lvalue ? "L" : ""), buf1, buf2, i->r3.i64);
         break;
@@ -984,6 +996,9 @@ static void translate_mov(func_context *fctx, xstr *code, kl_kir_inst *i)
         }
         break;
     }
+    case TK_VBOOL:
+        xstra_inst(code, "SET_BOOL(%s, %" PRId64 ");\n", buf1, i->r2.i64);
+        break;
     case TK_VSINT:
         xstra_inst(code, "SET_I64(%s, %" PRId64 ");\n", buf1, i->r2.i64);
         break;
@@ -1029,6 +1044,7 @@ static void translate_mova(func_context *fctx, xstr *code, kl_kir_inst *i)
         }
         break;
     }
+    case TK_VBOOL:
     case TK_VSINT:
         xstra_inst(code, "SET_APPLY_I(ctx, (%s), %" PRId64 ", L%d, \"%s\", \"%s\", %d);\n", buf1, i->r2.i64,
             i->catchid, i->funcname, escape(&(fctx->str), i->filename), i->line);
@@ -1117,6 +1133,10 @@ static void translate_push(func_context *fctx, xstr *code, kl_kir_inst *i)
             i->catchid, i->funcname, escape(&(fctx->str), i->filename), i->line);
         break;
     }
+    case TK_VBOOL:
+        xstra_inst(code, "VALUE_PUSH_BOOL(ctx, %s, %" PRId64 ", L%d, \"%s\", \"%s\", %d);\n", buf1, i->r2.i64,
+            i->catchid, i->funcname, escape(&(fctx->str), i->filename), i->line);
+        break;
     case TK_VSINT:
         xstra_inst(code, "VALUE_PUSH_I(ctx, %s, %" PRId64 ", L%d, \"%s\", \"%s\", %d);\n", buf1, i->r2.i64,
             i->catchid, i->funcname, escape(&(fctx->str), i->filename), i->line);
@@ -1210,6 +1230,10 @@ static void translate_chkmatch(func_context *fctx, xstr *code, kl_kir_inst *i)
     char buf1[256] = {0};
     var_value(buf1, &(i->r1));
     switch (i->r2.t) {
+    case TK_VBOOL:
+        xstra_inst(code, "CHKMATCH_BOOL(%s, %" PRId64 ", L%d, \"%s\", \"%s\", %d);\n",
+            buf1, i->r2.i64, i->catchid, i->funcname, escape(&(fctx->str), i->filename), i->line);
+        break;
     case TK_VSINT:
         xstra_inst(code, "CHKMATCH_I64(%s, %" PRId64 ", L%d, \"%s\", \"%s\", %d);\n",
             buf1, i->r2.i64, i->catchid, i->funcname, escape(&(fctx->str), i->filename), i->line);

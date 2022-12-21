@@ -62,6 +62,12 @@ vmfnc *alcfnc(vmctx *ctx, void *f, vmfrm *lex, const char *name, int args)
 void pbakfnc(vmctx *ctx, vmfnc *p)
 {
     if (p && !p->nxt) {
+        if (p->vars) {
+            free(p->vars);
+            p->vars = NULL;
+            p->varcnt = 0;
+        }
+
         p->nxt = ctx->alc.fnc.nxt;
         ctx->alc.fnc.nxt = p;
         ctx->fre.fnc++;
@@ -315,6 +321,12 @@ vmbin *alcbin(vmctx *ctx)
 void pbakbin(vmctx *ctx, vmbin *p)
 {
     if (p && !p->nxt) {
+        if (BIN_UNIT < p->cap) {
+            free(p->s);
+            p->s = p->hd = NULL;
+            p->len = p->cap = 0;
+        }
+
         p->nxt = ctx->alc.bin.nxt;
         ctx->alc.bin.nxt = p;
         ctx->fre.bin++;
@@ -372,6 +384,9 @@ vmbgi *alcbgi_bigz(vmctx *ctx, BigZ bz)
 void pbakbgi(vmctx *ctx, vmbgi *p)
 {
     if (p && !p->nxt) {
+        BzFree(p->b);
+        p->b = NULL;
+
         p->nxt = ctx->alc.bgi.nxt;
         ctx->alc.bgi.nxt = p;
         ctx->fre.bgi++;
@@ -423,6 +438,15 @@ vmobj *alcobj(vmctx *ctx)
 void pbakobj(vmctx *ctx, vmobj *p)
 {
     if (p && !p->nxt) {
+        free(p->map);
+        p->map = NULL;
+        p->hsz = 0;
+        free(p->ary);
+        p->ary = NULL;
+        p->asz = 0;
+        p->idxsz = 0;
+        p->is_sysobj = 0;
+
         p->nxt = ctx->alc.obj.nxt;
         ctx->alc.obj.nxt = p;
         ctx->fre.obj++;
@@ -502,6 +526,13 @@ vmvar *alcvar_fnc(vmctx *ctx, vmfnc *f)
     return v;
 }
 
+vmvar *alcvar_bool(vmctx *ctx, int64_t i)
+{
+    vmvar *v = alcvar_pure(ctx, VAR_BOOL);
+    v->i = i;
+    return v;
+}
+
 vmvar *alcvar_int64(vmctx *ctx, int64_t i, int hold)
 {
     vmvar *v = alcvar_pure(ctx, VAR_INT64);
@@ -551,12 +582,31 @@ vmvar *alcvar_bgistr(vmctx *ctx, const char *s, int radix)
 void pbakvar(vmctx *ctx, vmvar *p)
 {
     if (p && !p->nxt) {
+        if (p->o) {
+            p->o = NULL;
+        }
+        if (p->p) {
+            if (p->freep) {
+                p->freep(p->p);
+                p->freep = NULL;
+            } else {
+                free(p->p);
+            }
+            p->p = NULL;
+        }
         if (p->bi) {
             pbakbgi(ctx, p->bi);
+            p->bi = NULL;
+        }
+        if (p->bn) {
+            pbakbin(ctx, p->bn);
+            p->bn = NULL;
         }
         if (p->s) {
             pbakstr(ctx, p->s);
+            p->s = NULL;
         }
+
         p->nxt = ctx->alc.var.nxt;
         ctx->alc.var.nxt = p;
         UNHOLD(p);

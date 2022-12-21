@@ -17,7 +17,7 @@ static const char *tpname[] = {
 };
 static const char *tkname[] = {
     "TK_EOF", "TK_UNKNOWN",
-    "TK_VSINT", "TK_VBIGINT", "TK_VDBL", "TK_VSTR", "TK_VBIN", "TK_VARY", "TK_VOBJ", "TK_VKV", "TK_VREGEX",
+    "TK_VBOOL", "TK_VSINT", "TK_VBIGINT", "TK_VDBL", "TK_VSTR", "TK_VBIN", "TK_VARY", "TK_VOBJ", "TK_VKV", "TK_VREGEX",
 
     "TK_EXTERN", "TK_ENUM", "TK_CONST", "TK_LET", "TK_NEW", "TK_IMPORT", "TK_NAMESPACE", "TK_MODULE", "TK_CLASS", "TK_PRIVATE",
     "TK_PROTECTED", "TK_PUBLIC", "TK_MIXIN", "TK_FUNC", "TK_NATIVE", "TK_SWITCH", "TK_CASE", "TK_DEFAULT", "TK_OTHERWISE",
@@ -473,7 +473,7 @@ static inline int check_keyword(kl_lexer *l)
         if (strcmp(l->str, "finally") == 0) return TK_FINALLY;
         if (strcmp(l->str, "false") == 0) {
             l->i64 = 0;
-            return TK_VSINT;
+            return TK_VBOOL;
         }
         break;
     case 'i':
@@ -517,7 +517,7 @@ static inline int check_keyword(kl_lexer *l)
         if (strcmp(l->str, "throw") == 0) return TK_THROW;
         if (strcmp(l->str, "true") == 0) {
             l->i64 = 1;
-            return TK_VSINT;
+            return TK_VBOOL;
         }
         break;
     case 'v':

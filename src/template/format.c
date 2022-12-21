@@ -754,8 +754,8 @@ static void format_one(vmctx *ctx, vmstr *r, vmvar *v, int ch, int num, int prec
             /* Memo: double value is not correctly passed to the function with c2mir */
             str_append_fmt_dbl(ctx, r, fmtbuf, &(v->d));
         }
-    } else if (v->t == VAR_STR) {
-        const char *strp = v->s->hd;
+    } else if (v->t == VAR_STR || v->t == VAR_BOOL) {
+        const char *strp = v->t == VAR_STR ? v->s->hd : (v->i ? "true" : "false");
         if (num > 0) {
             int len = strlen(strp);
             int width = 0;

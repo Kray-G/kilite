@@ -60,6 +60,9 @@ void fprint_obj(vmctx *ctx, vmvar *v, FILE *fp)
     case VAR_UNDEF:
         fprintf(fp, "null");
         break;
+    case VAR_BOOL:
+        fprintf(fp, "%s", v->i ? "true" : "false");
+        break;
     case VAR_INT64:
         fprintf(fp, "%" PRId64, v->i);
         break;

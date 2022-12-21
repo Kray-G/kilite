@@ -359,6 +359,14 @@ static inline kl_expr *make_expr(kl_context *ctx, kl_lexer *l, tk_token tk)
     return e;
 }
 
+static inline kl_expr *make_bool_expr(kl_context *ctx, kl_lexer *l, int64_t i64)
+{
+    kl_expr *e = make_expr(ctx, l, TK_VBOOL);
+    e->typeid = TK_TBOOL;
+    e->val.i64 = i64;
+    return e;
+}
+
 static inline kl_expr *make_i64_expr(kl_context *ctx, kl_lexer *l, int64_t i64)
 {
     kl_expr *e = make_expr(ctx, l, TK_VSINT);
@@ -965,6 +973,10 @@ static kl_expr *parse_expr_factor(kl_context *ctx, kl_lexer *l)
         l->binmode = 0;
         lexer_fetch(l);
         break;
+    case TK_VBOOL:
+        e = make_bool_expr(ctx, l, l->i64);
+        lexer_fetch(l);
+        break;
     case TK_VSINT:
         e = make_i64_expr(ctx, l, l->i64);
         lexer_fetch(l);
@@ -1116,13 +1128,24 @@ static kl_expr *parse_expr_prefix(kl_context *ctx, kl_lexer *l)
 
     if (tok == TK_ADD) {
         lexer_fetch(l); // ignore this.
-        return parse_expr_postfix(ctx, l, 0);
+        lhs = parse_expr_postfix(ctx, l, 0);
+        if (lhs->nodetype == TK_VBOOL) {
+            lhs->nodetype = TK_VSINT;
+            lhs->typeid = TK_TSINT64;
+        }
+        return lhs;
     }
 
     if (tok == TK_SUB) {
         lexer_fetch(l);
         lhs = parse_expr_postfix(ctx, l, 0);
         if (lhs->nodetype == TK_VSINT) {
+            lhs->val.i64 = -(lhs->val.i64);
+            return lhs;
+        }
+        if (lhs->nodetype == TK_VBOOL) {
+            lhs->nodetype = TK_VSINT;
+            lhs->typeid = TK_TSINT64;
             lhs->val.i64 = -(lhs->val.i64);
             return lhs;
         }
@@ -1975,7 +1998,7 @@ static kl_stmt *parse_enum(kl_context *ctx, kl_lexer *l)
         } else {
             lexer_fetch(l);
             kl_expr *rhs = parse_expr_assignment(ctx, l);
-            if (rhs->nodetype == TK_VSINT) {
+            if (rhs->nodetype == TK_VSINT || rhs->nodetype == TK_VBOOL) {
                 val = make_i64_expr(ctx, l, rhs->val.i64);
                 sym->has_i64 = 1;
                 sym->i64 = val->val.i64;

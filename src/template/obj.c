@@ -22,6 +22,12 @@ static void hashmap_fprint_indent(int indent, FILE *fp)
 
 static void hashmap_objfprint_impl(vmobj *obj, int indent, FILE *fp)
 {
+    if (obj->is_checked) {
+        fprintf(fp, "(...cycle...)");
+        return;
+    }
+    obj->is_checked = 1;
+
     int idt = indent >= 0;
     int lsz = obj->idxsz - 1;
     if (lsz >= 0) {
@@ -35,6 +41,10 @@ static void hashmap_objfprint_impl(vmobj *obj, int indent, FILE *fp)
                 switch (v->t) {
                 case VAR_UNDEF:
                     fprintf(fp, "null");
+                    if (i < lsz) fprintf(fp, ", ");
+                    break;
+                case VAR_BOOL:
+                    fprintf(fp, "%s", v->i ? "true" : "false");
                     if (i < lsz) fprintf(fp, ", ");
                     break;
                 case VAR_INT64:
@@ -94,7 +104,7 @@ static void hashmap_objfprint_impl(vmobj *obj, int indent, FILE *fp)
             if (IS_HASHITEM_EXIST(v)) {
                 vmvar *va = v->a;
                 // Function information seems not to be needed for users, so now it was made hidden.
-                if (va->t != VAR_FNC) {
+                if (va && va->t != VAR_FNC) {
                     count++;
                 }
             }
@@ -105,15 +115,21 @@ static void hashmap_objfprint_impl(vmobj *obj, int indent, FILE *fp)
         for (int i = 0; i < hsz; ++i) {
             vmvar *v = &(map[i]);
             if (IS_HASHITEM_EXIST(v)) {
-                vmvar *va = v->a;
-                if (va->t != VAR_FNC) {
-                    ++c;
-                    if (v->s && v->s->hd) {
+                if (v->s && v->s->hd) {
+                    vmvar *va = v->a;
+                    if (!va) {
+                        hashmap_fprint_indent(idt ? indent + 1 : -1, fp);
+                        fprintf(fp, "\"%s\": null", v->s->hd);
+                    } else if (va->t != VAR_FNC) {
+                        ++c;
                         hashmap_fprint_indent(idt ? indent + 1 : -1, fp);
                         fprintf(fp, "\"%s\": ", v->s->hd);
                         switch (va->t) {
                         case VAR_UNDEF:
                             fprintf(fp, "null");
+                            break;
+                        case VAR_BOOL:
+                            fprintf(fp, "%s", va->i ? "true" : "false");
                             break;
                         case VAR_INT64:
                             fprintf(fp, "%" PRId64, va->i);
@@ -136,13 +152,13 @@ static void hashmap_objfprint_impl(vmobj *obj, int indent, FILE *fp)
                             hashmap_objfprint_impl(va->o, idt ? indent + 1 : -1, fp);
                             break;
                         }
-                        if (idt) {
-                            if (c < count) fprintf(fp, ",\n");
-                            else           fprintf(fp, "\n");
-                        } else {
-                            if (c < count) fprintf(fp, ", ");
-                            else           fprintf(fp, " ");
-                        }
+                    }
+                    if (idt) {
+                        if (c < count) fprintf(fp, ",\n");
+                        else           fprintf(fp, "\n");
+                    } else {
+                        if (c < count) fprintf(fp, ", ");
+                        else           fprintf(fp, " ");
                     }
                 }
             }
@@ -152,6 +168,8 @@ static void hashmap_objfprint_impl(vmobj *obj, int indent, FILE *fp)
         }
         fprintf(fp, "}");
     }
+
+    obj->is_checked = 0;
 }
 
 void hashmap_objfprint(vmctx *ctx, vmobj *obj, FILE *fp)

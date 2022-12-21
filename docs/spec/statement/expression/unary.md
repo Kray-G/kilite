@@ -36,10 +36,10 @@ System.println(!False); // False object.
 #### Result
 
 ```
-0
-1
-0
-1
+false
+true
+false
+true
 ```
 
 ### Example 2. Simple use of `+`

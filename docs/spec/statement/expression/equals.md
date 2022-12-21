@@ -40,11 +40,11 @@ System.println(test("==", &(a, b) => a == b, 0x07, null));
 #### Result
 
 ```
-::        5 ==        6 => 0
-::       99 ==       99 => 1
-::      100 ==       11 => 0
-:: ((null)) ==        5 => 0
-::        7 == ((null)) => 0
+::        5 ==        6 => false
+::       99 ==       99 => true
+::      100 ==       11 => false
+:: ((null)) ==        5 => false
+::        7 == ((null)) => false
 ```
 
 ### Example 2. Use `==` between Integer and Double
@@ -62,7 +62,7 @@ System.println(test("==", &(a, b) => a == b, 1, 1.0));
 #### Result
 
 ```
-::        1 ==        1 => 1
+::        1 ==        1 => true
 ```
 
 ### Example 3. Use `==` between Integer and String
@@ -81,8 +81,8 @@ System.println(test("==", &(a, b) => a == b, 0xff, "ff"));
 #### Result
 
 ```
-::      255 ==      255 => 1
-::      255 ==       ff => 0
+::      255 ==      255 => true
+::      255 ==       ff => false
 ```
 
 ### Example 4. Use `==` between String and Integer
@@ -101,8 +101,8 @@ System.println(test("==", &(a, b) => a == b, "ff", 0xff));
 #### Result
 
 ```
-::      255 ==      255 => 1
-::       ff ==      255 => 0
+::      255 ==      255 => true
+::       ff ==      255 => false
 ```
 
 ### Example 5. Use `!=` for Integers
@@ -124,11 +124,11 @@ System.println(test("!=", &(a, b) => a != b, 0x07, null));
 #### Result
 
 ```
-::        5 !=        6 => 1
-::       99 !=       99 => 0
-::      100 !=       11 => 1
-:: ((null)) !=        5 => 1
-::        7 != ((null)) => 1
+::        5 !=        6 => true
+::       99 !=       99 => false
+::      100 !=       11 => true
+:: ((null)) !=        5 => true
+::        7 != ((null)) => true
 ```
 
 ### Example 6. Use `!=` between Integer and Double
@@ -146,7 +146,7 @@ System.println(test("!=", &(a, b) => a != b, 1, 1.0));
 #### Result
 
 ```
-::        1 !=        1 => 0
+::        1 !=        1 => false
 ```
 
 ### Example 7. Use `!=` between Integer and String
@@ -165,8 +165,8 @@ System.println(test("!=", &(a, b) => a != b, 0xff, "ff"));
 #### Result
 
 ```
-::      255 !=      255 => 0
-::      255 !=       ff => 1
+::      255 !=      255 => false
+::      255 !=       ff => true
 ```
 
 ### Example 8. Use `!=` between String and Integer
@@ -185,6 +185,6 @@ System.println(test("!=", &(a, b) => a != b, "ff", 0xff));
 #### Result
 
 ```
-::      255 !=      255 => 0
-::       ff !=      255 => 1
+::      255 !=      255 => false
+::       ff !=      255 => true
 ```
