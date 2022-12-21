@@ -84,7 +84,7 @@ As a special object derived from Function, there are Lambda, Closure, and Fiber.
 *   [Function](definition/function.md)
 *   [Class](definition/class.md)
 *   [Module](definition/module.md)
-*   [Native](definition/native.md)
+*   [Native](________NOT_IMPEMENTED_YET/definition/native.md)
 
 #### Special Objects
 
@@ -96,7 +96,7 @@ As a special object derived from Function, there are Lambda, Closure, and Fiber.
 
 The following properties are used to check the type of a variable.
 
-*   [TypeCheck](statement/expression/typecheck.md)
+*   [TypeCheck](________NOT_IMPEMENTED_YET/statement/expression/typecheck.md)
 
 ### Library
 
@@ -116,8 +116,8 @@ but the description is included in this section because its feature is near a li
 
 #### Functions
 
-*   [eval()](spec/lib/function/eval.md)
-*   [DefineException()](spec/lib/function/define_exception.md)
+*   [eval()](________NOT_IMPEMENTED_YET/spec/lib/function/eval.md)
+*   [DefineException()](________NOT_IMPEMENTED_YET/spec/lib/function/define_exception.md)
 
 #### Standard Objects
 
@@ -128,36 +128,36 @@ Here are provided objects as a Kinx Standard.
 Basic objects are the list of components usually used in many products.
 The functionality is very simple but powerful, so a lot of developpers will use those naturally.
 
-*   [System](spec/lib/basic/system.md)
-*   [Getopt](spec/lib/basic/getopt.md)
-*   [Iconv](spec/lib/basic/iconv.md)
-*   [Colorize](spec/lib/basic/colorize.md)
-*   [Math](spec/lib/basic/imath.md)
-*   [File](spec/lib/basic/file.md)
-*   [Directory](spec/lib/basic/directory.md)
+*   [System](________NOT_IMPEMENTED_YET/spec/lib/basic/system.md)
+*   [Getopt](________NOT_IMPEMENTED_YET/spec/lib/basic/getopt.md)
+*   [Iconv](________NOT_IMPEMENTED_YET/spec/lib/basic/iconv.md)
+*   [Colorize](________NOT_IMPEMENTED_YET/spec/lib/basic/colorize.md)
+*   [Math](________NOT_IMPEMENTED_YET/spec/lib/basic/imath.md)
+*   [File](________NOT_IMPEMENTED_YET/spec/lib/basic/file.md)
+*   [Directory](________NOT_IMPEMENTED_YET/spec/lib/basic/directory.md)
 *   [Regex](lib/basic/regex.md)
-*   [Enumerable](spec/lib/basic/enumerable.md)
-*   [Functional](spec/lib/basic/functional.md)
-*   [Range](spec/lib/basic/range.md)
-*   [DateTime](spec/lib/basic/datetime.md)
-*   [Process](spec/lib/basic/process.md)
-*   [JSON](spec/lib/basic/json.md)
-*   [CSV/TSV](spec/lib/basic/csv_tsv.md)
-*   [Xml](spec/lib/basic/xml.md)
-*   [Zip](spec/lib/basic/zip.md)
-*   [SQLite](spec/lib/basic/sqlite.md)
-*   [JIT](spec/lib/basic/jit.md)
-*   [Parsek](spec/lib/basic/parsek.md)
-*   [Clipboard](spec/lib/basic/clipboard.md)
-*   [SemanticVersion](spec/lib/basic/semanticver.md) - V1.1.0
+*   [Enumerable](________NOT_IMPEMENTED_YET/spec/lib/basic/enumerable.md)
+*   [Functional](________NOT_IMPEMENTED_YET/spec/lib/basic/functional.md)
+*   [Range](________NOT_IMPEMENTED_YET/spec/lib/basic/range.md)
+*   [DateTime](________NOT_IMPEMENTED_YET/spec/lib/basic/datetime.md)
+*   [Process](________NOT_IMPEMENTED_YET/spec/lib/basic/process.md)
+*   [JSON](________NOT_IMPEMENTED_YET/spec/lib/basic/json.md)
+*   [CSV/TSV](________NOT_IMPEMENTED_YET/spec/lib/basic/csv_tsv.md)
+*   [Xml](lib/basic/xml.md)
+*   [Zip](________NOT_IMPEMENTED_YET/spec/lib/basic/zip.md)
+*   [SQLite](________NOT_IMPEMENTED_YET/spec/lib/basic/sqlite.md)
+*   [JIT](________NOT_IMPEMENTED_YET/spec/lib/basic/jit.md)
+*   [Parsek](________NOT_IMPEMENTED_YET/spec/lib/basic/parsek.md)
+*   [Clipboard](________NOT_IMPEMENTED_YET/spec/lib/basic/clipboard.md)
+*   [SemanticVersion](________NOT_IMPEMENTED_YET/spec/lib/basic/semanticver.md) - V1.1.0
 
 ##### Network Objects
 
 Network library is now very few, but it will be increased in future
 because now the networking library is needed by many developpers.
 
-*   [Http](spec/lib/net/http.md)
-*   [SSH](spec/lib/net/ssh.md)
+*   [Http](________NOT_IMPEMENTED_YET/spec/lib/net/http.md)
+*   [SSH](________NOT_IMPEMENTED_YET/spec/lib/net/ssh.md)
 
 I provide Http library only, but it is based on libcurl.
 Therefore adding a library based on the same technology must be easy.
@@ -167,18 +167,18 @@ Note that the above documents do not have any test code because it is hard to te
 
 ##### Exception Objects
 
-*   [Exception](spec/lib/primitive/exception.md)
+*   [Exception](________NOT_IMPEMENTED_YET/spec/lib/primitive/exception.md)
 
 #### Algorithm and Data Structure
 
 Algorithm and Data structure examples are being described in the page below.
 
-*   [Algorithm](spec/algorithm/README.md)
+*   [Algorithm](________NOT_IMPEMENTED_YET/spec/algorithm/README.md)
 
 ### Others
 
 Some special specifications.
 
-*   [Real Numbers](spec/others/realnumber.md)
-*   [String#next](spec/others/string_next.md)
-*   [String#isIntegerString](spec/others/string_isIntegerString.md) - V1.1.0
+*   [Real Numbers](________NOT_IMPEMENTED_YET/spec/others/realnumber.md)
+*   [String#next](________NOT_IMPEMENTED_YET/spec/others/string_next.md)
+*   [String#isIntegerString](________NOT_IMPEMENTED_YET/spec/others/string_isIntegerString.md) - V1.1.0
