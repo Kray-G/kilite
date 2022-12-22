@@ -52,7 +52,7 @@ typedef struct xmlctx {
 #define syntax_error(err, condition) check_error(err, condition, XMLDOM_ESYNTAX)
 #define end_of_text_error(err, p) syntax_error(err, *p == 0)
 #define errset_wuth_ret(err, msg) do { err = msg; if (0) { printf("[%d] err set %s\n", __LINE__, #msg); } return p; } while (0)
-static const char *parse_doc(vmctx *ctx, vmfrm *lex, vmvar *doc, vmobj *nsmap, vmvar *r, const char *p, xmlctx *xctx);
+static const char *xmldom_parse_doc(vmctx *ctx, vmfrm *lex, vmvar *doc, vmobj *nsmap, vmvar *r, const char *p, xmlctx *xctx);
 static int XPath_evaluate(vmctx *ctx, vmfrm *lex, vmvar *r, int ac);
 
 static int xmldom_error(vmctx *ctx, int err, int line, int pos)
@@ -78,7 +78,7 @@ static int xmldom_error(vmctx *ctx, int err, int line, int pos)
     return throw_system_exception(__LINE__, ctx, EXCEPT_XML_ERROR, buf);
 }
 
-static int is_same_tagname(const char *t, int tlen, const char *c, int clen)
+static int xmldom_is_same_tagname(const char *t, int tlen, const char *c, int clen)
 {
     if (tlen != clen) {
         return 0;
@@ -91,7 +91,7 @@ static int is_same_tagname(const char *t, int tlen, const char *c, int clen)
     return 1;
 }
 
-static const char *gen_intval(int *v, int *err, const char *s, int radix)
+static const char *xmldom_gen_intval(int *v, int *err, const char *s, int radix)
 {
     int vv = 0;
     while (*s && *s != ';') {
@@ -118,7 +118,7 @@ static const char *gen_intval(int *v, int *err, const char *s, int radix)
     return s;
 }
 
-static vmvar *make_pure_str_obj(vmctx *ctx, int *err, const char *s, int len)
+static vmvar *xmldom_make_pure_str_obj(vmctx *ctx, int *err, const char *s, int len)
 {
     char *buf = alloca(len + 2);
     strncpy(buf, s, len);
@@ -126,7 +126,7 @@ static vmvar *make_pure_str_obj(vmctx *ctx, int *err, const char *s, int len)
     return alcvar_str(ctx, buf);
 }
 
-static vmvar *make_str_obj(vmctx *ctx, int *err, const char *s, int len)
+static vmvar *xmldom_make_str_obj(vmctx *ctx, int *err, const char *s, int len)
 {
     char *buf = alloca(len + 2);
     char *p = buf;
@@ -139,7 +139,7 @@ static vmvar *make_str_obj(vmctx *ctx, int *err, const char *s, int len)
         if (*s == '#') {
             const char *ss = s;
             int v, x = (*++s == 'x');
-            s = gen_intval(&v, err, x ? s+1 : s, x ? 16 : 10);
+            s = xmldom_gen_intval(&v, err, x ? s+1 : s, x ? 16 : 10);
             if (*err < 0) break;
             len -= (s - ss);
             *p++ = v;
@@ -163,9 +163,9 @@ static vmvar *make_str_obj(vmctx *ctx, int *err, const char *s, int len)
     return alcvar_str(ctx, buf);
 }
 
-static void set_attrs(vmctx *ctx, int *err, vmobj *attrs, const char *n, int nlen, const char *v, int vlen)
+static void xmldom_set_attrs(vmctx *ctx, int *err, vmobj *attrs, const char *n, int nlen, const char *v, int vlen)
 {
-    vmvar *value = make_str_obj(ctx, err, v, vlen);
+    vmvar *value = xmldom_make_str_obj(ctx, err, v, vlen);
     if (*err < 0) return;
     char *key = alloca(nlen + 2);
     strncpy(key, n, nlen);
@@ -173,7 +173,7 @@ static void set_attrs(vmctx *ctx, int *err, vmobj *attrs, const char *n, int nle
     hashmap_set(ctx, attrs, key, value);
 }
 
-static const char *parse_attrs(vmctx *ctx, vmobj *nsmap, vmobj *attrs, const char *p, xmlctx *xctx)
+static const char *xmldom_parse_attrs(vmctx *ctx, vmobj *nsmap, vmobj *attrs, const char *p, xmlctx *xctx)
 {
     const char *attrn = p;
     while (!is_whitespace(*p)) {
@@ -196,19 +196,19 @@ static const char *parse_attrs(vmctx *ctx, vmobj *nsmap, vmobj *attrs, const cha
         move_next(p);
     }
     if (strncmp(attrn, "xmlns", 5) == 0 && (*(attrn + 5) == '=' || is_whitespace(*(attrn+5)))) {
-        vmvar *value = make_str_obj(ctx, &(xctx->err), attrv, p - attrv);
+        vmvar *value = xmldom_make_str_obj(ctx, &(xctx->err), attrv, p - attrv);
         array_set(ctx, nsmap, 0, value);
     } else if (strncmp(attrn, "xmlns:", 6) == 0) {
-        set_attrs(ctx, &(xctx->err), nsmap, attrn + 6, attrnlen - 6, attrv, p - attrv);
+        xmldom_set_attrs(ctx, &(xctx->err), nsmap, attrn + 6, attrnlen - 6, attrv, p - attrv);
     } else {
-        set_attrs(ctx, &(xctx->err), attrs, attrn, attrnlen, attrv, p - attrv);
+        xmldom_set_attrs(ctx, &(xctx->err), attrs, attrn, attrnlen, attrv, p - attrv);
     }
     if (xctx->err < 0) return p;
     if (*p == br) { move_next(p); }
     return p;
 }
 
-static const char *parse_comment(vmctx *ctx, vmvar *r, const char *p, xmlctx *xctx)
+static const char *xmldom_parse_comment(vmctx *ctx, vmvar *r, const char *p, xmlctx *xctx)
 {
     const char *s = p;
     while (*p) {
@@ -219,14 +219,14 @@ static const char *parse_comment(vmctx *ctx, vmvar *r, const char *p, xmlctx *xc
         }
     }
     syntax_error((xctx->err), (*p != '>'));
-    vmvar *comment = make_pure_str_obj(ctx, &(xctx->err), s, p - s - 2);
+    vmvar *comment = xmldom_make_pure_str_obj(ctx, &(xctx->err), s, p - s - 2);
     hashmap_set(ctx, r->o, "nodeName", alcvar_str(ctx, "#comment"));
     hashmap_set(ctx, r->o, "nodeValue", comment);
     hashmap_set(ctx, r->o, "comment", comment);
     return p;
 }
 
-static const char *parse_pi(vmctx *ctx, vmobj *nsmap, vmvar *doc, vmvar *r, const char *p, xmlctx *xctx, int *xmldecl)
+static const char *xmldom_parse_pi(vmctx *ctx, vmobj *nsmap, vmvar *doc, vmvar *r, const char *p, xmlctx *xctx, int *xmldecl)
 {
     const char *s = p;
     while (!is_whitespace(*p)) {
@@ -234,7 +234,7 @@ static const char *parse_pi(vmctx *ctx, vmobj *nsmap, vmvar *doc, vmvar *r, cons
         move_next(p);
     }
     if (s != p) {
-        vmvar *target = make_str_obj(ctx, &(xctx->err), s, p - s);
+        vmvar *target = xmldom_make_str_obj(ctx, &(xctx->err), s, p - s);
         if (xctx->err < 0) return p;
         if (strcmp(target->s->hd, "xml") == 0) {
             *xmldecl = 1;
@@ -253,7 +253,7 @@ static const char *parse_pi(vmctx *ctx, vmobj *nsmap, vmvar *doc, vmvar *r, cons
         skip_whitespace(p);
         end_of_text_error((xctx->err), p);
         if (*p == '?') break;
-        p = parse_attrs(ctx, nsmap, attrs, p, xctx);
+        p = xmldom_parse_attrs(ctx, nsmap, attrs, p, xctx);
         if (xctx->err < 0) return p;
     }
     if (*xmldecl) {
@@ -276,7 +276,7 @@ static const char *parse_pi(vmctx *ctx, vmobj *nsmap, vmvar *doc, vmvar *r, cons
     return p;
 }
 
-static const char *get_namespace_uri(vmctx *ctx, vmobj *nsmap, const char *prefix)
+static const char *xmldom_get_namespace_uri(vmctx *ctx, vmobj *nsmap, const char *prefix)
 {
     vmvar *ns = NULL;
     if (prefix) {
@@ -291,7 +291,7 @@ static const char *get_namespace_uri(vmctx *ctx, vmobj *nsmap, const char *prefi
     return "";
 }
 
-static const char *parse_node(vmctx *ctx, vmfrm *lex, vmvar *doc, vmobj *nsmap, vmvar *r, const char *p, xmlctx *xctx)
+static const char *xmldom_parse_node(vmctx *ctx, vmfrm *lex, vmvar *doc, vmobj *nsmap, vmvar *r, const char *p, xmlctx *xctx)
 {
     skip_whitespace(p);
     end_of_text_error((xctx->err), p);
@@ -315,15 +315,15 @@ static const char *parse_node(vmctx *ctx, vmfrm *lex, vmvar *doc, vmobj *nsmap, 
     syntax_error((xctx->err), (taglen == 0));
 
     KL_SET_PROPERTY_I(r->o, "isXmlNode", 1);
-    vmvar *lname = make_str_obj(ctx, &(xctx->err), tag, taglen);
+    vmvar *lname = xmldom_make_str_obj(ctx, &(xctx->err), tag, taglen);
     if (xctx->err < 0) return p;
     hashmap_set(ctx, r->o, "localName", lname);
     vmvar *nsname = NULL;
     if (nslen > 0) {
-        nsname = make_str_obj(ctx, &(xctx->err), ns, nslen);
+        nsname = xmldom_make_str_obj(ctx, &(xctx->err), ns, nslen);
         if (xctx->err < 0) return p;
         hashmap_set(ctx, r->o, "prefix", nsname);
-        vmvar *tname = make_str_obj(ctx, &(xctx->err), ns, nslen + taglen + 1);
+        vmvar *tname = xmldom_make_str_obj(ctx, &(xctx->err), ns, nslen + taglen + 1);
         if (xctx->err < 0) return p;
         hashmap_set(ctx, r->o, "tagName", tname);
         hashmap_set(ctx, r->o, "qName", tname);
@@ -342,24 +342,24 @@ static const char *parse_node(vmctx *ctx, vmfrm *lex, vmvar *doc, vmobj *nsmap, 
             skip_whitespace(p);
             end_of_text_error((xctx->err), p);
             if (*p == '/' || *p == '>') break;
-            p = parse_attrs(ctx, nsmap, attrs, p, xctx);
+            p = xmldom_parse_attrs(ctx, nsmap, attrs, p, xctx);
             if (xctx->err < 0) return p;
         }
     }
     hashmap_set(ctx, r->o, "attributes", alcvar_obj(ctx, attrs));
 
     if (nsname) {
-        const char *uri = get_namespace_uri(ctx, nsmap, nsname->s->hd);
+        const char *uri = xmldom_get_namespace_uri(ctx, nsmap, nsname->s->hd);
         hashmap_set(ctx, r->o, "namespaceURI", alcvar_str(ctx, uri));
     } else {
-        const char *uri = get_namespace_uri(ctx, nsmap, NULL);
+        const char *uri = xmldom_get_namespace_uri(ctx, nsmap, NULL);
         hashmap_set(ctx, r->o, "namespaceURI", alcvar_str(ctx, uri));
     }
 
     if (*p == '/') { move_next(p); return p; }
     if (*p == '>') { move_next(p); }
     xctx->depth++;
-    p = parse_doc(ctx, lex, doc, nsmap, r, p, xctx);
+    p = xmldom_parse_doc(ctx, lex, doc, nsmap, r, p, xctx);
     xctx->depth--;
     if (xctx->err < 0) return p;
     syntax_error((xctx->err), (*p != '/'));
@@ -383,18 +383,18 @@ static const char *parse_node(vmctx *ctx, vmfrm *lex, vmvar *doc, vmobj *nsmap, 
     }
     skip_whitespace(p);
 
-    if (!is_same_tagname(tag, taglen, ctag, ctaglen)) {
+    if (!xmldom_is_same_tagname(tag, taglen, ctag, ctaglen)) {
         errset_wuth_ret((xctx->err), XMLDOM_ECLOSE);
     }
     if (nslen > 0) {
-        if (!is_same_tagname(ns, nslen, cns, cnslen)) {
+        if (!xmldom_is_same_tagname(ns, nslen, cns, cnslen)) {
             errset_wuth_ret((xctx->err), XMLDOM_ECLOSE);
         }
     }
     return p;
 }
 
-static vmvar *XmlDom_checkid(vmvar *node)
+static vmvar *xmldom_checkid(vmvar *node)
 {
     vmvar *attr = hashmap_search(node->o, "attributes");
     if (attr && attr->t == VAR_OBJ) {
@@ -403,15 +403,15 @@ static vmvar *XmlDom_checkid(vmvar *node)
     return NULL;
 }
 
-static vmvar *XmlDom_getElementById_Node(vmvar *node, const char *idvalue)
+static vmvar *xmldom_get_element_by_id_node(vmvar *node, const char *idvalue)
 {
-    vmvar *id = XmlDom_checkid(node);
+    vmvar *id = xmldom_checkid(node);
     if (id && id->t == VAR_STR && strcmp(id->s->hd, idvalue) == 0) {
         return node;
     }
     vmobj *c = node->o;
     for (int i = 0, n = c->idxsz; i < n; i++) {
-        vmvar *v = XmlDom_getElementById_Node(c->ary[i], idvalue);
+        vmvar *v = xmldom_get_element_by_id_node(c->ary[i], idvalue);
         if (v) {
             return v;
         }
@@ -423,7 +423,7 @@ static int XmlDom_getElementById(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     DEF_ARG(a0, 0, VAR_OBJ);
     DEF_ARG(a1, 1, VAR_STR);
-    vmvar *found = XmlDom_getElementById_Node(a0, a1->s->hd);
+    vmvar *found = xmldom_get_element_by_id_node(a0, a1->s->hd);
     if (found && found->t == VAR_OBJ) {
         SET_OBJ(r, found->o);
     } else {
@@ -432,7 +432,7 @@ static int XmlDom_getElementById(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     return 0;
 }
 
-static void XmlDom_getElementsByTagName_Node(vmctx *ctx, vmobj *nodes, vmvar *node, const char *name)
+static void xmldom_get_elements_by_tagname_node(vmctx *ctx, vmobj *nodes, vmvar *node, const char *name)
 {
     vmvar *tagName = hashmap_search(node->o, "tagName");
     if (tagName && tagName->t == VAR_STR && strcmp(tagName->s->hd, name) == 0) {
@@ -440,7 +440,7 @@ static void XmlDom_getElementsByTagName_Node(vmctx *ctx, vmobj *nodes, vmvar *no
     }
     vmobj *c = node->o;
     for (int i = 0, n = c->idxsz; i < n; i++) {
-        XmlDom_getElementsByTagName_Node(ctx, nodes, c->ary[i], name);
+        xmldom_get_elements_by_tagname_node(ctx, nodes, c->ary[i], name);
     }
 }
 
@@ -449,12 +449,45 @@ static int XmlDom_getElementsByTagName(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     DEF_ARG(a0, 0, VAR_OBJ);
     DEF_ARG(a1, 1, VAR_STR);
     vmobj *nodes = alcobj(ctx);
-    XmlDom_getElementsByTagName_Node(ctx, nodes, a0, a1->s->hd);
+    xmldom_get_elements_by_tagname_node(ctx, nodes, a0, a1->s->hd);
     SET_OBJ(r, nodes);
     return 0;
 }
 
-static int XmlDom_removeNode(vmctx *ctx, vmvar *parent, vmobj *node)
+static void xmldom_update_node_number(vmvar *node, int *idx)
+{
+    if (node->t != VAR_OBJ) return;
+    vmobj *n = node->o;
+    n->value = ++*idx;
+    int len = n->idxsz; // child nodes.
+    for (int i = 0; i < len; i++) {
+        xmldom_update_node_number(n->ary[i], idx);
+    }
+}
+
+static void xmldom_update_node_number_all(vmvar *node)
+{
+    if (node->t != VAR_OBJ) return;
+    vmvar *doc = hashmap_search(node->o, "ownerDocument");
+    if (doc && doc->t == VAR_OBJ) {
+        if (doc->o->value > 0) {
+            vmvar *root = hashmap_search(doc->o, "documentElement");
+            int i = 0;
+            xmldom_update_node_number(root, &i);
+            doc->o->value = 0;
+        }
+    }
+}
+
+static void xmldom_update_node_number_set_flag_on(vmobj *node)
+{
+    vmvar *doc = hashmap_search(node, "ownerDocument");
+    if (doc && doc->t == VAR_OBJ) {
+        doc->o->value = 1;
+    }
+}
+
+static int xmldom_remove_node(vmctx *ctx, vmvar *parent, vmobj *node)
 {
     /* remove from the parent */
     if (parent && parent->t == VAR_OBJ) {
@@ -488,6 +521,7 @@ static int XmlDom_removeNode(vmctx *ctx, vmvar *parent, vmobj *node)
     hashmap_remove(ctx, node, "previousSibling");
     hashmap_remove(ctx, node, "nextSibling");
 
+    xmldom_update_node_number_set_flag_on(node);
     return 0;
 }
 
@@ -497,7 +531,7 @@ static int XmlDom_remove(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     vmobj *node = a0->o;
     vmvar *parent = hashmap_search(node, "parentNode");
 
-    XmlDom_removeNode(ctx, parent, node);
+    xmldom_remove_node(ctx, parent, node);
 
     SET_I64(r, 0);
     return 0;
@@ -538,6 +572,7 @@ static int XmlDom_insertBefore(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     KL_SET_PROPERTY_O(refnode, previousSibling, newnode);
     KL_SET_PROPERTY_O(newnode, nextSibling, refnode);
 
+    xmldom_update_node_number_set_flag_on(newnode);
     return 0;
 }
 
@@ -576,6 +611,7 @@ static int XmlDom_insertAfter(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     KL_SET_PROPERTY_O(refnode, nextSibling, newnode);
     KL_SET_PROPERTY_O(newnode, previousSibling, refnode);
 
+    xmldom_update_node_number_set_flag_on(newnode);
     return 0;
 }
 
@@ -607,6 +643,7 @@ static int XmlDom_appendChild(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
         KL_SET_PROPERTY(newnode, previousSibling, last);
     }
 
+    xmldom_update_node_number_set_flag_on(newnode);
     return 0;
 }
 
@@ -616,13 +653,13 @@ static int XmlDom_removeChild(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     DEF_ARG(a1, 1, VAR_OBJ);
     vmobj *node = a1->o;
 
-    XmlDom_removeNode(ctx, parent, node);
+    xmldom_remove_node(ctx, parent, node);
 
     SET_I64(r, 0);
     return 0;
 }
 
-static int XmlDom_replaceNodeFromParent(vmctx *ctx, vmobj *po, vmobj *node1, vmobj *node2)
+static int xmldom_replace_node_from_parent(vmctx *ctx, vmobj *po, vmobj *node1, vmobj *node2)
 {
     int pos = array_replace_obj(ctx, po, node1, node2);
     if (pos < 0) {
@@ -655,6 +692,7 @@ static int XmlDom_replaceNodeFromParent(vmctx *ctx, vmobj *po, vmobj *node1, vmo
     hashmap_remove(ctx, node1, "previousSibling");
     hashmap_remove(ctx, node1, "nextSibling");
 
+    node2->value = node1->value;
     return 0;
 }
 
@@ -667,7 +705,7 @@ static int XmlDom_replaceNode(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
         return throw_system_exception(__LINE__, ctx, EXCEPT_XML_ERROR, "Invalid XML node");
     }
 
-    int e = XmlDom_replaceNodeFromParent(ctx, parent->o, node1->o, node2->o);
+    int e = xmldom_replace_node_from_parent(ctx, parent->o, node1->o, node2->o);
     if (e != 0) {
         return e;
     }
@@ -684,7 +722,7 @@ static int XmlDom_replaceChild(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     vmobj *node1 = a1->o;
     vmobj *node2 = a2->o;
 
-    int e = XmlDom_replaceNodeFromParent(ctx, parent->o, node1, node2);
+    int e = xmldom_replace_node_from_parent(ctx, parent->o, node1, node2);
     if (e != 0) {
         return e;
     }
@@ -693,7 +731,7 @@ static int XmlDom_replaceChild(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     return 0;
 }
 
-static void XmlDom_getTextContent(vmctx *ctx, vmstr *text, vmvar *node)
+static void xmldom_get_text_content(vmctx *ctx, vmstr *text, vmvar *node)
 {
     int node_type = hashmap_getint(node->o, "nodeType", -1);
     if (node_type == XMLDOM_TEXT_NODE || node_type == XMLDOM_CDATA_SECTION_NODE ||
@@ -705,7 +743,7 @@ static void XmlDom_getTextContent(vmctx *ctx, vmstr *text, vmvar *node)
 
     vmobj *c = node->o;
     for (int i = 0, n = c->idxsz; i < n; i++) {
-        XmlDom_getTextContent(ctx, text, c->ary[i]);
+        xmldom_get_text_content(ctx, text, c->ary[i]);
     }
 }
 
@@ -713,12 +751,12 @@ static int XmlDom_textContent(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     DEF_ARG(node, 0, VAR_OBJ);
     vmstr *text = alcstr_str(ctx, "");
-    XmlDom_getTextContent(ctx, text, node);
+    xmldom_get_text_content(ctx, text, node);
     SET_SV(r, text);
     return 0;
 }
 
-static void setup_xmlnode_props(vmctx *ctx, vmfrm *lex, vmvar *doc, vmvar *r, vmvar *parent, int index, int type, xmlctx *xctx)
+static void xmldom_setup_xmlnode_props(vmctx *ctx, vmfrm *lex, vmvar *doc, vmvar *r, vmvar *parent, int index, int type, xmlctx *xctx)
 {
     vmobj *o = r->o;
     o->is_sysobj = 1;
@@ -760,8 +798,9 @@ static void setup_xmlnode_props(vmctx *ctx, vmfrm *lex, vmvar *doc, vmvar *r, vm
     KL_SET_METHOD(o, xpath, XPath_evaluate, lex, 2);
 }
 
-static void setup_xmldoc_props(vmctx *ctx, vmfrm *lex, vmvar *r)
+static void xmldom_setup_xmldoc_props(vmctx *ctx, vmfrm *lex, vmvar *r)
 {
+    vmvar *root = NULL;
     vmobj *o = r->o;
     vmvar **ary = o->ary;
     int n = o->idxsz;
@@ -770,15 +809,21 @@ static void setup_xmldoc_props(vmctx *ctx, vmfrm *lex, vmvar *r)
         vmvar *v = hashmap_search(vo, "nodeType");
         if (v && v->t == VAR_INT64) {
             if (v->i == XMLDOM_ELEMENT_NODE) {
-                KL_SET_PROPERTY(o, documentElement, ary[i]);
+                root = ary[i];
+                KL_SET_PROPERTY(o, documentElement, root);
             }
         }
     }
     KL_SET_PROPERTY_S(o, nodeName, "#document");
     KL_SET_METHOD(o, xpath, XPath_evaluate, lex, 2);
+    if (root) {
+        int i = 0;
+        xmldom_update_node_number(root, &i);
+    }
+    o->value = 0;   /* No need to update the node number. */
 }
 
-static const char *parse_doc(vmctx *ctx, vmfrm *lex, vmvar *doc, vmobj *nsmap, vmvar *r, const char *p, xmlctx *xctx)
+static const char *xmldom_parse_doc(vmctx *ctx, vmfrm *lex, vmvar *doc, vmobj *nsmap, vmvar *r, const char *p, xmlctx *xctx)
 {
     while (*p != 0) {
         const char *s = p;
@@ -787,7 +832,7 @@ static const char *parse_doc(vmctx *ctx, vmfrm *lex, vmvar *doc, vmobj *nsmap, v
             move_next(p);
         }
         if (s != p) {
-            vmvar *vs = make_str_obj(ctx, &(xctx->err), s, p - s);
+            vmvar *vs = xmldom_make_str_obj(ctx, &(xctx->err), s, p - s);
             if (xctx->err < 0) return p;
             if (xctx->normalize_space) {
                 str_trim(ctx, vs->s, " \t\r\n");
@@ -797,7 +842,7 @@ static const char *parse_doc(vmctx *ctx, vmfrm *lex, vmvar *doc, vmobj *nsmap, v
                 KL_SET_PROPERTY(vo->o, text, vs);
                 KL_SET_PROPERTY(vo->o, nodeValue, vs);
                 KL_SET_PROPERTY_S(vo->o, nodeName, "#text");
-                setup_xmlnode_props(ctx, lex, doc, vo, r, r->o->idxsz, XMLDOM_TEXT_NODE, xctx);
+                xmldom_setup_xmlnode_props(ctx, lex, doc, vo, r, r->o->idxsz, XMLDOM_TEXT_NODE, xctx);
                 array_push(ctx, r->o, vo);
             }
         }
@@ -810,20 +855,20 @@ static const char *parse_doc(vmctx *ctx, vmfrm *lex, vmvar *doc, vmobj *nsmap, v
             if (*p == '!') {
                 syntax_error((xctx->err), (*++p != '-'));
                 syntax_error((xctx->err), (*++p != '-'));
-                p = parse_comment(ctx, n, p+1, xctx);
-                setup_xmlnode_props(ctx, lex, doc, n, r, r->o->idxsz, XMLDOM_COMMENT_NODE, xctx);
+                p = xmldom_parse_comment(ctx, n, p+1, xctx);
+                xmldom_setup_xmlnode_props(ctx, lex, doc, n, r, r->o->idxsz, XMLDOM_COMMENT_NODE, xctx);
             } else if (*p == '?') {
                 move_next(p);
                 int xmldecl = 0;
-                p = parse_pi(ctx, cnsmap, r, n, p, xctx, &xmldecl);
+                p = xmldom_parse_pi(ctx, cnsmap, r, n, p, xctx, &xmldecl);
                 if (xmldecl && (xctx->depth > 0 || r->o->idxsz > 0)) {
                     errset_wuth_ret((xctx->err), XMLDOM_EDECL);
                 }
-                setup_xmlnode_props(ctx, lex, doc, n, r, r->o->idxsz,
+                xmldom_setup_xmlnode_props(ctx, lex, doc, n, r, r->o->idxsz,
                     xmldecl ? XMLDOM_XMLDECL_NODE : XMLDOM_PROCESSING_INSTRUCTION_NODE, xctx);
             } else {
-                p = parse_node(ctx, lex, doc, cnsmap, n, p, xctx);
-                setup_xmlnode_props(ctx, lex, doc, n, r, r->o->idxsz, XMLDOM_ELEMENT_NODE, xctx);
+                p = xmldom_parse_node(ctx, lex, doc, cnsmap, n, p, xctx);
+                xmldom_setup_xmlnode_props(ctx, lex, doc, n, r, r->o->idxsz, XMLDOM_ELEMENT_NODE, xctx);
             }
             if (xctx->err < 0) return p;
             array_push(ctx, r->o, n);
@@ -835,7 +880,7 @@ static const char *parse_doc(vmctx *ctx, vmfrm *lex, vmvar *doc, vmobj *nsmap, v
     return p;
 }
 
-static void check_options(vmobj *opts, xmlctx *xctx)
+static void xmldom_check_options(vmobj *opts, xmlctx *xctx)
 {
     vmvar *normalizeSpace = hashmap_search(opts, "normalizeSpace");
     if (normalizeSpace && (normalizeSpace->t == VAR_INT64 || normalizeSpace->t == VAR_BOOL)) {
@@ -866,10 +911,10 @@ static int XmlDom_parseString(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
             .normalize_space = 1,
         };
         if (a1->t == VAR_OBJ) {
-            check_options(a1->o, &xctx);
+            xmldom_check_options(a1->o, &xctx);
         }
-        parse_doc(ctx, lex, r, nsmap, r, str, &xctx);
-        setup_xmldoc_props(ctx, lex, r);
+        xmldom_parse_doc(ctx, lex, r, nsmap, r, str, &xctx);
+        xmldom_setup_xmldoc_props(ctx, lex, r);
         if (xctx.err < 0) {
             return xmldom_error(ctx, xctx.err, xctx.line, xctx.pos);
         }
@@ -1074,12 +1119,12 @@ static vmvar *xpath_union_expr(vmctx *ctx, xpath_lexer *l);
 #define xpath_is_number(v) ((v)->t == VAR_INT64 || (v)->t == VAR_DBL)
 #define is_ascii_digit(x) ((unsigned int)((x) - '0') <= 9)
 #define is_ncname_char(x) (('a' <= (x) && (x) <= 'z') || ('Z' <= (x) && (x) <= 'Z') || ('0' <= (x) && (x) <= '9') || ((x) == '_') || ((x) == '-'))
-#define XPATH_CHECK_OBJ(v) do { if ((v)->t != VAR_OBJ) return xpath_set_invalid_state_exception(__LINE__, ctx); } while (0)
+#define XPATH_CHECK_OBJ(v) do { if ((v)->t != VAR_OBJ) return xpath_throw_runtime_exception(__LINE__, ctx, "Invalid XPath state"); } while (0)
 #define XPATH_CHECK_ERR(e) do { if (e != 0) return e; } while (0)
 #define XPATH_EXPAND_V(v) do { if ((v)->t == VAR_OBJ && (v)->o->idxsz > 0) SHCOPY_VAR_TO(ctx, (v), (v)->o->ary[0]); } while (0)
 #define XPATH_EXPAND_O(obj) do { if ((obj) && (obj)->idxsz > 0 && (obj)->ary[0]->t == VAR_OBJ) (obj) = (obj)->ary[0]->o; } while (0)
 
-static void next_char(xpath_lexer *l)
+static void xpath_next_char(xpath_lexer *l)
 {
     l->curidx++;
     if (l->curidx < l->exprlen) {
@@ -1089,20 +1134,20 @@ static void next_char(xpath_lexer *l)
     }
 }
 
-static void skip_xpah_whitespace(xpath_lexer *l)
+static void xpah_skip_whitespace(xpath_lexer *l)
 {
     while (is_whitespace(l->cur)) {
-        next_char(l);
+        xpath_next_char(l);
     }
 }
 
-static void set_index(xpath_lexer *l, int idx)
+static void xpath_set_index(xpath_lexer *l, int idx)
 {
     l->curidx = idx - 1;
-    next_char(l);
+    xpath_next_char(l);
 }
 
-static int check_axis(xpath_lexer *l)
+static int xpath_check_axis(xpath_lexer *l)
 {
     l->token = XPATH_TK_AXISNAME;
 
@@ -1124,7 +1169,7 @@ static int check_axis(xpath_lexer *l)
     return XPATH_AXIS_UNKNOWN;
 }
 
-static int check_operator(xpath_lexer *l, int asta)
+static int xpath_check_operator(xpath_lexer *l, int asta)
 {
     int optype;
 
@@ -1158,13 +1203,13 @@ static int check_operator(xpath_lexer *l, int asta)
     return 1;
 }
 
-static int get_string(vmctx *ctx, xpath_lexer *l)
+static int xpath_get_string(vmctx *ctx, xpath_lexer *l)
 {
     int startidx = l->curidx + 1;
     int endch = l->cur;
-    next_char(l);
+    xpath_next_char(l);
     while (l->cur != endch && l->cur != 0) {
-        next_char(l);
+        xpath_next_char(l);
     }
 
     if (l->cur == 0) {
@@ -1172,33 +1217,33 @@ static int get_string(vmctx *ctx, xpath_lexer *l)
     }
 
     str_set(ctx, l->str, l->expr + startidx, l->curidx - startidx);
-    next_char(l);
+    xpath_next_char(l);
     return 1;
 }
 
-static int get_ncname(vmctx *ctx, xpath_lexer *l, vmstr *name)
+static int xpath_get_ncname(vmctx *ctx, xpath_lexer *l, vmstr *name)
 {
     int startidx = l->curidx;
     while (is_ncname_char(l->cur)) {
-        next_char(l);
+        xpath_next_char(l);
     }
 
     str_set(ctx, name, l->expr + startidx, l->curidx - startidx);
     return 1;
 }
 
-static int get_number(vmctx *ctx, xpath_lexer *l)
+static int xpath_get_number(vmctx *ctx, xpath_lexer *l)
 {
     int r = XPATH_TK_INT;
     int startidx = l->curidx;
     while (is_ascii_digit(l->cur)) {
-        next_char(l);
+        xpath_next_char(l);
     }
     if (l->cur == '.') {
         r = XPATH_TK_NUM;
-        next_char(l);
+        xpath_next_char(l);
         while (is_ascii_digit(l->cur)) {
-            next_char(l);
+            xpath_next_char(l);
         }
     }
     if ((l->cur & (~0x20)) == 'E') {
@@ -1209,97 +1254,97 @@ static int get_number(vmctx *ctx, xpath_lexer *l)
     return r;
 }
 
-static void next_token(vmctx *ctx, xpath_lexer *l)
+static void xpath_next_token(vmctx *ctx, xpath_lexer *l)
 {
     l->prevend = l->cur;
     l->prevtype = l->token;
-    skip_xpah_whitespace(l);
+    xpah_skip_whitespace(l);
     l->start = l->curidx;
 
     switch (l->cur) {
     case 0:   l->token = XPATH_TK_EOF; return;
-    case '(': l->token = XPATH_TK_LP;     next_char(l); break;
-    case ')': l->token = XPATH_TK_RP;     next_char(l); break;
-    case '[': l->token = XPATH_TK_LB;     next_char(l); break;
-    case ']': l->token = XPATH_TK_RB;     next_char(l); break;
-    case '@': l->token = XPATH_TK_AT;     next_char(l); break;
-    case ',': l->token = XPATH_TK_COMMA;  next_char(l); break;
+    case '(': l->token = XPATH_TK_LP;     xpath_next_char(l); break;
+    case ')': l->token = XPATH_TK_RP;     xpath_next_char(l); break;
+    case '[': l->token = XPATH_TK_LB;     xpath_next_char(l); break;
+    case ']': l->token = XPATH_TK_RB;     xpath_next_char(l); break;
+    case '@': l->token = XPATH_TK_AT;     xpath_next_char(l); break;
+    case ',': l->token = XPATH_TK_COMMA;  xpath_next_char(l); break;
 
     case '.':
-        next_char(l);
+        xpath_next_char(l);
         if (l->cur == '.') {
             l->token = XPATH_TK_DOTDOT;
-            next_char(l);
+            xpath_next_char(l);
         } else if (is_ascii_digit(l->cur)) {
             l->curidx = l->start - 1;
-            next_char(l);
+            xpath_next_char(l);
             goto CASE_0;
         } else {
             l->token = XPATH_TK_DOT;
         }
         break;
     case ':':
-        next_char(l);
+        xpath_next_char(l);
         if (l->cur == ':') {
             l->token = XPATH_TK_COLONCOLON;
-            next_char(l);
+            xpath_next_char(l);
         } else {
             l->token = XPATH_TK_UNKNOWN;
         }
         break;
     case '*':
         l->token = XPATH_TK_ASTA;
-        next_char(l);
-        check_operator(l, 1);
+        xpath_next_char(l);
+        xpath_check_operator(l, 1);
         break;
     case '/':
-        next_char(l);
+        xpath_next_char(l);
         if (l->cur == '/') {
             l->token = XPATH_TK_SLASHSLASH;
-            next_char(l);
+            xpath_next_char(l);
         } else {
             l->token = XPATH_TK_SLASH;
         }
         break;
     case '|':
         l->token = XPATH_TK_UNION;
-        next_char(l);
+        xpath_next_char(l);
         break;
     case '+':
         l->token = XPATH_TK_ADD;
-        next_char(l);
+        xpath_next_char(l);
         break;
     case '-':
         l->token = XPATH_TK_SUB;
-        next_char(l);
+        xpath_next_char(l);
         break;
     case '=':
         l->token = XPATH_TK_EQ;
-        next_char(l);
+        xpath_next_char(l);
         break;
     case '!':
-        next_char(l);
+        xpath_next_char(l);
         if (l->cur == '=') {
             l->token = XPATH_TK_NE;
-            next_char(l);
+            xpath_next_char(l);
         } else {
             l->token = XPATH_TK_UNKNOWN;
         }
         break;
     case '<':
-        next_char(l);
+        xpath_next_char(l);
         if (l->cur == '=') {
             l->token = XPATH_TK_LE;
-            next_char(l);
+            xpath_next_char(l);
         } else {
             l->token = XPATH_TK_LT;
         }
         break;
     case '>':
-        next_char(l);
+        xpath_next_char(l);
         if (l->cur == '=') {
             l->token = XPATH_TK_GE;
-            next_char(l);
+            xpath_next_char(l);
         } else {
             l->token = XPATH_TK_GT;
         }
@@ -1307,20 +1352,20 @@ static void next_token(vmctx *ctx, xpath_lexer *l)
     case '"':
     case '\'':
         l->token = XPATH_TK_STR;
-        if (!get_string(ctx, l)) {
+        if (!xpath_get_string(ctx, l)) {
             return;
         }
         break;
     case '0':
 CASE_0:;
     case '1': case '2': case '3': case '4': case '5': case '6': case '7': case '8': case '9':
-        l->token = get_number(ctx, l);
+        l->token = xpath_get_number(ctx, l);
         if (!l->token) {
             return;
         }
         break;
     default:
-        get_ncname(ctx, l, l->name);
+        xpath_get_ncname(ctx, l, l->name);
         if (l->name->len > 0) {
             l->token = XPATH_TK_NAME;
             str_clear(l->prefix);
@@ -1329,48 +1374,48 @@ CASE_0:;
             int colon2 = 0;
             int savedidx = l->curidx;
             if (l->cur == ':') {
-                next_char(l);
+                xpath_next_char(l);
                 if (l->cur == ':') {
-                    next_char(l);
+                    xpath_next_char(l);
                     colon2 = 1;
-                    set_index(l, savedidx);
+                    xpath_set_index(l, savedidx);
                 } else {
                     vmstr ncname;
-                    get_ncname(ctx, l, &ncname);
+                    xpath_get_ncname(ctx, l, &ncname);
                     if (ncname.len > 0) {
                         str_append_cp(ctx, l->prefix, l->name->hd);
                         str_set_cp(ctx, l->name, ncname.hd);
                         savedidx = l->curidx;
-                        skip_xpah_whitespace(l);
+                        xpah_skip_whitespace(l);
                         l->function = (l->cur == '(');
-                        set_index(l, savedidx);
+                        xpath_set_index(l, savedidx);
                     } else if (l->cur == '*') {
-                        next_char(l);
+                        xpath_next_char(l);
                         str_append_cp(ctx, l->prefix, l->name->hd);
                         str_set_cp(ctx, l->name, "*");
                     } else {
-                        set_index(l, savedidx);
+                        xpath_set_index(l, savedidx);
                     }
                 }
             } else {
-                skip_xpah_whitespace(l);
+                xpah_skip_whitespace(l);
                 if (l->cur == ':') {
-                    next_char(l);
+                    xpath_next_char(l);
                     if (l->cur == ':') {
-                        next_char(l);
+                        xpath_next_char(l);
                         colon2 = 1;
                     }
-                    set_index(l, savedidx);
+                    xpath_set_index(l, savedidx);
                 } else {
                     l->function = (l->cur == '(');
                 }
             }
-            if (!check_operator(l, 0) && colon2) {
-                l->axis = check_axis(l);
+            if (!xpath_check_operator(l, 0) && colon2) {
+                l->axis = xpath_check_axis(l);
             }
         } else {
             l->token = XPATH_TK_UNKNOWN;
-            next_char(l);
+            xpath_next_char(l);
         }
         break;
     }
@@ -1430,16 +1475,10 @@ static void xpath_set_syntax_error(int line, vmctx *ctx, xpath_lexer *l)
     xpath_set_error(line, ctx, l, "XPath syntax error");
 }
 
-static int xpath_set_exception(int line, vmctx *ctx, xpath_lexer *l, const char *msg)
+static int xpath_throw_runtime_exception(int line, vmctx *ctx, const char *msg)
 {
     printf("XPath error at %d\n", line);
     return throw_system_exception(__LINE__, ctx, EXCEPT_XML_ERROR, msg);
-}
-
-static int xpath_set_invalid_state_exception(int line, vmctx *ctx)
-{
-    printf("XPath error at %d\n", line);
-    return throw_system_exception(__LINE__, ctx, EXCEPT_XML_ERROR, "Invalid XPath state");
 }
 
 static vmvar *xpath_make_predicate(vmctx *ctx, vmvar *node, vmvar *condition, int reverse)
@@ -1497,7 +1536,7 @@ static vmvar *xpath_make_step(vmctx *ctx, vmvar *lhs, vmvar *rhs)
     return alcvar_obj(ctx, n);
 }
 
-static int is_node_type(xpath_lexer *l)
+static int xpath_is_node_type(xpath_lexer *l)
 {
     return l->prefix->len == 0 && (
         strcmp(l->name->hd, "node") == 0 || strcmp(l->name->hd, "text") == 0 ||
@@ -1505,7 +1544,7 @@ static int is_node_type(xpath_lexer *l)
     );
 }
 
-static int is_step(int token)
+static int xpath_is_step(int token)
 {
     return
         token == XPATH_TK_DOT      ||
@@ -1517,18 +1556,18 @@ static int is_step(int token)
     ;
 }
 
-static int is_primary_expr(xpath_lexer *l)
+static int xpath_is_primary_expr(xpath_lexer *l)
 {
     return
         l->token == XPATH_TK_STR ||
         l->token == XPATH_TK_INT ||
         l->token == XPATH_TK_NUM ||
         l->token == XPATH_TK_LP ||
-        (l->token == XPATH_TK_NAME && l->function && !is_node_type(l))
+        (l->token == XPATH_TK_NAME && l->function && !xpath_is_node_type(l))
     ;
 }
 
-static int is_reverse_axis(int axis)
+static int xpath_is_reverse_axis(int axis)
 {
     return
         axis == XPATH_AXIS_ANCESTOR         || axis == XPATH_AXIS_PRECEDING ||
@@ -1542,13 +1581,13 @@ static int xpath_make_node_type(int axis)
         (axis == XPATH_AXIS_NAMESPACE ? XPATH_NODE_NAMESPACE : XPATH_NODE_ELEMENT);
 }
 
-static void push_posinfo(xpath_lexer *l, int startch, int endch)
+static void xpath_push_posinfo(xpath_lexer *l, int startch, int endch)
 {
     l->posinfo[l->stksz++] = startch;
     l->posinfo[l->stksz++] = endch;
 }
 
-static void pop_posinfo(xpath_lexer *l)
+static void xpath_pop_posinfo(xpath_lexer *l)
 {
     l->stksz -= 2;
 }
@@ -1557,19 +1596,19 @@ static int xpath_check_node_test(vmctx *ctx, xpath_lexer *l, int axis, int *node
 {
     switch (l->token) {
     case XPATH_TK_NAME:
-        if (l->function && is_node_type(l)) {
+        if (l->function && xpath_is_node_type(l)) {
             str_clear(node_prefix);
             str_clear(node_name);
             if      (strcmp(l->name->hd, "comment") == 0) *node_type = XPATH_NODE_COMMENT;
             else if (strcmp(l->name->hd, "text")    == 0) *node_type = XPATH_NODE_TEXT;
             else if (strcmp(l->name->hd, "node")    == 0) *node_type = XPATH_NODE_ALL;
             else                                          *node_type = XPATH_NODE_PROCESSIGN_INSTRUCTION;
-            next_token(ctx, l);
+            xpath_next_token(ctx, l);
             if (l->token != XPATH_TK_LP) {
                 xpath_set_syntax_error(__LINE__, ctx, l);
                 return 0;
             }
-            next_token(ctx, l);
+            xpath_next_token(ctx, l);
 
             if (*node_type == XPATH_NODE_PROCESSIGN_INSTRUCTION) {
                 if (l->token != XPATH_TK_RP) {
@@ -1579,7 +1618,7 @@ static int xpath_check_node_test(vmctx *ctx, xpath_lexer *l, int axis, int *node
                     }
                     str_clear(node_prefix);
                     str_set_cp(ctx, node_name, l->str->hd);
-                    next_token(ctx, l);
+                    xpath_next_token(ctx, l);
                 }
             }
 
@@ -1587,12 +1626,12 @@ static int xpath_check_node_test(vmctx *ctx, xpath_lexer *l, int axis, int *node
                 xpath_set_syntax_error(__LINE__, ctx, l);
                 return 0;
             }
-            next_token(ctx, l);
+            xpath_next_token(ctx, l);
         } else {
             str_set_cp(ctx, node_prefix, l->prefix->hd);
             str_set_cp(ctx, node_name, l->name->hd);
             *node_type = xpath_make_node_type(axis);
-            next_token(ctx, l);
+            xpath_next_token(ctx, l);
             if (strcmp(node_name->hd, "*") == 0) {
                 str_clear(node_name);
             }
@@ -1602,7 +1641,7 @@ static int xpath_check_node_test(vmctx *ctx, xpath_lexer *l, int axis, int *node
         str_clear(node_prefix);
         str_clear(node_name);
         *node_type = xpath_make_node_type(axis);
-        next_token(ctx, l);
+        xpath_next_token(ctx, l);
         break;
     default :
         xpath_set_syntax_error(__LINE__, ctx, l);
@@ -1618,9 +1657,9 @@ static vmvar *xpath_node_test(vmctx *ctx, xpath_lexer *l, int axis) {
     vmvar *n = NULL;
     int startch = l->start;
     if (xpath_check_node_test(ctx, l, axis, &node_type, node_prefix, node_name)) {
-        push_posinfo(l, startch, l->prevend);
+        xpath_push_posinfo(l, startch, l->prevend);
         n = xpath_make_axis(ctx, axis, node_type, alcvar_str(ctx, node_prefix->hd), alcvar_str(ctx, node_name->hd));
-        pop_posinfo(l);
+        xpath_pop_posinfo(l);
     }
 
     pbakstr(ctx, node_name);
@@ -1637,7 +1676,7 @@ static vmvar *xpath_process_expr(vmctx *ctx, xpath_lexer *l, int prec)
     if (l->token == XPATH_TK_SUB) {
         op = XPATH_TK_UMINUS;
         int opprec = xpath_operator_priority[op];
-        next_token(ctx, l);
+        xpath_next_token(ctx, l);
         vmvar *n2 =  xpath_process_expr(ctx, l, opprec);
         if (!n2) return NULL;
         n = xpath_make_binop(ctx, op, n2, NULL);
@@ -1654,7 +1693,7 @@ static vmvar *xpath_process_expr(vmctx *ctx, xpath_lexer *l, int prec)
             break;
         }
 
-        next_token(ctx, l);
+        xpath_next_token(ctx, l);
         vmvar *n2 =  xpath_process_expr(ctx, l, opprec);
         if (!n2) return NULL;
         n = xpath_make_binop(ctx, op, n, n2);
@@ -1674,14 +1713,14 @@ static vmvar *xpath_predicate(vmctx *ctx, xpath_lexer *l)
         xpath_set_syntax_error(__LINE__, ctx, l);
         return NULL;
     }
-    next_token(ctx, l);
+    xpath_next_token(ctx, l);
     vmvar *n = xpath_expr(ctx, l);
     if (!n) return NULL;
     if (l->token != XPATH_TK_RB) {
         xpath_set_syntax_error(__LINE__, ctx, l);
         return NULL;
     }
-    next_token(ctx, l);
+    xpath_next_token(ctx, l);
     return n;
 }
 
@@ -1689,22 +1728,22 @@ static vmvar *xpath_step(vmctx *ctx, xpath_lexer *l)
 {
     vmvar *n = NULL;
     if (l->token == XPATH_TK_DOT) {
-        next_token(ctx, l);
+        xpath_next_token(ctx, l);
         n = xpath_make_axis(ctx, XPATH_AXIS_SELF, XPATH_NODE_ALL, NULL, NULL);
     } else if (l->token == XPATH_TK_DOTDOT) {
-        next_token(ctx, l);
+        xpath_next_token(ctx, l);
         n = xpath_make_axis(ctx, XPATH_AXIS_PARENT, XPATH_NODE_ALL, NULL, NULL);
     } else {
         int axis;
         switch (l->token) {
         case XPATH_TK_AXISNAME:
             axis = l->axis;
-            next_token(ctx, l);
-            next_token(ctx, l);
+            xpath_next_token(ctx, l);
+            xpath_next_token(ctx, l);
             break;
         case XPATH_TK_AT:
             axis = XPATH_AXIS_ATTRIBUTE;
-            next_token(ctx, l);
+            xpath_next_token(ctx, l);
             break;
         case XPATH_TK_NAME:
         case XPATH_TK_ASTA:
@@ -1720,7 +1759,7 @@ static vmvar *xpath_step(vmctx *ctx, xpath_lexer *l)
         while (l->token == XPATH_TK_LB) {
             vmvar *n2 = xpath_predicate(ctx, l);
             if (!n2) return NULL;
-            n = xpath_make_predicate(ctx, n, n2, is_reverse_axis(axis));
+            n = xpath_make_predicate(ctx, n, n2, xpath_is_reverse_axis(axis));
         }
     }
 
@@ -1732,12 +1771,12 @@ static vmvar *xpath_relative_location_path(vmctx *ctx, xpath_lexer *l)
     vmvar *n = xpath_step(ctx, l);
     if (!n) return NULL;
     if (l->token == XPATH_TK_SLASH) {
-        next_token(ctx, l);
+        xpath_next_token(ctx, l);
         vmvar *n2 = xpath_relative_location_path(ctx, l);
         if (!n2) return NULL;
         n = xpath_make_step(ctx, n, n2);
     } else if (l->token == XPATH_TK_SLASHSLASH) {
-        next_token(ctx, l);
+        xpath_next_token(ctx, l);
         vmvar *n2 = xpath_relative_location_path(ctx, l);
         if (!n2) return NULL;
         n = xpath_make_step(ctx, n,
@@ -1753,15 +1792,15 @@ static vmvar *xpath_location_path(vmctx *ctx, xpath_lexer *l)
 {
     vmvar *n = NULL;
     if (l->token == XPATH_TK_SLASH) {
-        next_token(ctx, l);
+        xpath_next_token(ctx, l);
         n = xpath_make_axis(ctx, XPATH_AXIS_ROOT, XPATH_NODE_ALL, NULL, NULL);
-        if (is_step(l->token)) {
+        if (xpath_is_step(l->token)) {
             vmvar *n2 = xpath_relative_location_path(ctx, l);
             if (!n2) return NULL;
             n = xpath_make_step(ctx, n, n2);
         }
     } else if (l->token == XPATH_TK_SLASHSLASH) {
-        next_token(ctx, l);
+        xpath_next_token(ctx, l);
         vmvar *n2 = xpath_relative_location_path(ctx, l);
         if (!n2) return NULL;
         n = xpath_make_step(ctx,
@@ -1788,12 +1827,12 @@ static vmvar *xpath_function_call(vmctx *ctx, xpath_lexer *l)
         xpath_set_syntax_error(__LINE__, ctx, l);
         return NULL;
     }
-    next_token(ctx, l);
+    xpath_next_token(ctx, l);
     if (l->token != XPATH_TK_LP) {
         xpath_set_syntax_error(__LINE__, ctx, l);
         return NULL;
     }
-    next_token(ctx, l);
+    xpath_next_token(ctx, l);
 
     if (l->token != XPATH_TK_RP) {
         for ( ; ; ) {
@@ -1805,14 +1844,14 @@ static vmvar *xpath_function_call(vmctx *ctx, xpath_lexer *l)
                 }
                 break;
             }
-            next_token(ctx, l);
+            xpath_next_token(ctx, l);
         }
     }
 
-    next_token(ctx, l);
-    push_posinfo(l, startch, l->prevend);
+    xpath_next_token(ctx, l);
+    xpath_push_posinfo(l, startch, l->prevend);
     vmvar *n = xpath_make_function(ctx, prefix, name, args);
-    pop_posinfo(l);
+    xpath_pop_posinfo(l);
     return n;
 }
 
@@ -1822,28 +1861,28 @@ static vmvar *xpath_primary_expr(vmctx *ctx, xpath_lexer *l)
     switch (l->token) {
     case XPATH_TK_STR:
         n = alcvar_str(ctx, l->str->hd);
-        next_token(ctx, l);
+        xpath_next_token(ctx, l);
         break;
     case XPATH_TK_INT: {
         int64_t i = strtoll(l->num->hd, NULL, 10);
         n = alcvar_int64(ctx, i, 0);
-        next_token(ctx, l);
+        xpath_next_token(ctx, l);
         break;
     }
     case XPATH_TK_NUM: {
         double d = strtod(l->num->hd, NULL);
         n = alcvar_double(ctx, &d);
-        next_token(ctx, l);
+        xpath_next_token(ctx, l);
         break;
     }
     case XPATH_TK_LP:
-        next_token(ctx, l);
+        xpath_next_token(ctx, l);
         n = xpath_expr(ctx, l);
         if (l->token != XPATH_TK_RP) {
             xpath_set_syntax_error(__LINE__, ctx, l);
             return NULL;
         }
-        next_token(ctx, l);
+        xpath_next_token(ctx, l);
         break;
     default:
         n = xpath_function_call(ctx, l);
@@ -1859,11 +1898,11 @@ static vmvar *xpath_filter_expr(vmctx *ctx, xpath_lexer *l)
     int endch = l->prevend;
 
     while (n && l->token == XPATH_TK_LB) {
-        push_posinfo(l, startch, endch);
+        xpath_push_posinfo(l, startch, endch);
         vmvar *n2 = xpath_predicate(ctx, l);
         if (!n2) return NULL;
         n = xpath_make_predicate(ctx, n, n2, 0);
-        pop_posinfo(l);
+        xpath_pop_posinfo(l);
     }
 
     return n;
@@ -1872,22 +1911,22 @@ static vmvar *xpath_filter_expr(vmctx *ctx, xpath_lexer *l)
 static vmvar *xpath_path_expr(vmctx *ctx, xpath_lexer *l)
 {
     vmvar *n = NULL;
-    if (is_primary_expr(l)) {
+    if (xpath_is_primary_expr(l)) {
         int startch = l->start;
         n = xpath_filter_expr(ctx, l);
         if (!n) return NULL;
         int endch = l->prevend;
 
         if (l->token == XPATH_TK_SLASH) {
-            next_token(ctx, l);
-            push_posinfo(l, startch, endch);
+            xpath_next_token(ctx, l);
+            xpath_push_posinfo(l, startch, endch);
             vmvar *n2 = xpath_relative_location_path(ctx, l);
             if (!n2) return NULL;
             n = xpath_make_step(ctx, n, n2);
-            pop_posinfo(l);
+            xpath_pop_posinfo(l);
         } else if (l->token == XPATH_TK_SLASHSLASH) {
-            next_token(ctx, l);
-            push_posinfo(l, startch, endch);
+            xpath_next_token(ctx, l);
+            xpath_push_posinfo(l, startch, endch);
             vmvar *n2 = xpath_relative_location_path(ctx, l);
             if (!n2) return NULL;
             n = xpath_make_step(ctx, n,
@@ -1895,7 +1934,7 @@ static vmvar *xpath_path_expr(vmctx *ctx, xpath_lexer *l)
                     xpath_make_axis(ctx, XPATH_AXIS_DESCENDANT_OR_SELF, XPATH_NODE_ALL, NULL, NULL), n2
                 )
             );
-            pop_posinfo(l);
+            xpath_pop_posinfo(l);
         }
     } else {
         n = xpath_location_path(ctx, l);
@@ -1907,7 +1946,7 @@ static vmvar *xpath_union_expr(vmctx *ctx, xpath_lexer *l)
 {
     vmvar *n = xpath_path_expr(ctx, l);
     while (n && l->token == XPATH_TK_UNION) {
-        next_token(ctx, l);
+        xpath_next_token(ctx, l);
         vmvar *n2 = xpath_path_expr(ctx, l);
         if (!n2) return NULL;
         n = xpath_make_binop(ctx, XPATH_TK_UNION, n, n2);
@@ -1932,8 +1971,8 @@ static int xpath_compile(vmctx *ctx, vmvar *r, const char *expr)
         .token = XPATH_TK_UNKNOWN,
         .curidx = -1,
     };
-    next_char(&lexer);
-    next_token(ctx, &lexer);
+    xpath_next_char(&lexer);
+    xpath_next_token(ctx, &lexer);
     vmvar *root = xpath_parse(ctx, &lexer);
     SHCOPY_VAR_TO(ctx, r, root);
     return lexer.e;
@@ -2016,9 +2055,10 @@ static int XPath_nodeTypeName(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     return 0;
 }
 
-/* evaluate */
+/* evaluate XPath */
 
 static int xpath_evaluate_step(vmctx *ctx, vmvar *r, vmvar *xpath, vmvar *root, vmobj *info, vmobj *base);
+static int xpath_collect_descendant(vmctx *ctx, vmvar *xpath, vmobj *nodes, vmobj *res);
 
 static void xpath_print_current_nodeset(vmctx *ctx, vmobj *info, const char *msg)
 {
@@ -2031,12 +2071,36 @@ static void xpath_print_current_nodeset(vmctx *ctx, vmobj *info, const char *msg
             if (!value) {
                 value = hashmap_getstr(node->o, "nodeValue");
             }
-            printf("XML node (%s[%d])", value ? value : "unknown", i + 1);
+            printf("<%d> XML node (%s[%d])", (int)node->o->value, value ? value : "unknown", i + 1);
         } else {
             print_obj(ctx, node);
         }
         printf("\n");
     }
+}
+
+static int xpath_comp_forward(const void * n1, const void * n2)
+{
+    int v1 = (*(vmvar **)n1)->o->value;
+    int v2 = (*(vmvar **)n2)->o->value;
+    return v1 < v2 ? -1 : (v1 > v2 ? 1 : 0);
+}
+
+static int xpath_comp_reverse(const void * n1, const void * n2)
+{
+    int v1 = (*(vmvar **)n1)->o->value;
+    int v2 = (*(vmvar **)n2)->o->value;
+    return v1 < v2 ? 1 : (v1 > v2 ? -1 : 0);
+}
+
+static void xpath_sort_by_doc_order(vmobj* res)
+{
+    qsort(res->ary, res->idxsz, sizeof(vmvar *), xpath_comp_forward);
+}
+
+static void xpath_sort_by_doc_reverse_order(vmobj* res)
+{
+    qsort(res->ary, res->idxsz, sizeof(vmvar *), xpath_comp_reverse);
 }
 
 static vmobj *xpath_make_initial_info(vmctx *ctx, vmobj *node)
@@ -2096,24 +2160,26 @@ static void xpath_add_item_if_matched(vmctx *ctx, vmobj *r, vmvar *nodev, vmobj 
 {
     if (nodev->t != VAR_OBJ) return;
     vmobj *node = nodev->o;
-    vmstr *prefix = (xpath->ary[2] && xpath->ary[2]->t == VAR_STR) ? xpath->ary[2]->s : NULL;
-    int has_prefix = prefix && prefix->hd && *prefix->hd != 0;
-    vmstr *name = (xpath->ary[3] && xpath->ary[3]->t == VAR_STR) ? xpath->ary[3]->s : NULL;
-    int has_name = name && name->hd && *name->hd != 0;
-    int node_type = ((has_prefix || has_name) && xpath->ary[1] && xpath->ary[1]->t == VAR_INT64) ? xpath->ary[1]->i : XPATH_NODE_ALL;
-    int is_collected = node->is_checked;
-    if (!is_collected &&
-            (node_type == XPATH_NODE_ALL ||
-            (xpath_is_matched_node_type(ctx, node, node_type) && xpath_is_matched(ctx, node, prefix, name)))) {
-        array_push(ctx, r, nodev);
-        nodev->o->is_checked = 1;
+    if (node->value > 0) {
+        vmstr *prefix = (xpath->ary[2] && xpath->ary[2]->t == VAR_STR) ? xpath->ary[2]->s : NULL;
+        int has_prefix = prefix && prefix->hd && *prefix->hd != 0;
+        vmstr *name = (xpath->ary[3] && xpath->ary[3]->t == VAR_STR) ? xpath->ary[3]->s : NULL;
+        int has_name = name && name->hd && *name->hd != 0;
+        int node_type = ((has_prefix || has_name) && xpath->ary[1] && xpath->ary[1]->t == VAR_INT64) ? xpath->ary[1]->i : XPATH_NODE_ALL;
+        int is_collected = node->is_checked;
+        if (!is_collected &&
+                (node_type == XPATH_NODE_ALL ||
+                (xpath_is_matched_node_type(ctx, node, node_type) && xpath_is_matched(ctx, node, prefix, name)))) {
+            array_push(ctx, r, nodev);
+            nodev->o->is_checked = 1;
+        }
     }
 }
 
 static int xpath_collect_attribute(vmctx *ctx, vmvar *xpath, vmobj *nodes, vmobj *res)
 {
     if (xpath->t != VAR_OBJ) {
-        return xpath_set_invalid_state_exception(__LINE__, ctx);
+        return xpath_throw_runtime_exception(__LINE__, ctx, "Invalid XPath state");
     }
 
     vmobj *xo = xpath->o;
@@ -2162,7 +2228,7 @@ static int xpath_collect_attribute(vmctx *ctx, vmvar *xpath, vmobj *nodes, vmobj
 static int xpath_collect_parent(vmctx *ctx, vmvar *xpath, vmobj *nodes, vmobj *res)
 {
     if (xpath->t != VAR_OBJ) {
-        return xpath_set_invalid_state_exception(__LINE__, ctx);
+        return xpath_throw_runtime_exception(__LINE__, ctx, "Invalid XPath state");
     }
 
     vmobj *xo = xpath->o;
@@ -2183,7 +2249,7 @@ static int xpath_collect_parent(vmctx *ctx, vmvar *xpath, vmobj *nodes, vmobj *r
 static int xpath_collect_ancestor_nodes(vmctx *ctx, vmvar *xpath, vmobj *node, vmobj *res)
 {
     if (xpath->t != VAR_OBJ) {
-        return xpath_set_invalid_state_exception(__LINE__, ctx);
+        return xpath_throw_runtime_exception(__LINE__, ctx, "Invalid XPath state");
     }
 
     vmobj *xo = xpath->o;
@@ -2199,7 +2265,7 @@ static int xpath_collect_ancestor_nodes(vmctx *ctx, vmvar *xpath, vmobj *node, v
 static int xpath_collect_ancestor(vmctx *ctx, vmvar *xpath, vmobj *nodes, vmobj *res)
 {
     if (xpath->t != VAR_OBJ) {
-        return xpath_set_invalid_state_exception(__LINE__, ctx);
+        return xpath_throw_runtime_exception(__LINE__, ctx, "Invalid XPath state");
     }
 
     vmobj *xo = xpath->o;
@@ -2217,7 +2283,7 @@ static int xpath_collect_ancestor(vmctx *ctx, vmvar *xpath, vmobj *nodes, vmobj 
 static int xpath_collect_ancestor_or_self(vmctx *ctx, vmvar *xpath, vmobj *nodes, vmobj *res)
 {
     if (xpath->t != VAR_OBJ) {
-        return xpath_set_invalid_state_exception(__LINE__, ctx);
+        return xpath_throw_runtime_exception(__LINE__, ctx, "Invalid XPath state");
     }
 
     vmobj *xo = xpath->o;
@@ -2236,7 +2302,7 @@ static int xpath_collect_ancestor_or_self(vmctx *ctx, vmvar *xpath, vmobj *nodes
 static int xpath_collect_child_nodes(vmctx *ctx, vmvar *xpath, vmobj *node, vmobj *res)
 {
     if (xpath->t != VAR_OBJ) {
-        return xpath_set_invalid_state_exception(__LINE__, ctx);
+        return xpath_throw_runtime_exception(__LINE__, ctx, "Invalid XPath state");
     }
 
     vmobj *xo = xpath->o;
@@ -2252,7 +2318,7 @@ static int xpath_collect_child_nodes(vmctx *ctx, vmvar *xpath, vmobj *node, vmob
 static int xpath_collect_child(vmctx *ctx, vmvar *xpath, vmobj *nodes, vmobj *res)
 {
     if (xpath->t != VAR_OBJ) {
-        return xpath_set_invalid_state_exception(__LINE__, ctx);
+        return xpath_throw_runtime_exception(__LINE__, ctx, "Invalid XPath state");
     }
 
     vmobj *xo = xpath->o;
@@ -2268,22 +2334,27 @@ static int xpath_collect_child(vmctx *ctx, vmvar *xpath, vmobj *nodes, vmobj *re
     return 0;
 }
 
+static void xpath_collect_descendant_node(vmctx *ctx, vmvar *xpath, vmobj *node, vmobj *res)
+{
+    xpath_collect_child_nodes(ctx, xpath, node, res);
+    vmvar *children = hashmap_search(node, "children");
+    if (children->t == VAR_OBJ) {
+        xpath_collect_descendant(ctx, xpath, children->o, res);
+    }
+}
+
 static int xpath_collect_descendant(vmctx *ctx, vmvar *xpath, vmobj *nodes, vmobj *res)
 {
     if (xpath->t != VAR_OBJ) {
-        return xpath_set_invalid_state_exception(__LINE__, ctx);
+        return xpath_throw_runtime_exception(__LINE__, ctx, "Invalid XPath state");
     }
 
     vmobj *xo = xpath->o;
     int len = nodes->idxsz;
     for (int i = 0; i < len; ++i) {
         vmvar *nv = nodes->ary[i];
-        if (nv->t != VAR_OBJ) continue;
-        vmobj *node = nv->o;
-        xpath_collect_child_nodes(ctx, xpath, node, res);
-        vmvar *children = hashmap_search(node, "children");
-        if (children->t != VAR_OBJ) continue;
-        xpath_collect_descendant(ctx, xpath, children->o, res);
+        if (nv && nv->t != VAR_OBJ) continue;
+        xpath_collect_descendant_node(ctx, xpath, nv->o, res);
     }
 
     return 0;
@@ -2292,128 +2363,107 @@ static int xpath_collect_descendant(vmctx *ctx, vmvar *xpath, vmobj *nodes, vmob
 static int xpath_collect_descendant_or_self(vmctx *ctx, vmvar *xpath, vmobj *nodes, vmobj *res)
 {
     if (xpath->t != VAR_OBJ) {
-        return xpath_set_invalid_state_exception(__LINE__, ctx);
+        return xpath_throw_runtime_exception(__LINE__, ctx, "Invalid XPath state");
     }
 
     vmobj *xo = xpath->o;
     int len = nodes->idxsz;
     for (int i = 0; i < len; ++i) {
         vmvar *nv = nodes->ary[i];
-        if (nv->t != VAR_OBJ) continue;
-        vmobj *node = nv->o;
+        if (nv && nv->t != VAR_OBJ) continue;
         xpath_add_item_if_matched(ctx, res, nv, xo);
-        xpath_collect_child_nodes(ctx, xpath, node, res);
-        vmvar *children = hashmap_search(node, "children");
-        if (children->t != VAR_OBJ) continue;
-        xpath_collect_descendant(ctx, xpath, children->o, res);
+        xpath_collect_descendant_node(ctx, xpath, nv->o, res);
     }
 
     return 0;
+}
+
+static int xpath_collect_sibling_node(vmctx *ctx, vmvar *xpath, vmobj *node, vmobj *res, const char *direction, int children)
+{
+    if (xpath->t != VAR_OBJ) {
+        return xpath_throw_runtime_exception(__LINE__, ctx, "Invalid XPath state");
+    }
+
+    int e = 0;
+    if (node) {
+        vmobj *xo = xpath->o;
+        vmvar *next = hashmap_search(node, direction);
+        while (next && next->t == VAR_OBJ) {
+            xpath_add_item_if_matched(ctx, res, next, xo);
+            if (children) {
+                xpath_collect_descendant_node(ctx, xpath, next->o, res);
+            }
+            next = hashmap_search(next->o, direction);
+        }
+    }
+
+    return e;
 }
 
 static int xpath_collect_following_sibling(vmctx *ctx, vmvar *xpath, vmobj *nodes, vmobj *res)
 {
-    if (xpath->t != VAR_OBJ) {
-        return xpath_set_invalid_state_exception(__LINE__, ctx);
-    }
-
+    int e = 0;
     vmobj *xo = xpath->o;
     int len = nodes->idxsz;
     for (int i = 0; i < len; ++i) {
         vmvar *nv = nodes->ary[i];
-        if (nv->t != VAR_OBJ) continue;
-        vmobj *node = nv->o;
-
-        vmvar *next = hashmap_search(node, "nextSibling");
-        while (next && next->t == VAR_OBJ) {
-            xpath_add_item_if_matched(ctx, res, next, xo);
-            next = hashmap_search(next->o, "nextSibling");
-        }
+        if (nv && nv->t != VAR_OBJ) continue;
+        e = xpath_collect_sibling_node(ctx, xpath, nv->o, res, "nextSibling", 0);
     }
 
-    return 0;
+    return e;
 }
 
 static int xpath_collect_following(vmctx *ctx, vmvar *xpath, vmobj *nodes, vmobj *res)
 {
-    if (xpath->t != VAR_OBJ) {
-        return xpath_set_invalid_state_exception(__LINE__, ctx);
-    }
-
+    int e = 0;
     vmobj *xo = xpath->o;
     int len = nodes->idxsz;
     for (int i = 0; i < len; ++i) {
-        vmvar *nv = nodes->ary[i];
-        if (nv->t != VAR_OBJ) continue;
-        vmobj *node = nv->o;
-        vmvar *parent = nv;
+        vmvar *parent = nodes->ary[i];
         while (parent && parent->t == VAR_OBJ) {
-            vmvar *next = hashmap_search(parent->o, "nextSibling");
-            while (next && next->t == VAR_OBJ) {
-                xpath_add_item_if_matched(ctx, res, next, xo);
-                next = hashmap_search(next->o, "nextSibling");
-            }
+            e = xpath_collect_sibling_node(ctx, xpath, parent->o, res, "nextSibling", 1);
+            if (e != 0) break;
             parent = hashmap_search(parent->o, "parentNode");
         }
     }
 
-    return 0;
+    return e;
 }
 
 static int xpath_collect_preceding_sibling(vmctx *ctx, vmvar *xpath, vmobj *nodes, vmobj *res)
 {
-    if (xpath->t != VAR_OBJ) {
-        return xpath_set_invalid_state_exception(__LINE__, ctx);
-    }
-
-    vmobj *xo = xpath->o;
+    int e = 0;
     int len = nodes->idxsz;
     for (int i = 0; i < len; ++i) {
         vmvar *nv = nodes->ary[i];
-        if (nv->t != VAR_OBJ) continue;
-        vmobj *node = nv->o;
-
-        vmvar *prev = hashmap_search(node, "previousSibling");
-        while (prev && prev->t == VAR_OBJ) {
-            xpath_add_item_if_matched(ctx, res, prev, xo);
-            prev = hashmap_search(prev->o, "previousSibling");
-        }
+        if (nv && nv->t != VAR_OBJ) continue;
+        e = xpath_collect_sibling_node(ctx, xpath, nv->o, res, "previousSibling", 0);
     }
 
-    return 0;
+    return e;
 }
 
 static int xpath_collect_preceding(vmctx *ctx, vmvar *xpath, vmobj *nodes, vmobj *res)
 {
-    if (xpath->t != VAR_OBJ) {
-        return xpath_set_invalid_state_exception(__LINE__, ctx);
-    }
-
-    vmobj *xo = xpath->o;
+    int e = 0;
     int len = nodes->idxsz;
-    for (int i = 0; i < len; ++i) {
-        vmvar *nv = nodes->ary[i];
-        if (nv->t != VAR_OBJ) continue;
-        vmobj *node = nv->o;
-
-        vmvar *parent = nv;
+    for (int i = 0; i < len && e == 0; ++i) {
+        vmvar *parent = nodes->ary[i];
         while (parent && parent->t == VAR_OBJ) {
-            vmvar *prev = hashmap_search(parent->o, "previousSibling");
-            while (prev && prev->t == VAR_OBJ) {
-                xpath_add_item_if_matched(ctx, res, prev, xo);
-                prev = hashmap_search(prev->o, "previousSibling");
-            }
+            e = xpath_collect_sibling_node(ctx, xpath, parent->o, res, "previousSibling", 1);
+            if (e != 0) break;
             parent = hashmap_search(parent->o, "parentNode");
         }
     }
 
-    return 0;
+    return e;
 }
 
 static int xpath_collect_self(vmctx *ctx, vmvar *xpath, vmobj *nodes, vmobj *res)
 {
     if (xpath->t != VAR_OBJ) {
-        return xpath_set_invalid_state_exception(__LINE__, ctx);
+        return xpath_throw_runtime_exception(__LINE__, ctx, "Invalid XPath state");
     }
 
     vmobj *xo = xpath->o;
@@ -2436,40 +2486,48 @@ static int xpath_proc_axis(vmctx *ctx, vmvar *r, vmvar *axisv, vmvar *xpath, vmv
     switch (axis) {
     case XPATH_AXIS_ANCESTOR:
         e = xpath_collect_ancestor(ctx, xpath, info, res);
+        xpath_sort_by_doc_reverse_order(res);
         SET_OBJ(r, res);
         xpath_reset_collected_nodes(ctx, res);
         break;
     case XPATH_AXIS_ANCESTOR_OR_SELF:
         e = xpath_collect_ancestor_or_self(ctx, xpath, info, res);
+        xpath_sort_by_doc_reverse_order(res);
         SET_OBJ(r, res);
         xpath_reset_collected_nodes(ctx, res);
         break;
     case XPATH_AXIS_ATTRIBUTE:
         e = xpath_collect_attribute(ctx, xpath, info, res);
+        xpath_sort_by_doc_order(res);
         SET_OBJ(r, res);
         break;
     case XPATH_AXIS_CHILD:
         e = xpath_collect_child(ctx, xpath, info, res);
+        xpath_sort_by_doc_order(res);
         SET_OBJ(r, res);
         xpath_reset_collected_nodes(ctx, res);
         break;
     case XPATH_AXIS_DESCENDANT:
         e = xpath_collect_descendant(ctx, xpath, info, res);
+        xpath_sort_by_doc_order(res);
         SET_OBJ(r, res);
         xpath_reset_collected_nodes(ctx, res);
         break;
     case XPATH_AXIS_DESCENDANT_OR_SELF:
         e = xpath_collect_descendant_or_self(ctx, xpath, info, res);
+        xpath_sort_by_doc_order(res);
         SET_OBJ(r, res);
         xpath_reset_collected_nodes(ctx, res);
         break;
     case XPATH_AXIS_FOLLOWING:
         e = xpath_collect_following(ctx, xpath, info, res);
+        xpath_sort_by_doc_order(res);
         SET_OBJ(r, res);
         xpath_reset_collected_nodes(ctx, res);
         break;
     case XPATH_AXIS_FOLLOWING_SIBLING:
         e = xpath_collect_following_sibling(ctx, xpath, info, res);
+        xpath_sort_by_doc_order(res);
         SET_OBJ(r, res);
         xpath_reset_collected_nodes(ctx, res);
         break;
@@ -2478,21 +2536,25 @@ static int xpath_proc_axis(vmctx *ctx, vmvar *r, vmvar *axisv, vmvar *xpath, vmv
         break;
     case XPATH_AXIS_PARENT:
         e = xpath_collect_parent(ctx, xpath, info, res);
+        xpath_sort_by_doc_reverse_order(res);
         SET_OBJ(r, res);
         xpath_reset_collected_nodes(ctx, res);
         break;
     case XPATH_AXIS_PRECEDING:
         e = xpath_collect_preceding(ctx, xpath, info, res);
+        xpath_sort_by_doc_reverse_order(res);
         SET_OBJ(r, res);
         xpath_reset_collected_nodes(ctx, res);
         break;
     case XPATH_AXIS_PRECEDING_SIBLING:
         e = xpath_collect_preceding_sibling(ctx, xpath, info, res);
+        xpath_sort_by_doc_reverse_order(res);
         SET_OBJ(r, res);
         xpath_reset_collected_nodes(ctx, res);
         break;
     case XPATH_AXIS_SELF:
         e = xpath_collect_self(ctx, xpath, info, res);
+        xpath_sort_by_doc_order(res);
         SET_OBJ(r, res);
         xpath_reset_collected_nodes(ctx, res);
         break;
@@ -2603,12 +2665,12 @@ static void xpath_to_comp_eq(vmctx *ctx, vmvar *lhs, vmvar *rhs)
     XPATH_EXPAND_V(rhs);
     if (lhs->t == VAR_OBJ) {
         vmstr *text = alcstr_str(ctx, "");
-        XmlDom_getTextContent(ctx, text, lhs);
+        xmldom_get_text_content(ctx, text, lhs);
         SET_SV(lhs, text);
     }
     if (rhs->t == VAR_OBJ) {
         vmstr *text = alcstr_str(ctx, "");
-        XmlDom_getTextContent(ctx, text, rhs);
+        xmldom_get_text_content(ctx, text, rhs);
         SET_SV(rhs, text);
     }
     int l_is_num = xpath_is_number(lhs);
@@ -2794,6 +2856,86 @@ static int xpath_function_count(vmctx *ctx, vmvar *r, vmobj *args, vmvar *root, 
     return e;
 }
 
+static int xpath_try_to_conv_text(vmctx *ctx, vmvar *r, vmobj *nodes, vmobj *node, vmvar *arg, vmvar *root, vmobj *base)
+{
+    if (!nodes) {
+        nodes = alcobj(ctx);
+        array_set(ctx, nodes, 0, alcvar_obj(ctx, node));
+    }
+    int e = xpath_evaluate_step(ctx, r, arg, root, nodes, base);
+    if (e == 0) {
+        XPATH_EXPAND_V(r);
+    }
+    return e;
+}
+
+static int xpath_try_to_conv_2args(vmctx *ctx, vmvar *r, vmobj *node, vmvar **a0, vmvar **a1, vmvar *root, vmobj *base)
+{
+    int e = 0;
+    vmobj *nodes = NULL;
+    vmvar *arg0 = *a0;
+    vmvar *arg1 = *a1;
+    if ((arg0)->t == VAR_OBJ) {
+        e = xpath_try_to_conv_text(ctx, r, nodes, node, arg0, root, base);
+        if (e != 0) return e;
+        *a0 = r;
+    }
+    if ((*a0)->t != VAR_STR) {
+        return xpath_throw_runtime_exception(__LINE__, ctx, "Argument's type mismatch");
+    }
+    if (arg1->t == VAR_OBJ) {
+        e = xpath_try_to_conv_text(ctx, r, nodes, node, arg1, root, base);
+        if (e != 0) return e;
+        *a1 = r;
+    }
+    if ((*a1)->t != VAR_STR) {
+        return xpath_throw_runtime_exception(__LINE__, ctx, "Argument's type mismatch");
+    }
+    return e;
+}
+
+static int xpath_function_concat(vmctx *ctx, vmvar *r, vmobj *args, vmvar *root, vmobj *node, vmobj *base)
+{
+    if (args->idxsz != 2) {
+        return xpath_throw_runtime_exception(__LINE__, ctx, "Too few arguments");
+    }
+    vmvar *arg0 = args->ary[0];
+    vmvar *arg1 = args->ary[1];
+    int e = xpath_try_to_conv_2args(ctx, r, node, &arg0, &arg1, root, base);
+    if (e != 0) return e;
+    vmstr *s = alcstr_str(ctx, arg0->s->hd);
+    str_append_str(ctx, s, arg1->s);
+    SET_SV(r, s);
+    return 0;
+}
+
+static int xpath_function_starts_with(vmctx *ctx, vmvar *r, vmobj *args, vmvar *root, vmobj *node, vmobj *base)
+{
+    if (args->idxsz != 2) {
+        return xpath_throw_runtime_exception(__LINE__, ctx, "Too few arguments");
+    }
+    vmvar *arg0 = args->ary[0];
+    vmvar *arg1 = args->ary[1];
+    int e = xpath_try_to_conv_2args(ctx, r, node, &arg0, &arg1, root, base);
+    if (e != 0) return e;
+    const char *s = arg0->s->hd;
+    SET_BOOL(r, strstr(s, arg1->s->hd) == s);
+    return 0;
+}
+
+static int xpath_function_contains(vmctx *ctx, vmvar *r, vmobj *args, vmvar *root, vmobj *node, vmobj *base)
+{
+    if (args->idxsz != 2) {
+        return xpath_throw_runtime_exception(__LINE__, ctx, "Too few arguments");
+    }
+    vmvar *arg0 = args->ary[0];
+    vmvar *arg1 = args->ary[1];
+    int e = xpath_try_to_conv_2args(ctx, r, node, &arg0, &arg1, root, base);
+    if (e != 0) return e;
+    SET_BOOL(r, strstr(arg0->s->hd, arg1->s->hd) != NULL);
+    return 0;
+}
+
 static int xpath_proc_function_call(vmctx *ctx, vmvar *r, vmstr *func, vmobj *args, vmvar *root, vmobj *node, vmobj *base)
 {
     int e = 0;
@@ -2815,12 +2957,12 @@ static int xpath_proc_function_call(vmctx *ctx, vmvar *r, vmstr *func, vmobj *ar
 
     // } else if (strcmp(funcname, "string") == 0) {
     //     e = xpath_function_string(ctx, r, args, root, node, base);
-    // } else if (strcmp(funcname, "concat") == 0) {
-    //     e = xpath_function_concat(ctx, r, args, root, node, base);
-    // } else if (strcmp(funcname, "starts-with") == 0) {
-    //     e = xpath_function_starts_with(ctx, r, args, root, node, base);
-    // } else if (strcmp(funcname, "contains") == 0) {
-    //     e = xpath_function_contains(ctx, r, args, root, node, base);
+    } else if (strcmp(funcname, "concat") == 0) {
+        e = xpath_function_concat(ctx, r, args, root, node, base);
+    } else if (strcmp(funcname, "starts-with") == 0) {
+        e = xpath_function_starts_with(ctx, r, args, root, node, base);
+    } else if (strcmp(funcname, "contains") == 0) {
+        e = xpath_function_contains(ctx, r, args, root, node, base);
     // } else if (strcmp(funcname, "substring-before") == 0) {
     //     e = xpath_function_substring_before(ctx, r, args, root, node, base);
     // } else if (strcmp(funcname, "substring-after") == 0) {
@@ -2857,7 +2999,7 @@ static int xpath_proc_function_call(vmctx *ctx, vmvar *r, vmstr *func, vmobj *ar
     //     e = xpath_function_round(ctx, r, args, root, node, base);
 
     } else {
-        return throw_system_exception(__LINE__, ctx, EXCEPT_XML_ERROR, "Unsupported function name");
+        return xpath_throw_runtime_exception(__LINE__, ctx, "Unsupported function name");
     }
     return e;
 }
@@ -2936,7 +3078,7 @@ static int xpath_evaluate_step(vmctx *ctx, vmvar *r, vmvar *xpath, vmvar *root, 
         case XPATH_OP_EXPR: {
             XPATH_EXPAND_O(info);
             if (!info) {
-                return xpath_set_invalid_state_exception(__LINE__, ctx);
+                return xpath_throw_runtime_exception(__LINE__, ctx, "Invalid XPath state");
             }
             vmvar *xobjv0 = xobj->ary[0];
             int op = xobjv0->t == VAR_INT64 ? xobjv0->i : XPATH_OP_UNKNOWN;
@@ -2946,7 +3088,7 @@ static int xpath_evaluate_step(vmctx *ctx, vmvar *r, vmvar *xpath, vmvar *root, 
         case XPATH_OP_FUNCCALL: {
             XPATH_EXPAND_O(info);
             if (!info) {
-                return xpath_set_invalid_state_exception(__LINE__, ctx);
+                return xpath_throw_runtime_exception(__LINE__, ctx, "Invalid XPath state");
             }
             vmvar *func = xobj->ary[1];
             if (func->t != VAR_STR) {
@@ -2957,12 +3099,12 @@ static int xpath_evaluate_step(vmctx *ctx, vmvar *r, vmvar *xpath, vmvar *root, 
             break;
         }
         default:
-            return xpath_set_invalid_state_exception(__LINE__, ctx);
+            return xpath_throw_runtime_exception(__LINE__, ctx, "Invalid XPath state");
         }
         break;
     }
     default:
-        return xpath_set_invalid_state_exception(__LINE__, ctx);
+        return xpath_throw_runtime_exception(__LINE__, ctx, "Invalid XPath state");
     }
 
     return e;
@@ -2981,9 +3123,9 @@ static int XPath_xpath_hook(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 
     vmvar *root = NULL;
     vmvar *n1 = nodes->ary[0];
-    if (n1->t == VAR_OBJ) {
+    if (n1 && n1->t == VAR_OBJ) {
         vmvar *doc = hashmap_search(n1->o, "ownerDocument");
-        if (doc->t == VAR_OBJ) {
+        if (doc && doc->t == VAR_OBJ) {
             root = hashmap_search(doc->o, "documentElement");
         }
     }
@@ -3004,14 +3146,22 @@ static int XPath_evaluate(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     DEF_ARG(node, 0, VAR_OBJ);
     DEF_ARG(str, 1, VAR_STR);
 
-    vmvar *docelem = hashmap_search(node->o, "documentElement");
-    if (docelem) {
-        node = docelem;
+    vmobj *no = node->o;
+    vmvar *root = hashmap_search(no, "documentElement");
+    if (root) {
+        if (no->value > 0) {
+            int i = 0;
+            xmldom_update_node_number(root, &i);
+        }
+        node = root;
+        no = node->o;
+    } else {
+        xmldom_update_node_number_all(node);
     }
 
     vmvar xpath = {0};
     xpath_compile(ctx, &xpath, str->s->hd);
-    vmobj *info = xpath_make_initial_info(ctx, node->o);
+    vmobj *info = xpath_make_initial_info(ctx, no);
     int e = xpath_evaluate_step(ctx, r, &xpath, node, info, NULL);
     mark_and_sweep(ctx);
     return e;
