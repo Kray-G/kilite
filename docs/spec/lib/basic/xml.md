@@ -193,7 +193,7 @@ var doc = XmlDom.parseString(%{
     <img file="panic.jpg"/>
   </product>
 </artists>
-}, { normalizeSpace: false });
+});
 
 var root = doc.documentElement;
 displayXml(doc, root);
