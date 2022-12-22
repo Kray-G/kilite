@@ -737,7 +737,9 @@ static void xmldom_get_text_content(vmctx *ctx, vmstr *text, vmvar *node)
     if (node_type == XMLDOM_TEXT_NODE || node_type == XMLDOM_CDATA_SECTION_NODE ||
             node_type == XMLDOM_COMMENT_NODE || node_type == XMLDOM_PROCESSING_INSTRUCTION_NODE) {
         const char *node_value = hashmap_getstr(node->o, "nodeValue");
-        str_append_cp(ctx, text, node_value);
+        if (node_value) {
+            str_append_cp(ctx, text, node_value);
+        }
         return;
     }
 
@@ -908,7 +910,7 @@ static int XmlDom_parseString(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
             .pos = 0,
             .depth = 0,
             .id = 1,
-            .normalize_space = 1,
+            .normalize_space = 0,
         };
         if (a1->t == VAR_OBJ) {
             xmldom_check_options(a1->o, &xctx);
@@ -1380,18 +1382,19 @@ CASE_0:;
                     colon2 = 1;
                     xpath_set_index(l, savedidx);
                 } else {
-                    vmstr ncname;
-                    xpath_get_ncname(ctx, l, &ncname);
-                    if (ncname.len > 0) {
-                        str_append_cp(ctx, l->prefix, l->name->hd);
-                        str_set_cp(ctx, l->name, ncname.hd);
+                    xpath_get_ncname(ctx, l, l->prefix);
+                    if (l->prefix->len > 0) {
+                        char *n = alloca(l->prefix->len + 1);
+                        strcpy(n, l->prefix->hd);
+                        str_set_cp(ctx, l->prefix, l->name->hd);
+                        str_set_cp(ctx, l->name, n);
                         savedidx = l->curidx;
                         xpah_skip_whitespace(l);
                         l->function = (l->cur == '(');
                         xpath_set_index(l, savedidx);
                     } else if (l->cur == '*') {
                         xpath_next_char(l);
-                        str_append_cp(ctx, l->prefix, l->name->hd);
+                        str_set_cp(ctx, l->prefix, l->name->hd);
                         str_set_cp(ctx, l->name, "*");
                     } else {
                         xpath_set_index(l, savedidx);
@@ -2126,6 +2129,7 @@ static int xpath_is_matched(vmctx *ctx, vmobj *node, vmstr *prefix, vmstr *name)
     vmstr *qname = NULL;
     if (prefix && prefix->len > 0) {
         qname = alcstr_str(ctx, prefix->hd);
+        str_append_cp(ctx, qname, ":");
         str_append_cp(ctx, qname, name->hd);
     } else {
         qname = alcstr_str(ctx, name->hd);
@@ -2140,7 +2144,7 @@ static int xpath_is_matched(vmctx *ctx, vmobj *node, vmstr *prefix, vmstr *name)
 static int xpath_is_matched_node_type(vmctx *ctx, vmobj *node, int node_type)
 {
     vmvar *nodet = hashmap_search(node, "nodeType");
-    if (nodet->t != VAR_INT64) {
+    if (!nodet || nodet->t != VAR_INT64) {
         return 0;
     }
     switch (node_type) {
@@ -2498,7 +2502,6 @@ static int xpath_proc_axis(vmctx *ctx, vmvar *r, vmvar *axisv, vmvar *xpath, vmv
         break;
     case XPATH_AXIS_ATTRIBUTE:
         e = xpath_collect_attribute(ctx, xpath, info, res);
-        xpath_sort_by_doc_order(res);
         SET_OBJ(r, res);
         break;
     case XPATH_AXIS_CHILD:
@@ -2628,9 +2631,12 @@ static void xpath_to_number(vmvar *v)
 
 static void xpath_to_string(vmctx *ctx, vmvar *v)
 {
-    XPATH_EXPAND_V(v);
     switch (v->t) {
-    case VAR_BOOL:
+    case VAR_BOOL: {
+        v->t = VAR_STR;
+        v->s = alcstr_str(ctx, v->i ? "true" : "false");
+        break;
+    }
     case VAR_INT64: {
         int64_t i = v->i;
         v->t = VAR_STR;
@@ -2652,6 +2658,15 @@ static void xpath_to_string(vmctx *ctx, vmvar *v)
         str_append_dbl(ctx, v->s, &d);
         break;
     }
+    case VAR_STR:
+        break;
+    case VAR_OBJ: {
+        vmstr *text = alcstr_str(ctx, "");
+        xmldom_get_text_content(ctx, text, v);
+        v->t = VAR_STR;
+        v->s = text;
+        break;
+    }
     default:
         v->t = VAR_STR;
         v->s = alcstr_str(ctx, "");
@@ -2663,16 +2678,6 @@ static void xpath_to_comp_eq(vmctx *ctx, vmvar *lhs, vmvar *rhs)
 {
     XPATH_EXPAND_V(lhs);
     XPATH_EXPAND_V(rhs);
-    if (lhs->t == VAR_OBJ) {
-        vmstr *text = alcstr_str(ctx, "");
-        xmldom_get_text_content(ctx, text, lhs);
-        SET_SV(lhs, text);
-    }
-    if (rhs->t == VAR_OBJ) {
-        vmstr *text = alcstr_str(ctx, "");
-        xmldom_get_text_content(ctx, text, rhs);
-        SET_SV(rhs, text);
-    }
     int l_is_num = xpath_is_number(lhs);
     int r_is_num = xpath_is_number(rhs);
     if (l_is_num || r_is_num) {
@@ -2683,12 +2688,8 @@ static void xpath_to_comp_eq(vmctx *ctx, vmvar *lhs, vmvar *rhs)
             xpath_to_number(rhs);
         }
     } else {
-        if (lhs->t != VAR_STR) {
-            xpath_to_string(ctx, lhs);
-        }
-        if (rhs->t != VAR_STR) {
-            xpath_to_string(ctx, rhs);
-        }
+        xpath_to_string(ctx, lhs);
+        xpath_to_string(ctx, rhs);
     }
 }
 
@@ -2856,15 +2857,27 @@ static int xpath_function_count(vmctx *ctx, vmvar *r, vmobj *args, vmvar *root, 
     return e;
 }
 
-static int xpath_try_to_conv_text(vmctx *ctx, vmvar *r, vmobj *nodes, vmobj *node, vmvar *arg, vmvar *root, vmobj *base)
+static int xpath_try_do_step(vmctx *ctx, vmvar *r, vmobj **nodes, vmobj *node, vmvar *arg, vmvar *root, vmobj *base)
 {
-    if (!nodes) {
-        nodes = alcobj(ctx);
-        array_set(ctx, nodes, 0, alcvar_obj(ctx, node));
+    if (!*nodes) {
+        *nodes = alcobj(ctx);
+        array_set(ctx, *nodes, 0, alcvar_obj(ctx, node));
     }
-    int e = xpath_evaluate_step(ctx, r, arg, root, nodes, base);
-    if (e == 0) {
+    return xpath_evaluate_step(ctx, r, arg, root, *nodes, base);
+}
+
+static int xpath_make_str_by_step(vmctx *ctx, vmvar *r, vmobj **nodes, vmobj *node, vmvar **a0, vmvar *root, vmobj *base)
+{
+    int e = 0;
+    vmvar *arg0 = *a0;
+    if (arg0->t == VAR_OBJ) {
+        e = xpath_try_do_step(ctx, r, nodes, node, arg0, root, base);
+        if (e != 0) return e;
         XPATH_EXPAND_V(r);
+        *a0 = r;
+    }
+    if ((*a0)->t != VAR_STR) {
+        return xpath_throw_runtime_exception(__LINE__, ctx, "Argument's type mismatch");
     }
     return e;
 }
@@ -2873,30 +2886,144 @@ static int xpath_try_to_conv_2args(vmctx *ctx, vmvar *r, vmobj *node, vmvar **a0
 {
     int e = 0;
     vmobj *nodes = NULL;
-    vmvar *arg0 = *a0;
-    vmvar *arg1 = *a1;
-    if ((arg0)->t == VAR_OBJ) {
-        e = xpath_try_to_conv_text(ctx, r, nodes, node, arg0, root, base);
+    e = xpath_make_str_by_step(ctx, r, &nodes, node, a0, root, base);
+    if (e == 0) {
+        e = xpath_make_str_by_step(ctx, r, &nodes, node, a1, root, base);
+    }
+    return e;
+}
+
+static int xpath_try_to_conv_3args(vmctx *ctx, vmvar *r, vmobj *node, vmvar **a0, vmvar **a1, vmvar **a2, vmvar *root, vmobj *base)
+{
+    int e = 0;
+    vmobj *nodes = NULL;
+    e = xpath_make_str_by_step(ctx, r, &nodes, node, a0, root, base);
+    if (e == 0) {
+        e = xpath_make_str_by_step(ctx, r, &nodes, node, a1, root, base);
+        if (e == 0) {
+            e = xpath_make_str_by_step(ctx, r, &nodes, node, a2, root, base);
+        }
+    }
+    return e;
+}
+
+static int xpath_is_node_set(vmobj *nodes)
+{
+    for (int i = 0, len = nodes->idxsz; i < len; ++i) {
+        if (nodes->ary[i]->t != VAR_OBJ) {
+            return 0;
+        }
+    }
+    return 1;
+}
+
+static int xpath_get_first_node_in_nodeset(vmctx *ctx, vmvar *r, vmobj *args, vmvar *root, vmobj *node, vmobj *base)
+{
+    if (args->idxsz < 1) {
+        return xpath_throw_runtime_exception(__LINE__, ctx, "Too few arguments");
+    }
+    int e = 0;
+    vmobj *nodes = NULL;
+    vmvar *arg0 = args->ary[0];
+    if (arg0->t == VAR_OBJ) {
+        e = xpath_try_do_step(ctx, r, &nodes, node, arg0, root, base);
         if (e != 0) return e;
-        *a0 = r;
+        arg0 = r;
     }
-    if ((*a0)->t != VAR_STR) {
-        return xpath_throw_runtime_exception(__LINE__, ctx, "Argument's type mismatch");
+    if (arg0->t == VAR_OBJ) {
+        vmobj *ao = arg0->o;
+        if (ao->idxsz <= 0) {
+            vmstr *s = alcstr_str(ctx, "");
+            SET_SV(r, s);
+            return 0;
+        } else if (ao->idxsz > 1) {
+            if (xpath_is_node_set(ao)) {
+                /* Use the first one in the document order. */
+                xpath_sort_by_doc_order(ao);
+            }
+        }
+        arg0 = ao->ary[0];
     }
-    if (arg1->t == VAR_OBJ) {
-        e = xpath_try_to_conv_text(ctx, r, nodes, node, arg1, root, base);
+    SHCOPY_VAR_TO(ctx, r, arg0);
+    return 0;
+}
+
+static int xpath_function_local_name(vmctx *ctx, vmvar *r, vmobj *args, vmvar *root, vmobj *node, vmobj *base)
+{
+    int e = 0;
+    const char *ln = NULL;
+    if (args->idxsz == 0) {
+        ln = hashmap_getstr(node, "localName");
+    } else {
+        e = xpath_get_first_node_in_nodeset(ctx, r, args, root, node, base);
         if (e != 0) return e;
-        *a1 = r;
+        if (r->t == VAR_OBJ) {
+            ln = hashmap_getstr(r->o, "localName");
+        }
     }
-    if ((*a1)->t != VAR_STR) {
-        return xpath_throw_runtime_exception(__LINE__, ctx, "Argument's type mismatch");
+    SET_STR(r, ln ? ln : "");
+    return e;
+}
+
+static int xpath_function_namespace_uri(vmctx *ctx, vmvar *r, vmobj *args, vmvar *root, vmobj *node, vmobj *base)
+{
+    int e = 0;
+    const char *ns = NULL;
+    if (args->idxsz == 0) {
+        ns = hashmap_getstr(node, "namespaceURI");
+    } else {
+        e = xpath_get_first_node_in_nodeset(ctx, r, args, root, node, base);
+        if (e != 0) return e;
+        if (r->t == VAR_OBJ) {
+            ns = hashmap_getstr(r->o, "namespaceURI");
+        }
+    }
+    SET_STR(r, ns ? ns : "");
+    return e;
+}
+
+static int xpath_function_name(vmctx *ctx, vmvar *r, vmobj *args, vmvar *root, vmobj *node, vmobj *base)
+{
+    int e = 0;
+    const char *nm = NULL;
+    if (args->idxsz == 0) {
+        nm = hashmap_getstr(node, "qName");
+    } else {
+        e = xpath_get_first_node_in_nodeset(ctx, r, args, root, node, base);
+        if (e != 0) return e;
+        if (r->t == VAR_OBJ) {
+            nm = hashmap_getstr(r->o, "qName");
+        }
+    }
+    SET_STR(r, nm ? nm : "");
+    return e;
+}
+
+static int xpath_function_string_core(vmctx *ctx, vmvar *r, vmobj *args, vmvar *root, vmobj *node, vmobj *base)
+{
+    int e = 0;
+    e = xpath_get_first_node_in_nodeset(ctx, r, args, root, node, base);
+    if (e == 0) {
+        xpath_to_string(ctx, r);
+    }
+    return e;
+}
+
+static int xpath_function_string(vmctx *ctx, vmvar *r, vmobj *args, vmvar *root, vmobj *node, vmobj *base)
+{
+    int e = 0;
+    if (args->idxsz == 0) {
+        SET_OBJ(r, node);
+        xpath_to_string(ctx, r);
+    } else {
+        e = xpath_function_string_core(ctx, r, args, root, node, base);
     }
     return e;
 }
 
 static int xpath_function_concat(vmctx *ctx, vmvar *r, vmobj *args, vmvar *root, vmobj *node, vmobj *base)
 {
-    if (args->idxsz != 2) {
+    if (args->idxsz < 2) {
         return xpath_throw_runtime_exception(__LINE__, ctx, "Too few arguments");
     }
     vmvar *arg0 = args->ary[0];
@@ -2911,7 +3038,7 @@ static int xpath_function_concat(vmctx *ctx, vmvar *r, vmobj *args, vmvar *root,
 
 static int xpath_function_starts_with(vmctx *ctx, vmvar *r, vmobj *args, vmvar *root, vmobj *node, vmobj *base)
 {
-    if (args->idxsz != 2) {
+    if (args->idxsz < 2) {
         return xpath_throw_runtime_exception(__LINE__, ctx, "Too few arguments");
     }
     vmvar *arg0 = args->ary[0];
@@ -2925,7 +3052,7 @@ static int xpath_function_starts_with(vmctx *ctx, vmvar *r, vmobj *args, vmvar *
 
 static int xpath_function_contains(vmctx *ctx, vmvar *r, vmobj *args, vmvar *root, vmobj *node, vmobj *base)
 {
-    if (args->idxsz != 2) {
+    if (args->idxsz < 2) {
         return xpath_throw_runtime_exception(__LINE__, ctx, "Too few arguments");
     }
     vmvar *arg0 = args->ary[0];
@@ -2933,6 +3060,404 @@ static int xpath_function_contains(vmctx *ctx, vmvar *r, vmobj *args, vmvar *roo
     int e = xpath_try_to_conv_2args(ctx, r, node, &arg0, &arg1, root, base);
     if (e != 0) return e;
     SET_BOOL(r, strstr(arg0->s->hd, arg1->s->hd) != NULL);
+    return 0;
+}
+
+static int xpath_function_substring_before(vmctx *ctx, vmvar *r, vmobj *args, vmvar *root, vmobj *node, vmobj *base)
+{
+    if (args->idxsz < 2) {
+        return xpath_throw_runtime_exception(__LINE__, ctx, "Too few arguments");
+    }
+    vmvar *arg0 = args->ary[0];
+    vmvar *arg1 = args->ary[1];
+    int e = xpath_try_to_conv_2args(ctx, r, node, &arg0, &arg1, root, base);
+    if (e != 0) return e;
+    const char *s0 = arg0->s->hd;
+    const char *s1 = arg1->s->hd;
+    if (*s1 == 0) {
+        SET_STR(r, "");
+        return 0;
+    }
+    const char *p = strstr(s0, s1);
+    if (p && s0 < p) {
+        int len = p - s0;
+        char *ss = alloca(len + 1);
+        strncpy(ss, s0, len);
+        ss[len] = 0;
+        SET_STR(r, ss);
+    } else {
+        SET_STR(r, "");
+    }
+    return 0;
+}
+
+static int xpath_function_substring_after(vmctx *ctx, vmvar *r, vmobj *args, vmvar *root, vmobj *node, vmobj *base)
+{
+    if (args->idxsz < 2) {
+        return xpath_throw_runtime_exception(__LINE__, ctx, "Too few arguments");
+    }
+    vmvar *arg0 = args->ary[0];
+    vmvar *arg1 = args->ary[1];
+    int e = xpath_try_to_conv_2args(ctx, r, node, &arg0, &arg1, root, base);
+    if (e != 0) return e;
+    const char *s0 = arg0->s->hd;
+    const char *s1 = arg1->s->hd;
+    if (*s1 == 0) {
+        SET_STR(r, s0);
+        return 0;
+    }
+    const char *p = strstr(s0, s1);
+    if (p && s0 < p) {
+        SET_STR(r, p + strlen(s1));
+    } else {
+        SET_STR(r, "");
+    }
+    return 0;
+}
+
+static int xpath_function_substring(vmctx *ctx, vmvar *r, vmobj *args, vmvar *root, vmobj *node, vmobj *base)
+{
+    if (args->idxsz < 2) {
+        return xpath_throw_runtime_exception(__LINE__, ctx, "Too few arguments");
+    }
+    vmvar *arg0 = args->ary[0];
+    vmvar *arg1 = args->ary[1];
+    if (arg1->t != VAR_INT64 && arg1->t != VAR_DBL) {
+        return xpath_throw_runtime_exception(__LINE__, ctx, "Argument's type mismatch");
+    }
+    vmvar *arg2 = args->idxsz > 2 ? args->ary[2] : NULL;
+    if (arg2 && arg2->t != VAR_INT64 && arg2->t != VAR_DBL) {
+        return xpath_throw_runtime_exception(__LINE__, ctx, "Argument's type mismatch");
+    }
+    vmobj *nodes = NULL;
+    int e = xpath_make_str_by_step(ctx, r, &nodes, node, &arg0, root, base);
+    if (e != 0) return e;
+    const char *s0 = arg0->s->hd;
+    int start = (arg1->t == VAR_INT64 ? arg1->i : (int)(arg1->d + 0.5)) - 1;
+    if (arg2) {
+        int len = arg2->t == VAR_INT64 ? arg2->i : (int)(arg2->d + 0.5);
+        if (len < 0) len = 0;
+        if (start < 0) {
+            len += start;
+            start = 0;
+        }
+        int slen = strlen(s0);
+        if (slen <= start) {
+            SET_STR(r, "");
+        } else {
+            if (slen <= (start + len)) {
+                len = slen - start;
+            }
+            vmstr *sv = alcstr_str_len(ctx, s0 + start, len);
+            SET_SV(r, sv);
+        }
+    } else {
+        int slen = strlen(s0);
+        if (slen <= start) {
+            SET_STR(r, "");
+        } else {
+            SET_STR(r, s0 + start);
+        }
+    }
+    return 0;
+}
+
+static int xpath_function_string_length(vmctx *ctx, vmvar *r, vmobj *args, vmvar *root, vmobj *node, vmobj *base)
+{
+    int e = 0;
+    if (args->idxsz == 0) {
+        SET_OBJ(r, node);
+    } else {
+        e = xpath_get_first_node_in_nodeset(ctx, r, args, root, node, base);
+        if (e != 0) return e;
+    }
+    xpath_to_string(ctx, r);
+    int len = r->s->len;
+    SET_I64(r, len);
+    return e;
+}
+
+static int xpath_function_normalize_space(vmctx *ctx, vmvar *r, vmobj *args, vmvar *root, vmobj *node, vmobj *base)
+{
+    int e = 0;
+    if (args->idxsz == 0) {
+        SET_OBJ(r, node);
+    } else {
+        e = xpath_get_first_node_in_nodeset(ctx, r, args, root, node, base);
+        if (e != 0) return e;
+    }
+    xpath_to_string(ctx, r);
+    int ws = 0;
+    char *s = alloca(r->s->len);
+    char *sp = s;
+    const char *p = r->s->hd;
+    while (is_whitespace(*p)) ++p;
+    for ( ; *p; ++p) {
+        if (is_whitespace(*p)) {
+            ws = 1;
+            continue;
+        }
+        if (ws) {
+            *s++ = ' ';
+            ws = 0;
+        }
+        *s++ = *p;
+    }
+    *s = 0;
+    SET_STR(r, sp);
+    return e;
+}
+
+static int xpath_search_string_position(unsigned char c, const char *s)
+{
+    for (int i = 0; *s; ++s, ++i) {
+        if (*s == c) {
+            return i + 1;
+        }
+    }
+    return -1;
+}
+
+static int xpath_function_translate(vmctx *ctx, vmvar *r, vmobj *args, vmvar *root, vmobj *node, vmobj *base)
+{
+    if (args->idxsz < 3) {
+        return xpath_throw_runtime_exception(__LINE__, ctx, "Too few arguments");
+    }
+    vmvar *arg0 = args->ary[0];
+    vmvar *arg1 = args->ary[1];
+    vmvar *arg2 = args->ary[2];
+    int e = xpath_try_to_conv_3args(ctx, r, node, &arg0, &arg1, &arg2, root, base);
+    if (e != 0) return e;
+    const char *s0 = arg0->s->hd;
+    const char *s1 = arg1->s->hd;
+    const char *s2 = arg2->s->hd;
+    int len2 = arg2->s->len;
+
+    char table[256] = {0};
+    char *s = alloca(arg0->s->len + 1);
+    char *sp = s;
+    for ( ; *s0; ++s0) {
+        unsigned char c = *s0;
+        if (table[c] == 0) {
+            table[c] = xpath_search_string_position(c, s1);
+        }
+        int pos = table[c] - 1;
+        if (pos < 0) {
+            *s++ = *s0;
+        } else if (pos < len2) {
+            *s++ = s2[pos];
+        }
+    }
+    *s = 0;
+    SET_STR(r, sp);
+    return e;
+}
+
+static int xpath_function_boolean_core(vmctx *ctx, vmvar *r, vmvar *arg0, vmvar *root, vmobj *node, vmobj *base)
+{
+    int e = 0;
+    vmobj *nodes = NULL;
+    if (arg0->t == VAR_OBJ) {
+        e = xpath_try_do_step(ctx, r, &nodes, node, arg0, root, base);
+        if (e != 0) return e;
+        arg0 = r;
+    }
+    if (arg0->t == VAR_OBJ) {
+        vmobj *ao = arg0->o;
+        if (ao->idxsz > 1 && !xpath_is_node_set(ao)) {
+            arg0 = ao->ary[0];
+        }
+    }
+
+    SHCOPY_VAR_TO(ctx, r, arg0);
+    switch (r->t) {
+    case VAR_BOOL:
+        break;
+    case VAR_INT64:
+        r->t = VAR_BOOL;
+        break;
+    case VAR_DBL:
+        r->t = VAR_BOOL;
+        r->i = r->d >= DBL_EPSILON;
+        break;
+    case VAR_BIG:
+        r->t = VAR_BOOL;
+        r->i = BzToDouble(r->bi->b) >= DBL_EPSILON;
+        break;
+    case VAR_STR:
+        r->t = VAR_BOOL;
+        r->i = r->s->len > 0;
+        break;
+    case VAR_OBJ:
+        r->t = VAR_BOOL;
+        r->i = r->o->idxsz > 0;
+        break;
+    default:
+        r->t = VAR_BOOL;
+        r->i = 0;
+        break;
+    }
+    return e;
+}
+
+static int xpath_function_boolean(vmctx *ctx, vmvar *r, vmobj *args, vmvar *root, vmobj *node, vmobj *base)
+{
+    if (args->idxsz < 1) {
+        return xpath_throw_runtime_exception(__LINE__, ctx, "Too few arguments");
+    }
+    vmvar *arg0 = args->ary[0];
+    xpath_function_boolean_core(ctx, r, arg0, root, node, base);
+    return 0;
+}
+
+static int xpath_function_not(vmctx *ctx, vmvar *r, vmobj *args, vmvar *root, vmobj *node, vmobj *base)
+{
+    if (args->idxsz < 1) {
+        return xpath_throw_runtime_exception(__LINE__, ctx, "Too few arguments");
+    }
+    vmvar *arg0 = args->ary[0];
+    xpath_function_boolean_core(ctx, r, arg0, root, node, base);
+
+    r->i = r->i ? 0 : 1;
+    return 0;
+}
+
+static int xpath_function_true(vmctx *ctx, vmvar *r, vmobj *args, vmvar *root, vmobj *node, vmobj *base)
+{
+    SET_BOOL(r, 1);
+    return 0;
+}
+
+static int xpath_function_false(vmctx *ctx, vmvar *r, vmobj *args, vmvar *root, vmobj *node, vmobj *base)
+{
+    SET_BOOL(r, 0);
+    return 0;
+}
+
+static int xpath_function_number_core(vmctx *ctx, vmvar *r, vmvar *arg0, vmvar *root, vmobj *node, vmobj *base)
+{
+    int e = 0;
+    vmobj *nodes = NULL;
+    if (arg0->t == VAR_OBJ) {
+        e = xpath_try_do_step(ctx, r, &nodes, node, arg0, root, base);
+        if (e != 0) return e;
+        arg0 = r;
+    }
+    if (arg0->t == VAR_OBJ) {
+        vmobj *ao = arg0->o;
+        if (ao->idxsz > 1 && !xpath_is_node_set(ao)) {
+            arg0 = ao->ary[0];
+        }
+    }
+    SHCOPY_VAR_TO(ctx, r, arg0);
+    switch (r->t) {
+    case VAR_BOOL:
+        r->t = VAR_INT64;
+        break;
+    case VAR_INT64:
+    case VAR_DBL:
+        break;
+    default:
+        xpath_to_string(ctx, r);
+        xpath_to_number(r);
+        break;
+    }
+    return e;
+}
+
+static int xpath_function_number(vmctx *ctx, vmvar *r, vmobj *args, vmvar *root, vmobj *node, vmobj *base)
+{
+    if (args->idxsz == 0) {
+        vmvar n = { .t = VAR_OBJ, .o = node };
+        xpath_to_number(&n);
+        SHCOPY_VAR_TO(ctx, r, &n);
+    } else {
+        vmvar *arg0 = args->ary[0];
+        xpath_function_number_core(ctx, r, arg0, root, node, base);
+    }
+    return 0;
+}
+
+static int xpath_function_sum(vmctx *ctx, vmvar *r, vmobj *args, vmvar *root, vmobj *node, vmobj *base)
+{
+    if (args->idxsz < 1) {
+        return xpath_throw_runtime_exception(__LINE__, ctx, "Too few arguments");
+    }
+    vmvar *arg0 = args->ary[0];
+    int e = 0;
+    vmobj *nodes = NULL;
+    if (arg0->t == VAR_OBJ) {
+        e = xpath_try_do_step(ctx, r, &nodes, node, arg0, root, base);
+        if (e != 0) return e;
+        arg0 = r;
+    }
+    if (arg0->t != VAR_OBJ) {
+        xpath_to_string(ctx, arg0);
+        xpath_to_number(arg0);
+    } else {
+        vmobj *ao = arg0->o;
+        if (ao->idxsz <= 0) {
+            SET_I64(r, 0);
+        } else if (xpath_is_node_set(ao)) {
+            int len = ao->idxsz;
+            SET_I64(arg0, 0);
+            for (int i = 0; i < len; ++i) {
+                vmvar *elem = ao->ary[i];
+                xpath_to_string(ctx, elem);
+                xpath_to_number(elem);
+                OP_ADD(ctx, arg0, arg0, elem, L0, __func__, __FILE__, 0);
+            }
+        } else {
+            arg0 = ao->ary[0];
+            xpath_to_string(ctx, arg0);
+            xpath_to_number(arg0);
+        }
+    }
+
+L0:;
+    SHCOPY_VAR_TO(ctx, r, arg0);
+    return e;
+}
+
+static int xpath_function_floor(vmctx *ctx, vmvar *r, vmobj *args, vmvar *root, vmobj *node, vmobj *base)
+{
+    if (args->idxsz < 1) {
+        return xpath_throw_runtime_exception(__LINE__, ctx, "Too few arguments");
+    }
+    vmvar *arg0 = args->ary[0];
+    xpath_function_number_core(ctx, r, arg0, root, node, base);
+    if (r->t == VAR_DBL) {
+        r->t = VAR_INT64;
+        r->i = (int64_t)r->d;
+    }
+    return 0;
+}
+
+static int xpath_function_ceiling(vmctx *ctx, vmvar *r, vmobj *args, vmvar *root, vmobj *node, vmobj *base)
+{
+    if (args->idxsz < 1) {
+        return xpath_throw_runtime_exception(__LINE__, ctx, "Too few arguments");
+    }
+    vmvar *arg0 = args->ary[0];
+    xpath_function_number_core(ctx, r, arg0, root, node, base);
+    if (r->t == VAR_DBL) {
+        r->t = VAR_INT64;
+        r->i = (int64_t)(r->d + 1);
+    }
+    return 0;
+}
+
+static int xpath_function_round(vmctx *ctx, vmvar *r, vmobj *args, vmvar *root, vmobj *node, vmobj *base)
+{
+    if (args->idxsz < 1) {
+        return xpath_throw_runtime_exception(__LINE__, ctx, "Too few arguments");
+    }
+    vmvar *arg0 = args->ary[0];
+    xpath_function_number_core(ctx, r, arg0, root, node, base);
+    if (r->t == VAR_DBL) {
+        r->t = VAR_INT64;
+        r->i = (int64_t)(r->d + 0.5);
+    }
     return 0;
 }
 
@@ -2948,55 +3473,55 @@ static int xpath_proc_function_call(vmctx *ctx, vmvar *r, vmstr *func, vmobj *ar
         e = xpath_function_count(ctx, r, args, root, node, base);
     // } else if (strcmp(funcname, "id") == 0) {
     //     e = xpath_function_id(ctx, r, args, root, node, base);
-    // } else if (strcmp(funcname, "local-name") == 0) {
-    //     e = xpath_function_local_name(ctx, r, args, root, node, base);
-    // } else if (strcmp(funcname, "namespace-uri") == 0) {
-    //     e = xpath_function_namespace_uri(ctx, r, args, root, node, base);
-    // } else if (strcmp(funcname, "name") == 0) {
-    //     e = xpath_function_name(ctx, r, args, root, node, base);
+    } else if (strcmp(funcname, "local-name") == 0) {
+        e = xpath_function_local_name(ctx, r, args, root, node, base);
+    } else if (strcmp(funcname, "namespace-uri") == 0) {
+        e = xpath_function_namespace_uri(ctx, r, args, root, node, base);
+    } else if (strcmp(funcname, "name") == 0) {
+        e = xpath_function_name(ctx, r, args, root, node, base);
 
-    // } else if (strcmp(funcname, "string") == 0) {
-    //     e = xpath_function_string(ctx, r, args, root, node, base);
+    } else if (strcmp(funcname, "string") == 0) {
+        e = xpath_function_string(ctx, r, args, root, node, base);
     } else if (strcmp(funcname, "concat") == 0) {
         e = xpath_function_concat(ctx, r, args, root, node, base);
     } else if (strcmp(funcname, "starts-with") == 0) {
         e = xpath_function_starts_with(ctx, r, args, root, node, base);
     } else if (strcmp(funcname, "contains") == 0) {
         e = xpath_function_contains(ctx, r, args, root, node, base);
-    // } else if (strcmp(funcname, "substring-before") == 0) {
-    //     e = xpath_function_substring_before(ctx, r, args, root, node, base);
-    // } else if (strcmp(funcname, "substring-after") == 0) {
-    //     e = xpath_function_substring_after(ctx, r, args, root, node, base);
-    // } else if (strcmp(funcname, "substring") == 0) {
-    //     e = xpath_function_substring(ctx, r, args, root, node, base);
-    // } else if (strcmp(funcname, "string-length") == 0) {
-    //     e = xpath_function_string_length(ctx, r, args, root, node, base);
-    // } else if (strcmp(funcname, "normalize-space") == 0) {
-    //     e = xpath_function_normalize_space(ctx, r, args, root, node, base);
-    // } else if (strcmp(funcname, "translate") == 0) {
-    //     e = xpath_function_translate(ctx, r, args, root, node, base);
+    } else if (strcmp(funcname, "substring-before") == 0) {
+        e = xpath_function_substring_before(ctx, r, args, root, node, base);
+    } else if (strcmp(funcname, "substring-after") == 0) {
+        e = xpath_function_substring_after(ctx, r, args, root, node, base);
+    } else if (strcmp(funcname, "substring") == 0) {
+        e = xpath_function_substring(ctx, r, args, root, node, base);
+    } else if (strcmp(funcname, "string-length") == 0) {
+        e = xpath_function_string_length(ctx, r, args, root, node, base);
+    } else if (strcmp(funcname, "normalize-space") == 0) {
+        e = xpath_function_normalize_space(ctx, r, args, root, node, base);
+    } else if (strcmp(funcname, "translate") == 0) {
+        e = xpath_function_translate(ctx, r, args, root, node, base);
 
-    // } else if (strcmp(funcname, "boolean") == 0) {
-    //     e = xpath_function_boolean(ctx, r, args, root, node, base);
-    // } else if (strcmp(funcname, "not") == 0) {
-    //     e = xpath_function_not(ctx, r, args, root, node, base);
-    // } else if (strcmp(funcname, "true") == 0) {
-    //     e = xpath_function_true(ctx, r, args, root, node, base);
-    // } else if (strcmp(funcname, "false") == 0) {
-    //     e = xpath_function_false(ctx, r, args, root, node, base);
+    } else if (strcmp(funcname, "boolean") == 0) {
+        e = xpath_function_boolean(ctx, r, args, root, node, base);
+    } else if (strcmp(funcname, "not") == 0) {
+        e = xpath_function_not(ctx, r, args, root, node, base);
+    } else if (strcmp(funcname, "true") == 0) {
+        e = xpath_function_true(ctx, r, args, root, node, base);
+    } else if (strcmp(funcname, "false") == 0) {
+        e = xpath_function_false(ctx, r, args, root, node, base);
     // } else if (strcmp(funcname, "lang") == 0) {
     //     e = xpath_function_lang(ctx, r, args, root, node, base);
 
-    // } else if (strcmp(funcname, "number") == 0) {
-    //     e = xpath_function_number(ctx, r, args, root, node, base);
-    // } else if (strcmp(funcname, "sum") == 0) {
-    //     e = xpath_function_sum(ctx, r, args, root, node, base);
-    // } else if (strcmp(funcname, "floor") == 0) {
-    //     e = xpath_function_floor(ctx, r, args, root, node, base);
-    // } else if (strcmp(funcname, "ceiling") == 0) {
-    //     e = xpath_function_ceiling(ctx, r, args, root, node, base);
-    // } else if (strcmp(funcname, "round") == 0) {
-    //     e = xpath_function_round(ctx, r, args, root, node, base);
+    } else if (strcmp(funcname, "number") == 0) {
+        e = xpath_function_number(ctx, r, args, root, node, base);
+    } else if (strcmp(funcname, "sum") == 0) {
+        e = xpath_function_sum(ctx, r, args, root, node, base);
+    } else if (strcmp(funcname, "floor") == 0) {
+        e = xpath_function_floor(ctx, r, args, root, node, base);
+    } else if (strcmp(funcname, "ceiling") == 0) {
+        e = xpath_function_ceiling(ctx, r, args, root, node, base);
+    } else if (strcmp(funcname, "round") == 0) {
+        e = xpath_function_round(ctx, r, args, root, node, base);
 
     } else {
         return xpath_throw_runtime_exception(__LINE__, ctx, "Unsupported function name");
@@ -3015,13 +3540,18 @@ static int xpath_evaluate_predicate(vmctx *ctx, vmobj *resobj, vmvar *xpath, vmv
         array_set(ctx, nodes, 0, node);
         e = xpath_evaluate_step(ctx, &r, xpath, root, nodes, info);
         if (e != 0) break;
-        if (r.t == VAR_BOOL) {
+        if (r.t == VAR_INT64) {
+            int position = i + 1;
+            if (0 < position && r.i == position) {
+                array_push(ctx, resobj, node);
+            }
+        } else if (r.t == VAR_BOOL) {
             if (r.i != 0) {
                 array_push(ctx, resobj, node);
             }
-        } else if (r.t == VAR_INT64) {
-            int position = i + 1;
-            if (0 < position && r.i == position) {
+        } else {
+            xpath_to_boolean(&r);
+            if (r.i != 0) {
                 array_push(ctx, resobj, node);
             }
         }
