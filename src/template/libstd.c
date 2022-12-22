@@ -585,7 +585,6 @@ static int iRange_isEnded(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     /* a0 should be the iRange object. */
     vmvar *a0 = local_var(ctx, 0);
     vmvar *e = a0->o->ary[3];
-    SHCOPY_VAR_TO(ctx, r, e);
     vmvar *end = a0->o->ary[1];
     if (end->t == VAR_INT64) {
         int exclusive = a0->o->ary[2]->i;
@@ -756,12 +755,145 @@ static int iRange_create(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     );
 }
 
+/* Range for string special */
+
+static int String_next_impl(vmctx *ctx, vmvar *r, const char *str);
+
+static int sRange_reset(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    vmvar *a0 = local_var(ctx, 0);
+    vmvar *e = a0->o->ary[0];
+    vmvar *c = a0->o->ary[3];
+    SHCOPY_VAR_TO(ctx, c, e);
+    SET_OBJ(r, a0->o);
+    return 0;
+}
+
+static int sRange_next(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    /* a0 should be the iRange object. */
+    vmvar *a0 = local_var(ctx, 0);
+    vmvar *e = a0->o->ary[3];
+    SHCOPY_VAR_TO(ctx, a0->o->ary[5], e);   // save a prev.
+    SHCOPY_VAR_TO(ctx, r, e);
+    if (e->t == VAR_STR) {
+        const char *str = e->s->hd;
+        String_next_impl(ctx, e, str);
+    }
+    return 0;
+}
+
+static int sRange_begin(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    vmvar *a0 = local_var(ctx, 0);
+    vmvar *e = a0->o->ary[0];
+    if (e->t != VAR_STR) {
+        return throw_system_exception(__LINE__, ctx, EXCEPT_RANGE_ERROR, NULL);
+    }
+    SHCOPY_VAR_TO(ctx, r, e);
+    return 0;
+}
+
+static int sRange_end(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    vmvar *a0 = local_var(ctx, 0);
+    vmvar *e = a0->o->ary[1];
+    if (e->t != VAR_STR) {
+        return throw_system_exception(__LINE__, ctx, EXCEPT_RANGE_ERROR, NULL);
+    }
+    SHCOPY_VAR_TO(ctx, r, e);
+    return 0;
+}
+
+static int sRange_isEnded(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    /* a0 should be the iRange object. */
+    vmvar *a0 = local_var(ctx, 0);
+    vmvar *e = a0->o->ary[5];   // check with the prev.
+    vmvar *n = a0->o->ary[4];
+    if (n->t == VAR_STR) {
+        SET_I64(r, strcmp(e->s->hd, n->s->hd) == 0);
+    } else {
+        SET_I64(r, 1);
+    }
+    return 0;
+}
+
+static int sRange_isEndExcluded(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    vmvar *a0 = local_var(ctx, 0);
+    vmvar *e = a0->o->ary[2];
+    SHCOPY_VAR_TO(ctx, r, e);
+    return 0;
+}
+
+int Range_create_s(vmctx *ctx, vmfrm *lex, vmvar *r, vmstr *beg, vmstr *end, int excl)
+{
+    vmvar *n0 = beg ? alcvar_str(ctx, beg->hd) : alcvar_initial(ctx);
+    vmvar *n1 = end ? alcvar_str(ctx, end->hd) : alcvar_initial(ctx);
+    vmvar *n2 = alcvar_int64(ctx, excl, 0);
+    vmvar *n3 = alcvar_initial(ctx);
+    SHCOPY_VAR_TO(ctx, n3, n0);
+    vmvar *n4 = alcvar_initial(ctx);
+    if (n1->t == VAR_STR) {
+        const char *str = n1->s->hd;
+        if (excl) {
+            SHCOPY_VAR_TO(ctx, n4, n1);
+        } else {
+            String_next_impl(ctx, n4, str); // The next of the end.
+        }
+    }
+
+    vmobj *o = alcobj(ctx);
+    o->is_sysobj = 1;
+    array_push(ctx, o, n0);
+    array_push(ctx, o, n1);
+    array_push(ctx, o, n2);
+    array_push(ctx, o, n3);
+    array_push(ctx, o, n4);
+    array_push(ctx, o, alcvar_initial(ctx));
+    KL_SET_PROPERTY_I(o, isRange, 1)
+    KL_SET_METHOD(o, next, sRange_reset, lex, 0)
+    KL_SET_METHOD(o, next, sRange_next, lex, 0)
+    KL_SET_METHOD(o, begin, sRange_begin, lex, 0)
+    KL_SET_METHOD(o, end, sRange_end, lex, 0)
+    KL_SET_METHOD(o, isEnded, sRange_isEnded, lex, 0)
+    KL_SET_METHOD(o, isEndExcluded, sRange_isEndExcluded, lex, 0)
+    // KL_SET_METHOD(o, sort, iRange_sort, lex, 0)
+    // KL_SET_METHOD(o, toArray, iRange_toArray, lex, 0)
+    SET_OBJ(r, o);
+
+    return 0;
+}
+
+static int sRange_create(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    DEF_ARG_OR_UNDEF(a0, 0, VAR_STR);
+    DEF_ARG_OR_UNDEF(a1, 1, VAR_STR);
+    DEF_ARG_OR_UNDEF(a2, 2, VAR_INT64);
+
+    vmstr *beg = a0->s;
+    vmstr *end = a1->s;
+    int excl = a2->t == VAR_INT64 ? a2->i : 0;
+    return Range_create_s(ctx, lex, r,
+        a0->t == VAR_UNDEF ? NULL : beg,
+        a1->t == VAR_UNDEF ? NULL : end,
+        excl
+    );
+}
+
 int Range_create(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     DEF_ARG_ANY(a0, 0);
     DEF_ARG_ANY(a1, 1);
+    if (a0->t == VAR_UNDEF && a1->t == VAR_UNDEF) {
+        return throw_system_exception(__LINE__, ctx, EXCEPT_RANGE_ERROR, "Both begin and end are undefined");
+    }
+
     if ((a0->t == VAR_INT64 || a0->t == VAR_UNDEF) && (a1->t == VAR_INT64 || a1->t == VAR_UNDEF)) {
         iRange_create(ctx, lex, r, ac);
+    } else if ((a0->t == VAR_STR || a0->t == VAR_UNDEF) && (a1->t == VAR_STR || a1->t == VAR_UNDEF)) {
+        sRange_create(ctx, lex, r, ac);
     } else {
         return throw_system_exception(__LINE__, ctx, EXCEPT_NOT_IMPLEMENTED, NULL);
     }
@@ -901,7 +1033,7 @@ int Iterator_create(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 
 #define KL_DEF_MATH_FUNCTION(name) \
 extern double name(double x); \
-int Math_##name(vmctx *ctx, vmfrm *lex, vmvar *r, int ac) \
+static int Math_##name(vmctx *ctx, vmfrm *lex, vmvar *r, int ac) \
 { \
     if (ac < 1) { \
         /* TODO: too few arguments */ \
@@ -916,7 +1048,7 @@ int Math_##name(vmctx *ctx, vmfrm *lex, vmvar *r, int ac) \
 
 #define KL_DEF_MATH_FUNCTION2(name) \
 extern double name(double x, double y); \
-int Math_##name(vmctx *ctx, vmfrm *lex, vmvar *r, int ac) \
+static int Math_##name(vmctx *ctx, vmfrm *lex, vmvar *r, int ac) \
 { \
     if (ac < 2) { \
         /* TODO: too few arguments */ \
@@ -933,7 +1065,7 @@ int Math_##name(vmctx *ctx, vmfrm *lex, vmvar *r, int ac) \
 
 #define KL_DEF_MATH_FUNCTION2_INT(name) \
 extern double name(double, int); \
-int Math_##name(vmctx *ctx, vmfrm *lex, vmvar *r, int ac) \
+static int Math_##name(vmctx *ctx, vmfrm *lex, vmvar *r, int ac) \
 { \
     if (ac < 2) { \
         /* TODO: too few arguments */ \
@@ -949,7 +1081,7 @@ int Math_##name(vmctx *ctx, vmfrm *lex, vmvar *r, int ac) \
 /**/
 
 extern uint32_t Math_random_impl(void);
-int Math_random(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+static int Math_random(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     double rnd = ((double)(Math_random_impl() % 0x7fffffff)) / 0x7fffffff;
     SET_DBL(r, rnd);
@@ -1089,7 +1221,7 @@ static int Integer_toDouble(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     return 0;
 }
 
-int Integer_abs(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+static int Integer_abs(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     DEF_ARG(v1, 0, VAR_INT64)
     SET_I64((r), v1->i < 0 ? -(v1->i) : v1->i);
@@ -1194,14 +1326,14 @@ int Double(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 
 #define ISALNUM(n) ((-1 <= n && n <= 255) ? c_isalnum(n) : 0)
 
-int String_length(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+static int String_length(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     DEF_ARG(sv0, 0, VAR_STR);
     SET_I64(r, sv0->s->len);
     return 0;
 }
 
-int String_trim(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+static int String_trim(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     DEF_ARG(sv0, 0, VAR_STR);
     vmstr *s = str_dup(ctx, sv0->s);
@@ -1210,7 +1342,7 @@ int String_trim(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     return 0;
 }
 
-int String_subString(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+static int String_subString(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     DEF_ARG(sv0, 0, VAR_STR);
     const char *str = sv0->s->hd;
@@ -1224,7 +1356,7 @@ int String_subString(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     return 0;
 }
 
-int String_splitByString(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+static int String_splitByString(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     DEF_ARG(sv0, 0, VAR_STR);
     const char *str = sv0->s->hd;
@@ -1277,7 +1409,7 @@ int String_splitByString(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     return 0;
 }
 
-int String_replaceByString(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+static int String_replaceByString(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     DEF_ARG(sv0, 0, VAR_STR);
     const char *str = sv0->s->hd;
@@ -1326,7 +1458,7 @@ int String_replaceByString(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     return 0;
 }
 
-int String_toDouble(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+static int String_toDouble(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     DEF_ARG(a0, 0, VAR_STR);
     double d = strtod(a0->s->hd, NULL);
@@ -1334,7 +1466,7 @@ int String_toDouble(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     return 0;
 }
 
-int String_toInteger(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+static int String_toInteger(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     DEF_ARG(a0, 0, VAR_STR);
     DEF_ARG_OR_UNDEF(a1, 1, VAR_INT64);
@@ -1345,7 +1477,7 @@ int String_toInteger(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     return 0;
 }
 
-int String_startsWith(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+static int String_startsWith(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     DEF_ARG(a0, 0, VAR_STR);
     DEF_ARG(a1, 1, VAR_STR);
@@ -1361,7 +1493,7 @@ int String_startsWith(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     return 0;
 }
 
-int String_endsWith(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+static int String_endsWith(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     DEF_ARG(a0, 0, VAR_STR);
     DEF_ARG(a1, 1, VAR_STR);
@@ -1377,7 +1509,7 @@ int String_endsWith(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     return 0;
 }
 
-int String_find(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+static int String_find(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     DEF_ARG(a0, 0, VAR_STR);
     DEF_ARG(a1, 1, VAR_STR);
@@ -1392,7 +1524,7 @@ int String_find(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     return 0;
 }
 
-int String_parentPath(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+static int String_parentPath(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     DEF_ARG(a0, 0, VAR_STR);
     const char *s0 = a0->s->hd;
@@ -1411,7 +1543,7 @@ int String_parentPath(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     return 0;
 }
 
-int String_filename(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+static int String_filename(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     DEF_ARG(a0, 0, VAR_STR);
     const char *s0 = a0->s->hd;
@@ -1426,7 +1558,7 @@ int String_filename(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     return 0;
 }
 
-int String_stem(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+static int String_stem(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     DEF_ARG(a0, 0, VAR_STR);
     const char *s0 = a0->s->hd;
@@ -1450,7 +1582,7 @@ int String_stem(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     return 0;
 }
 
-int String_extension(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+static int String_extension(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     DEF_ARG(a0, 0, VAR_STR);
     const char *s0 = a0->s->hd;
@@ -1472,11 +1604,8 @@ int String_extension(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     return 0;
 }
 
-extern int String_next(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+static int String_next_impl(vmctx *ctx, vmvar *r, const char *str)
 {
-    DEF_ARG(a0, 0, VAR_STR);
-    const char *str = a0->s->hd;
-
     if (*str == 0) {
         SET_STR(r, "");
         return 0;
@@ -1567,6 +1696,13 @@ extern int String_next(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     }
     SET_SV(r, sv);
     return 0;
+}
+
+static int String_next(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    DEF_ARG(a0, 0, VAR_STR);
+    const char *str = a0->s->hd;
+    return String_next_impl(ctx, r, str);
 }
 
 extern int String_split(vmctx *ctx, vmfrm *lex, vmvar *r, int ac);

@@ -9,6 +9,12 @@
 
 #define XSTR_UNIT (64)
 #define xstra_inst(code, ...) xstra(code, "    ", 4), xstraf(code, __VA_ARGS__)
+#define is_escape_ch(c) ((c) == '\a') || ((c) == '\b') || ((c) == '\x1b') || ((c) == '\f') || ((c) == '\n') || ((c) == '\r') || ((c) == '\t') || ((c) == '\v')
+const char replace_escape_ch[256] = {
+    0, 0, 0, 0, 0, 0, 0, 'a', 'b', 't', 'n', 'v', 'f', 'r', 0, 0,
+    0, 0, 0, 0, 0, 0, 0,   0,   0,   0,   0,   0,   0,   0, 0, 0,
+    0, 0, '"',
+};
 
 typedef struct xstr {
     int cap;
@@ -586,6 +592,22 @@ static const char *var_value(char *buf, kl_kir_opr *rn)  /* buf should have at l
     case TK_VDBL:
         sprintf(buf, "%s", rn->dbl);
         break;
+    case TK_VSTR: {
+        char *p = buf;
+        *p++ = '"';
+        const char *s = rn->str;
+        while (*s) {
+            if (replace_escape_ch[*s] != 0) {
+                *p++ = '\\';
+                *p++ = replace_escape_ch[*s];
+            } else {
+                *p++ = *s++;
+            }
+        }
+        *p++ = '"';
+        *p = 0;
+        break;
+    }
     case TK_VAR:
         if (rn->index < 0) {
             sprintf(buf, "(r)");
@@ -1215,6 +1237,22 @@ static void translate_range(func_context *fctx, xstr *code, kl_kir_inst *i, int 
         var_value(buf1, &(i->r1));
         int_value(buf2, &(i->r3));
         xstra_inst(code, "MAKE_RANGE_N_I(ctx, %s, %s, %d, L%d, \"%s\", \"%s\", %d);\n", buf1, buf2, excl,
+            i->catchid, i->funcname, escape(&(fctx->str), i->filename), i->line);
+    } else if (i->r2.t == TK_VSTR && i->r3.t == TK_VSTR) {
+        var_value(buf1, &(i->r1));
+        var_value(buf2, &(i->r2));
+        var_value(buf3, &(i->r3));
+        xstra_inst(code, "MAKE_RANGE_S_S(ctx, %s, %s, %s, %d, L%d, \"%s\", \"%s\", %d);\n", buf1, buf2, buf3, excl,
+            i->catchid, i->funcname, escape(&(fctx->str), i->filename), i->line);
+    } else if (i->r2.t == TK_VSTR && i->r3.t == TK_UNKNOWN) {
+        var_value(buf1, &(i->r1));
+        var_value(buf2, &(i->r2));
+        xstra_inst(code, "MAKE_RANGE_S_N(ctx, %s, %s, %d, L%d, \"%s\", \"%s\", %d);\n", buf1, buf2, excl,
+            i->catchid, i->funcname, escape(&(fctx->str), i->filename), i->line);
+    } else if (i->r2.t == TK_UNKNOWN && i->r3.t == TK_VSTR) {
+        var_value(buf1, &(i->r1));
+        var_value(buf2, &(i->r3));
+        xstra_inst(code, "MAKE_RANGE_N_S(ctx, %s, %s, %d, L%d, \"%s\", \"%s\", %d);\n", buf1, buf2, excl,
             i->catchid, i->funcname, escape(&(fctx->str), i->filename), i->line);
     } else {
         var_value(buf1, &(i->r1));

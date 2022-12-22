@@ -758,6 +758,25 @@ typedef struct vmctx {
 } \
 /**/
 
+#define MAKE_RANGE_S_S(ctx, dst, r1, r2, excl, label, func, file, line) { \
+    vmstr *beg = alcstr_str(ctx, r1); \
+    vmstr *end = alcstr_str(ctx, r2); \
+    Range_create_s(ctx, NULL, dst, beg, end, excl); \
+} \
+/**/
+
+#define MAKE_RANGE_S_N(ctx, dst, r1, excl, label, func, file, line) { \
+    vmstr *beg = alcstr_str(ctx, r1); \
+    Range_create_s(ctx, NULL, dst, beg, NULL, excl); \
+} \
+/**/
+
+#define MAKE_RANGE_N_S(ctx, dst, r2, excl, label, func, file, line) { \
+    vmstr *end = alcstr_str(ctx, r2); \
+    Range_create_s(ctx, NULL, dst, NULL, end, excl); \
+} \
+/**/
+
 #define MAKE_RANGE(ctx, dst, r1, r2, excl, label, func, file, line) { \
     int pp = vstackp(ctx); \
     vmfnc *f = alcfnc(ctx, Range_create, NULL, "Range.create", 3); \
@@ -3560,7 +3579,8 @@ INLINE extern int inc_v(vmctx *ctx, vmvar *v);
 INLINE extern int dec_v(vmctx *ctx, vmvar *v);
 INLINE extern int uminus_v(vmctx *ctx, vmvar *r, vmvar *v);
 
-INLINE extern int iRange_create_i(vmctx *ctx, vmfrm *lex, vmvar *r, int *beg, int *end, int excl);
+INLINE extern int Range_create_i(vmctx *ctx, vmfrm *lex, vmvar *r, int *beg, int *end, int excl);
+INLINE extern int Range_create_s(vmctx *ctx, vmfrm *lex, vmvar *r, vmstr *beg, vmstr *end, int excl);
 INLINE extern int Range_create(vmctx *ctx, vmfrm *lex, vmvar *r, int ac);
 INLINE extern int Iterator_create(vmctx *ctx, vmfrm *lex, vmvar *r, int ac);
 
