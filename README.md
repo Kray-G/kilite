@@ -284,8 +284,9 @@ I will note the followings as I don't forget it.
       * [x] Encryption.
     * [ ] Xml
       * [x] Simple XML Parser & Simple DOM operation.
-      * [ ] Node insertion, deletion, or modification to DOM.
-      * [ ] XPath
+      * [ ] Node creation.
+      * [x] Node insertion, deletion, or modification to DOM.
+      * [x] XPath
     * [ ] PDF
       * [ ] harupdf
 * [ ] Others.
@@ -295,6 +296,7 @@ I will note the followings as I don't forget it.
       * *Note that this method can be used only in the scripting mode.
         It means it will be difficult to use in the translated C code and compile it.*
     * [ ] REPL environment itself.
+  * [ ] Debugger.
 
 There could be something I've forgotten. I'll add it when I remember it.
 
