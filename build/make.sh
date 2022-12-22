@@ -133,7 +133,8 @@ cat ../src/template/libregex.c >> $TEMPF
 echo "#line 1 \"inc/platform.c\"" >> $TEMPF
 cat ../src/template/inc/platform.c >> $TEMPF
 cd ../src/template/std
-$BIN/kilite --makelib callbacks.klt >> $TEMPF
+$BIN/kilite --makelib foundation.klt >> $TEMPF
+$BIN/kilite --makelib file.klt >> $TEMPF
 cd $BIN
 
 echo Generating a static library file for gcc...
