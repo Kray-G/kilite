@@ -1631,6 +1631,19 @@ static int Array_flatten(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     return Array_flatten_impl(ctx, r, a0, 0);
 }
 
+static int Array_reverse(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    DEF_ARG(a0, 0, VAR_OBJ);
+    vmobj *o = a0->o;
+    vmobj *n = alcobj(ctx);
+    int len = o->idxsz;
+    for (int i = len - 1; i >= 0; --i) {
+        array_push(ctx, n, copy_var(ctx, o->ary[i], 0));
+    }
+    SET_OBJ(r, n);
+    return 0;
+}
+
 static int Object_keys(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     DEF_ARG(a0, 0, VAR_OBJ);
@@ -1688,6 +1701,7 @@ int Array(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     KL_SET_METHOD(o, keySet, Object_keys, lex, 1)
     KL_SET_METHOD(o, size, Array_size, lex, 1)
     KL_SET_METHOD(o, length, Array_size, lex, 1)
+    KL_SET_METHOD(o, reverse, Array_reverse, lex, 1)
     SET_OBJ(r, o);
     return 0;
 }
