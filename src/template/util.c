@@ -97,3 +97,63 @@ void print_obj(vmctx *ctx, vmvar *v)
 {
     fprint_obj(ctx, v, stdout);
 }
+
+#define XU  (0x01)
+#define XL  (0x02)
+#define XD  (0x04)
+#define XS  (0x08)
+#define XP  (0x10)
+#define XC  (0x20)
+#define XX  (0x40)
+#define XB  (0x80)
+
+#define util_ctype_lookup(__c)  (util_ctype[(int)(__c)])
+#define x_isalpha(__c)          (util_ctype_lookup(__c)&(XU|XL))
+#define x_isupper(__c)          ((util_ctype_lookup(__c)&(XU|XL))==XU)
+#define x_islower(__c)          ((util_ctype_lookup(__c)&(XU|XL))==XL)
+#define x_isdigit(__c)          (util_ctype_lookup(__c)&XD)
+#define x_isxdigit(__c)         (util_ctype_lookup(__c)&(XX|XD))
+#define x_isspace(__c)          (util_ctype_lookup(__c)&XS)
+#define x_ispunct(__c)          (util_ctype_lookup(__c)&XP)
+#define x_isalnum(__c)          (util_ctype_lookup(__c)&(XU|XL|XD))
+#define x_isprint(__c)          (util_ctype_lookup(__c)&(XP|XU|XL|XD|XB))
+#define x_isgraph(__c)          (util_ctype_lookup(__c)&(XP|XU|XL|XD))
+#define x_iscntrl(__c)          (util_ctype_lookup(__c)&XC)
+
+#define UTIL_CTYPE_DATA_000_127 \
+    XC,     XC,     XC,     XC,     XC,     XC,     XC,     XC, \
+    XC,     XC|XS,  XC|XS,  XC|XS,  XC|XS,  XC|XS,  XC,     XC, \
+    XC,     XC,     XC,     XC,     XC,     XC,     XC,     XC, \
+    XC,     XC,     XC,     XC,     XC,     XC,     XC,     XC, \
+    XS|XB,  XP,     XP,     XP,     XP,     XP,     XP,     XP, \
+    XP,     XP,     XP,     XP,     XP,     XP,     XP,     XP, \
+    XD,     XD,     XD,     XD,     XD,     XD,     XD,     XD, \
+    XD,     XD,     XP,     XP,     XP,     XP,     XP,     XP, \
+    XP,     XU|XX,  XU|XX,  XU|XX,  XU|XX,  XU|XX,  XU|XX,  XU, \
+    XU,     XU,     XU,     XU,     XU,     XU,     XU,     XU, \
+    XU,     XU,     XU,     XU,     XU,     XU,     XU,     XU, \
+    XU,     XU,     XU,     XP,     XP,     XP,     XP,     XP, \
+    XP,     XL|XX,  XL|XX,  XL|XX,  XL|XX,  XL|XX,  XL|XX,  XL, \
+    XL,     XL,     XL,     XL,     XL,     XL,     XL,     XL, \
+    XL,     XL,     XL,     XL,     XL,     XL,     XL,     XL, \
+    XL,     XL,     XL,     XP,     XP,     XP,     XP,     XC
+
+static const unsigned char util_ctype_b[1 + 256] = {
+    0,
+    UTIL_CTYPE_DATA_000_127,
+    /* all zero in remaining area. */
+};
+
+const unsigned char* util_ctype = util_ctype_b + 1;
+
+int c_isalpha(int c)  { return x_isalpha(c);  }
+int c_isupper(int c)  { return x_isupper(c);  }
+int c_islower(int c)  { return x_islower(c);  }
+int c_isdigit(int c)  { return x_isdigit(c);  }
+int c_isxdigit(int c) { return x_isxdigit(c); }
+int c_isspace(int c)  { return x_isspace(c);  }
+int c_ispunct(int c)  { return x_ispunct(c);  }
+int c_isalnum(int c)  { return x_isalnum(c);  }
+int c_isprint(int c)  { return x_isprint(c);  }
+int c_isgraph(int c)  { return x_isgraph(c);  }
+int c_iscntrl(int c)  { return x_iscntrl(c);  }

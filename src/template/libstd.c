@@ -1192,6 +1192,8 @@ int Double(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 
 /* String */
 
+#define ISALNUM(n) ((-1 <= n && n <= 255) ? c_isalnum(n) : 0)
+
 int String_length(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     DEF_ARG(sv0, 0, VAR_STR);
@@ -1470,6 +1472,103 @@ int String_extension(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     return 0;
 }
 
+extern int String_next(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    DEF_ARG(a0, 0, VAR_STR);
+    const char *str = a0->s->hd;
+
+    if (*str == 0) {
+        SET_STR(r, "");
+        return 0;
+    }
+
+    int hchar = str[0];
+    int other = !ISALNUM(hchar);
+    int alnum = 0;
+    int len = strlen(str);
+    for (int i = (other ? 1 : 0); i < len; ++i) {
+        if (ISALNUM(str[i])) {
+            ++alnum;
+        }
+    }
+
+    int noalnum = alnum == 0;
+    char *bin = alloca(len + 1);
+    memset(bin, 0, len + 1);
+    int prv = 0;
+    if (noalnum) {
+        for (int i = 0; i < len; ++i) {
+            bin[i] = (str[i] + 1) % 0xFF;
+        }
+    } else {
+        int idx = len - 1;
+        int head = other ? 1 : 0;
+        prv = 1;
+        for (int i = idx; i >= head; --i) {
+            int ch = str[i];
+            if (ch == '9') {
+                if (prv) {
+                    bin[i] = '0';
+                    prv = '1';
+                } else {
+                    bin[i] = '9';
+                }
+            } else if (ch == 'z') {
+                if (prv) {
+                    bin[i] = 'a';
+                    prv = 'a';
+                } else {
+                    bin[i] = 'z';
+                }
+            } else if (ch == 'Z') {
+                if (prv) {
+                    bin[i] = 'A';
+                    prv = 'A';
+                } else {
+                    bin[i] = 'Z';
+                }
+            } else if (ch == 0xFF) {
+                bin[i] = 0;
+                prv = 1;
+            } else if (ISALNUM(ch)) {
+                if (prv) {
+                    bin[i] = ch + 1;
+                } else {
+                    bin[i] = ch;
+                }
+                prv = 0;
+            } else {
+                bin[i] = ch;
+            }
+        }
+    }
+
+    vmstr *sv;
+    if (noalnum) {
+        sv = alcstr_str(ctx, bin);
+    } else if (other) {
+        if (prv) {
+            char buf[] = { hchar, 0 };
+            sv = alcstr_str(ctx, buf);
+            bin[0] = prv;
+            str_append_cp(ctx, sv, bin);
+        } else {
+            bin[0] = hchar;
+            sv = alcstr_str(ctx, bin);
+        }
+    } else {
+        if (prv) {
+            char buf[] = { prv, 0 };
+            sv = alcstr_str(ctx, buf);
+            str_append_cp(ctx, sv, bin);
+        } else {
+            sv = alcstr_str(ctx, bin);
+        }
+    }
+    SET_SV(r, sv);
+    return 0;
+}
+
 extern int String_split(vmctx *ctx, vmfrm *lex, vmvar *r, int ac);
 extern int String_replace(vmctx *ctx, vmfrm *lex, vmvar *r, int ac);
 extern int String_each(vmctx *ctx, vmfrm *lex, vmvar *r, int ac);
@@ -1496,6 +1595,7 @@ int String(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     KL_SET_METHOD(o, extension, String_extension, lex, 1)
     KL_SET_METHOD(o, find, String_find, lex, 2)
     KL_SET_METHOD(o, each, String_each, lex, 2)
+    KL_SET_METHOD(o, next, String_next, lex, 2)
     SET_OBJ(r, o);
     return 0;
 }

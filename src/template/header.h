@@ -3417,6 +3417,18 @@ INLINE extern int get_min4(int a0, int a1, int a2, int a3);
 INLINE extern int get_min5(int a0, int a1, int a2, int a3, int a4);
 INLINE extern void print_obj(vmctx *ctx, vmvar *v);
 INLINE extern void fprint_obj(vmctx *ctx, vmvar *v, FILE *fp);
+INLINE extern int c_isalpha(int c);
+INLINE extern int c_isupper(int c);
+INLINE extern int c_islower(int c);
+INLINE extern int c_isdigit(int c);
+INLINE extern int c_isxdigit(int c);
+INLINE extern int c_isspace(int c);
+INLINE extern int c_ispunct(int c);
+INLINE extern int c_isalnum(int c);
+INLINE extern int c_isprint(int c);
+INLINE extern int c_isgraph(int c);
+INLINE extern int c_iscntrl(int c);
+
 INLINE extern vmstr *format(vmctx *ctx, vmobj *v);
 
 INLINE extern void bi_initialize(void);
