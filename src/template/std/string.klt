@@ -1,0 +1,57 @@
+/*
+    Call back functions should accept the yield operation from the function this function would call.
+    Therefore the functions should be made created by the translator of kilite.
+*/
+
+/* String functions */
+
+function String_split(str: string, cond) {
+    if (cond.isString) {
+        return String.splitByString(str, cond);
+    } else if (cond.isRegex) {
+        return cond.splitOf(str);
+    } else {
+        throw RuntimeException('Invalid split condition');
+    }
+}
+
+function String_replace(str: string, cond, newstr) {
+    if (cond.isString) {
+        if (newstr.isString) {
+            return String.replaceByString(str, cond, newstr);
+        }
+        throw RuntimeException('Replacing must be done by string');
+    } else if (cond.isRegex) {
+        if (newstr.isString) {
+            return cond.replaceOf(str, newstr);
+        } else if (newstr.isFunction) {
+            var start = 0, end = 0;
+            var rstr = "";
+            cond.reset(str);
+            while (cond.find()) {
+                var matched = cond.group[0];
+                var mb = matched.begin;
+                end = matched.end;
+                rstr += String.subString(str, start, mb - start);
+                rstr += newstr(cond.group);
+                start = end;
+            }
+            if (start > 0) {
+                rstr += String.subString(str, start);
+            } else {
+                rstr = str;
+            }
+            return rstr;
+        }
+        throw RuntimeException('Invalid replace condition');
+    } else {
+        throw RuntimeException('Invalid replace condition');
+    }
+}
+
+function String_each(str: string, f: func) {
+    let n:integer = str.length();
+    for (let i:integer = 0; i < n; ++i) {
+        f(*str[i], i);
+    }
+}

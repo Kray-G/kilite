@@ -133,7 +133,9 @@ cat ../src/template/libregex.c >> $TEMPF
 echo "#line 1 \"inc/platform.c\"" >> $TEMPF
 cat ../src/template/inc/platform.c >> $TEMPF
 cd ../src/template/std
-$BIN/kilite --makelib foundation.klt >> $TEMPF
+$BIN/kilite --makelib integer.klt >> $TEMPF
+$BIN/kilite --makelib string.klt >> $TEMPF
+$BIN/kilite --makelib array.klt >> $TEMPF
 $BIN/kilite --makelib file.klt >> $TEMPF
 cd $BIN
 

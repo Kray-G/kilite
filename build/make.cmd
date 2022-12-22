@@ -110,7 +110,9 @@ type ..\src\template\libregex.c >> %TEMPF%
 echo #line 1 "inc/platform.c" >> %TEMPF%
 type ..\src\template\inc\platform.c >> %TEMPF%
 pushd ..\src\template\std
-kilite.exe --makelib foundation.klt >> %TEMPF%
+kilite.exe --makelib integer.klt >> %TEMPF%
+kilite.exe --makelib string.klt >> %TEMPF%
+kilite.exe --makelib array.klt >> %TEMPF%
 kilite.exe --makelib file.klt >> %TEMPF%
 popd
 

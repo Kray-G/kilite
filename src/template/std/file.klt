@@ -1,3 +1,7 @@
+/*
+    Call back functions should accept the yield operation from the function this function would call.
+    Therefore the functions should be made created by the translator of kilite.
+*/
 
 /* File functions */
 

@@ -1,0 +1,51 @@
+/*
+    Call back functions should accept the yield operation from the function this function would call.
+    Therefore the functions should be made created by the translator of kilite.
+*/
+
+/* Integer functions */
+
+function Integer_times(n:integer, f:func) {
+    if (f.isUndefined) {
+        let a:object = [];
+        for (let i:integer = 0; i < n; ++i) {
+            a.push(i);
+        }
+        return a;
+    }
+    for (let i:integer = 0; i < n; ++i) {
+        f(i);
+    }
+}
+
+function Integer_upto(val:integer, max:integer, callback:func) {
+    var ary = [];
+    var index = 0;
+    if (callback.isFunction) {
+        for (var i = val; i <= max; ++i) {
+            ary[index] = callback(i, index);
+            ++index;
+        }
+    } else {
+        for (var i = val; i <= max; ++i) {
+            ary[index++] = val;
+        }
+    }
+    return ary;
+}
+
+function Integer_downto(val:integer, min:integer, callback:func) {
+    var ary = [];
+    var index = 0;
+    if (callback.isFunction) {
+        for (var i = val; i >= min; --i) {
+            ary[index] = callback(i, index);
+            ++index;
+        }
+    } else {
+        for (var i = val; i >= min; --i) {
+            ary[index++] = val;
+        }
+    }
+    return ary;
+}
