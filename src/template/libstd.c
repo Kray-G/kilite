@@ -757,7 +757,7 @@ static int iRange_create(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 
 /* Range for string special */
 
-static int String_next_impl(vmctx *ctx, vmvar *r, const char *str);
+static int String_next_impl(vmctx *ctx, vmvar *r, vmstr *sv, const char *str);
 
 static int sRange_reset(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
@@ -778,7 +778,7 @@ static int sRange_next(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     SHCOPY_VAR_TO(ctx, r, e);
     if (e->t == VAR_STR) {
         const char *str = e->s->hd;
-        String_next_impl(ctx, e, str);
+        String_next_impl(ctx, e, e->s, str);
     }
     return 0;
 }
@@ -840,7 +840,7 @@ int Range_create_s(vmctx *ctx, vmfrm *lex, vmvar *r, vmstr *beg, vmstr *end, int
         if (excl) {
             SHCOPY_VAR_TO(ctx, n4, n1);
         } else {
-            String_next_impl(ctx, n4, str); // The next of the end.
+            String_next_impl(ctx, n4, NULL, str); // The next of the end.
         }
     }
 
@@ -1604,10 +1604,14 @@ static int String_extension(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     return 0;
 }
 
-static int String_next_impl(vmctx *ctx, vmvar *r, const char *str)
+static int String_next_impl(vmctx *ctx, vmvar *r, vmstr *sv, const char *str)
 {
     if (*str == 0) {
-        SET_STR(r, "");
+        if (!sv) {
+            sv = alcstr_str(ctx, "");
+        }
+        str_set_cp(ctx, sv, "");
+        SET_SV(r, sv);
         return 0;
     }
 
@@ -1672,26 +1676,28 @@ static int String_next_impl(vmctx *ctx, vmvar *r, const char *str)
         }
     }
 
-    vmstr *sv;
+    if (!sv) {
+        sv = alcstr_str(ctx, "");
+    }
     if (noalnum) {
-        sv = alcstr_str(ctx, bin);
+        str_set_cp(ctx, sv, bin);
     } else if (other) {
         if (prv) {
             char buf[] = { hchar, 0 };
-            sv = alcstr_str(ctx, buf);
+            str_set_cp(ctx, sv, buf);
             bin[0] = prv;
             str_append_cp(ctx, sv, bin);
         } else {
             bin[0] = hchar;
-            sv = alcstr_str(ctx, bin);
+            str_set_cp(ctx, sv, bin);
         }
     } else {
         if (prv) {
             char buf[] = { prv, 0 };
-            sv = alcstr_str(ctx, buf);
+            str_set_cp(ctx, sv, buf);
             str_append_cp(ctx, sv, bin);
         } else {
-            sv = alcstr_str(ctx, bin);
+            str_set_cp(ctx, sv, bin);
         }
     }
     SET_SV(r, sv);
@@ -1702,7 +1708,7 @@ static int String_next(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     DEF_ARG(a0, 0, VAR_STR);
     const char *str = a0->s->hd;
-    return String_next_impl(ctx, r, str);
+    return String_next_impl(ctx, r, NULL, str);
 }
 
 extern int String_split(vmctx *ctx, vmfrm *lex, vmvar *r, int ac);
