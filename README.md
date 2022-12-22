@@ -251,7 +251,7 @@ I will note the followings as I don't forget it.
     * [x] Double
     * [x] String
     * [ ] Binary
-    * [ ] Array/Object
+    * [x] Array/Object
   * [ ] Regular expression.
     * [x] The regex literal of `/.../`
     * [x] Operator `=~` and `!~`.
