@@ -502,6 +502,45 @@ typedef struct vmctx {
 } \
 /**/
 
+/* call special function */
+#define OP_ACT_LABEL(prefix, label) prefix##label
+#define OP_LABEL(prefix, label) OP_ACT_LABEL(prefix, label)
+#define OP_CALL_SPECIAL_OPERATOR_X(ctx, op, label, r, v, push_intf, a, endblk, altblk) { \
+    vmvar *fv = hashmap_search((v)->o, op); \
+    if (fv && fv->t == VAR_FNC) { \
+        int e = 0; \
+        int p = vstackp(ctx); \
+        push_intf(ctx, a, L##label, __func__, __FILE__, 0); \
+        vmfnc *f = fv->f; \
+        CALL(f, f->lex, (r), 1); \
+        L##label: \
+        restore_vstackp(ctx, p); \
+        endblk \
+    } else { \
+        altblk \
+    } \
+} \
+/**/
+#define OP_CALL_SPECIAL_OPERATOR_I_ALT(ctx, op, label, r, v, i, endblk, altblk) \
+    OP_CALL_SPECIAL_OPERATOR_X(ctx, op, label, r, v, push_var_i, i, endblk, altblk) \
+/**/
+#define OP_CALL_SPECIAL_OPERATOR_S_ALT(ctx, op, label, r, v, s, endblk, altblk) \
+    OP_CALL_SPECIAL_OPERATOR_X(ctx, op, label, r, v, push_var_s, s, endblk, altblk) \
+/**/
+#define OP_CALL_SPECIAL_OPERATOR_ALT(ctx, op, label, r, v, a, endblk, altblk) \
+    OP_CALL_SPECIAL_OPERATOR_X(ctx, op, label, r, v, push_var, a, endblk, altblk) \
+/**/
+#define OP_CALL_SPECIAL_OPERATOR_I(ctx, op, label, r, v, i) \
+    OP_CALL_SPECIAL_OPERATOR_X(ctx, op, label, r, v, push_var_i, i, { return e; }, { \
+        return throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION, NULL); \
+    }) \
+/**/
+#define OP_CALL_SPECIAL_OPERATOR(ctx, op, label, r, v, a) \
+    OP_CALL_SPECIAL_OPERATOR_X(ctx, op, label, r, v, push_var, a, { return e; }, { \
+        return throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION, NULL); \
+    }) \
+/**/
+
 /* call function */
 #define CALL(f1, lex, r, ac) { \
     vmfnc *callee = ctx->callee; \
@@ -521,7 +560,14 @@ typedef struct vmctx {
         CALL((v)->f, ((v)->f)->lex, r, ac) \
     } else { \
         int done = 0; \
-        if (host && lastapply) { \
+        if ((v)->t == VAR_OBJ) { \
+            vmvar *fv = hashmap_search((v)->o, "()"); \
+            if (fv && fv->t == VAR_FNC) { \
+                CALL((fv)->f, ((fv)->f)->lex, r, ac) \
+                done = 1; \
+            } \
+        } \
+        if (!done && host && lastapply) { \
             vmvar *mm = hashmap_search(host, "methodMissing"); \
             if (mm && mm->t == VAR_FNC) { \
                 { push_var_s(ctx, lastapply, label, func, file, line); } \
@@ -1353,18 +1399,29 @@ typedef struct vmctx {
 
 /* Object control */
 
-#define OP_HASH_APPLY_OBJ(ctx, r, t1, str) { \
-    ctx->lastapply = str; \
-    if ((t1)->o) { \
-        vmvar *t2 = hashmap_search((t1)->o, str); \
-        if (!t2) { \
-            (r)->t = VAR_UNDEF; \
-        } else { \
-            COPY_VAR_TO(ctx, (r), t2); \
-        } \
+
+#define OP_HASH_APPLY_OBJ_X(ctx, r, t1, str, prefix, label) { \
+    if ((t1)->t ==VAR_OBJ) { \
+        OP_CALL_SPECIAL_OPERATOR_S_ALT(ctx, "[]", OP_LABEL(prefix, label), r, t1, str, {}, { \
+            ctx->lastapply = str; \
+            if ((t1)->o) { \
+                vmvar *t2 = hashmap_search((t1)->o, str); \
+                if (!t2) { \
+                    (r)->t = VAR_UNDEF; \
+                } else { \
+                    COPY_VAR_TO(ctx, (r), t2); \
+                } \
+            } else { \
+                (r)->t = VAR_UNDEF; \
+            } \
+        }) \
     } else { \
         (r)->t = VAR_UNDEF; \
     } \
+} \
+/**/
+#define OP_HASH_APPLY_OBJ(ctx, r, t1, str) { \
+    OP_HASH_APPLY_OBJ_X(ctx, r, t1, str, O, __LINE__) \
 } \
 /**/
 
@@ -1461,7 +1518,7 @@ typedef struct vmctx {
 } \
 /**/
 
-#define OP_ARRAY_REF_I(ctx, r, v, idx) { \
+#define OP_ARRAY_REF_I_X(ctx, r, v, idx, prefix, label) { \
     if ((v)->t == VAR_STR) { \
         int ii = idx; \
         int xlen = (v)->s->len; \
@@ -1486,15 +1543,17 @@ typedef struct vmctx {
         } \
     } else if ((v)->t == VAR_OBJ) { \
         int ii = idx; \
-        int xlen = (v)->o->idxsz; \
-        if (ii < 0) { \
-            do { ii += xlen; } while (ii < 0); \
-        } \
-        if (0 <= ii && ii < xlen && (v)->o->ary[ii]) { \
-            COPY_VAR_TO(ctx, r, (v)->o->ary[ii]); \
-        } else { \
-            (r)->t = VAR_UNDEF; \
-        } \
+        OP_CALL_SPECIAL_OPERATOR_I_ALT(ctx, "[]", OP_LABEL(prefix, label), r, v, ii, {}, { \
+            int xlen = (v)->o->idxsz; \
+            if (ii < 0) { \
+                do { ii += xlen; } while (ii < 0); \
+            } \
+            if (0 <= ii && ii < xlen && (v)->o->ary[ii]) { \
+                COPY_VAR_TO(ctx, r, (v)->o->ary[ii]); \
+            } else { \
+                (r)->t = VAR_UNDEF; \
+            } \
+        }) \
     } else if (idx == 0) { \
         COPY_VAR_TO(ctx, r, v); \
     } else { \
@@ -1502,18 +1561,21 @@ typedef struct vmctx {
     } \
 } \
 /**/
-
+#define OP_ARRAY_REF_I(ctx, r, v, idx) { \
+    OP_ARRAY_REF_I_X(ctx, r, v, idx, I, __LINE__) \
+} \
+/**/
 #define OP_ARRAY_REF(ctx, r, v, iv) { \
     switch ((iv)->t) { \
     case VAR_BOOL: \
     case VAR_INT64: { \
         int64_t i = (iv)->i; \
-        OP_ARRAY_REF_I(ctx, r, v, i) \
+        OP_ARRAY_REF_I_X(ctx, r, v, i, I64, __LINE__) \
         break; \
     } \
     case VAR_DBL: { \
         int64_t i = (int64_t)iv->d; \
-        OP_ARRAY_REF_I(ctx, r, v, i) \
+        OP_ARRAY_REF_I_X(ctx, r, v, i, DBL, __LINE__) \
         break; \
     } \
     case VAR_STR: { \
@@ -1521,7 +1583,13 @@ typedef struct vmctx {
         break; \
     } \
     default: \
-        /* TODO: operator[] */ \
+        if ((v)->t == VAR_OBJ) { \
+            OP_CALL_SPECIAL_OPERATOR_ALT(ctx, "[]", OP_LABEL(OV, __LINE__), r, v, iv, {}, { \
+                e = throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION, NULL); \
+            }) \
+        } else { \
+            e = throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION, NULL); \
+        } \
         break; \
     } \
 } \

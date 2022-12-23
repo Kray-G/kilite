@@ -3,6 +3,7 @@
 
 #include <stdio.h>
 #include <stdint.h>
+#include <ctype.h>
 
 #define SHOW_BIGINT(b) do {char *bs = BzToString(b, 10, 0); printf("%s\n", bs); BzFreeString(bs);} while(0)
 // printf("%s:%d -> %s\n", __FILE__, __LINE__, __func__);

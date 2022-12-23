@@ -354,10 +354,29 @@ int False(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 
 /* System */
 
+static vmvar *System_try_to_string(vmctx *ctx, vmvar *r, vmvar *v)
+{
+    if (v->t == VAR_OBJ) {
+        vmvar *fv = hashmap_search((v)->o, "toString");
+        if (fv && fv->t == VAR_FNC) {
+            vmfnc *f1 = fv->f;
+            int p = vstackp(ctx);
+            vmfnc *callee = ctx->callee;
+            ctx->callee = f1;
+            int e = ((vmfunc_t)(f1->f))(ctx, f1->lex, r, 0);
+            ctx->callee = callee;
+            restore_vstackp(ctx, p);
+            return r;
+        }
+    }
+    return v;
+}
+
 static int System_print(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     for (int i = 0; i < ac; ++i) {
         vmvar *an = local_var(ctx, i);
+        an = System_try_to_string(ctx, r, an);
         print_obj(ctx, an);
     }
     r->t = VAR_UNDEF;
@@ -368,6 +387,7 @@ static int System_println(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     for (int i = 0; i < ac; ++i) {
         vmvar *an = local_var(ctx, i);
+        an = System_try_to_string(ctx, r, an);
         print_obj(ctx, an);
     }
     printf("\n");
@@ -1221,6 +1241,25 @@ static int Integer_toDouble(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     return 0;
 }
 
+static int Integer_parseInt(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    DEF_ARG_ANY(a0, 0);
+    DEF_ARG_OR_UNDEF(a1, 1, VAR_INT64);
+
+    switch (a0->t) {
+    case VAR_DBL:
+        r->t = VAR_INT64;
+        r->i = (int64_t)(a0->d);
+        break;
+    case VAR_STR: {
+        int radix = a1->t == VAR_INT64 ? a1->i : 10;
+        r->i = strtoll(a0->s->hd, NULL, radix);
+        break;
+    }
+    }
+    return 0;
+}
+
 static int Integer_abs(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     DEF_ARG(v1, 0, VAR_INT64)
@@ -1238,6 +1277,7 @@ int Integer(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     ctx->i = o;
     KL_SET_METHOD(o, toString, Integer_toString, lex, 2)
     KL_SET_METHOD(o, toDouble, Integer_toDouble, lex, 1)
+    KL_SET_METHOD(o, parseInt, Integer_parseInt, lex, 2)
     KL_SET_METHOD(o, times, Integer_times, lex, 2)
     KL_SET_METHOD(o, upto, Integer_upto, lex, 2)
     KL_SET_METHOD(o, downto, Integer_downto, lex, 2)

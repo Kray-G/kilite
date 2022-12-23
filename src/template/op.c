@@ -91,6 +91,9 @@ int add_v_i(vmctx *ctx, vmvar *r, vmvar *v, int64_t i)
         r->s = str_dup(ctx, v->s);
         str_append_i64(ctx, r->s, i);
         break;
+    case VAR_OBJ:
+        OP_CALL_SPECIAL_OPERATOR_I(ctx, "+", __LINE__, r, v, i);
+        break;
     default:
         return throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION, NULL);
     }
@@ -297,6 +300,9 @@ int add_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
             return throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION, NULL);
         }
         break;
+    case VAR_OBJ:
+        OP_CALL_SPECIAL_OPERATOR(ctx, "+", __LINE__, r, v0, v1);
+        break;
     default:
         return throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION, NULL);
     }
@@ -320,6 +326,9 @@ int sub_v_i(vmctx *ctx, vmvar *r, vmvar *v, int64_t i)
     case VAR_DBL:
         r->t = VAR_DBL;
         r->d = v->d - (double)i;
+        break;
+    case VAR_OBJ:
+        OP_CALL_SPECIAL_OPERATOR_I(ctx, "-", __LINE__, r, v, i);
         break;
     default:
         return throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION, NULL);
@@ -436,6 +445,9 @@ int sub_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
             return throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION, NULL);
         }
         break;
+    case VAR_OBJ:
+        OP_CALL_SPECIAL_OPERATOR(ctx, "-", __LINE__, r, v0, v1);
+        break;
     default:
         return throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION, NULL);
     }
@@ -464,6 +476,9 @@ int mul_v_i(vmctx *ctx, vmvar *r, vmvar *v, int64_t i)
         r->t = VAR_STR;
         r->s = str_dup(ctx, v->s);
         str_make_ntimes(ctx, r->s, i);
+        break;
+    case VAR_OBJ:
+        OP_CALL_SPECIAL_OPERATOR_I(ctx, "*", __LINE__, r, v, i);
         break;
     default:
         return throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION, NULL);
@@ -624,6 +639,9 @@ int mul_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
             return throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION, NULL);
         }
         break;
+    case VAR_OBJ:
+        OP_CALL_SPECIAL_OPERATOR(ctx, "*", __LINE__, r, v0, v1);
+        break;
     default:
         return throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION, NULL);
     }
@@ -650,6 +668,9 @@ int div_v_i(vmctx *ctx, vmvar *r, vmvar *v, int64_t i)
         r->t = VAR_STR;
         r->s = str_dup(ctx, v->s);
         str_make_path_i64(ctx, r->s, i);
+        break;
+    case VAR_OBJ:
+        OP_CALL_SPECIAL_OPERATOR_I(ctx, "/", __LINE__, r, v, i);
         break;
     default:
         return throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION, NULL);
@@ -800,6 +821,9 @@ int div_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
             return throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION, NULL);
         }
         break;
+    case VAR_OBJ:
+        OP_CALL_SPECIAL_OPERATOR(ctx, "/", __LINE__, r, v0, v1);
+        break;
     default:
         return throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION, NULL);
     }
@@ -826,6 +850,15 @@ int mod_v_i(vmctx *ctx, vmvar *r, vmvar *v, int64_t i)
         r->o->is_formatter = 1;
         hashmap_set(ctx, r->o, "_format", v);
         array_set(ctx, r->o, 0, alcvar_int64(ctx, i, 0));
+        break;
+    case VAR_OBJ:
+        if (!v->o->is_formatter) {
+            OP_CALL_SPECIAL_OPERATOR_I(ctx, "%", __LINE__, r, v, i);
+        } else {
+            r->t = VAR_OBJ;
+            r->o = v->o;
+            array_push(ctx, r->o, alcvar_int64(ctx, i, 0));
+        }
         break;
     default:
         return throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION, NULL);
@@ -953,15 +986,16 @@ int mod_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
         break;
     case VAR_OBJ:
         if (!v0->o->is_formatter) {
-            return throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION, NULL);
-        }
-        r->t = VAR_OBJ;
-        r->o = v0->o;
-        if (v1->t == VAR_UNDEF) {
-            vmvar *v = alcvar_str(ctx, "((null))");
-            array_push(ctx, r->o, v);
+            OP_CALL_SPECIAL_OPERATOR(ctx, "%", __LINE__, r, v0, v1);
         } else {
-            array_push(ctx, r->o, v1);
+            r->t = VAR_OBJ;
+            r->o = v0->o;
+            if (v1->t == VAR_UNDEF) {
+                vmvar *v = alcvar_str(ctx, "((null))");
+                array_push(ctx, r->o, v);
+            } else {
+                array_push(ctx, r->o, v1);
+            }
         }
         break;
     default:
@@ -1102,6 +1136,9 @@ int eqeq_v_i(vmctx *ctx, vmvar *r, vmvar *v, int64_t i)
         r->i = strcmp(v->s->hd, buf) == 0;
         break;
     }
+    case VAR_OBJ:
+        OP_CALL_SPECIAL_OPERATOR_I(ctx, "==", __LINE__, r, v, i);
+        break;
     default:
         r->t = VAR_BOOL;
         r->i = 0;
@@ -1265,8 +1302,7 @@ int eqeq_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
         r->i = v1->t == VAR_FNC && v0->f->f == v1->f->f;
         break;
     case VAR_OBJ:
-        r->t = VAR_BOOL;
-        r->i = v1->t == VAR_OBJ && v0->o == v1->o;
+        OP_CALL_SPECIAL_OPERATOR(ctx, "==", __LINE__, r, v0, v1);
         break;
     }
     return e;
@@ -1276,9 +1312,14 @@ int eqeq_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
 
 int neq_v_i(vmctx *ctx, vmvar *r, vmvar *v, int64_t i)
 {
-    int e = eqeq_v_i(ctx, r, v, i);
-    r->i = !(r->i);
-    return e;
+    if (v->t == VAR_OBJ) {
+        OP_CALL_SPECIAL_OPERATOR_I(ctx, "!=", __LINE__, r, v, i);
+    } else {
+        int e = eqeq_v_i(ctx, r, v, i);
+        r->i = !(r->i);
+        return e;
+    }
+    return 0;
 }
 
 int neq_i_v(vmctx *ctx, vmvar *r, int64_t i, vmvar *v)
@@ -1288,9 +1329,14 @@ int neq_i_v(vmctx *ctx, vmvar *r, int64_t i, vmvar *v)
 
 int neq_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
 {
-    int e = eqeq_v_v(ctx, r, v0, v1);
-    r->i = !(r->i);
-    return e;
+    if (v0->t == VAR_OBJ) {
+        OP_CALL_SPECIAL_OPERATOR(ctx, "!=", __LINE__, r, v0, v1);
+    } else {
+        int e = eqeq_v_v(ctx, r, v0, v1);
+        r->i = !(r->i);
+        return e;
+    }
+    return 0;
 }
 
 /* LT */
@@ -1310,6 +1356,9 @@ int lt_v_i(vmctx *ctx, vmvar *r, vmvar *v, int64_t i)
     case VAR_DBL:
         r->t = VAR_BOOL;
         r->i = v->d < (double)i;
+        break;
+    case VAR_OBJ:
+        OP_CALL_SPECIAL_OPERATOR_I(ctx, "<", __LINE__, r, v, i);
         break;
     default:
         return throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION, NULL);
@@ -1430,6 +1479,9 @@ int lt_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
             return throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION, NULL);
         }
         break;
+    case VAR_OBJ:
+        OP_CALL_SPECIAL_OPERATOR(ctx, "<", __LINE__, r, v0, v1);
+        break;
     default:
         return throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION, NULL);
     }
@@ -1440,9 +1492,14 @@ int lt_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
 
 int le_v_i(vmctx *ctx, vmvar *r, vmvar *v, int64_t i)
 {
-    int e = lt_i_v(ctx, r, i, v);
-    r->i = !(r->i);
-    return e;
+    if (v->t == VAR_OBJ) {
+        OP_CALL_SPECIAL_OPERATOR_I(ctx, "<=", __LINE__, r, v, i);
+    } else {
+        int e = lt_i_v(ctx, r, i, v);
+        r->i = !(r->i);
+        return e;
+    }
+    return 0;
 }
 
 int le_i_v(vmctx *ctx, vmvar *r, int64_t i, vmvar *v)
@@ -1454,16 +1511,26 @@ int le_i_v(vmctx *ctx, vmvar *r, int64_t i, vmvar *v)
 
 int le_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
 {
-    int e = lt_v_v(ctx, r, v1, v0);
-    r->i = !(r->i);
-    return e;
+    if (v0->t == VAR_OBJ) {
+        OP_CALL_SPECIAL_OPERATOR(ctx, "<=", __LINE__, r, v0, v1);
+    } else {
+        int e = lt_v_v(ctx, r, v1, v0);
+        r->i = !(r->i);
+        return e;
+    }
+    return 0;
 }
 
 /* GT */
 
 int gt_v_i(vmctx *ctx, vmvar *r, vmvar *v, int64_t i)
 {
-    return lt_i_v(ctx, r, i, v);
+    if (v->t == VAR_OBJ) {
+        OP_CALL_SPECIAL_OPERATOR_I(ctx, ">", __LINE__, r, v, i);
+    } else {
+        return lt_i_v(ctx, r, i, v);
+    }
+    return 0;
 }
 
 int gt_i_v(vmctx *ctx, vmvar *r, int64_t i, vmvar *v)
@@ -1473,14 +1540,24 @@ int gt_i_v(vmctx *ctx, vmvar *r, int64_t i, vmvar *v)
 
 int gt_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
 {
-    return lt_v_v(ctx, r, v1, v0);
+    if (v0->t == VAR_OBJ) {
+        OP_CALL_SPECIAL_OPERATOR(ctx, ">", __LINE__, r, v0, v1);
+    } else {
+        return lt_v_v(ctx, r, v1, v0);
+    }
+    return 0;
 }
 
 /* GE */
 
 int ge_v_i(vmctx *ctx, vmvar *r, vmvar *v, int64_t i)
 {
-    return le_i_v(ctx, r, i, v);
+    if (v->t == VAR_OBJ) {
+        OP_CALL_SPECIAL_OPERATOR_I(ctx, ">=", __LINE__, r, v, i);
+    } else {
+        return le_i_v(ctx, r, i, v);
+    }
+    return 0;
 }
 
 int ge_i_v(vmctx *ctx, vmvar *r, int64_t i, vmvar *v)
@@ -1490,25 +1567,35 @@ int ge_i_v(vmctx *ctx, vmvar *r, int64_t i, vmvar *v)
 
 int ge_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
 {
-    return le_v_v(ctx, r, v1, v0);
+    if (v0->t == VAR_OBJ) {
+        OP_CALL_SPECIAL_OPERATOR(ctx, ">=", __LINE__, r, v0, v1);
+    } else {
+        return le_v_v(ctx, r, v1, v0);
+    }
+    return 0;
 }
 
 /* LGE */
 
 int lge_v_i(vmctx *ctx, vmvar *r, vmvar *v, int64_t i)
 {
-    int e = eqeq_v_i(ctx, r, v, i);
-    if (r->i) {
-        r->i = 0;
+    if (v->t == VAR_OBJ) {
+        OP_CALL_SPECIAL_OPERATOR_I(ctx, "<=>", __LINE__, r, v, i);
+    } else {
+        int e = eqeq_v_i(ctx, r, v, i);
+        if (r->i) {
+            r->i = 0;
+            return e;
+        }
+        e = lt_v_i(ctx, r, v, i);
+        if (r->i) {
+            r->i = -1;
+            return e;
+        }
+        r->i = 1;
         return e;
     }
-    e = lt_v_i(ctx, r, v, i);
-    if (r->i) {
-        r->i = -1;
-        return e;
-    }
-    r->i = 1;
-    return e;
+    return 0;
 }
 
 int lge_i_v(vmctx *ctx, vmvar *r, int64_t i, vmvar *v)
@@ -1529,18 +1616,23 @@ int lge_i_v(vmctx *ctx, vmvar *r, int64_t i, vmvar *v)
 
 int lge_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
 {
-    int e = eqeq_v_v(ctx, r, v0, v1);
-    if (r->i) {
-        r->i = 0;
+    if (v0->t == VAR_OBJ) {
+        OP_CALL_SPECIAL_OPERATOR(ctx, "<=>", __LINE__, r, v0, v1);
+    } else {
+        int e = eqeq_v_v(ctx, r, v0, v1);
+        if (r->i) {
+            r->i = 0;
+            return e;
+        }
+        e = lt_v_v(ctx, r, v0, v1);
+        if (r->i) {
+            r->i = -1;
+            return e;
+        }
+        r->i = 1;
         return e;
     }
-    e = lt_v_v(ctx, r, v0, v1);
-    if (r->i) {
-        r->i = -1;
-        return e;
-    }
-    r->i = 1;
-    return e;
+    return 0;
 }
 
 /* Bit AND */
@@ -1917,6 +2009,9 @@ int bshl_v_i(vmctx *ctx, vmvar *r, vmvar *v, int64_t i)
         r->t = VAR_INT64;
         r->i = (int64_t)v->d << i;
         break;
+    case VAR_OBJ:
+        OP_CALL_SPECIAL_OPERATOR_I(ctx, "<<", __LINE__, r, v, i);
+        break;
     default:
         return throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION, NULL);
     }
@@ -2003,6 +2098,9 @@ int bshl_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
             return throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION, NULL);
         }
         break;
+    case VAR_OBJ:
+        OP_CALL_SPECIAL_OPERATOR(ctx, "<<", __LINE__, r, v0, v1);
+        break;
     default:
         return throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION, NULL);
     }
@@ -2022,6 +2120,9 @@ int bshr_v_i(vmctx *ctx, vmvar *r, vmvar *v, int64_t i)
     case VAR_DBL:
         r->t = VAR_INT64;
         r->i = (int64_t)v->d >> i;
+        break;
+    case VAR_OBJ:
+        OP_CALL_SPECIAL_OPERATOR_I(ctx, ">>", __LINE__, r, v, i);
         break;
     default:
         return throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION, NULL);
@@ -2109,6 +2210,9 @@ int bshr_v_v(vmctx *ctx, vmvar *r, vmvar *v0, vmvar *v1)
         default:
             return throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION, NULL);
         }
+        break;
+    case VAR_OBJ:
+        OP_CALL_SPECIAL_OPERATOR(ctx, ">>", __LINE__, r, v0, v1);
         break;
     default:
         return throw_system_exception(__LINE__, ctx, EXCEPT_UNSUPPORTED_OPERATION, NULL);

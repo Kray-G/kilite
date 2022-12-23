@@ -124,8 +124,25 @@ static inline int append_constructor_name(char *buf, int pos)
     return pos;
 }
 
+static int copy_func_name(char *d, const char *s)
+{
+    int len = 0;
+    while (*s) {
+        if (isalnum(*s) || *s == '_') {
+            *d++ = *s++;
+            ++len;
+        } else {
+            *d++ = '_'; *d++ = 'x'; *d++ = '_';
+            ++s;
+            len += 3;
+        }
+    }
+    return len;
+}
+
 static char *make_func_name(kl_context *ctx, kl_lexer *l, const char *str, tk_token type, int id)
 {
+    int makelib_opt = (ctx->options & PARSER_OPT_MAKELIB) == PARSER_OPT_MAKELIB;
     char buf[1024] = {0};
     int pos = 0;
     int len = strlen(str);
@@ -133,34 +150,38 @@ static char *make_func_name(kl_context *ctx, kl_lexer *l, const char *str, tk_to
         parse_error(ctx, __LINE__, l, "Internal error with allocation failed");
     } else {
         kl_nsstack *n = ctx->ns;
-        if ((ctx->options & PARSER_OPT_MAKELIB) == 0) {
+        if (!makelib_opt) {
             sprintf(buf, "kl%03d_", id);
             pos = 6;
         }
-        strcpy(buf + pos, str);
-        pos += len;
-        switch (type) {
-        case TK_CLASS:
-            pos = append_constructor_name(buf, pos);
-            break;
-        case TK_MODULE:
-            pos = append_module_name(buf, pos);
-            break;
-        }
-        if (n->prev) {
-            pos = append_ns_prefix(buf, pos);
-        }
-        buf[pos] = 0;
-        while (n->prev) {   /* skips a global namespace. */
-            buf[pos++] = '_';
-            int len = strlen(n->name);
-            if (pos + len + 3 > 1016) {
-                parse_error(ctx, __LINE__, l, "Internal error with allocation failed");
+        int added = copy_func_name(buf + pos, str);
+        if (makelib_opt && added != len) {
+            parse_error(ctx, __LINE__, l, "Found the word which can't be used in -makelib mode");
+        } else {
+            pos += added;
+            switch (type) {
+            case TK_CLASS:
+                pos = append_constructor_name(buf, pos);
+                break;
+            case TK_MODULE:
+                pos = append_module_name(buf, pos);
                 break;
             }
-            strcpy(buf + pos, n->name);
-            pos += len;
-            n = n->prev;
+            if (n->prev) {
+                pos = append_ns_prefix(buf, pos);
+            }
+            buf[pos] = 0;
+            while (n->prev) {   /* skips a global namespace. */
+                buf[pos++] = '_';
+                int len = strlen(n->name);
+                if (pos + len + 3 > 1016) {
+                    parse_error(ctx, __LINE__, l, "Internal error with allocation failed");
+                    break;
+                }
+                strcpy(buf + pos, n->name);
+                pos += len;
+                n = n->prev;
+            }
         }
     }
     return const_str(ctx, "Compile", l->tokline, l->tokpos, l->toklen, buf);
@@ -815,6 +836,66 @@ static inline kl_stmt *add_method2class(kl_context *ctx, kl_lexer *l, kl_symbol 
     return s;
 }
 
+#define PARSER_MAKE_SPECIAL_NAME(l, s) { l->tok = TK_NAME; strcpy(l->str, s); }
+#define PARSER_MAKE_SPECIAL_NAME2(l, ntok, s) { lexer_fetch(l); if (l->tok != ntok) { return NULL; } l->tok = TK_NAME; strcpy(l->str, s); }
+
+static const char *parse_special_funcname(kl_context *ctx, kl_lexer *l)
+{
+    switch (l->tok) {
+    case TK_EQEQ:
+        PARSER_MAKE_SPECIAL_NAME(l, "==");
+        break;
+    case TK_NEQ:
+        PARSER_MAKE_SPECIAL_NAME(l, "!=");
+        break;
+    case TK_LT:
+        PARSER_MAKE_SPECIAL_NAME(l, "<");
+        break;
+    case TK_LE:
+        PARSER_MAKE_SPECIAL_NAME(l, "<=");
+        break;
+    case TK_GT:
+        PARSER_MAKE_SPECIAL_NAME(l, ">");
+        break;
+    case TK_GE:
+        PARSER_MAKE_SPECIAL_NAME(l, ">=");
+        break;
+    case TK_LGE:
+        PARSER_MAKE_SPECIAL_NAME(l, "<=>");
+        break;
+    case TK_LSH:
+        PARSER_MAKE_SPECIAL_NAME(l, "<<");
+        break;
+    case TK_RSH:
+        PARSER_MAKE_SPECIAL_NAME(l, ">>");
+        break;
+    case TK_ADD:
+        PARSER_MAKE_SPECIAL_NAME(l, "+");
+        break;
+    case TK_SUB:
+        PARSER_MAKE_SPECIAL_NAME(l, "-");
+        break;
+    case TK_MUL:
+        PARSER_MAKE_SPECIAL_NAME(l, "*");
+        break;
+    case TK_DIV:
+        PARSER_MAKE_SPECIAL_NAME(l, "/");
+        break;
+    case TK_MOD:
+        PARSER_MAKE_SPECIAL_NAME(l, "%");
+        break;
+    case TK_LSBR:
+        PARSER_MAKE_SPECIAL_NAME2(l, TK_RSBR, "()");
+        break;
+    case TK_LLBR:
+        PARSER_MAKE_SPECIAL_NAME2(l, TK_RLBR, "[]");
+        break;
+    default:
+        return NULL;
+    }
+    return parse_const_str(ctx, l, l->str);
+}
+
 static kl_expr *parse_expr_arrayitem(kl_context *ctx, kl_lexer *l)
 {
     kl_expr *e = NULL;
@@ -1093,9 +1174,11 @@ static kl_expr *parse_expr_postfix(kl_context *ctx, kl_lexer *l, int is_new)
             tok = l->tok;
         } else if (tok == TK_DOT) {
             lexer_fetch(l);
-            const char *name = (is_type_token(l->tok)) ? typeidname(l->typeid) : l->str;
+            const char *name = (is_type_token(l->tok))
+                ? typeidname(l->typeid)
+                : (l->tok == TK_NAME ? l->str : parse_special_funcname(ctx, l));
             if (!name || name[0] == 0) {
-                parse_error(ctx, __LINE__, l, "Property name is needed");
+                parse_error(ctx, __LINE__, l, "Property name is missing or invalid");
                 return panic_mode_expr(lhs, ';', ctx, l);
             }
             kl_expr *rhs = make_expr(ctx, l, TK_VSTR);
@@ -2529,8 +2612,15 @@ static kl_stmt *parse_function(kl_context *ctx, kl_lexer *l, tk_token funcscope)
     if (l->tok == TK_NAME) {
         name = parse_const_str(ctx, l, l->str);
         lexer_fetch(l);
+    } else if (funcscope == TK_PUBLIC) {
+        name = parse_special_funcname(ctx, l);
+        lexer_fetch(l);
     } else {
         name = parse_const_funcidname(ctx, l, funcid);
+    }
+    if (!name) {
+        parse_error(ctx, __LINE__, l, "Invalid function name");
+        return s;
     }
     kl_symbol *sym = make_ref_symbol(ctx, l, funcscope, name);
     if (!sym) {
