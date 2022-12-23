@@ -215,6 +215,7 @@ typedef struct vmvar {
     vmobj *o;           /* The hashmap from string to object */
     void *p;            /* almighty holder */
     freep_func freep;   /* if set this, freep(p) will be called instead of free(). */
+    const char *k;      /* Constant string as a hash key. */
     struct vmfnc *f;
     struct vmvar *a;    /* an object */
 } vmvar;
@@ -255,13 +256,22 @@ typedef struct vmfrm {
 /***************************************************************************
  * Context
 */
+
+/* Hash table size would be suggested for 23, 37, 67, 131, 283, 521, or 1033. */
+#define VMCONSTSZ (283)
+typedef struct vmconst {
+    char *str;
+    struct vmconst *next;       /*  For hashtable. */
+    struct vmconst *chn;        /*  For memory allocation control. */
+} vmconst;
+
 typedef struct vmctx {
     int tick;
     int sweep;
     int gccnt;
     int verbose;
     int print_result;
-    const char *msgbuf;     /* Temporary used for the exception message, etc. */
+    const char *msgbuf;         /* Temporary used for the exception message, etc. */
 
     int vstksz;
     int vstkp;
@@ -271,25 +281,26 @@ typedef struct vmctx {
     int fstkp;
     vmfrm **fstk;
 
-    const char *lastapply;  /* For a class methodMissing method. */
-    vmobj *hostObject;      /* For a class methodMissing method. */
-    vmfnc *methodmissing;   /* For a global methodMissing method. */
-    vmfnc *callee;          /* Callee function to manage a pure function. */
-    vmvar *except;          /* Current exception that was thrown. */
-    int exceptl;            /* The line where the exception occurred. */
+    const char *lastapply;      /* For a class methodMissing method. */
+    vmobj *hostObject;          /* For a class methodMissing method. */
+    vmfnc *methodmissing;       /* For a global methodMissing method. */
+    vmfnc *callee;              /* Callee function to manage a pure function. */
+    vmvar *except;              /* Current exception that was thrown. */
+    int exceptl;                /* The line where the exception occurred. */
 
-    vmobj *args;            /* Holder of the program arguments. */
-    vmobj *i;               /* Special object for integer. */
-    vmobj *d;               /* Special object for double. */
-    vmobj *s;               /* Special object for string. */
-    vmobj *b;               /* Special object for binary. */
-    vmobj *o;               /* Special object for object/array. */
+    vmobj *args;                /* Holder of the program arguments. */
+    vmobj *i;                   /* Special object for integer. */
+    vmobj *d;                   /* Special object for double. */
+    vmobj *s;                   /* Special object for string. */
+    vmobj *b;                   /* Special object for binary. */
+    vmobj *o;                   /* Special object for object/array. */
 
-    vmfnc *regex;           /* The function to create a Regex object. */
-    vmfnc *regeq;           /* The function to compare Regex objects with `=~`. */
-    vmfnc *regne;           /* The function to compare Regex objects with `!~`. */
+    vmfnc *regex;               /* The function to create a Regex object. */
+    vmfnc *regeq;               /* The function to compare Regex objects with `=~`. */
+    vmfnc *regne;               /* The function to compare Regex objects with `!~`. */
 
-    vmfrm *frm;             /* Reference to the global frame. */
+    vmfrm *frm;                 /* Reference to the global frame. */
+    vmconst *hash[VMCONSTSZ];   /* Hashtable of constant string. */
 
     struct {
         vmvar var;
@@ -489,14 +500,14 @@ typedef struct vmctx {
 */
 
 #define EXTERN_FUNC(name, vn) { \
-    int name(vmctx *ctx, vmfrm *lex, vmvar *r, int ac); \
+    extern int name(vmctx *ctx, vmfrm *lex, vmvar *r, int ac); \
     vmfnc *f = alcfnc(ctx, name, frm, #name, 0); \
     SET_FNC(vn, f); \
 } \
 /**/
 
 #define EXTERN_OBJECT(name, vn) { \
-    int name(vmctx *ctx, vmfrm *lex, vmvar *r, int ac); \
+    extern int name(vmctx *ctx, vmfrm *lex, vmvar *r, int ac); \
     vmfnc *f = alcfnc(ctx, name, frm, #name, 0); \
     e = ((vmfunc_t)(f->f))(ctx, frm, vn, 0); \
 } \
@@ -3515,6 +3526,7 @@ INLINE extern int c_isalnum(int c);
 INLINE extern int c_isprint(int c);
 INLINE extern int c_isgraph(int c);
 INLINE extern int c_iscntrl(int c);
+INLINE extern const char *vmconst_str(vmctx *ctx, const char *str);
 
 INLINE extern vmstr *format(vmctx *ctx, vmobj *v);
 

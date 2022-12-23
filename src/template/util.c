@@ -157,3 +157,47 @@ int c_isalnum(int c)  { return x_isalnum(c);  }
 int c_isprint(int c)  { return x_isprint(c);  }
 int c_isgraph(int c)  { return x_isgraph(c);  }
 int c_iscntrl(int c)  { return x_iscntrl(c);  }
+
+static unsigned int vmconst_hash(const char *s)
+{
+	unsigned int h = (int)*s;
+	if (h) for (++s ; *s; ++s) {
+        h = (h << 5) - h + (int)*s;
+    }
+    return h % VMCONSTSZ;
+}
+
+static char *c_strdup(const char *s)
+{
+    char *d;
+    int len = strlen(s);
+    if ((d = malloc(sizeof(char) * (len + 1))) == NULL) {
+        return NULL;
+    }
+    char *d0 = d;
+    while ((*d++ = *s++) != 0)
+        ;
+    return d0;
+}
+
+const char *vmconst_str(vmctx *ctx, const char *str)
+{
+    vmconst *p;
+
+    unsigned int h = vmconst_hash(str);
+    for (p = ctx->hash[h]; p != NULL; p = p->next) {
+        if (strcmp(str, (*p).str) == 0) {
+            return (*p).str;
+        }
+    }
+
+    /* Register the new string */
+    if ((p = (vmconst *)calloc(1, sizeof(vmconst))) == NULL) {
+        return NULL;
+    }
+
+    (*p).str = c_strdup(str);
+    p->next = ctx->hash[h];
+    ctx->hash[h] = p;
+    return (*p).str;
+}

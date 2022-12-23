@@ -33,7 +33,7 @@ static int mkkir_error(kl_context *ctx, int sline, kl_symbol *sym, const char *f
 
 static char *mkkir_const_str(kl_context *ctx, const char *str)
 {
-    return const_str(ctx, "GenKIR", 0, 0, 0, str);
+    return const_str(ctx, str);
 }
 
 static inline int get_next_label(kl_context *ctx)

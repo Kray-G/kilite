@@ -54,6 +54,17 @@ void finalize(vmctx *ctx)
     FREELIST(obj, {});
     #undef FREELIST
 
+    for (int h = 0; h < VMCONSTSZ; ++h) {
+        for (vmconst *p = ctx->hash[h]; p != NULL; ) {
+            if (p->str) {
+                free((*p).str);
+            }
+            vmconst *n = p->next;
+            free(p);
+            p = n;
+        }
+    }
+
     free(ctx->fstk);
     free(ctx->vstk);
     free(ctx);

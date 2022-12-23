@@ -155,7 +155,7 @@ typedef struct kl_context {
 } kl_context;
 
 extern unsigned int hash(const char *s);
-extern char *const_str(kl_context *ctx, const char *phase, int line, int pos, int len, const char *str);
+extern char *const_str(kl_context *ctx, const char *str);
 extern kl_context *parser_new_context(void);
 extern kl_stmt *copy_tree(kl_context *ctx, kl_lexer *l, kl_stmt *src);
 extern int parse(kl_context *ctx, kl_lexer *l);

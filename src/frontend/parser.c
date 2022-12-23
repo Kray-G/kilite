@@ -50,7 +50,7 @@ unsigned int hash(const char *s)
     return h % HASHSIZE;
 }
 
-char *const_str(kl_context *ctx, const char *phase, int line, int pos, int len, const char *str)
+char *const_str(kl_context *ctx, const char *str)
 {
     kl_conststr *p;
 
@@ -74,21 +74,21 @@ char *const_str(kl_context *ctx, const char *phase, int line, int pos, int len, 
 
 static char *parse_const_str(kl_context *ctx, kl_lexer *l, const char *str)
 {
-    return const_str(ctx, "Compile", l->tokline, l->tokpos, l->toklen, str);
+    return const_str(ctx, str);
 }
 
 static char *parse_const_varidname(kl_context *ctx, kl_lexer *l, int id)
 {
     char str[32] = {0};
     snprintf(str, 30, "v%d", id);
-    return const_str(ctx, "Compile", l->tokline, l->tokpos, l->toklen, str);
+    return const_str(ctx, str);
 }
 
 static char *parse_const_funcidname(kl_context *ctx, kl_lexer *l, int id)
 {
     char str[32] = {0};
     snprintf(str, 30, "anonymous_func%d", id);
-    return const_str(ctx, "Compile", l->tokline, l->tokpos, l->toklen, str);
+    return const_str(ctx, str);
 }
 
 kl_context *parser_new_context(void)
@@ -184,7 +184,7 @@ static char *make_func_name(kl_context *ctx, kl_lexer *l, const char *str, tk_to
             }
         }
     }
-    return const_str(ctx, "Compile", l->tokline, l->tokpos, l->toklen, buf);
+    return const_str(ctx, buf);
 }
 
 static int append_str(char *buf, int i, int max, const char *str)
