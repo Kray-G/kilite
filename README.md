@@ -234,6 +234,7 @@ I will note the followings as I don't forget it.
     * [x] Class definition.
       * [x] Call the `initialize` method when creating the instance if the method exists.
       * [x] Support the `instanceOf` method.
+      * [x] Operator override like `public ==`.
     * [x] The `new` operator.
     * [x] Module definition.
     * [x] The `mixin` statement.
