@@ -213,7 +213,7 @@ I will note the followings as I don't forget it.
       * [ ] Enumerator module.
       * [ ] Range class.
         * [x] Range for integer.
-        * [ ] Range for string.
+        * [x] Range for string.
         * [ ] Range for others.
       * [ ] Range index for String, Binary, Array, and Range.
       * [ ] Range at the case value.
@@ -289,6 +289,9 @@ I will note the followings as I don't forget it.
       * [x] XPath
     * [ ] PDF
       * [ ] harupdf
+* [ ] Type system.
+  * [ ] Type validation system.
+  * [ ] Output control with like optimizations.
 * [ ] Others.
   * [ ] Direct calling a C code.
   * [ ] REPL.
