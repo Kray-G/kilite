@@ -93,6 +93,9 @@ echo "#ifdef __MIRC__" >> $TEMPF
 cat ../src/template/lib/printf.h >> $TEMPF
 echo "#endif" >> $TEMPF
 cat ../src/template/header.h >> $TEMPF
+echo "#line 1 \"lib.h\"" >> $TEMPF
+cat ../src/template/lib.h >> $TEMPF
+
 cat ../src/template/lib/bign.c >> $TEMPF
 cat ../src/template/lib/bigz.c >> $TEMPF
 echo "#ifdef __MIRC__" >> $TEMPF
@@ -120,8 +123,6 @@ echo "#line 1 \"obj.c\"" >> $TEMPF
 cat ../src/template/obj.c >> $TEMPF
 echo "#line 1 \"op.c\"" >> $TEMPF
 cat ../src/template/op.c >> $TEMPF
-echo "#line 1 \"lib.h\"" >> $TEMPF
-cat ../src/template/lib.h >> $TEMPF
 echo "#line 1 \"libstd.c\"" >> $TEMPF
 cat ../src/template/libstd.c >> $TEMPF
 echo "#line 1 \"libxml.c\"" >> $TEMPF
@@ -133,9 +134,13 @@ cat ../src/template/libregex.c >> $TEMPF
 echo "#line 1 \"inc/platform.c\"" >> $TEMPF
 cat ../src/template/inc/platform.c >> $TEMPF
 cd ../src/template/std
+echo "#line 1 \"makelib/integer\"" >> $TEMPF
 $BIN/kilite --makelib integer.klt >> $TEMPF
+echo "#line 1 \"makelib/string\"" >> $TEMPF
 $BIN/kilite --makelib string.klt >> $TEMPF
+echo "#line 1 \"makelib/array\"" >> $TEMPF
 $BIN/kilite --makelib array.klt >> $TEMPF
+echo "#line 1 \"makelib/file\"" >> $TEMPF
 $BIN/kilite --makelib file.klt >> $TEMPF
 cd $BIN
 

@@ -70,6 +70,10 @@ echo #ifdef __MIRC__ >> %TEMPF%
 type ..\src\template\lib\printf.h >> %TEMPF%
 echo #endif >> %TEMPF%
 type ..\src\template\header.h >> %TEMPF%
+echo #line 1 "lib.h" >> %TEMPF%
+type ..\src\template\lib.h >> %TEMPF%
+copy /y "%TEMPF%" "..\src\template\inc\lib\kilite.h" 
+
 type ..\src\template\lib\bign.c >> %TEMPF%
 type ..\src\template\lib\bigz.c >> %TEMPF%
 echo #ifdef __MIRC__ >> %TEMPF%
@@ -97,8 +101,6 @@ echo #line 1 "obj.c" >> %TEMPF%
 type ..\src\template\obj.c >> %TEMPF%
 echo #line 1 "op.c" >> %TEMPF%
 type ..\src\template\op.c >> %TEMPF%
-echo #line 1 "lib.h" >> %TEMPF%
-type ..\src\template\lib.h >> %TEMPF%
 echo #line 1 "libstd.c" >> %TEMPF%
 type ..\src\template\libstd.c >> %TEMPF%
 echo #line 1 "libxml.c" >> %TEMPF%
@@ -110,9 +112,13 @@ type ..\src\template\libregex.c >> %TEMPF%
 echo #line 1 "inc/platform.c" >> %TEMPF%
 type ..\src\template\inc\platform.c >> %TEMPF%
 pushd ..\src\template\std
+echo #line 1 "makelib/integer" >> %TEMPF%
 kilite.exe --makelib integer.klt >> %TEMPF%
+echo #line 1 "makelib/string" >> %TEMPF%
 kilite.exe --makelib string.klt >> %TEMPF%
+echo #line 1 "makelib/array" >> %TEMPF%
 kilite.exe --makelib array.klt >> %TEMPF%
+echo #line 1 "makelib/file" >> %TEMPF%
 kilite.exe --makelib file.klt >> %TEMPF%
 popd
 
