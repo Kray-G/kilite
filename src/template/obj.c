@@ -6,8 +6,8 @@ static vmobj *hashmap_extend(vmctx *ctx, vmobj *obj);
 
 static inline unsigned int hashcode(const char *s, int hsz)
 {
-	unsigned int h = (int)*s;
-	if (h) for (++s ; *s; ++s) {
+    unsigned int h = (int)*s;
+    if (h) for (++s ; *s; ++s) {
         h = (h << 5) - h + (int)*s;
     }
     return h % hsz;

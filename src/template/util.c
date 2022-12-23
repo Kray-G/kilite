@@ -160,8 +160,8 @@ int c_iscntrl(int c)  { return x_iscntrl(c);  }
 
 static unsigned int vmconst_hash(const char *s)
 {
-	unsigned int h = (int)*s;
-	if (h) for (++s ; *s; ++s) {
+    unsigned int h = (int)*s;
+    if (h) for (++s ; *s; ++s) {
         h = (h << 5) - h + (int)*s;
     }
     return h % VMCONSTSZ;
