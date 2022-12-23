@@ -257,8 +257,7 @@ typedef struct vmfrm {
  * Context
 */
 
-/* Hash table size would be suggested for 23, 37, 67, 131, 283, 521, or 1033. */
-#define VMCONSTSZ (283)
+#define VMCONSTSZ (127)
 typedef struct vmconst {
     char *str;
     struct vmconst *next;       /*  For hashtable. */
