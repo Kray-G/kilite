@@ -2573,35 +2573,42 @@ static int xpath_proc_axis(vmctx *ctx, vmvar *r, vmvar *axisv, vmvar *xpath, vmv
     return e;
 }
 
-static int xpath_to_boolean(vmvar *v)
+static void xpath_to_boolean(vmvar *v)
 {
-    XPATH_EXPAND_V(v);
     switch (v->t) {
     case VAR_BOOL:
-        return v->i != 0;
+        break;
     case VAR_INT64:
         v->t = VAR_BOOL;
-        return v->i != 0;
+        break;
     case VAR_DBL:
         v->t = VAR_BOOL;
         v->i = v->d >= DBL_EPSILON;
-        return v->i != 0;
+        break;
     case VAR_BIG:
         v->t = VAR_BOOL;
         v->i = BzToDouble(v->bi->b) >= DBL_EPSILON;
-        return v->i != 0;
+        break;
     case VAR_STR:
         v->t = VAR_BOOL;
         v->i = v->s->len > 0;
-        return v->i != 0;
+        break;
     case VAR_OBJ:
         v->t = VAR_BOOL;
         v->i = v->o->idxsz > 0;
-        return v->i != 0;
+        break;
     default:
+        v->t = VAR_BOOL;
+        v->i = 0;
         break;
     }
-    return 0;
+}
+
+static int xpath_to_boolean_value(vmvar *v)
+{
+    XPATH_EXPAND_V(v);
+    xpath_to_boolean(v);
+    return v->i;
 }
 
 static void xpath_to_number(vmvar *v)
@@ -2768,10 +2775,9 @@ static int xpath_proc_expr(vmctx *ctx, int op, vmvar *r, vmvar *lhs, vmvar *rhs,
     vmobj *info = xpath_make_initial_info(ctx, node);
     e = xpath_evaluate_step(ctx, linfo, lhs, root, info, base);
     XPATH_CHECK_ERR(e);
-    XPATH_EXPAND_V(linfo);
     switch (op) {
     case XPATH_OP_LOR: {
-        int b = xpath_to_boolean(linfo);
+        int b = xpath_to_boolean_value(linfo);
         if (b) {
             SET_BOOL(r, 1);
         } else {
@@ -2779,21 +2785,19 @@ static int xpath_proc_expr(vmctx *ctx, int op, vmvar *r, vmvar *lhs, vmvar *rhs,
             info = xpath_make_initial_info(ctx, node);
             e = xpath_evaluate_step(ctx, rinfo, rhs, root, info, base);
             XPATH_CHECK_ERR(e);
-            XPATH_EXPAND_V(rinfo);
-            b = xpath_to_boolean(rinfo);
+            b = xpath_to_boolean_value(rinfo);
             SET_BOOL(r, (b ? 1 : 0));
         }
         break;
     }
     case XPATH_OP_LAND: {
-        int b = xpath_to_boolean(linfo);
+        int b = xpath_to_boolean_value(linfo);
         if (b) {
             vmvar *rinfo = alcvar_initial(ctx);
             info = xpath_make_initial_info(ctx, node);
             e = xpath_evaluate_step(ctx, rinfo, rhs, root, info, base);
             XPATH_CHECK_ERR(e);
-            XPATH_EXPAND_V(rinfo);
-            b = xpath_to_boolean(rinfo);
+            b = xpath_to_boolean_value(rinfo);
             SET_BOOL(r, (b ? 1 : 0));
         } else {
             SET_BOOL(r, 0);
@@ -3270,33 +3274,7 @@ static int xpath_function_boolean_core(vmctx *ctx, vmvar *r, vmvar *arg0, vmvar 
     }
 
     SHCOPY_VAR_TO(ctx, r, arg0);
-    switch (r->t) {
-    case VAR_BOOL:
-        break;
-    case VAR_INT64:
-        r->t = VAR_BOOL;
-        break;
-    case VAR_DBL:
-        r->t = VAR_BOOL;
-        r->i = r->d >= DBL_EPSILON;
-        break;
-    case VAR_BIG:
-        r->t = VAR_BOOL;
-        r->i = BzToDouble(r->bi->b) >= DBL_EPSILON;
-        break;
-    case VAR_STR:
-        r->t = VAR_BOOL;
-        r->i = r->s->len > 0;
-        break;
-    case VAR_OBJ:
-        r->t = VAR_BOOL;
-        r->i = r->o->idxsz > 0;
-        break;
-    default:
-        r->t = VAR_BOOL;
-        r->i = 0;
-        break;
-    }
+    xpath_to_boolean(r);
     return e;
 }
 
@@ -3550,6 +3528,7 @@ static int xpath_evaluate_predicate(vmctx *ctx, vmobj *resobj, vmvar *xpath, vmv
                 array_push(ctx, resobj, node);
             }
         } else {
+            XPATH_EXPAND_V(&r);
             xpath_to_boolean(&r);
             if (r.i != 0) {
                 array_push(ctx, resobj, node);
