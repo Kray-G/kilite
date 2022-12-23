@@ -6,6 +6,13 @@
  * Allocators
 */
 
+#define ALLOC_GC_FORCE_RATIO (20)
+
+static int alloc_force_gc_check(int fre, int alc)
+{
+    return (fre * 100 / alc) < ALLOC_GC_FORCE_RATIO;
+}
+
 static void setfrmvars(vmfrm *m, int vars)
 {
     if (vars < VARS_MIN_IN_FRAME) vars = VARS_MIN_IN_FRAME;
@@ -56,6 +63,9 @@ vmfnc *alcfnc(vmctx *ctx, void *f, vmfrm *lex, const char *name, int args)
     v->lex = lex;
     v->args = args;
     ctx->fre.fnc--;
+    if (alloc_force_gc_check(ctx->fre.fnc, ctx->cnt.fnc)) {
+        ctx->tick = 1;  /* GC at the next check. */
+    }
     return v;
 }
 
@@ -116,6 +126,9 @@ vmfrm *alcfrm(vmctx *ctx, vmfrm *lex, int args)
         setfrmvars(v, args);
     }
     ctx->fre.frm--;
+    if (alloc_force_gc_check(ctx->fre.frm, ctx->cnt.frm)) {
+        ctx->tick = 1;  /* GC at the next check. */
+    }
     return v;
 }
 
@@ -166,6 +179,9 @@ static vmstr *alcstr_pure(vmctx *ctx)
     }
 
     ctx->fre.str--;
+    if (alloc_force_gc_check(ctx->fre.str, ctx->cnt.str)) {
+        ctx->tick = 1;  /* GC at the next check. */
+    }
     return v;
 }
 
@@ -267,6 +283,9 @@ static vmbin *alcbin_pure(vmctx *ctx)
     }
 
     ctx->fre.bin--;
+    if (alloc_force_gc_check(ctx->fre.bin, ctx->cnt.bin)) {
+        ctx->tick = 1;  /* GC at the next check. */
+    }
     return v;
 }
 
@@ -371,6 +390,9 @@ static vmbgi *alcbgi_pure(vmctx *ctx)
     }
 
     ctx->fre.bgi--;
+    if (alloc_force_gc_check(ctx->fre.bgi, ctx->cnt.bgi)) {
+        ctx->tick = 1;  /* GC at the next check. */
+    }
     return v;
 }
 
@@ -432,6 +454,9 @@ vmobj *alcobj(vmctx *ctx)
 
     v->idxsz = 0;
     ctx->fre.obj--;
+    if (alloc_force_gc_check(ctx->fre.obj, ctx->cnt.obj)) {
+        ctx->tick = 1;  /* GC at the next check. */
+    }
     return v;
 }
 
@@ -489,8 +514,12 @@ static vmvar *alcvar_pure(vmctx *ctx, vartype t)
     if (v->liv) {
         v->liv->prv = v;
     }
+
     v->t = t;
     ctx->fre.var--;
+    if (alloc_force_gc_check(ctx->fre.var, ctx->cnt.var)) {
+        ctx->tick = 1;  /* GC at the next check. */
+    }
     return v;
 }
 
@@ -593,18 +622,6 @@ void pbakvar(vmctx *ctx, vmvar *p)
                 free(p->p);
             }
             p->p = NULL;
-        }
-        if (p->bi) {
-            pbakbgi(ctx, p->bi);
-            p->bi = NULL;
-        }
-        if (p->bn) {
-            pbakbin(ctx, p->bn);
-            p->bn = NULL;
-        }
-        if (p->s) {
-            pbakstr(ctx, p->s);
-            p->s = NULL;
         }
 
         p->nxt = ctx->alc.var.nxt;
