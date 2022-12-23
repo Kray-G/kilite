@@ -7,6 +7,7 @@
 static const char *tpname[] = {
     "any",
     "undefined",
+    "boolean",
     "int64",
     "bigint",
     "real",

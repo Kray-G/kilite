@@ -573,7 +573,10 @@ static kl_kir_inst *gen_incdec(kl_context *ctx, kl_symbol *sym, kl_kir op, kl_ki
     kl_kir_opr r2 = {0};
     kl_expr *l = e->lhs;
 
+    int lvalue = ctx->in_lvalue;
+    ctx->in_lvalue = 1;
     KL_KIR_CHECK_LITERAL(l, r2, r2i);
+    ctx->in_lvalue = lvalue;
     if (!r2i && r2.t != TK_VSINT && r2.t != TK_VAR) {
         kl_kir_opr r2x = make_var(ctx, sym, l->typeid);
         r2i = new_inst_op2(ctx->program, e->line, e->pos, KIR_MOV, &r2x, &r2);
@@ -658,7 +661,10 @@ static kl_kir_inst *gen_apply(kl_context *ctx, kl_symbol *sym, kl_kir_opr *r1, k
     KL_KIR_CHECK_LVALUE(l, r2, r2i);
     kl_kir_inst *r3i = NULL;
     kl_kir_opr r3 = {0};
+    int lvalue = ctx->in_lvalue;
+    ctx->in_lvalue = 0;
     KL_KIR_CHECK_LITERAL(r, r3, r3i);
+    ctx->in_lvalue = lvalue;
 
     if (r2.t != TK_VAR) {
         mkkir_error(ctx, __LINE__, e->sym ? e->sym : sym, "Can't apply the index");

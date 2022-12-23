@@ -667,11 +667,13 @@ static void check_assigned(kl_context *ctx, kl_lexer *l, kl_expr *lhs)
         if (lhs->lhs) {
             check_assigned(ctx, l, lhs->lhs);
         }
-        if (lhs->rhs) {
-            check_assigned(ctx, l, lhs->rhs);
-        }
-        if (lhs->xhs) {
-            check_assigned(ctx, l, lhs->xhs);
+        if (lhs->nodetype != TK_IDX) {
+            if (lhs->rhs) {
+                check_assigned(ctx, l, lhs->rhs);
+            }
+            if (lhs->xhs) {
+                check_assigned(ctx, l, lhs->xhs);
+            }
         }
     }
 }
@@ -1119,16 +1121,16 @@ static kl_expr *parse_expr_postfix(kl_context *ctx, kl_lexer *l, int is_new)
     DEBUG_PARSER_PHASE();
     kl_expr *lhs = parse_expr_factor(ctx, l);
     tk_token tok = l->tok;
-    if (tok == TK_INC || tok == TK_DEC) {
-        kl_expr *e = make_expr(ctx, l, tok == TK_INC ? TK_INCP : TK_DECP);
-        e->lhs = lhs;
-        e->typeid = lhs->typeid;
-        lexer_fetch(l);
-        return e;
-    }
 
-    while (tok == TK_LSBR || tok == TK_LXBR || tok == TK_LLBR || tok == TK_DOT || tok == TK_DOT2 || tok == TK_DOT3) {
-        if (tok == TK_LSBR) {
+    while (tok == TK_LSBR || tok == TK_LXBR || tok == TK_LLBR || tok == TK_DOT || tok == TK_DOT2 || tok == TK_DOT3 || tok == TK_INC || tok == TK_DEC) {
+        if (tok == TK_INC || tok == TK_DEC) {
+            kl_expr *e = make_expr(ctx, l, tok == TK_INC ? TK_INCP : TK_DECP);
+            e->lhs = lhs;
+            e->typeid = lhs->typeid;
+            lhs = e;
+            lexer_fetch(l);
+            tok = l->tok;
+        } else if (tok == TK_LSBR) {
             lexer_fetch(l);
             kl_expr *rhs = parse_expr_list(ctx, l, TK_RSBR);
             kl_symbol *sym = lhs->sym;

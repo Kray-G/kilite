@@ -131,6 +131,7 @@ typedef enum vartype {
     VAR_BIN,
     VAR_OBJ,
     VAR_FNC,
+    VAR_LVALUE,
     VAR_STRREF,
     VAR_BINREF,
     VAR_VOIDP,
@@ -1489,7 +1490,7 @@ typedef struct vmctx {
         t2 = alcvar_int64(ctx, 0, 0); \
         (t1)->o = hashmap_set(ctx, (t1)->o, str, t2); \
     } \
-    (r)->t = VAR_OBJ; \
+    (r)->t = VAR_LVALUE; \
     (r)->a = t2; \
 } \
 /**/
@@ -1640,7 +1641,7 @@ typedef struct vmctx {
             t2 = alcvar_initial(ctx); \
             array_set(ctx, (t1)->o, ii, t2); \
         } \
-        (r)->t = VAR_OBJ; \
+        (r)->t = VAR_LVALUE; \
         (r)->a = t2; \
     } \
 } \
@@ -1758,11 +1759,13 @@ typedef struct vmctx {
 /**/
 
 #define OP_INC(ctx, r, v, label, func, file, line) { \
-    vmvar *t1 = (v); \
+    vmvar *t1 = (v)->a ? (v)->a : (v); \
     if ((t1)->t == VAR_INT64) { \
         OP_INC_SAME_I(ctx, t1) \
         SHCOPY_VAR_TO(ctx, r, t1) \
     } else { \
+        if (t1->t == VAR_LVALUE) { \
+        } \
         e = inc_v(ctx, t1); \
         if (e == FLOW_EXCEPTION) { \
             exception_addtrace(ctx, ctx->except, func, file, line); \
@@ -1770,11 +1773,12 @@ typedef struct vmctx {
         } \
         COPY_VAR_TO(ctx, r, t1) \
     } \
+    if ((v)->t == VAR_LVALUE) (v)->t = VAR_UNDEF; (v)->a = NULL; \
 } \
 /**/
 
 #define OP_INCP(ctx, r, v, label, func, file, line) { \
-    vmvar *t1 = (v); \
+    vmvar *t1 = (v)->a ? (v)->a : (v); \
     if ((t1)->t == VAR_INT64) { \
         (r)->t = VAR_INT64; \
         (r)->i = ((t1)->i); \
@@ -1787,11 +1791,12 @@ typedef struct vmctx {
             goto label; \
         } \
     } \
+    if ((v)->t == VAR_LVALUE) (v)->t = VAR_UNDEF; (v)->a = NULL; \
 } \
 /**/
 
 #define OP_DEC(ctx, r, v, label, func, file, line) { \
-    vmvar *t1 = (v); \
+    vmvar *t1 = (v)->a ? (v)->a : (v); \
     if ((t1)->t == VAR_INT64) { \
         OP_DEC_SAME_I(ctx, t1) \
         SHCOPY_VAR_TO(ctx, r, t1) \
@@ -1803,11 +1808,12 @@ typedef struct vmctx {
         } \
         COPY_VAR_TO(ctx, r, t1) \
     } \
+    if ((v)->t == VAR_LVALUE) (v)->t = VAR_UNDEF; (v)->a = NULL; \
 } \
 /**/
 
 #define OP_DECP(ctx, r, v, label, func, file, line) { \
-    vmvar *t1 = (v); \
+    vmvar *t1 = (v)->a ? (v)->a : (v); \
     if ((t1)->t == VAR_INT64) { \
         (r)->t = VAR_INT64; \
         (r)->i = ((t1)->i); \
@@ -1820,6 +1826,7 @@ typedef struct vmctx {
             goto label; \
         } \
     } \
+    if ((v)->t == VAR_LVALUE) (v)->t = VAR_UNDEF; (v)->a = NULL; \
 } \
 /**/
 
