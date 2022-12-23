@@ -61,8 +61,7 @@ Instead, you can use the compiler you want.
     $ ./file
 
 Note that, also in this case, you need the actual compiler like gcc on Linux, cl.exe on Windows.
-By default, it's cl.exe on Windows and gcc on Linux.
-But if you want, tcc is also available.
+It's cl.exe on Windows and gcc on Linux by default, and you could also use the MinGW gcc with the option `--cc=gcc` on Windows environment.
 
 ### Compiling the Script Separatedly
 
