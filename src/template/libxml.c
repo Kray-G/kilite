@@ -14,6 +14,7 @@ enum {
 };
 
 enum {
+    XMLDOM_UNKNOWN_NODE                 =  0,
     XMLDOM_ELEMENT_NODE                 =  1,
     XMLDOM_ATTRIBUTE_NODE               =  2,
     XMLDOM_TEXT_NODE                    =  3,
@@ -925,6 +926,199 @@ static int XmlDom_parseString(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     return 0;
 }
 
+
+static int XmlDomWriter_print_default(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    vmvar *an = local_var(ctx, 0);
+    print_obj(ctx, an);
+    return 0;
+}
+
+static int xmldomwriter_print_hook(vmctx *ctx, vmvar *r, vmfnc *f, const char *s)
+{
+    if (!s) {
+        return 0;
+    }
+
+    int e = 0;
+    vmstr *sv = alcstr_str(ctx, s);
+    HOLD(sv);
+    push_var_sv(ctx, sv, L0, __func__, __FILE__, 0);
+    ((vmfunc_t)(f->f))(ctx, f->lex, r, 1);
+
+L0:;
+    reduce_vstackp(ctx, 1);
+    UNHOLD(sv);
+    pbakstr(ctx, sv);
+    return e;
+}
+
+static void xmldomwriter_print_indent(vmctx *ctx, vmvar *r, vmfnc *f, const char *tab, int indent)
+{
+    for (int i = 0; i < indent; ++i) {
+        xmldomwriter_print_hook(ctx, r, f, tab);
+    }
+}
+
+static int xmldomwriter_find_text(vmctx *ctx, vmobj *fc)
+{
+    int r = 0;
+    vmvar *value = hashmap_search(fc, "nodeValue");
+    if (value && value->t == VAR_STR) {
+        const char *p = value->s->hd;
+        while (*p) {
+            if (*p == '\n') {
+                r = 1;
+                break;
+            }
+            ++p;
+        }
+    }
+    return 0;
+}
+
+static void XmlDomWriter_writeimpl(vmctx *ctx, vmfrm *lex, vmvar *r, vmobj *node, vmfnc *f, const char *tab, int pp, int indent)
+{
+    int node_type = hashmap_getint(node, "nodeType", XMLDOM_UNKNOWN_NODE);
+    if (node_type == XMLDOM_ELEMENT_NODE) {
+        if (pp) xmldomwriter_print_indent(ctx, r, f, tab, indent);
+        xmldomwriter_print_hook(ctx, r, f, "<");
+        const char *tagname = hashmap_getstr(node, "tagName");
+        xmldomwriter_print_hook(ctx, r, f, tagname);
+
+        vmvar *attrs = hashmap_search(node, "attributes");
+        if (attrs && attrs->t == VAR_OBJ) {
+            vmobj *attr = attrs->o;
+            vmobj *keys = object_get_keys(ctx, attr);
+            HOLD(keys);
+            int klen = keys->idxsz;
+            for (int j = 0; j < klen; ++j) {
+                vmvar *key = keys->ary[j];
+                if (key->t != VAR_STR) continue;
+                vmvar *val = hashmap_search(attr, key->s->hd);
+                if (val->t != VAR_STR) continue;
+                xmldomwriter_print_hook(ctx, r, f, " ");
+                xmldomwriter_print_hook(ctx, r, f, key->s->hd);
+                xmldomwriter_print_hook(ctx, r, f, "=\"");
+                xmldomwriter_print_hook(ctx, r, f, val->s->hd);
+                xmldomwriter_print_hook(ctx, r, f, "\"");
+            }
+            UNHOLD(keys);
+        }
+        vmvar *child = hashmap_search(node, "firstChild");
+        if (child && child->t == VAR_OBJ) {
+            vmobj *fc = child->o;
+            vmvar *next_sibling = hashmap_search(fc, "nextSibling");
+            int fc_type = hashmap_getint(fc, "nodeType", XMLDOM_UNKNOWN_NODE);
+            if (!next_sibling && fc_type == XMLDOM_TEXT_NODE && !xmldomwriter_find_text(ctx, fc)) {
+                vmvar *value = hashmap_search(fc, "nodeValue");
+                if (value && value->t == VAR_STR) {
+                    vmstr *text = alcstr_str(ctx, value->s->hd);
+                    HOLD(text);
+                    str_trim(ctx, text, " \t\r\n");
+                    xmldomwriter_print_hook(ctx, r, f, ">");
+                    xmldomwriter_print_hook(ctx, r, f, text->hd);
+                    UNHOLD(text);
+                    pbakstr(ctx, text);
+                } else {
+                    xmldomwriter_print_hook(ctx, r, f, ">");
+                }
+            } else {
+                xmldomwriter_print_hook(ctx, r, f, ">");
+                if (pp) xmldomwriter_print_hook(ctx, r, f, "\n");
+                while (child && child->t == VAR_OBJ) {
+                    XmlDomWriter_writeimpl(ctx, lex, r, child->o, f, tab, pp, indent + 1);
+                    child = hashmap_search(child->o, "nextSibling");
+                }
+                if (pp) xmldomwriter_print_indent(ctx, r, f, tab, indent);
+            }
+            xmldomwriter_print_hook(ctx, r, f, "</");
+            xmldomwriter_print_hook(ctx, r, f, tagname);
+            xmldomwriter_print_hook(ctx, r, f, ">");
+            if (pp) xmldomwriter_print_hook(ctx, r, f, "\n");
+        } else {
+            xmldomwriter_print_hook(ctx, r, f, " />");
+            if (pp) xmldomwriter_print_hook(ctx, r, f, "\n");
+        }
+    } else if (node_type == XMLDOM_TEXT_NODE) {
+        vmvar *value = hashmap_search(node, "nodeValue");
+        if (value && value->t == VAR_STR) {
+            vmstr *text = alcstr_str(ctx, value->s->hd);
+            str_trim(ctx, text, " \t\r\n");
+            if (text->len > 0) {
+                if (pp) xmldomwriter_print_indent(ctx, r, f, tab, indent);
+                xmldomwriter_print_hook(ctx, r, f, text->hd);
+                if (pp) xmldomwriter_print_hook(ctx, r, f, "\n");
+            }
+            pbakstr(ctx, text);
+        }
+    }
+}
+
+static int XmlDomWriter_write(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    DEF_ARG(obj, 0, VAR_OBJ);
+    DEF_ARG(node, 1, VAR_OBJ);
+    vmobj *writerobj = obj->o;
+    vmobj *no = node->o;
+    vmvar *root = hashmap_search(no, "documentElement");
+    if (root) {
+        node = root;
+        no = node->o;
+    }
+
+    vmfnc *printfnc = NULL;
+    vmvar *writer = hashmap_search(writerobj, "writer");
+    if (writer && writer->t == VAR_OBJ) {
+        vmvar *print = hashmap_search(writer->o, "print");
+        if (print && print->t == VAR_FNC) {
+            printfnc = print->f;
+        }
+    }
+    if (!printfnc) {
+        printfnc = alcfnc(ctx, XmlDomWriter_print_default, lex, "print", 1);
+    }
+
+    int pretty_print = 1;
+    const char *tabset = NULL;
+    vmvar *opts = hashmap_search(writerobj, "options");
+    if (opts && opts->t == VAR_OBJ) {
+        vmvar *tab = hashmap_search(opts->o, "tab");
+        if (tab && tab->t == VAR_STR) {
+            tabset = tab->s->hd;
+        }
+        vmvar *pp = hashmap_search(opts->o, "prettyPrint");
+        if (pp && (pp->t == VAR_INT64 || pp->t == VAR_BOOL)) {
+            pretty_print = pp->i;
+        }
+    }
+    if (!tabset) {
+        tabset = "\t";
+    }
+
+    XmlDomWriter_writeimpl(ctx, lex, r, no, printfnc, tabset, pretty_print, 0);
+    SET_UNDEF(r);
+    return 0;
+}
+
+static int XmlDomWriter_create(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    DEF_ARG_OR_UNDEF(writer, 0, VAR_OBJ);
+    DEF_ARG_OR_UNDEF(opts, 1, VAR_OBJ);
+
+    vmobj *o = alcobj(ctx);
+    o->is_sysobj = 1;
+    KL_SET_METHOD(o, write, XmlDomWriter_write, lex, 1);
+    if (writer->t == VAR_OBJ) {
+        KL_SET_PROPERTY_O(o, writer, writer->o);
+    }
+    if (opts->t == VAR_OBJ) {
+        KL_SET_PROPERTY_O(o, options, opts->o);
+    }
+    SET_OBJ(r, o);
+    return 0;
+}
+
 int XmlDom(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 {
     vmobj *o = alcobj(ctx);
@@ -948,6 +1142,11 @@ int XmlDom(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     KL_SET_PROPERTY_I(o, NOTATION_NODE,                             XMLDOM_NOTATION_NODE);
     KL_SET_PROPERTY_I(o, PROCESSING_INSTRUCTION_NODE,               XMLDOM_PROCESSING_INSTRUCTION_NODE);
     KL_SET_PROPERTY_I(o, TEXT_NODE,                                 XMLDOM_TEXT_NODE);
+
+    vmobj *writer = alcobj(ctx);
+    KL_SET_METHOD(writer, create, XmlDomWriter_create, lex, 1);
+    KL_SET_PROPERTY_O(o, Writer, writer);
+
     SET_OBJ(r, o);
     return 0;
 }
