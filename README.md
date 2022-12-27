@@ -261,7 +261,7 @@ I will note the followings as I don't forget it.
   * [x] Destructuring assignment.
     * [x] Pattern matching in assignment.
     * [x] Destructuring assignment in function arguments.
-  * [ ] `case-when` expression.
+  * [x] `case-when` expression.
   * [ ] Pipeline operators like `|>`.
   * [x] `__FILE__`, `__LINE__`, `__FUNC__`.
   * [ ] `__END__`.
@@ -285,6 +285,7 @@ I will note the followings as I don't forget it.
     * [ ] Xml
       * [x] Simple XML Parser & Simple DOM operation.
       * [ ] Node creation.
+      * [ ] XmlWriter.
       * [x] Node insertion, deletion, or modification to DOM.
       * [x] XPath
     * [ ] PDF
