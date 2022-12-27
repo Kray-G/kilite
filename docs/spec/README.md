@@ -116,8 +116,8 @@ but the description is included in this section because its feature is near a li
 
 #### Functions
 
-*   [eval()](________NOT_IMPEMENTED_YET/spec/lib/function/eval.md)
-*   [DefineException()](________NOT_IMPEMENTED_YET/spec/lib/function/define_exception.md)
+*   [eval()](NO_DOC/lib/function/eval.md)) *not documented yet*
+*   [DefineException()](NO_DOC/lib/function/define_exception.md)) *not documented yet*
 
 #### Standard Objects
 
@@ -128,36 +128,36 @@ Here are provided objects as a Kinx Standard.
 Basic objects are the list of components usually used in many products.
 The functionality is very simple but powerful, so a lot of developpers will use those naturally.
 
-*   [System](________NOT_IMPEMENTED_YET/spec/lib/basic/system.md)
-*   [Getopt](________NOT_IMPEMENTED_YET/spec/lib/basic/getopt.md)
-*   [Iconv](________NOT_IMPEMENTED_YET/spec/lib/basic/iconv.md)
-*   [Colorize](________NOT_IMPEMENTED_YET/spec/lib/basic/colorize.md)
-*   [Math](________NOT_IMPEMENTED_YET/spec/lib/basic/imath.md)
-*   [File](________NOT_IMPEMENTED_YET/spec/lib/basic/file.md)
-*   [Directory](________NOT_IMPEMENTED_YET/spec/lib/basic/directory.md)
+*   [System](lib/basic/system.md)
+*   [Getopt](NO_DOC/lib/basic/getopt.md)) *not documented yet*
+*   [Iconv](NO_DOC/lib/basic/iconv.md)) *not documented yet*
+*   [Colorize](NO_DOC/lib/basic/colorize.md)) *not documented yet*
+*   [Math](NO_DOC/lib/basic/imath.md)) *not documented yet*
+*   [File](NO_DOC/lib/basic/file.md)) *not documented yet*
+*   [Directory](NO_DOC/lib/basic/directory.md)) *not documented yet*
 *   [Regex](lib/basic/regex.md)
-*   [Enumerable](________NOT_IMPEMENTED_YET/spec/lib/basic/enumerable.md)
-*   [Functional](________NOT_IMPEMENTED_YET/spec/lib/basic/functional.md)
-*   [Range](________NOT_IMPEMENTED_YET/spec/lib/basic/range.md)
-*   [DateTime](________NOT_IMPEMENTED_YET/spec/lib/basic/datetime.md)
-*   [Process](________NOT_IMPEMENTED_YET/spec/lib/basic/process.md)
-*   [JSON](________NOT_IMPEMENTED_YET/spec/lib/basic/json.md)
-*   [CSV/TSV](________NOT_IMPEMENTED_YET/spec/lib/basic/csv_tsv.md)
+*   [Enumerable](NO_DOC/lib/basic/enumerable.md)) *not documented yet*
+*   [Functional](NO_DOC/lib/basic/functional.md)) *not documented yet*
+*   [Range](NO_DOC/lib/basic/range.md)) *not documented yet*
+*   [DateTime](NO_DOC/lib/basic/datetime.md)) *not documented yet*
+*   [Process](NO_DOC/lib/basic/process.md)) *not documented yet*
+*   [JSON](NO_DOC/lib/basic/json.md)) *not documented yet*
+*   [CSV/TSV](NO_DOC/lib/basic/csv_tsv.md)) *not documented yet*
 *   [Xml](lib/basic/xml.md)
-*   [Zip](________NOT_IMPEMENTED_YET/spec/lib/basic/zip.md)
-*   [SQLite](________NOT_IMPEMENTED_YET/spec/lib/basic/sqlite.md)
-*   [JIT](________NOT_IMPEMENTED_YET/spec/lib/basic/jit.md)
-*   [Parsek](________NOT_IMPEMENTED_YET/spec/lib/basic/parsek.md)
-*   [Clipboard](________NOT_IMPEMENTED_YET/spec/lib/basic/clipboard.md)
-*   [SemanticVersion](________NOT_IMPEMENTED_YET/spec/lib/basic/semanticver.md) - V1.1.0
+*   [Zip](NO_DOC/lib/basic/zip.md)) *not documented yet*
+*   [SQLite](NO_DOC/lib/basic/sqlite.md)) *not documented yet*
+*   [JIT](NO_DOC/lib/basic/jit.md)) *not documented yet*
+*   [Parsek](NO_DOC/lib/basic/parsek.md)) *not documented yet*
+*   [Clipboard](NO_DOC/lib/basic/clipboard.md)) *not documented yet*
+*   [SemanticVersion](NO_DOC/lib/basic/semanticver.md) - V1.1.0) *not documented yet*
 
 ##### Network Objects
 
 Network library is now very few, but it will be increased in future
 because now the networking library is needed by many developpers.
 
-*   [Http](________NOT_IMPEMENTED_YET/spec/lib/net/http.md)
-*   [SSH](________NOT_IMPEMENTED_YET/spec/lib/net/ssh.md)
+*   [Http](NO_DOC/lib/net/http.md)) *not documented yet*
+*   [SSH](NO_DOC/lib/net/ssh.md)) *not documented yet*
 
 I provide Http library only, but it is based on libcurl.
 Therefore adding a library based on the same technology must be easy.
@@ -167,18 +167,18 @@ Note that the above documents do not have any test code because it is hard to te
 
 ##### Exception Objects
 
-*   [Exception](________NOT_IMPEMENTED_YET/spec/lib/primitive/exception.md)
+*   [Exception](NO_DOC/lib/primitive/exception.md)) *not documented yet*
 
 #### Algorithm and Data Structure
 
 Algorithm and Data structure examples are being described in the page below.
 
-*   [Algorithm](________NOT_IMPEMENTED_YET/spec/algorithm/README.md)
+*   [Algorithm](NO_DOC/algorithm/README.md)) *not documented yet*
 
 ### Others
 
 Some special specifications.
 
-*   [Real Numbers](________NOT_IMPEMENTED_YET/spec/others/realnumber.md)
-*   [String#next](________NOT_IMPEMENTED_YET/spec/others/string_next.md)
-*   [String#isIntegerString](________NOT_IMPEMENTED_YET/spec/others/string_isIntegerString.md) - V1.1.0
+*   [Real Numbers](NO_DOC/others/realnumber.md)) *not documented yet*
+*   [String#next](NO_DOC/others/string_next.md)) *not documented yet*
+*   [String#isIntegerString](NO_DOC/others/string_isIntegerString.md) - V1.1.0) *not documented yet*
