@@ -5,10 +5,12 @@
 
 /* This is the prototype that the functions written here will need. */
 
+extern void sleep_ms(int msec);
 extern void *SystemTimer_init(void);
 extern void SystemTimer_restart_impl(void *p);
 extern double SystemTimer_elapsed_impl(void *p);
 extern int Array_sort(vmctx *ctx, vmfrm *lex, vmvar *r, int ac);
+extern int System_try(vmctx *ctx, vmfrm *lex, vmvar *r, int ac);
 
 /* Basic functions */
 
@@ -354,6 +356,24 @@ int False(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 
 /* System */
 
+static int System_abort(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    printf("This program aborted.\n");
+    exit(1);
+}
+
+static int System_halt(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    exit(1);
+}
+
+static int System_sleep(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
+{
+    DEF_ARG(a0, 0, VAR_INT64);
+    sleep_ms(a0->i);
+    return 0;
+}
+
 static vmvar *System_try_to_string(vmctx *ctx, vmvar *r, vmvar *v)
 {
     if (v->t == VAR_OBJ) {
@@ -400,6 +420,10 @@ int System(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
     vmobj *o = alcobj(ctx);
     KL_SET_METHOD(o, print, System_print, lex, 1)
     KL_SET_METHOD(o, println, System_println, lex, 1)
+    KL_SET_METHOD(o, sleep, System_sleep, lex, 1)
+    KL_SET_METHOD(o, try, System_try, lex, 1)
+    KL_SET_METHOD(o, abort, System_abort, lex, 0)
+    KL_SET_METHOD(o, halt, System_halt, lex, 0)
     SET_OBJ(r, o);
     return 0;
 }

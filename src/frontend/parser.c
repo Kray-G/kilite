@@ -862,6 +862,108 @@ static inline kl_stmt *add_method2class(kl_context *ctx, kl_lexer *l, kl_symbol 
 static const char *parse_special_funcname(kl_context *ctx, kl_lexer *l)
 {
     switch (l->tok) {
+    case TK_EXTERN:
+        PARSER_MAKE_SPECIAL_NAME(l, "extern");
+        break;
+    case TK_ENUM:
+        PARSER_MAKE_SPECIAL_NAME(l, "enum");
+        break;
+    case TK_CONST:
+        PARSER_MAKE_SPECIAL_NAME(l, "const");
+        break;
+    case TK_LET:
+        PARSER_MAKE_SPECIAL_NAME(l, "let");
+        break;
+    case TK_NEW:
+        PARSER_MAKE_SPECIAL_NAME(l, "new");
+        break;
+    case TK_IMPORT:
+        PARSER_MAKE_SPECIAL_NAME(l, "import");
+        break;
+    case TK_NAMESPACE:
+        PARSER_MAKE_SPECIAL_NAME(l, "namespace");
+        break;
+    case TK_MODULE:
+        PARSER_MAKE_SPECIAL_NAME(l, "module");
+        break;
+    case TK_CLASS:
+        PARSER_MAKE_SPECIAL_NAME(l, "class");
+        break;
+    case TK_PRIVATE:
+        PARSER_MAKE_SPECIAL_NAME(l, "private");
+        break;
+    case TK_PROTECTED:
+        PARSER_MAKE_SPECIAL_NAME(l, "protected");
+        break;
+    case TK_PUBLIC:
+        PARSER_MAKE_SPECIAL_NAME(l, "public");
+        break;
+    case TK_MIXIN:
+        PARSER_MAKE_SPECIAL_NAME(l, "mixin");
+        break;
+    case TK_NATIVE:
+        PARSER_MAKE_SPECIAL_NAME(l, "native");
+        break;
+    case TK_SWITCH:
+        PARSER_MAKE_SPECIAL_NAME(l, "switch");
+        break;
+    case TK_CASE:
+        PARSER_MAKE_SPECIAL_NAME(l, "case");
+        break;
+    case TK_DEFAULT:
+        PARSER_MAKE_SPECIAL_NAME(l, "default");
+        break;
+    case TK_OTHERWISE:
+        PARSER_MAKE_SPECIAL_NAME(l, "otherwise");
+        break;
+    case TK_IF:
+        PARSER_MAKE_SPECIAL_NAME(l, "if");
+        break;
+    case TK_ELSE:
+        PARSER_MAKE_SPECIAL_NAME(l, "else");
+        break;
+    case TK_DO:
+        PARSER_MAKE_SPECIAL_NAME(l, "do");
+        break;
+    case TK_WHILE:
+        PARSER_MAKE_SPECIAL_NAME(l, "while");
+        break;
+    case TK_FOR:
+        PARSER_MAKE_SPECIAL_NAME(l, "for");
+        break;
+    case TK_IN:
+        PARSER_MAKE_SPECIAL_NAME(l, "in");
+        break;
+    case TK_RETURN:
+        PARSER_MAKE_SPECIAL_NAME(l, "return");
+        break;
+    case TK_WHEN:
+        PARSER_MAKE_SPECIAL_NAME(l, "when");
+        break;
+    case TK_FALLTHROUGH:
+        PARSER_MAKE_SPECIAL_NAME(l, "fallthrough");
+        break;
+    case TK_BREAK:
+        PARSER_MAKE_SPECIAL_NAME(l, "break");
+        break;
+    case TK_CONTINUE:
+        PARSER_MAKE_SPECIAL_NAME(l, "continue");
+        break;
+    case TK_YIELD:
+        PARSER_MAKE_SPECIAL_NAME(l, "yield");
+        break;
+    case TK_TRY:
+        PARSER_MAKE_SPECIAL_NAME(l, "try");
+        break;
+    case TK_CATCH:
+        PARSER_MAKE_SPECIAL_NAME(l, "catch");
+        break;
+    case TK_FINALLY:
+        PARSER_MAKE_SPECIAL_NAME(l, "finally");
+        break;
+    case TK_THROW:
+        PARSER_MAKE_SPECIAL_NAME(l, "throw");
+        break;
     case TK_EQEQ:
         PARSER_MAKE_SPECIAL_NAME(l, "==");
         break;
@@ -909,6 +1011,12 @@ static const char *parse_special_funcname(kl_context *ctx, kl_lexer *l)
         break;
     case TK_LLBR:
         PARSER_MAKE_SPECIAL_NAME2(l, TK_RLBR, "[]");
+        break;
+    case TK_ARROW:
+        PARSER_MAKE_SPECIAL_NAME(l, "->");
+        break;
+    case TK_DARROW:
+        PARSER_MAKE_SPECIAL_NAME(l, "=>");
         break;
     default:
         return NULL;
@@ -2916,11 +3024,6 @@ static kl_stmt *parse_statement(kl_context *ctx, kl_lexer *l)
 {
     DEBUG_PARSER_PHASE();
 
-    while (l->tok == TK_SEMICOLON) {
-        /* Skip semicolons because it means no statement. */
-        lexer_fetch(l);
-    }
-
     /*
         namespace, func/function, class, module, let, const
         block
@@ -2928,6 +3031,10 @@ static kl_stmt *parse_statement(kl_context *ctx, kl_lexer *l)
     kl_stmt *r = NULL;
     tk_token tok = l->tok;
     switch (tok) {
+    case TK_SEMICOLON:
+        lexer_fetch(l);
+        r = make_stmt(ctx, l, TK_EXPR);
+        break;
     case TK_LXBR:
         lexer_fetch(l);
         r = parse_block(ctx, l);

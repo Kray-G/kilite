@@ -87,6 +87,7 @@ static MIR_item_t load_main_modules(MIR_context_t ctx)
 
 void load_additional_methods(MIR_context_t ctx)
 {
+    /* Standard */
     MIR_load_external(ctx, "get_stdio_stdin", (void *)get_stdio_stdin);
     MIR_load_external(ctx, "get_stdio_stdout", (void *)get_stdio_stdout);
     MIR_load_external(ctx, "get_stdio_stderr", (void *)get_stdio_stderr);
@@ -101,19 +102,18 @@ void load_additional_methods(MIR_context_t ctx)
     MIR_load_external(ctx, "Math_random_impl", (void *)Math_random_impl);
     MIR_load_external(ctx, "Math_initialize", (void *)Math_initialize);
     MIR_load_external(ctx, "Math_finalize", (void *)Math_finalize);
-    MIR_load_external(ctx, "Regex_initialize", (void *)Regex_initialize);
-    MIR_load_external(ctx, "Regex_finalize", (void *)Regex_finalize);
+    MIR_load_external(ctx, "sleep_ms", (void *)sleep_ms);
+    MIR_load_external(ctx, "exit", (void *)exit);
 
     /* Regex */
-    MIR_load_external(ctx, "onig_initialize", (void *)onig_initialize);
-    MIR_load_external(ctx, "onig_new", (void *)onig_new);
+    MIR_load_external(ctx, "Regex_initialize", (void *)Regex_initialize);
+    MIR_load_external(ctx, "Regex_finalize", (void *)Regex_finalize);
     MIR_load_external(ctx, "onig_free", (void *)onig_free);
     MIR_load_external(ctx, "onig_region_new", (void *)onig_region_new);
     MIR_load_external(ctx, "onig_region_free", (void *)onig_region_free);
     MIR_load_external(ctx, "onig_region_clear", (void *)onig_region_clear);
     MIR_load_external(ctx, "onig_search", (void *)onig_search);
     MIR_load_external(ctx, "onig_match", (void *)onig_match);
-
     MIR_load_external(ctx, "Regex_onig_new", (void *)Regex_onig_new);
     MIR_load_external(ctx, "Regex_get_region_numregs", (void *)Regex_get_region_numregs);
     MIR_load_external(ctx, "Regex_get_region_beg", (void *)Regex_get_region_beg);

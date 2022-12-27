@@ -45,19 +45,19 @@ typedef enum tk_token {
     TK_VREGEX,              //  * Regular expression literal.
 
     // Keywords
-    TK_EXTERN,              //    extern
+    TK_EXTERN,              //  * extern
     TK_ENUM,                //  * enum
     TK_CONST,               //  * const
     TK_LET,                 //  * let/var, and var is same as let. So it's different from JavaScript.
-    TK_NEW,                 //    new
+    TK_NEW,                 //  * new
     TK_IMPORT,              //    import
     TK_NAMESPACE,           //  * namespace
-    TK_MODULE,              //    module
+    TK_MODULE,              //  * module
     TK_CLASS,               //  * class
     TK_PRIVATE,             //  * private
     TK_PROTECTED,           //  * protected
     TK_PUBLIC,              //  * public
-    TK_MIXIN,               //    mixin
+    TK_MIXIN,               //  * mixin
     TK_FUNC,                //  * func/function, which one you can choose as you like.
     TK_NATIVE,              //    native
     TK_SWITCH,              //  * switch
@@ -72,7 +72,7 @@ typedef enum tk_token {
     TK_IN,                  //  * in
     TK_FORIN,               //  * for-in
     TK_RETURN,              //  * return
-    TK_WHEN,                //    when
+    TK_WHEN,                //  * when
     TK_FALLTHROUGH,         //  * fallthrough
     TK_BREAK,               //  * break
     TK_CONTINUE,            //  * continue
@@ -103,8 +103,8 @@ typedef enum tk_token {
     TK_LOREQ,               //  * ||=
     TK_NULLCEQ,             //  * ??=
         // Comparison
-    TK_REGEQ,               //    =~
-    TK_REGNE,               //    !~
+    TK_REGEQ,               //  * =~
+    TK_REGNE,               //  * !~
     TK_EQEQ,                //  * ==
     TK_NEQ,                 //  * !=
     TK_LT,                  //  * <

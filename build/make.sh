@@ -142,6 +142,8 @@ echo "#line 1 \"makelib/array\"" >> $TEMPF
 $BIN/kilite --makelib array.klt >> $TEMPF
 echo "#line 1 \"makelib/file\"" >> $TEMPF
 $BIN/kilite --makelib file.klt >> $TEMPF
+echo "#line 1 \"makelib/system\"" >> $TEMPF
+$BIN/kilite --makelib system.klt >> $TEMPF
 cd $BIN
 
 echo Generating a static library file for gcc...

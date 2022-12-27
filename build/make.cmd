@@ -120,6 +120,8 @@ echo #line 1 "makelib/array" >> %TEMPF%
 kilite.exe --makelib array.klt >> %TEMPF%
 echo #line 1 "makelib/file" >> %TEMPF%
 kilite.exe --makelib file.klt >> %TEMPF%
+echo #line 1 "makelib/system" >> %TEMPF%
+kilite.exe --makelib system.klt >> %TEMPF%
 popd
 
 @echo Generating a static library file for cl...

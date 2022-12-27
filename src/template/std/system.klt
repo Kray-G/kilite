@@ -1,0 +1,21 @@
+
+function System_try(f:func) {
+    try {
+        var r = f();
+        return {
+            'else':  function() { return r; },
+            'try':   function() { return System.try(function() { return r; }); },
+            'retry': function() { return System.try(function() { return r; }); },
+        };
+    } catch (e) {
+        ;
+    }
+    return {
+        'else':  function(expr) { return expr.isFunction ? expr() : expr; },
+        'try':   System_try,
+        'retry': function(count, wait) {
+            System.sleep(wait);
+            return count <= 1 ? System.try(f) : System.try(f).retry(count-1, wait);
+        },
+    };
+}

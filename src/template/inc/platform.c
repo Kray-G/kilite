@@ -73,6 +73,27 @@ double SystemTimer_elapsed_impl(void *p)
     QueryPerformanceCounter(&end);
     return (double)(end.QuadPart - (v->start).QuadPart) / (v->freq).QuadPart;
 }
+
+void sleep_ms(int msec)
+{
+    systemtimer_t v = {0};
+    QueryPerformanceFrequency(&(v.freq));
+    QueryPerformanceCounter(&(v.start));
+
+    if (msec == 0) {
+        Sleep(1);
+    } else {
+        double endtm = (double)msec / 1000;
+        double elapsed = 0.0;
+        while (elapsed < endtm) {
+            LARGE_INTEGER end;
+            QueryPerformanceCounter(&end);
+            elapsed = (double)(end.QuadPart - (v.start).QuadPart) / (v.freq).QuadPart;
+            int sl = (int)((endtm - elapsed) * 1000);
+            Sleep(sl > 100 ? 100 : ((sl > 0) ? sl : 1));
+        }
+    }
+}
 #endif
 
 #else
@@ -81,8 +102,7 @@ double SystemTimer_elapsed_impl(void *p)
 #include <stdio.h>
 #include <time.h>
 #include <sys/time.h>
-#if defined(_WIN32) || defined(_WIN64)
-#else
+#if !defined(_WIN32) && !defined(_WIN64)
 static FILE* gmathh = NULL;
 #endif
 
@@ -143,6 +163,11 @@ double SystemTimer_elapsed_impl(void *p)
     return (e.tv_sec - (v->s).tv_sec) + (e.tv_usec - (v->s).tv_usec) * 1.0e-6;
 }
 
+void sleep_ms(int msec)
+{
+    struct timespec req = { .tv_sec = 0, .tv_nsec = msec * 1000000 };
+    nanosleep(&req, NULL);
+}
 #endif
 
 #endif  /* !__MIRC__ */

@@ -59,6 +59,7 @@ extern char *strncpy(char *, const char *, size_t);
 extern char *strstr(const char *, const char *);
 extern int strcmp(const char *, const char *);
 extern int strncmp(const char *, const char *, size_t);
+extern void exit(int status);
 #ifndef NULL
 #define NULL ((void*)0)
 #endif
