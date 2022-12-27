@@ -179,15 +179,50 @@ static void disp_expr(kl_expr *e, int indent)
         }
         if (indent > 0) printf("\n");
         break;
+
+    case TK_CASE:
+        printf("case\n");
+        make_indent(indent);
+        printf("* condition\n");
+        if (e->lhs) {
+            disp_expr(e->lhs, indent + 1);
+        }
+        if (e->rhs) {
+            disp_expr(e->rhs, indent + 1);
+        }
+        break;
+    case TK_WHEN:
+        printf("* when\n");
+        if (e->lhs) {
+            disp_expr(e->lhs, indent + 1);
+            if (e->rhs) {
+                disp_expr(e->rhs, indent + 1);
+            }
+            if (e->lhs->s) {
+                make_indent(indent + 1);
+                printf("* if-modifier\n");
+                disp_expr(e->lhs->s->e1, indent + 2);
+            }
+        }
+        break;
+    case TK_OTHERWISE:
+        printf("* otherwise\n");
+        if (e->rhs) {
+            disp_expr(e->rhs, indent + 1);
+        }
+        break;
+
     case TK_DOT3:
         printf("(...)\n");
         if (e->lhs) {
             disp_expr(e->lhs, indent + 1);
         }
         break;
-
     case TK_VAR:
         if (e->sym) {
+            if (e->sym->is_pinvar) {
+                printf("^");
+            }
             if (e->sym->is_autoset) {
                 printf("<*>");
             }
@@ -223,7 +258,7 @@ static void disp_expr(kl_expr *e, int indent)
 
     case TK_FUNC:
         if (e->sym) {
-            printf("def funcexpr %s(\n", e->sym->name);
+            printf("def expr(TK_FUNC) %s(\n", e->sym->name);
             if (e->e) {
                 disp_expr(e->e, indent + 1);
             }
@@ -338,6 +373,11 @@ static void disp_expr(kl_expr *e, int indent)
     default:
         printf("[MISSING]: %s\n", tokenname(e->nodetype));
     }
+}
+
+void disp_expr_all(kl_expr *e, int indent)
+{
+    disp_expr(e, indent);
 }
 
 static int method_count(kl_symbol *sym)

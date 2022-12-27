@@ -621,6 +621,13 @@ typedef struct vmctx {
 } \
 /**/
 
+#define THROW_STANDARD(ctx, exc, label, func, file, line) { \
+    e = throw_system_exception(__LINE__, ctx, exc, NULL); \
+    exception_addtrace(ctx, ctx->except, func, file, line); \
+    goto label; \
+} \
+/**/
+
 #define GET_ITERATOR(ctx, lex, v, label, func, file, line) { \
     Iterator_create(ctx, lex, v, 0); \
 } \
@@ -756,6 +763,22 @@ typedef struct vmctx {
 } \
 /**/
 
+#define CHECK_RANGE(ctx, r1, r2, label, func, file, line) { \
+    int pp = vstackp(ctx); \
+    vmvar *includes = hashmap_search(r1->o, "includes"); \
+    { push_var(ctx, r2, label, func, file, line); } \
+    vmvar *px = &(((ctx)->vstk)[((ctx)->vstkp)++]); \
+    SHCOPY_VAR_TO(ctx, px, r1); \
+    CHECK_CALL(ctx, includes, label, r1, 2, func, file, line) \
+    restore_vstackp(ctx, pp); \
+    if (r1->t != VAR_INT64 || r1->i == 0) { \
+        e = throw_system_exception(__LINE__, ctx, EXCEPT_NO_MATCHING_PATTERN, NULL); \
+        exception_addtrace(ctx, ctx->except, func, file, line); \
+        goto label; \
+    } \
+} \
+/**/
+
 #define CHKMATCH_BOOL(v, vi, label, func, file, line) { \
     if ((v)->t != VAR_BOOL || (v)->i != (vi)) { \
         e = throw_system_exception(__LINE__, ctx, EXCEPT_NO_MATCHING_PATTERN, NULL); \
@@ -783,10 +806,113 @@ typedef struct vmctx {
 } \
 /**/
 
-#define CHKMATCH_STR(v, i, label, func, file, line) { \
+#define CHKMATCH_STR(v, vs, label, func, file, line) { \
     if ((v)->t != VAR_STR || strcmp((v)->s->hd, (vs)) != 0) { \
         e = throw_system_exception(__LINE__, ctx, EXCEPT_NO_MATCHING_PATTERN, NULL); \
         exception_addtrace(ctx, ctx->except, func, file, line); \
+        goto label; \
+    } \
+} \
+/**/
+
+#define CHKMATCH_OBJ(v, v2, label, func, file, line) { \
+    vmvar *isrange = hashmap_search((v)->o, "isRange"); \
+    if (isrange) { \
+        CHECK_RANGE(ctx, v, v2, label, func, file, line) \
+    } else { \
+        e = throw_system_exception(__LINE__, ctx, EXCEPT_NO_MATCHING_PATTERN, NULL); \
+        exception_addtrace(ctx, ctx->except, func, file, line); \
+        goto label; \
+    } \
+} \
+/**/
+
+#define CHKMATCH(v, v2, label, func, file, line) { \
+    switch (v->t) { \
+    case VAR_BOOL: CHKMATCH_BOOL(v2, (v)->i, label, func, file, line); break; \
+    case VAR_INT64: CHKMATCH_I64(v2, (v)->i, label, func, file, line); break; \
+    case VAR_DBL: CHKMATCH_DBL(v2, (v)->d, label, func, file, line); break; \
+    case VAR_STR: CHKMATCH_STR(v2, (v)->s->hd, label, func, file, line); break; \
+    case VAR_OBJ: CHKMATCH_OBJ(v, v2, label, func, file, line); break; \
+    default: \
+        e = throw_system_exception(__LINE__, ctx, EXCEPT_NO_MATCHING_PATTERN, NULL); \
+        exception_addtrace(ctx, ctx->except, func, file, line); \
+        goto label; \
+    } \
+} \
+/**/
+
+#define CHECK_RANGEX(ctx, r1, r2, label, func, file, line) { \
+    int pp = vstackp(ctx); \
+    vmvar *includes = hashmap_search(r1->o, "includes"); \
+    { push_var(ctx, r2, label, func, file, line); } \
+    vmvar *px = &(((ctx)->vstk)[((ctx)->vstkp)++]); \
+    SHCOPY_VAR_TO(ctx, px, r1); \
+    CHECK_CALL(ctx, includes, label, r1, 2, func, file, line) \
+    restore_vstackp(ctx, pp); \
+    if (r1->t != VAR_INT64 || r1->i == 0) { \
+        goto label; \
+    } \
+} \
+/**/
+
+#define CHKMATCHX_BOOL(v, vi, label, func, file, line) { \
+    if ((v)->t != VAR_BOOL || (v)->i != (vi)) { \
+        goto label; \
+    } \
+} \
+/**/
+
+#define CHKMATCHX_I64(v, vi, label, func, file, line) { \
+    if ((v)->t != VAR_INT64 || (v)->i != (vi)) { \
+        goto label; \
+    } \
+} \
+/**/
+
+#define CHKMATCHX_DBL(v, vd, label, func, file, line) { \
+    if ((v)->t != VAR_DBL || DBL_EPSILON <= ((v)->d - (vd))) { \
+        goto label; \
+    } \
+} \
+/**/
+
+#define CHKMATCHX_STR(v, vs, label, func, file, line) { \
+    if ((v)->t != VAR_STR || strcmp((v)->s->hd, (vs)) != 0) { \
+        goto label; \
+    } \
+} \
+/**/
+
+#define CHKMATCHX_FNC(fv, cnd, label, func, file, line) { \
+    vmfnc *f = fv->f; \
+    /* when exception occurred, temporary jump to the label because it's simple. */ \
+    { push_var(ctx, cnd, label, func, file, line); } \
+    CALL(f, f->lex, fv, 1) \
+    reduce_vstackp(ctx, 1); \
+    OP_JMP_IF_FALSE(fv, label); \
+} \
+/**/
+
+#define CHKMATCHX_OBJ(v, v2, label, func, file, line) { \
+    vmvar *isrange = hashmap_search((v)->o, "isRange"); \
+    if (isrange) { \
+        CHECK_RANGEX(ctx, v, v2, label, func, file, line) \
+    } else { \
+        goto label; \
+    } \
+} \
+/**/
+
+#define CHKMATCHX(v, v2, label, func, file, line) { \
+    switch (v->t) { \
+    case VAR_BOOL: CHKMATCHX_BOOL(v2, (v)->i, label, func, file, line); break; \
+    case VAR_INT64: CHKMATCHX_I64(v2, (v)->i, label, func, file, line); break; \
+    case VAR_DBL: CHKMATCHX_DBL(v2, (v)->d, label, func, file, line); break; \
+    case VAR_STR: CHKMATCHX_STR(v2, (v)->s->hd, label, func, file, line); break; \
+    case VAR_FNC: CHKMATCHX_FNC(v, v2, label, func, file, line); break; \
+    case VAR_OBJ: CHKMATCHX_OBJ(v, v2, label, func, file, line); break; \
+    default: \
         goto label; \
     } \
 } \
@@ -842,22 +968,6 @@ typedef struct vmctx {
     { push_var(ctx, r1, label, func, file, line); } \
     CALL(f, NULL, dst, 3) \
     restore_vstackp(ctx, pp); \
-} \
-/**/
-
-#define CHECK_RANGE(ctx, r1, r2, label, func, file, line) { \
-    int pp = vstackp(ctx); \
-    vmvar *includes = hashmap_search(r1->o, "includes"); \
-    { push_var(ctx, r2, label, func, file, line); } \
-    vmvar *px = &(((ctx)->vstk)[((ctx)->vstkp)++]); \
-    SHCOPY_VAR_TO(ctx, px, r1); \
-    CHECK_CALL(ctx, includes, label, r1, 2, func, file, line) \
-    restore_vstackp(ctx, pp); \
-    if (r1->t != VAR_INT64 || r1->i == 0) { \
-        e = throw_system_exception(__LINE__, ctx, EXCEPT_NO_MATCHING_PATTERN, NULL); \
-        exception_addtrace(ctx, ctx->except, func, file, line); \
-        goto label; \
-    } \
 } \
 /**/
 

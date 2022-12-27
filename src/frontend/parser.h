@@ -31,6 +31,7 @@ typedef struct kl_symbol {
     int is_dot3;                    //  The variable is written with the 3 dots.
     int is_global;                  //  This symbol is a global namespace.
     int is_autoset;                 //  This is the mark shown as made as a symbol without decralation.
+    int is_pinvar;                  //  This means the variable with a pin operator.
     int refcount;                   //  The reference count to this variable.
     int assigned;                   //  The count of assignment to this variable.
     int level;                      //  The level of lexical scope, which means a distance from the scope having the 'ref' symbol.
@@ -127,6 +128,7 @@ typedef struct kl_context {
     int in_lvalue;                  //  The decltype in parsing l-value.
     int in_finally;                 //  To check if the statement is a finally clause.
     int in_catch;                   //  To check if the statement is a catch clause.
+    int in_casewhen;                //  To check if the statement is in a case when expression.
     int callcnt;                    //  Current call count to call method.
     kl_stmt *head;                  //  The head of object tree.
     kl_nsstack *ns;                 //  Namespace stack.

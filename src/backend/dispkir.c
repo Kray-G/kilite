@@ -187,6 +187,9 @@ void disp_inst(kl_kir_program *p, kl_kir_inst *i)
     case KIR_THROW:
         printf(IDT OP "L%d\n", "throw", i->labelid);
         break;
+    case KIR_THROWX:
+        printf(IDT OP "%s, L%d\n", "throwx", i->r1.str, i->labelid);
+        break;
     case KIR_CATCH:
         disp_1op("catch", i);
         break;
@@ -349,6 +352,20 @@ void disp_inst(kl_kir_program *p, kl_kir_inst *i)
         break;
     case KIR_CHKRANGE:
         disp_2op("chkrange", i);
+        break;
+    case KIR_CHKMATCHX:
+        printf(IDT OP, "chkmatchx");
+        disp_v(i, 1);
+        printf(", ");
+        disp_v(i, 2);
+        printf(", L%d\n", i->labelid);
+        break;
+    case KIR_CHKRANGEX:
+        printf(IDT OP, "chkrangex");
+        disp_v(i, 1);
+        printf(", ");
+        disp_v(i, 2);
+        printf(", L%d\n", i->labelid);
         break;
 
     case KIR_TYPE:

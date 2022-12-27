@@ -216,6 +216,7 @@ typedef enum kl_kir {
     KIR_RET,        //  -                       ;   return from the function.
     KIR_THROWE,     //  <r1>                    ;   throw <r1>.
     KIR_THROW,      //  -                       ;   throw.
+    KIR_THROWX,     //  <std-except-no>         ;   throw <standard exception number>.
     KIR_CATCH,      //  <r1>                    ;   <r1>  <- catch.
     KIR_YIELDC,     //  ...                     ;   transfer yield condition if it's yield.
     KIR_YIELD,      //  <n>                     ;   yield with the number <n>.
@@ -280,6 +281,8 @@ typedef enum kl_kir {
     KIR_REMOVE,     //  <r1>, <str>             ;   <r1>.remove(<str>)
     KIR_CHKMATCH,   //  <r1>, <r2>              ;   if <r1> != <r2>, throw NoMatchingPatternException.
     KIR_CHKRANGE,   //  <r1>, <r2>              ;   if !<r1>.includes(<r2>), throw NoMatchingPatternException.
+    KIR_CHKMATCHX,  //  <r1>, <r2>, <label>     ;   if <r1> != <r2>, then jump to <label>.
+    KIR_CHKRANGEX,  //  <r1>, <r2>, <label>     ;   if !<r1>.includes(<r2>), then jump to <label>.
 
     KIR_TYPE,       //  <r1>, <r2>, n           ;   <r1>  <-  true if <r2> type == n
     KIR_GETITER,    //  <r1>                    ;   <r1>  <-  get_iterator(<r1>).

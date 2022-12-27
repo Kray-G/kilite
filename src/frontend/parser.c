@@ -7,6 +7,7 @@
 static kl_expr *parse_expr_factor(kl_context *ctx, kl_lexer *l);
 static kl_expr *parse_expr_list(kl_context *ctx, kl_lexer *l, int endch);
 static kl_expr *parse_expr_assignment(kl_context *ctx, kl_lexer *l);
+static kl_stmt *parse_if_modifier(kl_context *ctx, kl_lexer *l);
 static kl_expr *parse_expression(kl_context *ctx, kl_lexer *l);
 static kl_expr *parse_decl_expr(kl_context *ctx, kl_lexer *l, int decltype);
 static kl_stmt *parse_statement(kl_context *ctx, kl_lexer *l);
@@ -771,8 +772,24 @@ static kl_expr *parse_expr_varname(kl_context *ctx, kl_lexer *l, const char *nam
 static kl_expr *parse_expr_keyvalue(kl_context *ctx, kl_lexer *l)
 {
     kl_expr *e = NULL;
-    while (l->tok == TK_DOT3 || l->tok == TK_NAME || l->tok == TK_VSTR) {
-        if (l->tok == TK_DOT3) {
+    while (l->tok == TK_DOT3 || l->tok == TK_NAME || l->tok == TK_VSTR || l->tok == TK_LSBR) {
+        tk_token tok = l->tok;
+        const char *name = NULL;
+        if (tok == TK_LSBR) {
+            lexer_fetch(l);
+            if (l->tok != TK_VSTR) {
+                parse_error(ctx, __LINE__, l, "The key name should be a string");
+                return panic_mode_expr(e, ')', ctx, l);
+            }
+            tok = TK_VSTR;
+            name = parse_const_str(ctx, l, l->str);
+            lexer_fetch(l);
+            if (l->tok != TK_RSBR) {
+                parse_error(ctx, __LINE__, l, "Invalid key string");
+                return panic_mode_expr(e, ')', ctx, l);
+            }
+        }
+        if (tok == TK_DOT3) {
             lexer_fetch(l);
             if (l->tok == TK_NAME) {
                 kl_expr *e1 = parse_expr_varname(ctx, l, l->str, ctx->in_lvalue);
@@ -785,8 +802,9 @@ static kl_expr *parse_expr_keyvalue(kl_context *ctx, kl_lexer *l)
                 e = make_bin_expr(ctx, l, TK_COMMA, e, e1);
             }
         } else {
-            tk_token tok = l->tok;
-            const char *name = parse_const_str(ctx, l, l->str);
+            if (!name) {
+                name = parse_const_str(ctx, l, l->str);
+            }
             kl_expr *e2 = make_expr(ctx, l, TK_VSTR);
             e2->val.str = name;
             lexer_fetch(l);
@@ -898,21 +916,35 @@ static const char *parse_special_funcname(kl_context *ctx, kl_lexer *l)
     return parse_const_str(ctx, l, l->str);
 }
 
+#define is_underscore_name(l) ((l)->tok == TK_NAME && (l)->str[0] == '_' && (l)->str[1] == 0)
+
 static kl_expr *parse_expr_arrayitem(kl_context *ctx, kl_lexer *l)
 {
     kl_expr *e = NULL;
+    if (is_underscore_name(l)) {
+        lexer_fetch(l);
+    }
     if (l->tok == TK_COMMA) {
         lexer_fetch(l);
     } else {
         e = parse_expr_assignment(ctx, l);
+        if (is_underscore_name(l)) {
+            lexer_fetch(l);
+        }
         if (l->tok == TK_COMMA) {
             lexer_fetch(l);
         }
     }
     while (l->tok != TK_RLBR && l->tok != TK_EOF) {
+        if (is_underscore_name(l)) {
+            lexer_fetch(l);
+        }
         while (l->tok == TK_COMMA) {
             e = make_conn_expr(ctx, l, TK_COMMA, e, NULL);
             lexer_fetch(l);
+            if (is_underscore_name(l)) {
+                lexer_fetch(l);
+            }
         }
         if (l->tok == TK_RLBR || l->tok == TK_EOF) {
             e = make_conn_expr(ctx, l, TK_COMMA, e, NULL);
@@ -1040,6 +1072,16 @@ static kl_expr *parse_expr_factor(kl_context *ctx, kl_lexer *l)
         }
         e = parse_block_function(ctx, l, 0);
         break;
+    case TK_XOR:
+        lexer_fetch(l);
+        if (l->tok != TK_NAME) {
+            parse_error(ctx, __LINE__, l, "The pin operator should be attached to the variable");
+            return e;
+        }
+        e = parse_expr_varname(ctx, l, l->str, ctx->in_lvalue);
+        e->sym->is_pinvar = 1;
+        lexer_fetch(l);
+        break;
     case TK_NAME:
         e = parse_expr_varname(ctx, l, l->str, ctx->in_lvalue);
         lexer_fetch(l);
@@ -1153,6 +1195,9 @@ static kl_expr *parse_expr_postfix(kl_context *ctx, kl_lexer *l, int is_new)
             }
             tok = l->tok;
         } else if (tok == TK_LXBR) {
+            if (ctx->in_casewhen) {
+                break;
+            }
             kl_symbol *sym = lhs->sym;
             tk_typeid tid = sym ? sym->rettype : lhs->typeid;
             if (is_new) {
@@ -1191,7 +1236,7 @@ static kl_expr *parse_expr_postfix(kl_context *ctx, kl_lexer *l, int is_new)
             tok = l->tok;
         } else if (tok == TK_DOT2 || tok == TK_DOT3) {
             lexer_fetch(l);
-            kl_expr *rhs = parse_expr_assignment(ctx, l);
+            kl_expr *rhs = parse_expr_factor(ctx, l);
             lhs = make_bin_expr(ctx, l, tok == TK_DOT2 ? TK_RANGE2 : TK_RANGE3, lhs, rhs);
             tok = l->tok;
         }
@@ -1499,11 +1544,67 @@ static void set_constant_value(kl_context *ctx, kl_lexer *l, kl_expr *lhs, kl_ex
     }
 }
 
+static kl_expr *parse_case_when_condition(kl_context *ctx, kl_lexer *l)
+{
+    int in_casewhen = ctx->in_casewhen;
+    ctx->in_casewhen = 1;
+    kl_expr *lhs = parse_expr_prefix(ctx, l);
+    while (l->tok == TK_OR) {
+        lexer_fetch(l);
+        kl_expr *rhs = parse_expr_prefix(ctx, l);
+        lhs = make_bin_expr(ctx, l, TK_OR, lhs, rhs);
+    }
+    check_assigned(ctx, l, lhs);
+    ctx->in_casewhen = in_casewhen;
+    if (l->tok == TK_IF) {
+        kl_stmt *m = parse_if_modifier(ctx, l);
+        lhs->s = m;
+    }
+    return lhs;
+}
+
+static kl_expr *parse_case_when_expr(kl_context *ctx, kl_lexer *l, kl_expr *cexpr)
+{
+    kl_expr *lhs = NULL;
+    while (l->tok == TK_WHEN || l->tok == TK_OTHERWISE) {
+        tk_token tok = l->tok;
+        lexer_fetch(l);
+        kl_expr *rhs = NULL;
+        if (tok == TK_WHEN) {
+            rhs = make_expr(ctx, l, TK_WHEN);
+            rhs->lhs = parse_case_when_condition(ctx, l);
+        } else {
+            rhs = make_expr(ctx, l, TK_OTHERWISE);
+        }
+        if (l->tok == TK_COLON) {
+            lexer_fetch(l); /* Skip it. */
+        }
+        if (l->tok == TK_LXBR) {
+            lexer_fetch(l);
+            kl_expr *f = parse_block_function(ctx, l, 1);
+            rhs->rhs = make_bin_expr(ctx, l, TK_CALL, f, NULL);
+        } else {
+            rhs->rhs = parse_expression(ctx, l);
+        }
+        lhs = make_bin_expr(ctx, l, TK_COMMA, lhs, rhs);
+    }
+
+    kl_expr *e = make_expr(ctx, l, TK_CASE);
+    e->lhs = cexpr;
+    e->rhs = lhs;
+    return e;
+}
+
 static kl_expr *parse_expr_assignment(kl_context *ctx, kl_lexer *l)
 {
     DEBUG_PARSER_PHASE();
     if (l->tok == TK_YIELD) {
         return parse_expr_yield(ctx, l, NULL);
+    }
+    if (l->tok == TK_CASE) {
+        lexer_fetch(l);
+        kl_expr *e = parse_expression(ctx, l);
+        return parse_case_when_expr(ctx, l, e);
     }
     kl_expr *lhs = parse_expr_ternary(ctx, l);
     tk_token tok = l->tok;
@@ -1765,15 +1866,25 @@ static void add_case(kl_stmt *sw, kl_stmt *cs)
     sw->ncase = cs;
 }
 
+
 static kl_stmt *parse_case_when(kl_context *ctx, kl_lexer *l, tk_token tok)
 {
+    kl_expr *e = parse_expression(ctx, l);
+    if (tok == TK_CASE && l->tok == TK_WHEN) {
+        /* case-when expression */
+        kl_stmt *s = make_stmt(ctx, l, TK_EXPR);
+        e = parse_case_when_expr(ctx, l, e);
+        s->e1 = e;
+        return s;
+    }
+
     kl_stmt *s = make_stmt(ctx, l, tok);
     if (!ctx->switchstmt) {
         parse_error(ctx, __LINE__, l, "No switch for case statement");
         return s;
     }
     add_case(ctx->switchstmt, s);
-    s->e1 = parse_expression(ctx, l);
+    s->e1 = e;
     if (l->tok != TK_COLON) {
         parse_error(ctx, __LINE__, l, "Invalid case label");
         return panic_mode_exprstmt(s, ';', ctx, l);

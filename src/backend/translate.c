@@ -1263,38 +1263,51 @@ static void translate_range(func_context *fctx, xstr *code, kl_kir_inst *i, int 
     }
 }
 
-static void translate_chkmatch(func_context *fctx, xstr *code, kl_kir_inst *i)
+static void translate_chkmatch(func_context *fctx, xstr *code, kl_kir_inst *i, int isx)
 {
+    int labelid = isx ? i->labelid : i->catchid;
     char buf1[256] = {0};
     var_value(buf1, &(i->r1));
     switch (i->r2.t) {
     case TK_VBOOL:
-        xstra_inst(code, "CHKMATCH_BOOL(%s, %" PRId64 ", L%d, \"%s\", \"%s\", %d);\n",
-            buf1, i->r2.i64, i->catchid, i->funcname, escape(&(fctx->str), i->filename), i->line);
+        xstra_inst(code, "CHKMATCH%s_BOOL(%s, %" PRId64 ", L%d, \"%s\", \"%s\", %d);\n", (isx ? "X" : ""),
+            buf1, i->r2.i64, labelid, i->funcname, escape(&(fctx->str), i->filename), i->line);
         break;
     case TK_VSINT:
-        xstra_inst(code, "CHKMATCH_I64(%s, %" PRId64 ", L%d, \"%s\", \"%s\", %d);\n",
-            buf1, i->r2.i64, i->catchid, i->funcname, escape(&(fctx->str), i->filename), i->line);
+        xstra_inst(code, "CHKMATCH%s_I64(%s, %" PRId64 ", L%d, \"%s\", \"%s\", %d);\n", (isx ? "X" : ""),
+            buf1, i->r2.i64, labelid, i->funcname, escape(&(fctx->str), i->filename), i->line);
         break;
     case TK_VDBL:
-        xstra_inst(code, "CHKMATCH_DBL(%s, %s, L%d, \"%s\", \"%s\", %d);\n",
-            buf1, i->r2.dbl, i->catchid, i->funcname, escape(&(fctx->str), i->filename), i->line);
+        xstra_inst(code, "CHKMATCH%s_DBL(%s, %s, L%d, \"%s\", \"%s\", %d);\n", (isx ? "X" : ""),
+            buf1, i->r2.dbl, labelid, i->funcname, escape(&(fctx->str), i->filename), i->line);
         break;
     case TK_VSTR:
-        xstra_inst(code, "CHKMATCH_STR(%s, \"%s\", L%d, \"%s\", \"%s\", %d);\n",
-            buf1, escape(&(fctx->str), i->r2.str), i->catchid, i->funcname, escape(&(fctx->str), i->filename), i->line);
+        xstra_inst(code, "CHKMATCH%s_STR(%s, \"%s\", L%d, \"%s\", \"", (isx ? "X" : ""),
+            buf1, escape(&(fctx->str), i->r2.str), labelid, i->funcname);
+        escape_out(code, i->filename);
+        xstraf(code, "\", %d);\n", escape(&(fctx->str), i->filename), i->line);
+        break;
+    case TK_VAR: {
+        char buf2[256] = {0};
+        var_value(buf2, &(i->r2));
+        xstra_inst(code, "CHKMATCH%s(%s, %s, L%d, \"%s\", \"%s\", %d);\n", (isx ? "X" : ""),
+            buf1, buf2, labelid, i->funcname, escape(&(fctx->str), i->filename), i->line);
+        break;
+    }
+    default:
         break;
     }
 }
 
-static void translate_chkrange(func_context *fctx, xstr *code, kl_kir_inst *i)
+static void translate_chkrange(func_context *fctx, xstr *code, kl_kir_inst *i, int isx)
 {
+    int labelid = isx ? i->labelid : i->catchid;
     char buf1[256] = {0};
     char buf2[256] = {0};
     var_value(buf1, &(i->r1));
     var_value(buf2, &(i->r2));
-    xstra_inst(code, "CHECK_RANGE(ctx, %s, %s, L%d, \"%s\", \"%s\", %d);\n",
-        buf1, buf2, i->catchid, i->funcname, escape(&(fctx->str), i->filename), i->line);
+    xstra_inst(code, "CHECK_RANGE%s(ctx, %s, %s, L%d, \"%s\", \"%s\", %d);\n", (isx ? "X" : ""),
+        buf1, buf2, labelid, i->funcname, escape(&(fctx->str), i->filename), i->line);
 }
 
 static void set_last_args(xstr *code, kl_kir_func *f, int idx, int total)
@@ -1589,6 +1602,9 @@ static void translate_inst(xstr *code, kl_kir_func *f, kl_kir_inst *i, func_cont
     case KIR_THROW:
         xstra_inst(code, "RETHROW(ctx, L%d, \"%s\", \"%s\", %d);\n", i->labelid, i->funcname, escape(&(fctx->str), i->filename), i->line);
         break;
+    case KIR_THROWX:
+        xstra_inst(code, "THROW_STANDARD(ctx, %s, L%d, \"%s\", \"%s\", %d);\n", i->r1.str, i->labelid, i->funcname, escape(&(fctx->str), i->filename), i->line);
+        break;
     case KIR_CATCH:
         xstra_inst(code, "CATCH_EXCEPTION(ctx, %s);\n", var_value(buf1, &(i->r1)));
         break;
@@ -1750,10 +1766,16 @@ static void translate_inst(xstr *code, kl_kir_func *f, kl_kir_inst *i, func_cont
         xstra_inst(code, "hashmap_remove(ctx, (%s)->o, \"%s\");\n", var_value(buf1, &(i->r1)), escape(&(fctx->str), i->r2.str));
         break;
     case KIR_CHKMATCH:
-        translate_chkmatch(fctx, code, i);
+        translate_chkmatch(fctx, code, i, 0);
         break;
     case KIR_CHKRANGE:
-        translate_chkrange(fctx, code, i);
+        translate_chkrange(fctx, code, i, 0);
+        break;
+    case KIR_CHKMATCHX:
+        translate_chkmatch(fctx, code, i, 1);
+        break;
+    case KIR_CHKRANGEX:
+        translate_chkrange(fctx, code, i, 1);
         break;
 
     case KIR_TYPE:
