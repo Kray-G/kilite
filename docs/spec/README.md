@@ -116,8 +116,8 @@ but the description is included in this section because its feature is near a li
 
 #### Functions
 
-*   [eval()](NO_DOC/lib/function/eval.md)) *not documented yet*
-*   [DefineException()](NO_DOC/lib/function/define_exception.md)) *not documented yet*
+*   [eval()](NO_DOC/lib/function/eval.md) *not documented yet*
+*   [DefineException()](NO_DOC/lib/function/define_exception.md) *not documented yet*
 
 #### Standard Objects
 
@@ -129,26 +129,26 @@ Basic objects are the list of components usually used in many products.
 The functionality is very simple but powerful, so a lot of developpers will use those naturally.
 
 *   [System](lib/basic/system.md)
-*   [Getopt](NO_DOC/lib/basic/getopt.md)) *not documented yet*
-*   [Iconv](NO_DOC/lib/basic/iconv.md)) *not documented yet*
-*   [Colorize](NO_DOC/lib/basic/colorize.md)) *not documented yet*
-*   [Math](NO_DOC/lib/basic/imath.md)) *not documented yet*
-*   [File](NO_DOC/lib/basic/file.md)) *not documented yet*
-*   [Directory](NO_DOC/lib/basic/directory.md)) *not documented yet*
+*   [Getopt](NO_DOC/lib/basic/getopt.md) *not documented yet*
+*   [Iconv](NO_DOC/lib/basic/iconv.md) *not documented yet*
+*   [Colorize](NO_DOC/lib/basic/colorize.md) *not documented yet*
+*   [Math](NO_DOC/lib/basic/imath.md) *not documented yet*
+*   [File](NO_DOC/lib/basic/file.md) *not documented yet*
+*   [Directory](NO_DOC/lib/basic/directory.md) *not documented yet*
 *   [Regex](lib/basic/regex.md)
-*   [Enumerable](NO_DOC/lib/basic/enumerable.md)) *not documented yet*
-*   [Functional](NO_DOC/lib/basic/functional.md)) *not documented yet*
-*   [Range](NO_DOC/lib/basic/range.md)) *not documented yet*
-*   [DateTime](NO_DOC/lib/basic/datetime.md)) *not documented yet*
-*   [Process](NO_DOC/lib/basic/process.md)) *not documented yet*
-*   [JSON](NO_DOC/lib/basic/json.md)) *not documented yet*
-*   [CSV/TSV](NO_DOC/lib/basic/csv_tsv.md)) *not documented yet*
+*   [Enumerable](NO_DOC/lib/basic/enumerable.md) *not documented yet*
+*   [Functional](NO_DOC/lib/basic/functional.md) *not documented yet*
+*   [Range](NO_DOC/lib/basic/range.md) *not documented yet*
+*   [DateTime](NO_DOC/lib/basic/datetime.md) *not documented yet*
+*   [Process](NO_DOC/lib/basic/process.md) *not documented yet*
+*   [JSON](NO_DOC/lib/basic/json.md) *not documented yet*
+*   [CSV/TSV](NO_DOC/lib/basic/csv_tsv.md) *not documented yet*
 *   [Xml](lib/basic/xml.md)
-*   [Zip](NO_DOC/lib/basic/zip.md)) *not documented yet*
-*   [SQLite](NO_DOC/lib/basic/sqlite.md)) *not documented yet*
-*   [JIT](NO_DOC/lib/basic/jit.md)) *not documented yet*
-*   [Parsek](NO_DOC/lib/basic/parsek.md)) *not documented yet*
-*   [Clipboard](NO_DOC/lib/basic/clipboard.md)) *not documented yet*
+*   [Zip](NO_DOC/lib/basic/zip.md) *not documented yet*
+*   [SQLite](NO_DOC/lib/basic/sqlite.md) *not documented yet*
+*   [JIT](NO_DOC/lib/basic/jit.md) *not documented yet*
+*   [Parsek](NO_DOC/lib/basic/parsek.md) *not documented yet*
+*   [Clipboard](NO_DOC/lib/basic/clipboard.md) *not documented yet*
 *   [SemanticVersion](NO_DOC/lib/basic/semanticver.md) - V1.1.0) *not documented yet*
 
 ##### Network Objects
@@ -156,8 +156,8 @@ The functionality is very simple but powerful, so a lot of developpers will use 
 Network library is now very few, but it will be increased in future
 because now the networking library is needed by many developpers.
 
-*   [Http](NO_DOC/lib/net/http.md)) *not documented yet*
-*   [SSH](NO_DOC/lib/net/ssh.md)) *not documented yet*
+*   [Http](NO_DOC/lib/net/http.md) *not documented yet*
+*   [SSH](NO_DOC/lib/net/ssh.md) *not documented yet*
 
 I provide Http library only, but it is based on libcurl.
 Therefore adding a library based on the same technology must be easy.
@@ -167,18 +167,18 @@ Note that the above documents do not have any test code because it is hard to te
 
 ##### Exception Objects
 
-*   [Exception](NO_DOC/lib/primitive/exception.md)) *not documented yet*
+*   [Exception](NO_DOC/lib/primitive/exception.md) *not documented yet*
 
 #### Algorithm and Data Structure
 
 Algorithm and Data structure examples are being described in the page below.
 
-*   [Algorithm](NO_DOC/algorithm/README.md)) *not documented yet*
+*   [Algorithm](NO_DOC/algorithm/README.md) *not documented yet*
 
 ### Others
 
 Some special specifications.
 
-*   [Real Numbers](NO_DOC/others/realnumber.md)) *not documented yet*
-*   [String#next](NO_DOC/others/string_next.md)) *not documented yet*
+*   [Real Numbers](NO_DOC/others/realnumber.md) *not documented yet*
+*   [String#next](NO_DOC/others/string_next.md) *not documented yet*
 *   [String#isIntegerString](NO_DOC/others/string_isIntegerString.md) - V1.1.0) *not documented yet*
