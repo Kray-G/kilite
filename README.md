@@ -267,7 +267,11 @@ I will note the followings as I don't forget it.
   * [ ] `__END__`.
   * [x] Raw String Text.
     * [x] `%{ ... }`
-  * [ ] `System.try`
+  * [x] System
+    * [x] `System.sleep`
+    * [x] `System.try`
+    * [x] `System.halt`
+    * [x] `System.abort`
   * [x] Split operators.
     * [x] For Binary
     * [x] For Array
@@ -285,9 +289,11 @@ I will note the followings as I don't forget it.
     * [ ] Xml
       * [x] Simple XML Parser & Simple DOM operation.
       * [ ] Node creation.
-      * [ ] XmlWriter.
+      * [x] XmlWriter.
       * [x] Node insertion, deletion, or modification to DOM.
       * [x] XPath
+    * [ ] JSON
+      * [ ] `JSON.parse()`
     * [ ] PDF
       * [ ] harupdf
 * [ ] Type system.
