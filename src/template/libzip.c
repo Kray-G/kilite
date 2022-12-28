@@ -439,6 +439,7 @@ int File(vmctx *ctx, vmfrm *lex, vmvar *r, int ac)
 
     KL_SET_METHOD(o, rename, File_rename, lex, 0)
     KL_SET_METHOD(o, unlink, File_unlink, lex, 0)
+    KL_SET_METHOD(o, remove, File_unlink, lex, 0)
     KL_SET_METHOD(o, exists, File_file_exists, lex, 0)
     KL_SET_METHOD(o, filesize, File_get_file_size, lex, 0)
     KL_SET_METHOD(o, filedate, File_get_file_date, lex, 0)
