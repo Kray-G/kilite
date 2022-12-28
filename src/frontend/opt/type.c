@@ -34,11 +34,18 @@ static void type_expr(kl_context *ctx, type_context *tc, kl_expr *e)
         }
     }
     if (e->sym) {
-        if (e->sym->ref) {
-            e->sym->typeid = e->sym->ref->typeid;
-            e->sym->prototype = e->sym->ref->prototype;
+        kl_symbol *ref = e->sym->ref;
+        if (ref && ref->has_i64) {
+            e->nodetype = TK_VSINT;
+            e->typeid = TK_TSINT64;
+            e->val.i64 = ref->i64;
+        } else {
+            if (ref) {
+                e->sym->typeid = ref->typeid;
+                e->sym->prototype = ref->prototype;
+            }
+            e->typeid = e->sym->typeid;
         }
-        e->typeid = e->sym->typeid;
     }
 }
 
@@ -85,71 +92,17 @@ static int check_pure(tk_token tk)
     switch (tk) {
     // Literals
     case TK_VSINT: /* 1 */
-        pure = 1;
-        break;
-    case TK_VBIGINT: /* 0 */
-    case TK_VDBL: /* 0 */
-    case TK_VSTR: /* 0 */
-    case TK_VBIN: /* 0 */
-    case TK_VARY: /* 0 */
-    case TK_VOBJ: /* 0 */
-    case TK_VKV: /* 0 */
-    case TK_VREGEX: /* 0 */
-        pure = 0;
-        break;
-
     // Keywords
     case TK_CONST: /* 1 */
     case TK_LET: /* 1 */
-        pure = 1;
-        break;
-    case TK_NEW: /* 0 */
-    case TK_IMPORT: /* 0 */
-    case TK_NAMESPACE: /* 0 */
-    case TK_MODULE: /* 0 */
-    case TK_CLASS: /* 0 */
-    case TK_PRIVATE: /* 0 */
-    case TK_PROTECTED: /* 0 */
-    case TK_PUBLIC: /* 0 */
-    case TK_MIXIN: /* 0 */
-    case TK_FUNC: /* 0 */
-    case TK_NATIVE: /* 0 */
-        pure = 0;
-        break;
     case TK_IF: /* 1 */
     case TK_ELSE: /* 1 */
     case TK_DO: /* 1 */
     case TK_WHILE: /* 1 */
     case TK_FOR: /* 1 */
-        pure = 1;
-        break;
-    case TK_IN: /* 0 */
-    case TK_FORIN: /* 0 */
-        pure = 0;
-        break;
     case TK_RETURN: /* 1 */
-        pure = 1;
-        break;
-    case TK_SWITCH: /* 0 */
-    case TK_CASE: /* 0 */
-    case TK_DEFAULT: /* 0 */
-    case TK_WHEN: /* 0 */
-        pure = 0;
-        break;
     case TK_BREAK: /* 1 */
     case TK_CONTINUE: /* 1 */
-        pure = 1;
-        break;
-    case TK_OTHERWISE: /* 0 */
-    case TK_FALLTHROUGH: /* 0 */
-    case TK_YIELD: /* 0 */
-    case TK_TRY: /* 0 */
-    case TK_CATCH: /* 0 */
-    case TK_FINALLY: /* 0 */
-    case TK_THROW: /* 0 */
-        pure = 0;
-        break;
-
     // Operators
         // Unary operators
     case TK_BNOT: /* 1 */
@@ -169,13 +122,7 @@ static int check_pure(tk_token tk)
     case TK_RSHEQ: /* 1 */
     case TK_LANDEQ: /* 1 */
     case TK_LOREQ: /* 1 */
-        pure = 1;
-        break;
         // Comparison
-    case TK_REGEQ: /* 0 */
-    case TK_REGNE: /* 0 */
-        pure = 0;
-        break;
     case TK_EQEQ: /* 1 */
     case TK_NEQ: /* 1 */
     case TK_LT: /* 1 */
@@ -187,11 +134,6 @@ static int check_pure(tk_token tk)
     case TK_ADD: /* 1 */
     case TK_SUB: /* 1 */
     case TK_MUL: /* 1 */
-        pure = 1;
-        break;
-    case TK_DIV: /* 0 */
-        pure = 0;
-        break;
     case TK_MOD: /* 1 */
     case TK_AND: /* 1 */
     case TK_OR: /* 1 */
@@ -206,35 +148,8 @@ static int check_pure(tk_token tk)
     case TK_INCP: /* 1 */
     case TK_DEC: /* 1 */
     case TK_DECP: /* 1 */
-        pure = 1;
-        break;
-
     // Punctuations
     case TK_COMMA: /* 1 */
-        pure = 1;
-        break;
-    case TK_COLON: /* 0 */
-    case TK_SEMICOLON: /* 0 */
-    case TK_DOT: /* 0 */
-    case TK_DOT2: /* 0 */
-    case TK_DOT3: /* 0 */
-    case TK_LSBR: /* 0 */
-    case TK_RSBR: /* 0 */
-    case TK_LLBR: /* 0 */
-    case TK_RLBR: /* 0 */
-    case TK_LXBR: /* 0 */
-    case TK_RXBR: /* 0 */
-        pure = 0;
-        break;
-
-    // Others
-    case TK_ARROW: /* 0 */
-    case TK_DARROW: /* 0 */
-    case TK_TYPEID: /* 0 */
-    case TK_NAME: /* 0 */
-        pure = 0;
-        break;
-
     // For extra keywords in parsing.
     case TK_BLOCK: /* 1 */
     case TK_CONNECT: /* 1 */
@@ -244,13 +159,7 @@ static int check_pure(tk_token tk)
     case TK_CALL: /* 1 */
         pure = 1;
         break;
-    case TK_IDX: /* 0 */
-    case TK_TYPENODE: /* 0 */
-    case TK_MKSUPER: /* 0 */
-    case TK_BINEND: /* 0 */
-    case TK_COMMENT1: /* 0 */
-    case TK_COMMENTX: /* 0 */
-        pure = 0;
+    default:
         break;
     }
 

@@ -320,6 +320,19 @@ static inline kl_symbol *search_symbol_in_scope(kl_context *ctx, kl_lexer *l, kl
     return NULL;
 }
 
+static inline kl_symbol *search_symbol(kl_context *ctx, kl_lexer *l, const char *name)
+{
+    kl_nsstack *ns = ctx->ns;
+    while (ns) {
+        kl_symbol *ref = search_symbol_in_scope(ctx, l, ns, name);
+        if (ref) {
+            return ref;
+        }
+        ns = ns->prev;
+    }
+    return NULL;
+}
+
 static inline kl_symbol *make_ref_symbol(kl_context *ctx, kl_lexer *l, tk_token tk, const char *name)
 {
     int level = 0;
@@ -659,7 +672,7 @@ static void check_assigned(kl_context *ctx, kl_lexer *l, kl_expr *lhs)
         kl_symbol *v = lhs->sym->ref ? lhs->sym->ref : lhs->sym;
         v->is_autoset = 0;    /* clear this flag when it's lvalue. */
         v->assigned++;
-        if (v->is_const && v->assigned > 1) {
+        if (v->is_const && (v->assigned > 1 || v->has_i64)) {
             parse_error(ctx, __LINE__, l, "Can not assign a value to the 'const' variable");
         }
     } else if (lhs->nodetype == TK_DOT) {
@@ -737,7 +750,6 @@ static kl_expr *parse_expr_varname(kl_context *ctx, kl_lexer *l, const char *nam
         name = parse_const_str(ctx, l, buf);
     }
 
-    kl_expr *e = make_expr(ctx, l, TK_VAR);
     kl_symbol *sym;
     if (decltype) {
         sym = set_placeholder(ctx, l, name);
@@ -757,6 +769,8 @@ static kl_expr *parse_expr_varname(kl_context *ctx, kl_lexer *l, const char *nam
         }
     }
     sym->name = parse_const_str(ctx, l, name);
+
+    kl_expr *e = make_expr(ctx, l, TK_VAR);
     e->sym = sym;
     e->typeid = sym->typeid;
     e->prototype = sym->prototype;
@@ -1643,8 +1657,8 @@ static void set_constant_value(kl_context *ctx, kl_lexer *l, kl_expr *lhs, kl_ex
             ls->has_i64 = 1;
             ls->i64 = rhs->val.i64;
         } else if (rhs->nodetype == TK_VAR && rhs->sym) {
-            kl_symbol *chk = search_symbol_in_scope(ctx, l, ctx->ns, rhs->sym->name);
-            if (chk) {
+            kl_symbol *chk = search_symbol(ctx, l, rhs->sym->name);
+            if (chk && chk->has_i64) {
                 ls->has_i64 = 1;
                 ls->i64 = chk->i64;
             }
@@ -2250,6 +2264,7 @@ static kl_expr *parse_decl_expr(kl_context *ctx, kl_lexer *l, int decltype)
             if (lhs->sym && lhs->sym->typeid == TK_TANY) {
                 lhs->sym->typeid = rhs->typeid;
             }
+            set_constant_value(ctx, l, lhs, rhs);
             lhs = make_bin_expr(ctx, l, TK_EQ, lhs, rhs);
         }
 
@@ -2309,7 +2324,7 @@ static kl_stmt *parse_enum(kl_context *ctx, kl_lexer *l)
             } else if (rhs->nodetype == TK_VAR) {
                 kl_symbol *rs = rhs->sym;
                 if (rs) {
-                    kl_symbol *chk = search_symbol_in_scope(ctx, l, ctx->ns, rs->name);
+                    kl_symbol *chk = search_symbol(ctx, l, rs->name);
                     if (chk && chk->has_i64) {
                         val = make_i64_expr(ctx, l, chk->i64);
                         sym->has_i64 = 1;
