@@ -216,7 +216,7 @@ I will note the followings as I don't forget it.
         * [x] Range for string.
         * [ ] Range for others.
       * [ ] Range index for String, Binary, Array, and Range.
-      * [ ] Range at the case value.
+      * [ ] Range in the case condition.
       * [x] Range in `for-in`.
     * [x] Support a `switch-case` statement.
     * [x] Support the loop like `for`, `while`, and `do-while`.
@@ -238,8 +238,11 @@ I will note the followings as I don't forget it.
     * [x] Module definition.
     * [x] The `mixin` statement.
     * [x] `@` is the same as the shorten word of `this.`.
-  * [x] enum
+  * [x] enum/constant variable
     * [ ] Value propagation from constant value.
+      * [x] Integer
+      * [ ] Double
+      * [ ] String
   * [x] Exception.
     * [x] throwing an exception.
     * [x] Stack trace.
@@ -252,7 +255,7 @@ I will note the followings as I don't forget it.
     * [x] String
     * [ ] Binary
     * [x] Array/Object
-  * [ ] Regular expression.
+  * [x] Regular expression.
     * [x] The regex literal of `/.../`
     * [x] Operator `=~` and `!~`.
 * [ ] Notes for a special specifications of the language.
@@ -272,6 +275,7 @@ I will note the followings as I don't forget it.
     * [x] `System.try`
     * [x] `System.halt`
     * [x] `System.abort`
+  * [ ] Datetime class.
   * [x] Split operators.
     * [x] For Binary
     * [x] For Array
