@@ -1,6 +1,6 @@
 [submodule "mir"]
 	path = submodules/mir
-	url = https://github.com/vnmakarov/mir.git
+	url = https://github.com/Kray-G/mir.git
 [submodule "submodules/minizip-ng"]
 	path = submodules/minizip-ng
 	url = https://github.com/Kray-G/minizip-ng.git
