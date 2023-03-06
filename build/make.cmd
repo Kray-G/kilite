@@ -74,6 +74,7 @@ echo #line 1 "lib.h" >> %TEMPF%
 type ..\src\template\lib.h >> %TEMPF%
 copy /y "%TEMPF%" "..\src\template\inc\lib\kilite.h" 
 
+echo #line 1 "bign.c" >> %TEMPF%
 type ..\src\template\lib\bign.c >> %TEMPF%
 type ..\src\template\lib\bigz.c >> %TEMPF%
 echo #ifdef __MIRC__ >> %TEMPF%
@@ -143,6 +144,7 @@ goto MKLIB
 :ERROR
 popd
 endlocal
+echo Some errors.
 exit /b 0
 
 :MKLIB
